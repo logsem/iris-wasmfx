@@ -1,0 +1,7 @@
+
+(coq.theory
+  (name Wasm.iris.helpers)
+   (package Wasm)
+  (flags -w -ambiguous-paths -w -notation-overridden -w -abstract-large-number -w -extraction-reserved-identifier)
+  (theories Wasm Wasm.iris.language.iris Wasm.iris.helpers.reduce_det Wasm.iris.helpers.prelude)
+)
