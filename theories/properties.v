@@ -1520,17 +1520,12 @@ Proof.
     + by apply ety_a' => //.
     + by apply ety_local.
   - (* Reference *)
-    exists [::], [::], [::T_ref (T_funcref tf)], [::].
+    exists [::], [::], [::T_ref (T_funcref (cl_type cl))], [::].
     repeat split => //.
     + apply ety_a' => //.
-    + econstructor => //. exact H. exact H0.
+    + econstructor => //. exact H. (* exact H0. *)
   - (* Continuation *)
-     exists [::], [::], [::T_ref (T_contref (Tf t1s t2s))], [::].
-    repeat split => //.
-    + apply ety_a' => //.
-    + econstructor => //. exact H.
-  - (* Continuation dagger *)
-    exists [::], [::], [::T_ref T_corruptref], [::].
+     exists [::], [::], [::T_ref (T_contref (typeof_cont cont))], [::].
     repeat split => //.
     + apply ety_a' => //.
     + econstructor => //. 
@@ -1764,14 +1759,27 @@ Proof.
   - intros. apply: lfilled_not_nil. exact H1. exact H0. 
 Qed.
 
-(* Lemma typeof_extension: forall s s' v,
+
+ Lemma typeof_extension: forall s s' v,
     store_extension s s' ->
-    typeof s v = typeof s' v.
+    typeof s v = typeof s' v \/ typeof s v = None /\ exists tf, typeof s' v = Some (T_ref (T_contref tf)).
 Proof.
   intros s s' v HSF. unfold store_extension in HSF. remove_bools_options.
-  induction v => //=.
-  induction v => //=.
-  by rewrite H.
-  by rewrite H3.
+  induction v => //=; try by left.
+  induction v => //=; try by left.
+  left; by rewrite H.
+  remember (s_conts s) as l. remember (s_conts s') as l'.
+  clear - H3.
+  generalize dependent l'. generalize dependent f.
+  induction l; intros f l' Hextension.
+  - destruct (List.nth_error l' f).
+    + right. split; first by destruct f.
+      exists (typeof_cont c). done.
+    + left. by destruct f.
+  - destruct l' => //. simpl in Hextension.
+    remove_bools_options.
+    destruct f => //=.
+    + move/eqP in H. rewrite H. by left.
+    + apply IHl. done.
 Qed. 
-*)
+

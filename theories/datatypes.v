@@ -90,13 +90,13 @@ Inductive number_type : Type := (* nt *)
   Inductive reference_type : Type :=
   | T_funcref : function_type -> reference_type
   | T_contref : function_type -> reference_type
-  | T_corruptref : reference_type
+(*  | T_corruptref : reference_type *)
  
 
   with value_type : Type := (* t *)
   | T_num : number_type -> value_type
   | T_ref : reference_type -> value_type
-  | T_bot : value_type
+(*  | T_bot : value_type *)
 
 
 (** std-doc:
@@ -348,6 +348,7 @@ Inductive basic_instruction : Type := (* be *)
 | BI_cvtop : number_type -> cvtop -> number_type -> option sx -> basic_instruction
     (* Wasm 2.0 instructions necessary to accomodate WasmFX *)
 | BI_ref_null : reference_type -> basic_instruction
+(* | BI_cont_null : function_type -> basic_instruction *)
 | BI_ref_is_null
 | BI_ref_func : immediate -> basic_instruction
 | BI_call_reference : immediate -> basic_instruction
@@ -378,6 +379,7 @@ Definition globaladdr := immediate.
 
 Inductive value_ref : Set :=
 | VAL_ref_null : reference_type -> value_ref
+(*| VAL_cont_null : function_type -> value_ref *)
 | VAL_ref_func : funcaddr -> value_ref
 | VAL_ref_cont : funcaddr -> value_ref
 (* | VAL_ref_extern : externaddr -> value_ref *) 
@@ -499,6 +501,7 @@ Definition AI_const v :=
   | VAL_ref r =>
       match r with
       | VAL_ref_null t => AI_basic (BI_ref_null t)
+(*      | VAL_cont_null t => AI_basic (BI_cont_null t) *)
       | VAL_ref_func x => AI_ref x
       | VAL_ref_cont x => AI_ref_cont x
       end
@@ -524,7 +527,7 @@ Inductive hholed : Type := (* Handler context *)
 
 Inductive continuation : Type :=
 | Cont_hh : function_type -> hholed -> continuation
-| Cont_dagger : continuation
+| Cont_dagger : function_type -> continuation
 .
 
 

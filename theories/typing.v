@@ -36,8 +36,9 @@ Definition plop2 C i ts :=
   List.nth_error (tc_label C) i == Some ts.
 
 Inductive result_typing : store_record -> result -> list value_type -> Prop :=
-  | result_typing_values : forall vs C, result_typing C (result_values vs) (map (typeof C) vs)
-  | result_typing_trap : forall ts C, result_typing C result_trap ts
+| result_typing_values : forall vs C ts, map (typeof C) vs = map Some ts ->
+                                    result_typing C (result_values vs) ts
+| result_typing_trap : forall ts C, result_typing C result_trap ts
   .
 
 Inductive unop_type_agree: number_type -> unop -> Prop :=
@@ -88,6 +89,7 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
 | bet_select : forall C t, be_typing C [::BI_select] (Tf [::t; t; T_num T_i32] [::t])
 
 | bet_ref_null: forall C t, be_typing C [::BI_ref_null t] (Tf [::] [::T_ref t])
+(* | bet_cont_null: forall C t, be_typing C [::BI_cont_null t] (Tf [::] [::T_ref (T_contref t)]) *)
 | bet_ref_is_null: forall C t, be_typing C [::BI_ref_is_null] (Tf [::T_ref t] [::T_num T_i32])
 | bet_ref_func: forall C t x,
     x < length (tc_func_t C) ->
@@ -298,7 +300,10 @@ Definition upd_local_label_return C loc lab ret :=
  **)
 
 Definition global_agree C (g : global) (tg : global_type) : bool :=
-  (tg_mut tg == g_mut g) && (tg_t tg == typeof C (g_val g)).
+  (tg_mut tg == g_mut g) && (Some (tg_t tg) == typeof C (g_val g)). 
+
+
+(* || ((typeof C (g_val g) == T_ref T_corruptref) && (match tg_t tg with | T_ref _ => true | _ => false end))). (* references are allowed to be corrupt *) *)
 
 Definition globals_agree C (gs : seq global) (n : nat) (tg : global_type) : bool :=
   (n < length gs) && (option_map (fun g => global_agree C g tg) (List.nth_error gs n) == Some true).
@@ -343,7 +348,7 @@ Inductive frame_typing: store_record -> frame -> t_context -> Prop :=
 | mk_frame_typing: forall s i tvs C f,
     inst_typing s i C ->
     f.(f_inst) = i ->
-    map (typeof s) f.(f_locs) = tvs ->
+    map (typeof s) f.(f_locs) = map Some tvs ->
     frame_typing s f (upd_local C (tc_local C ++ tvs))
   .
 
@@ -402,19 +407,14 @@ Inductive e_typing : store_record -> t_context -> seq administrative_instruction
   s_typing s (Some ts) f es ts ->
   length ts = n ->
   e_typing s C [::AI_local n f es] (Tf [::] ts)
-(* | ety_ref_extern : forall s C a,
-  e_typing s C [::AI_ref_extern a] (Tf [::] [::T_ref T_externref]) *)
 | ety_ref : forall s C a tf cl,
     List.nth_error s.(s_funcs) a = Some cl ->
-    cl_typing s cl tf ->
+    cl_type cl = tf -> (* trying cl_type instead of cl_typing *)
     e_typing s C [::AI_ref a] (Tf [::] [::T_ref (T_funcref tf)])
 
-| ety_ref_cont : forall s C k t1s t2s hh,
-    List.nth_error s.(s_conts) k = Some (Cont_hh (Tf t1s t2s) hh) ->
-    e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref (T_contref (Tf t1s t2s))])
-| ety_ref_cont_dagger : forall s C k,
-    List.nth_error s.(s_conts) k = Some Cont_dagger ->
-    e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref T_corruptref])
+| ety_ref_cont : forall s C k cont,
+    List.nth_error s.(s_conts) k = Some cont ->
+    e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref (T_contref (typeof_cont cont))])
 | ety_handler : forall s C hs es ts,
     List.Forall (fun h => clause_typing (strip C) h ts) hs ->
     e_typing s (strip C) es (Tf [::] ts) ->
@@ -481,12 +481,25 @@ Definition mem_agree (m : memory) : Prop :=
   | Some n => N.le (mem_size m) n
   end.
 
+Definition continuation_typing s (c: continuation): Prop :=
+  match c with
+  | Cont_dagger _ => True
+  | Cont_hh (Tf t1s t2s) hh =>
+      forall vs C x LI,
+        map (typeof s) vs = map Some t1s -> 
+        hfilled x hh (v_to_e_list vs) LI ->
+        e_typing s C LI (Tf [::] t2s)
+  end.
+                 
+
+
 Definition store_typing (s : store_record) : Prop :=
   match s with
   | Build_store_record fs tclss mss gs tgs conts =>
     List.Forall (cl_type_check_single s) fs /\
     List.Forall (tab_agree s) tclss /\
-    List.Forall mem_agree mss
+      List.Forall mem_agree mss /\
+      List.Forall (continuation_typing s) conts 
   end.
 
 Inductive config_typing : store_record -> frame -> seq administrative_instruction -> seq value_type -> Prop :=

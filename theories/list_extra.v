@@ -5,6 +5,28 @@ Set Implicit Arguments.
 
 From Coq Require Import List.
 
+Section extra_ssreflect.
+From mathcomp Require Import seq ssreflect.
+
+Lemma nth_error_set_nth {A} k l d (x:A) :
+  List.nth_error (set_nth d l k x) k = Some x.
+Proof.
+  generalize dependent k; induction l; intros k => //=.
+  - destruct k => //=. induction k => //=.
+  - destruct k => //=.
+Qed.
+
+Lemma nth_error_prefix {A} l l' i (x : A) :
+  List.nth_error l i = Some x ->
+  List.nth_error (l ++ l') i = Some x.
+Proof.
+  move:i. induction l => //=; intros i; destruct i => //=.
+  intros H; by apply IHl.
+Qed.
+
+End extra_ssreflect.
+
+
 (** Given list of option types, check that all options are [Some]
    and return the corresponding list of values. **)
 Fixpoint those0 {A} (l : list (option A)) : option (list A) :=

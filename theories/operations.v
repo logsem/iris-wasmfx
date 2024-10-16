@@ -51,9 +51,8 @@ Definition upd_s_mem (s : store_record) (m : list memory) : store_record :=
     s_tags := s.(s_tags);
   |}.
 
-Definition replace_nth_cont conts n cont := set_nth Cont_dagger conts n cont.
 
-    
+Definition replace_nth_cont conts n cont := set_nth (Cont_dagger (Tf [::] [::])) conts n cont.
 
 Definition upd_s_cont (s : store_record) k cont : store_record :=
   {|
@@ -62,6 +61,16 @@ Definition upd_s_cont (s : store_record) k cont : store_record :=
     s_mems := s.(s_mems);
     s_globals := s.(s_globals);
     s_conts := replace_nth_cont (s_conts s) k cont;
+    s_tags := s.(s_tags);
+  |}.
+
+Definition new_cont s cont :=
+   {|
+    s_funcs := s.(s_funcs);
+    s_tables := s.(s_tables);
+    s_mems := s.(s_mems);
+    s_globals := s.(s_globals);
+    s_conts := (s_conts s) ++ [:: cont];
     s_tags := s.(s_tags);
   |}.
 
@@ -166,26 +175,30 @@ Definition cl_type (cl : function_closure) : function_type :=
   | FC_func_host tf _ => tf
   end.
 
-Definition typeof_ref s (v : value_ref) : reference_type :=
+Definition typeof_cont c :=
+  match c with
+  | Cont_hh tf _ | Cont_dagger tf => tf
+  end.
+
+Definition typeof_ref s (v : value_ref) : option reference_type :=
   match v with
-  | VAL_ref_null t => t
+  | VAL_ref_null t => Some t
   | VAL_ref_func i =>
       match List.nth_error (s_funcs s) i with
-      | Some cl => T_funcref (cl_type cl)
-      | None => T_corruptref
+      | Some cl => Some (T_funcref (cl_type cl))
+      | None => None
       end
   | VAL_ref_cont i =>
       match List.nth_error (s_conts s) i with
-      | Some (Cont_hh (Tf t1s t2s) _) => T_contref (Tf t1s t2s)
-      | _ => T_corruptref
+      | Some cont => Some (T_contref (typeof_cont cont))
+      | _ => None
       end
-(*  | VAL_ref_extern _ => T_externref *) 
   end.
 
-Definition typeof C (v : value) : value_type :=
+Definition typeof C (v : value) : option value_type :=
   match v with
-  | VAL_num n => T_num (typeof_num n)
-  | VAL_ref r => T_ref (typeof_ref C r)
+  | VAL_num n => Some (T_num (typeof_num n))
+  | VAL_ref r => option_map T_ref (typeof_ref C r)
   end.
 
 Definition option_projl (A B : Type) (x : option (A * B)) : option A :=
@@ -409,10 +422,10 @@ Definition types_num_agree (t : number_type) (v : value_num) : bool :=
   (typeof_num v) == t.
 
 Definition types_ref_agree C (t : reference_type) (v : value_ref) : bool :=
-  (typeof_ref C v) == t.
+  (typeof_ref C v) == Some t.
 
 Definition types_agree C (t: value_type) (v : value) : bool :=
-  (typeof C v) == t.
+  (typeof C v) == Some t.
 
 
 
@@ -517,7 +530,7 @@ Proof.
   - (* Mut *)
     destruct (g_mut g2) eqn:gmut2.
     + exact false.
-    + exact (typeof s (g_val g1) == typeof s (g_val g2)).
+    + exact ((typeof s (g_val g1) == typeof s (g_val g2)) && (typeof s (g_val g1) != None)).
 (*
       destruct (g_val g1) as [n | n] eqn:T1;
         destruct n;
@@ -547,9 +560,12 @@ Definition tab_extension (t1 t2 : tableinst) :=
 Definition mem_extension (m1 m2 : memory) :=
   (N.leb (mem_size m1) (mem_size m2)) && (mem_max_opt m1 == mem_max_opt m2).
 
+Definition cont_extension (cont1 cont2: continuation) :=
+  typeof_cont cont1 == typeof_cont cont2.
+
  Definition store_extension (s s' : store_record) : bool :=
   (s_funcs s == s_funcs s') &&
-(*    (s_conts s == s_conts s') &&  *)
+  (all2 cont_extension s.(s_conts) (take (length s.(s_conts)) s'.(s_conts))) &&
   (all2 tab_extension s.(s_tables) s'.(s_tables)) &&
   (all2 mem_extension s.(s_mems) s'.(s_mems)) &&
   (all2 (glob_extension s) s.(s_globals) s'.(s_globals)). 
@@ -601,14 +617,16 @@ Definition v_to_e (v: value) : administrative_instruction :=
 Definition v_to_e_list (ves : seq value) : seq administrative_instruction :=
   map AI_const ves.
 
+(* 
 Definition e_to_vref (e: administrative_instruction) : value_ref :=
   match e with
   | AI_basic (BI_ref_null t) => VAL_ref_null t
   | AI_ref addr => VAL_ref_func addr
   | AI_ref_cont addr => VAL_ref_cont addr
 (*   | AI_ref_extern addr => VAL_ref_extern addr *) 
-  | _ => VAL_ref_null T_corruptref
+  | _ => VAL_ref_null (Tf [::] [::])
   end. 
+*)
 
 Definition e_to_vref_opt (e : administrative_instruction) : option value_ref :=
   match e with
@@ -619,14 +637,16 @@ Definition e_to_vref_opt (e : administrative_instruction) : option value_ref :=
   | _ => None
   end.
 
+(*
 Definition e_to_v (e: administrative_instruction) : value :=
   match e with
   | AI_basic (BI_const v) => VAL_num v
   | _ => VAL_ref (e_to_vref e)
   end.
+*)
 
-Definition e_to_v_list (es: seq administrative_instruction) : list value :=
-  map e_to_v es.
+(* Definition e_to_v_list (es: seq administrative_instruction) : list value :=
+  map e_to_v es. *)
 
 Definition e_to_v_opt (e: administrative_instruction) : option value :=
   match e with
@@ -1105,15 +1125,15 @@ Definition bitzero (t : number_type) : value_num :=
 Definition n_zeros (ts : seq number_type) : seq value_num :=
   map bitzero ts.
 
-Definition default_val (t: value_type) : option value :=
+Definition default_val (t: value_type) : value :=
   match t with
-  | T_num t => Some (VAL_num (bitzero t))
-  | T_ref t => Some (VAL_ref (VAL_ref_null t))
-  | T_bot => None
+  | T_num t => VAL_num (bitzero t)
+  | T_ref (T_funcref t) => VAL_ref (VAL_ref_null (T_funcref t))
+  | T_ref (T_contref t) => VAL_ref (VAL_ref_null (T_contref t))
   end.
 
-Definition default_vals (ts: seq value_type) : option (seq value) :=
-  those (map default_val ts).
+Definition default_vals (ts: seq value_type) : seq value :=
+  map default_val ts.
 
 (* TODO: lots of lemmas *)
 
