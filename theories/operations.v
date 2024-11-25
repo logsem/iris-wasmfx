@@ -564,7 +564,8 @@ Definition cont_extension (cont1 cont2: continuation) :=
   typeof_cont cont1 == typeof_cont cont2.
 
  Definition store_extension (s s' : store_record) : bool :=
-  (s_funcs s == s_funcs s') &&
+   (s_funcs s == s_funcs s') &&
+     (s_tags s == s_tags s') && 
   (all2 cont_extension s.(s_conts) (take (length s.(s_conts)) s'.(s_conts))) &&
   (all2 tab_extension s.(s_tables) s'.(s_tables)) &&
   (all2 mem_extension s.(s_mems) s'.(s_mems)) &&

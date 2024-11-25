@@ -333,16 +333,49 @@ Definition tabi_agree ts (n : nat) (tab_t : table_type) : bool :=
   end.
 
 Definition inst_typing (s : store_record) (inst : instance) (C : t_context) : bool :=
-  let '{| inst_types := ts; inst_funcs := fs; inst_tab := tbs; inst_memory := ms; inst_globs := gs; |} := inst in
+  let '{| inst_types := ts;
+         inst_funcs := fs;
+         inst_tab := tbs;
+         inst_memory := ms;
+         inst_globs := gs; |} := inst in
   match C with
-  | {| tc_types_t := ts'; tc_func_t := tfs; tc_global := tgs; tc_table := tabs_t; tc_memory := mems_t; tc_local := nil; tc_label := nil; tc_return := None |} =>
-    (ts == ts') &&
+  | {| tc_types_t := ts';
+      tc_func_t := tfs;
+      tc_global := tgs;
+      tc_table := tabs_t;
+      tc_memory := mems_t;
+      tc_local := nil;
+      tc_label := nil;
+      tc_return := None;
+      tc_tags_t := tags;
+    |} =>
+      (ts == ts') &&
     (all2 (functions_agree s.(s_funcs)) fs tfs) &&
     (all2 (globals_agree s s.(s_globals)) gs tgs) &&
     (all2 (tabi_agree s.(s_tables)) tbs tabs_t) &&
-    (all2 (memi_agree s.(s_mems)) ms mems_t)
+        (all2 (memi_agree s.(s_mems)) ms mems_t) &&
+        (tags == s_tags s)
   | _ => false
   end.
+
+Lemma inst_typing_tags s i C :
+  inst_typing s i C -> tc_tags_t C = s_tags s.
+Proof.
+  unfold inst_typing. destruct i => //. destruct C => //.
+  destruct tc_local, tc_label, tc_return => //.
+  intros H. move/andP in H. destruct H => //.
+  move/eqP in H0. done.
+Qed.
+
+Lemma inst_typing_types s i C :
+  inst_typing s i C -> tc_types_t C = inst_types i.
+Proof.
+  unfold inst_typing. destruct i => //. destruct C => //.
+  destruct tc_local, tc_label, tc_return => //.
+  intros H.
+  repeat (move/andP in H; destruct H as [H ?]).
+  move/eqP in H. done.
+Qed. 
 
 Inductive frame_typing: store_record -> frame -> t_context -> Prop :=
 | mk_frame_typing: forall s i tvs C f,
@@ -416,7 +449,7 @@ Inductive e_typing : store_record -> t_context -> seq administrative_instruction
     List.nth_error s.(s_conts) k = Some cont ->
     e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref (T_contref (typeof_cont cont))])
 | ety_handler : forall s C hs es ts,
-    List.Forall (fun h => clause_typing (strip C) h ts) hs ->
+    List.Forall (fun h => clause_typing ((* strip *) (* TYPO in WasmFX paper? *) C) h ts) hs ->
     e_typing s (strip C) es (Tf [::] ts) ->
     e_typing s C [:: AI_handler hs es] (Tf [::] ts)
              
@@ -442,6 +475,18 @@ with s_typing : store_record -> option (seq value_type) -> frame -> seq administ
   (rs = Some ts \/ rs = None) ->
   s_typing s rs f es ts
 .
+
+Inductive c_typing : store_record -> continuation -> Prop :=
+| ct_dagger : forall tf s, c_typing s (Cont_dagger tf)
+| ct_hh : forall t1s t2s hh s,
+    (forall vs x LI C,
+        tc_tags_t C = s_tags s ->
+        e_typing s C (v_to_e_list vs) (Tf [::] t1s) ->
+        hfilled x hh (v_to_e_list vs) LI ->
+        e_typing s C LI (Tf [::] t2s)) ->
+    c_typing s (Cont_hh (Tf t1s t2s) hh)
+.
+
 
 Scheme e_typing_ind' := Induction for e_typing Sort Prop
   with s_typing_ind' := Induction for s_typing Sort Prop.
@@ -481,15 +526,7 @@ Definition mem_agree (m : memory) : Prop :=
   | Some n => N.le (mem_size m) n
   end.
 
-Definition continuation_typing s (c: continuation): Prop :=
-  match c with
-  | Cont_dagger _ => True
-  | Cont_hh (Tf t1s t2s) hh =>
-      forall vs C x LI,
-        map (typeof s) vs = map Some t1s -> 
-        hfilled x hh (v_to_e_list vs) LI ->
-        e_typing s C LI (Tf [::] t2s)
-  end.
+
                  
 
 
@@ -499,7 +536,7 @@ Definition store_typing (s : store_record) : Prop :=
     List.Forall (cl_type_check_single s) fs /\
     List.Forall (tab_agree s) tclss /\
       List.Forall mem_agree mss /\
-      List.Forall (continuation_typing s) conts 
+      List.Forall (c_typing s) conts 
   end.
 
 Inductive config_typing : store_record -> frame -> seq administrative_instruction -> seq value_type -> Prop :=
