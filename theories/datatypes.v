@@ -90,13 +90,12 @@ Inductive number_type : Type := (* nt *)
   Inductive reference_type : Type :=
   | T_funcref : function_type -> reference_type
   | T_contref : function_type -> reference_type
-(*  | T_corruptref : reference_type *)
+  | T_exnref : (* function_type -> *) reference_type
  
 
   with value_type : Type := (* t *)
   | T_num : number_type -> value_type
   | T_ref : reference_type -> value_type
-(*  | T_bot : value_type *)
 
 
 (** std-doc:
@@ -198,7 +197,7 @@ empty elsewhere. The label stack is the only part of the context that changes
 as validation of an instruction sequence proceeds.
 *)
 Record t_context : Type := {
-  tc_types_t : list function_type;
+  tc_types_t : list function_type; 
   tc_func_t : list function_type;
   tc_global : list global_type;
   tc_table : list table_type;
@@ -313,9 +312,39 @@ Inductive cvtop : Type :=
   | CVO_reinterpret
   .
 
-  Inductive handler_clause : Type := (* h *)
-    | H_on : immediate -> immediate -> handler_clause.
 
+  Inductive type_identifier : Type :=
+  | Type_lookup : immediate -> type_identifier
+  | Type_explicit : function_type -> type_identifier
+  .
+
+  Inductive tag_identifier : Type :=
+  | Tag_lookup : immediate -> tag_identifier
+  | Tag_explicit : immediate -> function_type -> tag_identifier
+  .
+
+  Inductive continuation_clause : Type :=
+  | HC_catch : immediate -> immediate -> continuation_clause  
+.
+
+Inductive exception_clause : Type :=
+  | HE_catch : immediate -> immediate -> exception_clause
+  | HE_catch_ref : immediate -> immediate -> exception_clause
+  | HE_catch_all : immediate -> exception_clause
+  | HE_catch_all_ref : immediate -> exception_clause
+.
+
+(* Inductive handler_clauses : Type :=
+| H_continuation : list continuation_clause -> handler_clauses
+| H_exception : list exception_clause -> handler_clauses
+.
+*) 
+
+Inductive clause_result : Type :=
+| Clause_label : immediate -> clause_result
+| Clause_label_ref : immediate -> clause_result
+| No_label
+.
   
 Inductive basic_instruction : Type := (* be *)
   | BI_unreachable
@@ -330,7 +359,7 @@ Inductive basic_instruction : Type := (* be *)
   | BI_br_table : list immediate -> immediate -> basic_instruction
 | BI_return
   | BI_call : immediate -> basic_instruction
-| BI_call_indirect : immediate -> basic_instruction
+| BI_call_indirect : type_identifier -> basic_instruction
   | BI_get_local : immediate -> basic_instruction
   | BI_set_local : immediate -> basic_instruction
   | BI_tee_local : immediate -> basic_instruction
@@ -348,18 +377,21 @@ Inductive basic_instruction : Type := (* be *)
 | BI_cvtop : number_type -> cvtop -> number_type -> option sx -> basic_instruction
     (* Wasm 2.0 instructions necessary to accomodate WasmFX *)
 | BI_ref_null : reference_type -> basic_instruction
-(* | BI_cont_null : function_type -> basic_instruction *)
 | BI_ref_is_null
 | BI_ref_func : immediate -> basic_instruction
-| BI_call_reference : immediate -> basic_instruction
+| BI_call_reference : type_identifier -> basic_instruction
+
+(* Wasm exception handling instructions necessary to accomodate WasmFX *)
+| BI_try_table: function_type -> list exception_clause -> list basic_instruction -> basic_instruction
 | BI_throw : immediate -> basic_instruction
+| BI_throw_ref : basic_instruction
 
   (* New wasmFX instructions: *)
-| BI_contnew : immediate -> basic_instruction
-| BI_resume : immediate -> list handler_clause -> basic_instruction
-| BI_suspend : immediate -> basic_instruction
-| BI_contbind : immediate -> immediate -> basic_instruction
-| BI_resume_throw : immediate -> immediate -> list handler_clause -> basic_instruction
+| BI_contnew : type_identifier -> basic_instruction
+| BI_resume : type_identifier -> list continuation_clause -> basic_instruction
+| BI_suspend : tag_identifier -> basic_instruction
+| BI_contbind : type_identifier -> type_identifier -> basic_instruction
+| BI_resume_throw : type_identifier -> immediate -> list continuation_clause -> basic_instruction
   .
 
 (** * Functions and Store **)
@@ -372,17 +404,17 @@ Inductive basic_instruction : Type := (* be *)
 | Mk_hostfuncidx : nat -> hostfuncidx.
 
   Definition funcaddr := immediate.
-  Definition externaddr := immediate.
+  Definition exnaddr := immediate.
+(*  Definition externaddr := immediate. *)
 Definition tableaddr := immediate.
 Definition memaddr := immediate.
 Definition globaladdr := immediate.
+Definition tagaddr := immediate.
 
 Inductive value_ref : Set :=
 | VAL_ref_null : reference_type -> value_ref
-(*| VAL_cont_null : function_type -> value_ref *)
 | VAL_ref_func : funcaddr -> value_ref
 | VAL_ref_cont : funcaddr -> value_ref
-(* | VAL_ref_extern : externaddr -> value_ref *) 
 .
 
 Inductive value : Type :=
@@ -415,7 +447,8 @@ Record instance : Type := (* inst *) {
   inst_funcs : list funcaddr;
   inst_tab : list tableaddr;
   inst_memory : list memaddr;
-  inst_globs : list globaladdr;
+    inst_globs : list globaladdr;
+    inst_tags : list tagaddr;
 }.
 (** std-doc:
 A function instance is the runtime representation of a function. It effectively
@@ -486,9 +519,10 @@ Inductive administrative_instruction : Type := (* e *)
 | AI_basic : basic_instruction -> administrative_instruction
 | AI_trap
 | AI_ref : funcaddr -> administrative_instruction
+| AI_ref_exn : exnaddr -> administrative_instruction
 | AI_ref_cont : funcaddr -> administrative_instruction
-| AI_handler : list handler_clause -> list administrative_instruction -> administrative_instruction
-(*| AI_ref_extern : externaddr -> administrative_instruction *)
+| AI_handler : list exception_clause -> list administrative_instruction -> administrative_instruction
+| AI_prompt : list value_type -> list continuation_clause -> list administrative_instruction -> administrative_instruction
 | AI_invoke : funcaddr -> administrative_instruction
 | AI_label : nat -> seq administrative_instruction -> seq administrative_instruction -> administrative_instruction
 | AI_local : nat -> frame -> seq administrative_instruction -> administrative_instruction
@@ -501,7 +535,6 @@ Definition AI_const v :=
   | VAL_ref r =>
       match r with
       | VAL_ref_null t => AI_basic (BI_ref_null t)
-(*      | VAL_cont_null t => AI_basic (BI_cont_null t) *)
       | VAL_ref_func x => AI_ref x
       | VAL_ref_cont x => AI_ref_cont x
       end
@@ -511,7 +544,8 @@ Definition AI_const v :=
 Inductive lholed : Type :=
 | LH_base : list administrative_instruction -> list administrative_instruction -> lholed
 | LH_rec : list administrative_instruction -> nat -> list administrative_instruction -> lholed -> list administrative_instruction -> lholed
-| LH_handler : list administrative_instruction -> list handler_clause -> lholed -> list administrative_instruction -> lholed
+| LH_handler : list administrative_instruction -> list exception_clause -> lholed -> list administrative_instruction -> lholed
+| LH_prompt : list administrative_instruction -> list value_type -> list continuation_clause -> lholed -> list administrative_instruction -> lholed
 .
 
 Inductive hholed : Type := (* Handler context *)
@@ -522,7 +556,15 @@ Inductive hholed : Type := (* Handler context *)
 | HH_local :
   list administrative_instruction -> nat -> frame -> hholed -> list administrative_instruction -> hholed
 | HH_handler :
-  list administrative_instruction -> list handler_clause -> hholed -> list administrative_instruction -> hholed
+  list administrative_instruction -> list exception_clause -> hholed -> list administrative_instruction -> hholed
+| HH_prompt :
+  list administrative_instruction -> list value_type -> list continuation_clause -> hholed -> list administrative_instruction -> hholed
+.
+
+Inductive avoiding : Type := (* The variable not to be captured by a handler/prompt *)
+| Var_handler : immediate -> instance -> avoiding
+| Var_prompt : immediate -> instance -> avoiding
+| No_var : avoiding
 .
 
 Inductive continuation : Type :=
@@ -530,6 +572,10 @@ Inductive continuation : Type :=
 | Cont_dagger : function_type -> continuation
 .
 
+Record exception : Type := {
+    e_tag : immediate ;
+    e_fields : list value
+  } .
 
 (** std-doc:
 The store represents all global state that can be manipulated by WebAssembly
@@ -540,9 +586,10 @@ life time of the abstract machine
 Record store_record : Type := (* s *) {
   s_funcs : list function_closure;
   s_tables : list tableinst;
-  s_mems : list memory;
-    s_globals : list global;
+    s_mems : list memory;
     s_tags : list function_type;
+    s_globals : list global;
+    s_exns : list exception;
     s_conts : list continuation;
 }.
 

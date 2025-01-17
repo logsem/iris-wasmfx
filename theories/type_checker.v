@@ -263,7 +263,7 @@ in
       | Some (Tf t1s t2s) =>
           match List.nth_error (tc_tags_t C) x with
           | Some (Tf ts' [::]) =>
-              if List.forallb (fun '(H_on x l) => check_clause C x l t2s) hs
+              if List.forallb (fun '(HC_catch x l) => check_clause C x l t2s) hs
               then type_update ts (to_ct_list (ts' ++ [:: T_ref (T_contref (Tf t1s t2s))])) (CT_type t2s)
               else CT_bot
           | _ => CT_bot
@@ -294,7 +294,7 @@ in
   | BI_resume i hs =>
       match List.nth_error (tc_types_t C) i with
       | Some (Tf t1s t2s) =>
-          if List.forallb (fun '(H_on x l) => check_clause C x l t2s) hs
+          if List.forallb (fun '(HC_catch x l) => check_clause C x l t2s) hs
           then type_update ts (to_ct_list (t1s ++ [:: T_ref (T_contref (Tf t1s t2s))])) (CT_type t2s)
           else CT_bot
       | _ => CT_bot

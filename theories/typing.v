@@ -62,11 +62,55 @@ Inductive relop_type_agree: number_type -> relop -> Prop :=
   | Relop_f64_agree: forall op, relop_type_agree T_f64 (Relop_f op)
   .
 
-  Inductive clause_typing : t_context -> handler_clause -> list value_type -> Prop :=
-  | ct_clause : forall C x l t1s' t2s' t2s,
+
+  
+Inductive exception_clause_typing : t_context -> exception_clause -> Prop :=
+| ect_catch : forall C x l (ts: list value_type),
+    List.nth_error (tc_tags_t C) x = Some (Tf ts [::]) ->
+    List.nth_error (tc_label C) l = Some ts ->
+    exception_clause_typing C (HE_catch x l) 
+| ect_catch_ref : forall C x l ts,
+    List.nth_error (tc_tags_t C) x = Some (Tf ts [::]) ->
+    List.nth_error (tc_label C) l = Some (ts ++ [:: T_ref T_exnref]) ->
+    exception_clause_typing C (HE_catch_ref x l)
+| ect_catch_all : forall C l,
+    List.nth_error (tc_label C) l = Some [::] ->
+    exception_clause_typing C (HE_catch_all l)
+| ect_catch_all_ref: forall C l,
+    List.nth_error (tc_label C) l = Some [:: T_ref T_exnref] ->
+    exception_clause_typing C (HE_catch_all_ref l)
+  .
+
+  Inductive continuation_clause_typing : t_context -> continuation_clause -> list value_type -> Prop :=
+  | cct_clause : forall C x l t1s' t2s' t2s,
       List.nth_error (tc_tags_t C) x = Some (Tf t1s' t2s') ->
       List.nth_error (tc_label C) l = Some (t1s' ++ [::T_ref (T_contref (Tf t2s' t2s))]) ->
-      clause_typing C (H_on x l) t2s.
+      continuation_clause_typing C (HC_catch x l) t2s
+  .
+
+  (*
+  Inductive clause_typing : t_context -> handler_clauses -> list value_type -> Prop :=
+  | ct_exception : forall C hs ts,
+      List.Forall (exception_clause_typing C) hs ->
+      clause_typing C (H_exception hs) ts
+  | ct_continuation : forall C hs ts,
+      List.Forall (fun hc => continuation_clause_typing C hc ts) hs ->
+      clause_typing C (H_continuation hs) ts
+.
+*)
+
+Definition get_type C i :=
+  match i with
+  | Type_lookup i => List.nth_error (tc_types_t C) i
+  | Type_explicit t => Some t
+  end. 
+
+Definition get_tag C i :=
+  match i with
+  | Tag_lookup i => List.nth_error (tc_tags_t C) i
+  | Tag_explicit _ tf => Some tf
+  end. 
+
 
 
 Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Prop :=
@@ -89,46 +133,52 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
 | bet_select : forall C t, be_typing C [::BI_select] (Tf [::t; t; T_num T_i32] [::t])
 
 | bet_ref_null: forall C t, be_typing C [::BI_ref_null t] (Tf [::] [::T_ref t])
-(* | bet_cont_null: forall C t, be_typing C [::BI_cont_null t] (Tf [::] [::T_ref (T_contref t)]) *)
 | bet_ref_is_null: forall C t, be_typing C [::BI_ref_is_null] (Tf [::T_ref t] [::T_num T_i32])
 | bet_ref_func: forall C t x,
     x < length (tc_func_t C) ->
     List.nth_error (tc_func_t C) x = Some t ->
-(*    List.In x (tc_refs C) -> *)
+(*    List.In x (tc_refs C) ->  *)
     be_typing C [::BI_ref_func x] (Tf [::] [::T_ref (T_funcref t)])
 | bet_call_reference: forall C i tf t1s t2s,
-    List.nth_error (tc_types_t C) i = Some tf ->
+    get_type C i = Some tf ->
     tf = Tf t1s t2s ->
     be_typing C [::BI_call_reference i] (Tf (t1s ++ [::T_ref (T_funcref tf)]) t2s)
 | bet_throw: forall C x t1s t2s ts,
     List.nth_error (tc_tags_t C) x = Some (Tf ts [::]) ->
     be_typing C [::BI_throw x] (Tf (t1s ++ ts) t2s)
+| bet_throw_ref : forall C t1s t2s,
+    be_typing C [::BI_throw_ref] (Tf (t1s ++ [:: T_ref T_exnref]) t2s)
 
 
 | bet_contnew : forall C i t1 t2,
-    List.nth_error (tc_types_t C) i = Some (Tf t1 t2) ->
+    get_type C i = Some (Tf t1 t2) ->
     be_typing C [::BI_contnew i] (Tf [::T_ref (T_funcref (Tf t1 t2))]
                                    [:: T_ref (T_contref (Tf t1 t2))])
  | bet_resume : forall C i t1s t2s hs,
-    List.nth_error (tc_types_t C) i = Some (Tf t1s t2s) ->
-    List.Forall (fun h => clause_typing C h t2s) hs ->
+    get_type C i = Some (Tf t1s t2s) ->
+    List.Forall (fun h => continuation_clause_typing C h t2s) hs ->
     be_typing C [:: BI_resume i hs] (Tf (t1s ++ [:: T_ref (T_contref (Tf t1s t2s))]) t2s)
 | bet_suspend : forall C x t1s t2s,
-    List.nth_error (tc_tags_t C) x = Some (Tf t1s t2s) ->
+    get_tag C x = Some (Tf t1s t2s) ->
     be_typing C [::BI_suspend x] (Tf t1s t2s)
 | bet_contbind : forall C i i' ft ft' ts t1s t2s,
-    List.nth_error (tc_types_t C) i = Some ft ->
-    List.nth_error (tc_types_t C) i' = Some ft' ->
+    get_type C i = Some ft ->
+    get_type C i' = Some ft' ->
     ft = Tf (ts ++ t1s) t2s ->
     ft' = Tf t1s t2s ->
     be_typing C [:: BI_contbind i i'] (Tf (ts ++ [:: T_ref (T_contref ft)]) [:: T_ref (T_contref ft')])
 | bet_resume_throw : forall C i x hs ts t1s t2s,
-    List.nth_error (tc_types_t C) i = Some (Tf t1s t2s) ->
+    get_type C i = Some (Tf t1s t2s) ->
     List.nth_error (tc_tags_t C) x = Some (Tf ts [::]) ->
-    List.Forall (fun h => clause_typing C h t2s) hs ->
+    List.Forall (fun h => continuation_clause_typing C h t2s) hs ->
     be_typing C [:: BI_resume_throw i x hs] (Tf (ts ++ [:: T_ref (T_contref (Tf t1s t2s))]) t2s)
               
-              
+
+| bet_try_table: forall C C' t1s t2s cs es,
+    List.Forall (fun c => exception_clause_typing C c) cs ->
+    C' = upd_label C ([::t2s] ++ tc_label C) ->
+    be_typing C' es (Tf t1s t2s) ->
+    be_typing C [:: BI_try_table (Tf t1s t2s) cs es] (Tf t1s t2s)
 
 
                                 
@@ -162,8 +212,7 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
   List.nth_error (tc_func_t C) i = Some (Tf t1s t2s) ->
   be_typing C [::BI_call i] (Tf t1s t2s)
 | bet_call_indirect : forall C i t1s t2s,
-  i < length (tc_types_t C) ->
-  List.nth_error (tc_types_t C) i = Some (Tf t1s t2s) ->
+  get_type C i = Some (Tf t1s t2s) ->
   tc_table C <> nil ->
   be_typing C [::BI_call_indirect i] (Tf (app t1s [::T_num T_i32]) t2s)
 | bet_get_local : forall C i t,
@@ -326,18 +375,26 @@ Definition tab_typing (t : tableinst) (tt : table_type) : bool :=
   (t.(table_max_opt) <= tt.(tt_limits).(lim_max)).
 
 Definition tabi_agree ts (n : nat) (tab_t : table_type) : bool :=
-  (n < List.length ts) &&
+  (* (n < List.length ts) && *)
   match List.nth_error ts n with
   | None => false
   | Some x => tab_typing x tab_t
   end.
+Definition tag_agree (tags: list function_type) n tagt :=
+  match List.nth_error tags n with
+  | None => false
+  | Some x => x == tagt
+  end. 
+
 
 Definition inst_typing (s : store_record) (inst : instance) (C : t_context) : bool :=
   let '{| inst_types := ts;
          inst_funcs := fs;
          inst_tab := tbs;
          inst_memory := ms;
-         inst_globs := gs; |} := inst in
+         inst_globs := gs;
+         inst_tags := tag_ids;
+       |} := inst in
   match C with
   | {| tc_types_t := ts';
       tc_func_t := tfs;
@@ -354,17 +411,17 @@ Definition inst_typing (s : store_record) (inst : instance) (C : t_context) : bo
     (all2 (globals_agree s s.(s_globals)) gs tgs) &&
     (all2 (tabi_agree s.(s_tables)) tbs tabs_t) &&
         (all2 (memi_agree s.(s_mems)) ms mems_t) &&
-        (tags == s_tags s)
+        (all2 (tag_agree s.(s_tags)) tag_ids tags)
   | _ => false
   end.
 
 Lemma inst_typing_tags s i C :
-  inst_typing s i C -> tc_tags_t C = s_tags s.
+  inst_typing s i C -> all2 (tag_agree (s_tags s)) (inst_tags i) (tc_tags_t C).
 Proof.
   unfold inst_typing. destruct i => //. destruct C => //.
   destruct tc_local, tc_label, tc_return => //.
   intros H. move/andP in H. destruct H => //.
-  move/eqP in H0. done.
+(*  move/eqP in H0. done. *)
 Qed.
 
 Lemma inst_typing_types s i C :
@@ -377,13 +434,7 @@ Proof.
   move/eqP in H. done.
 Qed. 
 
-Inductive frame_typing: store_record -> frame -> t_context -> Prop :=
-| mk_frame_typing: forall s i tvs C f,
-    inst_typing s i C ->
-    f.(f_inst) = i ->
-    map (typeof s) f.(f_locs) = map Some tvs ->
-    frame_typing s f (upd_local C (tc_local C ++ tvs))
-  .
+
 
 Lemma functions_agree_injective: forall s i t t',
   functions_agree s i t ->
@@ -398,6 +449,7 @@ Proof.
   rewrite H3 in H1 => {H3}.
   by move: H1 => [H1].
 Qed.
+
 
 Inductive cl_typing : store_record -> function_closure -> function_type -> Prop :=
   | cl_typing_native : forall i s C C' ts t1s t2s es tf,
@@ -419,12 +471,25 @@ Definition strip C :=
     (tc_memory C)
     [::]
     [::]
-    (tc_return C)
+    None
     (tc_refs C)
     (tc_tags_t C).
 
+Definition empty_context :=
+  Build_t_context [::] [::] [::] [::] [::] [::] [::] None [::] [::].
 
-Inductive e_typing : store_record -> t_context -> seq administrative_instruction -> function_type -> Prop :=
+Inductive frame_typing: store_record -> frame -> t_context -> Prop :=
+| mk_frame_typing: forall s i tvs C f,
+    inst_typing s i C ->
+    f.(f_inst) = i ->
+    List.Forall2 (fun v t => e_typing s empty_context [:: AI_const v] (Tf [::] [::t]))
+                 (f_locs f) tvs ->
+    (* map (typeof s) f.(f_locs) = map Some tvs -> *)
+    frame_typing s f (upd_local C (tc_local C ++ tvs))
+  
+
+with e_typing : store_record -> t_context -> seq administrative_instruction -> function_type -> Prop :=
+  (* removed all usages of store_record that do more than just read types *)
 | ety_a : forall s C bes tf,
   be_typing C bes tf -> e_typing s C (to_e_list bes) tf
 | ety_composition : forall s C es e t1s t2s t3s,
@@ -445,18 +510,27 @@ Inductive e_typing : store_record -> t_context -> seq administrative_instruction
     cl_type cl = tf -> (* trying cl_type instead of cl_typing *)
     e_typing s C [::AI_ref a] (Tf [::] [::T_ref (T_funcref tf)])
 
-| ety_ref_cont : forall s C k cont,
+| ety_ref_cont : forall s C k cont tf,
     List.nth_error s.(s_conts) k = Some cont ->
-    e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref (T_contref (typeof_cont cont))])
+(*    c_typing s (* C *) cont -> *)
+    typeof_cont cont = tf ->
+    e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref (T_contref tf)])
+| ety_ref_exn : forall s C k exn , (* Guessing the rule here *) 
+    List.nth_error (s_exns s) k = Some exn -> 
+    e_typing s C [:: AI_ref_exn k] (Tf [::] [::T_ref T_exnref])
+| ety_prompt : forall s C hs es ts,
+    List.Forall (fun h => continuation_clause_typing C h ts) hs ->
+    e_typing s empty_context es (Tf [::] ts) -> 
+    e_typing s C [:: AI_prompt ts hs es] (Tf [::] ts) (* enforcing the type to be same as annotation *)
 | ety_handler : forall s C hs es ts,
-    List.Forall (fun h => clause_typing ((* strip *) (* TYPO in WasmFX paper? *) C) h ts) hs ->
-    e_typing s (strip C) es (Tf [::] ts) ->
-    e_typing s C [:: AI_handler hs es] (Tf [::] ts)
+    List.Forall (fun h => exception_clause_typing C h) hs ->
+    e_typing s C es (Tf [::] ts) -> 
+    e_typing s C [:: AI_handler hs es] (Tf [::] ts) 
              
              
 | ety_invoke : forall s a C cl tf,
   List.nth_error s.(s_funcs) a = Some cl ->
-  cl_typing s cl tf ->
+  cl_type cl = tf -> 
   e_typing s C [::AI_invoke a] tf
 | ety_label : forall s C e0s es ts t2s n,
   e_typing s C e0s (Tf ts t2s) ->
@@ -474,22 +548,25 @@ with s_typing : store_record -> option (seq value_type) -> frame -> seq administ
   e_typing s C es (Tf [::] ts) ->
   (rs = Some ts \/ rs = None) ->
   s_typing s rs f es ts
+
 .
 
-Inductive c_typing : store_record -> continuation -> Prop :=
-| ct_dagger : forall tf s, c_typing s (Cont_dagger tf)
-| ct_hh : forall t1s t2s hh s,
-    (forall vs x LI C,
-        tc_tags_t C = s_tags s ->
-        e_typing s C (v_to_e_list vs) (Tf [::] t1s) ->
-        hfilled x hh (v_to_e_list vs) LI ->
-        e_typing s C LI (Tf [::] t2s)) ->
+Inductive c_typing : store_record -> (* t_context -> *) continuation -> Prop :=
+| ct_dagger : forall tf s (* C *), c_typing s (* C *) (Cont_dagger tf)
+| ct_hh : forall s (* C *) t1s t2s hh es LI,
+    const_list es -> (* else can pick es to be BI_unreachable *)
+    e_typing s empty_context es (Tf [::] t1s) -> 
+    hfilled No_var hh es LI ->
+    e_typing s empty_context LI (Tf [::] t2s) ->
     c_typing s (Cont_hh (Tf t1s t2s) hh)
 .
 
 
 Scheme e_typing_ind' := Induction for e_typing Sort Prop
-  with s_typing_ind' := Induction for s_typing Sort Prop.
+    with s_typing_ind' := Induction for s_typing Sort Prop.
+
+
+
 
 Definition cl_typing_self (s : store_record) (fc : function_closure) : Prop :=
   cl_typing s fc (cl_type fc).
@@ -527,16 +604,23 @@ Definition mem_agree (m : memory) : Prop :=
   end.
 
 
-                 
+Definition glob_sound s g :=
+  exists t, e_typing s empty_context [:: AI_const (g_val g)] (Tf [::] [:: t]).
+(*  typeof s (g_val g) <> None.   *)
+
+Definition exn_sound s e :=
+  exists ts, e_typing s empty_context (v_to_e_list (e_fields e)) (Tf [::] ts) /\ List.nth_error (s_tags s) (e_tag e) = Some (Tf ts [::]). 
 
 
 Definition store_typing (s : store_record) : Prop :=
   match s with
-  | Build_store_record fs tclss mss gs tgs conts =>
+  | Build_store_record fs tclss mss tgs gs exns conts =>
     List.Forall (cl_type_check_single s) fs /\
-    List.Forall (tab_agree s) tclss /\
+      List.Forall (tab_agree s) tclss /\
       List.Forall mem_agree mss /\
-      List.Forall (c_typing s) conts 
+      List.Forall (glob_sound s) gs /\
+      List.Forall (c_typing s) conts /\
+      List.Forall (exn_sound s) exns
   end.
 
 Inductive config_typing : store_record -> frame -> seq administrative_instruction -> seq value_type -> Prop :=

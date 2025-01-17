@@ -45,7 +45,8 @@ Qed.
 Fixpoint vt_size (t : value_type) :=
   match t with
   | T_ref (T_funcref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s))
-  | T_ref (T_contref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s)) 
+  | T_ref (T_contref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s))
+(*  | T_ref (T_exnref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s)) *)
   | _ => 1
   end.
 
@@ -56,7 +57,9 @@ Proof.
   destruct f => //=.
   lia.
   destruct f => //=.
-  lia. 
+  lia.
+  (* destruct f => //=.
+  lia. *)
 Qed.
 
 Definition value_type_eq_dec : forall t1 t2: value_type,
@@ -142,7 +145,43 @@ Proof.
         as [Hv' | Hv'];
         try (by right; intros Habs; inversion Habs; subst);
         try by simpl; lia.
-      inversion Hv'; subst. by left. 
+      inversion Hv'; subst. by left.
+ (* - destruct f, f0; try by right.
+    destruct l, l0, l1, l2; try by (left + right).
+    + simpl in Hn.
+      do 2 rewrite merge_cons in Hn.
+      specialize (vt_size_not_zero v) as Hvnz.
+      specialize (vt_size_not_zero v0) as Hv0nz.
+      
+      destruct (IHn v v0) as [-> | Hv];
+        destruct (IHn (T_ref (T_funcref (Tf [::] l0))) (T_ref (T_funcref (Tf [::] l2))))
+        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
+        try by simpl; lia.
+      inversion Hv'; subst. by left.
+    + simpl in Hn.
+      do 2 rewrite merge_cons in Hn.
+      specialize (vt_size_not_zero v) as Hvnz.
+      specialize (vt_size_not_zero v0) as Hv0nz.
+      
+      destruct (IHn v v0) as [-> | Hv];
+        destruct (IHn (T_ref (T_funcref (Tf [::] l))) (T_ref (T_funcref (Tf [::] l1))))
+        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
+        try by simpl; lia.
+      inversion Hv'; subst. by left.
+    + simpl in Hn.
+      do 4 rewrite merge_cons in Hn.
+      specialize (vt_size_not_zero v) as Hvnz.
+      specialize (vt_size_not_zero v0) as Hv0nz.
+      specialize (vt_size_not_zero v1) as Hv1nz.
+      specialize (vt_size_not_zero v2) as Hv2nz.
+      
+      destruct (IHn v v1) as [-> | Hv];
+        destruct (IHn v0 v2) as [-> | Hv''];
+        destruct (IHn (T_ref (T_funcref (Tf l l0))) (T_ref (T_funcref (Tf l1 l2))))
+        as [Hv' | Hv'];
+        try (by right; intros Habs; inversion Habs; subst);
+        try by simpl; lia.
+      inversion Hv'; subst. by left.  *)
 Defined.
 
 From mathcomp Require Import ssrnat.
@@ -217,7 +256,24 @@ Proof.
         last by right; intro Habs; inversion Habs; subst.
       destruct (IHl l1) as [H | Habs'];
         last by right; intro Habs; inversion Habs; subst.
-      inversion H; subst; by left. 
+      inversion H; subst; by left.
+      (* - destruct f, f0; try by right.
+    generalize dependent l1; induction l; intros l1.
+    + destruct l1; last by right.
+      generalize dependent l2. induction l0; intros l2.
+      * by destruct l2; [left | right].
+      * destruct l2; first by right.
+        destruct (value_type_eq_dec a v) as [-> | Habs'];
+          last by right; intro Habs; inversion Habs; subst.
+        destruct (IHl0 l2) as [H | Habs'];
+          last by right; intro Habs; inversion Habs; subst.
+        inversion H; subst; by left.
+    + destruct l1; first by right.
+      destruct (value_type_eq_dec a v) as [-> | Habs'];
+        last by right; intro Habs; inversion Habs; subst.
+      destruct (IHl l1) as [H | Habs'];
+        last by right; intro Habs; inversion Habs; subst.
+      inversion H; subst; by left.  *)
 Defined. 
       
 Definition reference_type_eqb v1 v2 : bool := reference_type_eq_dec v1 v2.
@@ -543,16 +599,26 @@ Canonical Structure lholed_eqMixin := EqMixin eqlholedP.
 Canonical Structure lholed_eqType := Eval hnf in EqType lholed lholed_eqMixin. 
 
 
-Definition handler_clause_eq_dec : forall v1 v2 : handler_clause, {v1 = v2} + {v1 <> v2}.
+(* Definition handler_clauses_eq_dec : forall v1 v2 : handler_clauses, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
 
-Definition handler_clause_eqb v1 v2 : bool := handler_clause_eq_dec v1 v2.
-Definition eqhandler_clauseP : Equality.axiom handler_clause_eqb :=
-  eq_dec_Equality_axiom handler_clause_eq_dec.
+Definition handler_clauses_eqb v1 v2 : bool := handler_clauses_eq_dec v1 v2.
+Definition eqhandler_clausesP : Equality.axiom handler_clauses_eqb :=
+  eq_dec_Equality_axiom handler_clauses_eq_dec.
 
-Canonical Structure handler_clause_eqMixin := EqMixin eqhandler_clauseP.
-Canonical Structure handler_clause_eqType := Eval hnf in EqType handler_clause handler_clause_eqMixin. 
+Canonical Structure handler_clauses_eqMixin := EqMixin eqhandler_clausesP.
+Canonical Structure handler_clauses_eqType := Eval hnf in EqType handler_clauses handler_clauses_eqMixin. 
+*)
 
+Definition clause_result_eq_dec : forall v1 v2 : clause_result, {v1 = v2} + {v1 <> v2}.
+Proof. decidable_equality. Defined.
+
+Definition clause_result_eqb v1 v2 : bool := clause_result_eq_dec v1 v2.
+Definition eqclause_resultP : Equality.axiom clause_result_eqb :=
+  eq_dec_Equality_axiom clause_result_eq_dec.
+
+Canonical Structure clause_result_eqMixin := EqMixin eqclause_resultP.
+Canonical Structure clause_result_eqType := Eval hnf in EqType clause_result clause_result_eqMixin. 
 
 
  Definition hholed_eq_dec : forall v1 v2 : hholed, {v1 = v2} + {v1 <> v2}.
@@ -578,6 +644,16 @@ Definition eqstore_recordP : Equality.axiom store_record_eqb :=
 
 Canonical Structure store_record_eqMixin := EqMixin eqstore_recordP.
 Canonical Structure store_record_eqType := Eval hnf in EqType store_record store_record_eqMixin. 
+
+Definition exception_eq_dec : forall v1 v2 : exception, {v1 = v2} + {v1 <> v2}.
+Proof. decidable_equality. Defined.
+
+Definition exception_eqb v1 v2 : bool := exception_eq_dec v1 v2.
+Definition eqexceptionP : Equality.axiom exception_eqb :=
+  eq_dec_Equality_axiom exception_eq_dec.
+
+Canonical Structure exception_eqMixin := EqMixin eqexceptionP.
+Canonical Structure exception_eqType := Eval hnf in EqType exception exception_eqMixin. 
 
 
 

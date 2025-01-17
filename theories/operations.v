@@ -14,6 +14,7 @@ Unset Printing Implicit Defensive.
 Set Bullet Behavior "Strict Subproofs".
 
 
+
 (** read `len` bytes from `m` starting at `start_idx` *)
 Definition read_bytes (m : memory) (start_idx : N) (len : nat) : option bytes :=
   those
@@ -49,10 +50,24 @@ Definition upd_s_mem (s : store_record) (m : list memory) : store_record :=
     s_globals := s.(s_globals);
     s_conts := s.(s_conts);
     s_tags := s.(s_tags);
+    s_exns := s.(s_exns);
+  |}.
+
+Definition add_exn s e :=
+   {|
+    s_funcs := s.(s_funcs);
+    s_tables := s.(s_tables);
+    s_mems := s.(s_mems);
+    s_globals := s.(s_globals);
+    s_conts := s.(s_conts);
+    s_tags := s.(s_tags);
+    s_exns := s.(s_exns) ++ [:: e];
   |}.
 
 
-Definition replace_nth_cont conts n cont := set_nth (Cont_dagger (Tf [::] [::])) conts n cont.
+Definition replace_nth_cont conts n (cont : continuation) :=
+  take n conts ++ [:: cont] ++ drop (n + 1) conts.
+
 
 Definition upd_s_cont (s : store_record) k cont : store_record :=
   {|
@@ -60,6 +75,7 @@ Definition upd_s_cont (s : store_record) k cont : store_record :=
     s_tables := s.(s_tables);
     s_mems := s.(s_mems);
     s_globals := s.(s_globals);
+    s_exns := s.(s_exns);
     s_conts := replace_nth_cont (s_conts s) k cont;
     s_tags := s.(s_tags);
   |}.
@@ -68,18 +84,56 @@ Definition new_cont s cont :=
    {|
     s_funcs := s.(s_funcs);
     s_tables := s.(s_tables);
-    s_mems := s.(s_mems);
+     s_mems := s.(s_mems);
+     s_exns := s.(s_exns);
     s_globals := s.(s_globals);
     s_conts := (s_conts s) ++ [:: cont];
     s_tags := s.(s_tags);
   |}.
 
-Fixpoint firstx hs x :=
+
+                                   
+
+Fixpoint firstx_exception hs inst x :=
   match hs with
-  | H_on y l :: q =>
-      if Nat.eqb x y then Some l else firstx q x
+  | HE_catch y l :: q =>
+      match List.nth_error (inst_tags inst) y with
+      | Some a => 
+          if Nat.eqb x a then Clause_label l else firstx_exception q inst x
+      | None =>
+          No_label
+      end
+  | HE_catch_ref y l :: q =>
+      match List.nth_error (inst_tags inst) y with
+      | Some a => 
+          if Nat.eqb x a then Clause_label_ref l else firstx_exception q inst x
+      | None =>
+          No_label
+      end
+  | HE_catch_all l :: _ => Clause_label l
+  | HE_catch_all_ref l :: _ => Clause_label_ref l
+  | [::] => No_label
+  end.
+
+Fixpoint firstx_continuation hs inst x :=
+  match hs with
+  | HC_catch y l :: q =>
+      match List.nth_error (inst_tags inst) y with
+      | Some a => 
+          if Nat.eqb x a then Some l else firstx_continuation q inst x
+      | None =>
+          None
+      end
   | [::] => None
   end.
+
+(*
+Definition firstx hs inst x :=
+  match hs with
+  | H_exception hs => firstx_exception hs inst x
+  | H_continuation hs => firstx_continuation hs inst x
+  end. 
+*)
 
 Fixpoint hhplug vs hh :=
   match hh with
@@ -87,6 +141,7 @@ Fixpoint hhplug vs hh :=
   | HH_label bef n cont hh aft => HH_label bef n cont (hhplug vs hh) aft
   | HH_local bef n f hh aft => HH_local bef n f (hhplug vs hh) aft
   | HH_handler bef hs hh aft => HH_handler bef hs (hhplug vs hh) aft
+  | HH_prompt bef ts hs hh aft => HH_prompt bef ts hs (hhplug vs hh) aft
   end. 
 
 
@@ -442,8 +497,12 @@ Definition option_bind (A B : Type) (f : A -> option B) (x : option A) :=
 
 Definition empty_instance := Build_instance [::] [::] [::] [::] [::].
 
-Definition stypes (s : store_record) (i : instance) (j : nat) : option function_type :=
-  List.nth_error (inst_types i) j.
+Definition stypes (s : store_record) (i : instance) j : option function_type :=
+  match j with 
+  | Type_lookup j => List.nth_error (inst_types i) j
+  | Type_explicit t => Some t
+  end
+.
 
 Definition sfunc_ind (s : store_record) (i : instance) (j : nat) : option nat :=
   List.nth_error (inst_funcs i) j.
@@ -512,7 +571,7 @@ Definition supdate_glob_s (s : store_record) (k : nat) (v : value) : option stor
     (fun g =>
       let: g' := Build_global (g_mut g) v in
       let: gs' := update_list_at (s_globals s) k g' in
-      Build_store_record (s_funcs s) (s_tables s) (s_mems s) gs' (s_tags s) (s_conts s))
+      Build_store_record (s_funcs s) (s_tables s) (s_mems s) (s_tags s) gs' (s_exns s) (s_conts s))
     (List.nth_error (s_globals s) k).
 
 Definition supdate_glob (s : store_record) (i : instance) (j : nat) (v : value) : option store_record :=
@@ -561,15 +620,23 @@ Definition mem_extension (m1 m2 : memory) :=
   (N.leb (mem_size m1) (mem_size m2)) && (mem_max_opt m1 == mem_max_opt m2).
 
 Definition cont_extension (cont1 cont2: continuation) :=
-  typeof_cont cont1 == typeof_cont cont2.
+  match cont2 with
+  | Cont_dagger tf => typeof_cont cont1 == tf
+  | _ => cont1 == cont2
+  end
+.
+(*  typeof_cont cont1 == typeof_cont cont2.  *)
 
  Definition store_extension (s s' : store_record) : bool :=
    (s_funcs s == s_funcs s') &&
      (s_tags s == s_tags s') && 
-  (all2 cont_extension s.(s_conts) (take (length s.(s_conts)) s'.(s_conts))) &&
+     (all2 cont_extension s.(s_conts) (take (length s.(s_conts)) s'.(s_conts))) && 
+(*     (s_conts s == take (length (s_conts s)) (s_conts s')) && *)
   (all2 tab_extension s.(s_tables) s'.(s_tables)) &&
   (all2 mem_extension s.(s_mems) s'.(s_mems)) &&
-  (all2 (glob_extension s) s.(s_globals) s'.(s_globals)). 
+     (all2 (glob_extension s) s.(s_globals) s'.(s_globals)) &&
+     (s_exns s == take (length (s_exns s)) (s_exns s'))
+. 
 
 Definition vs_to_vts C (vs : seq value) := map (typeof C) vs.
 
@@ -776,6 +843,13 @@ Definition result_to_stack (r : result) :=
   end.
 
 Fixpoint lfill (k : nat) (lh : lholed) (es : seq administrative_instruction) : option (seq administrative_instruction) :=
+  if lh is LH_prompt bef ts hs lh' aft then
+    if const_list bef then
+      if lfill k lh' es is Some lfilledk then
+        Some (bef ++ [:: AI_prompt ts hs lfilledk] ++ aft)
+      else None
+    else None
+  else
   if lh is LH_handler bef hs lh' aft then
     if const_list bef then
       if lfill k lh' es is Some lfilledk then
@@ -813,6 +887,11 @@ Inductive lfilledInd : nat -> lholed -> seq administrative_instruction -> seq ad
     const_list bef ->
     lfilledInd k lh' es LI ->
     lfilledInd k (LH_handler bef hs lh' aft) es (bef ++ [:: AI_handler hs LI] ++ aft)
+| LfilledPrompt: forall bef ts hs lh' aft k es LI,
+    const_list bef ->
+    lfilledInd k lh' es LI ->
+    lfilledInd k (LH_prompt bef ts hs lh' aft) es (bef ++ [:: AI_prompt ts hs LI] ++ aft)
+
 .
 
 Lemma lfilled_Ind_Equivalent: forall k lh es LI,
@@ -836,12 +915,21 @@ Proof.
       move/eqP in Hfix. subst LI.
       constructor => //. apply IHlh => //.  unfold lfilled.
       rewrite Hfill => //.
+          + unfold lfilled in Hfix. simpl in Hfix.
+      destruct (const_list l) eqn:Hl => //.
+      destruct (lfill _ _ _) eqn:Hfill => //.
+      move/eqP in Hfix. subst LI.
+      constructor => //. apply IHlh => //.  unfold lfilled.
+      rewrite Hfill => //.
   - intros HLF. induction HLF; unfold lfilled => //=.
     + rewrite H. done.
     + rewrite H. unfold lfilled in IHHLF.
       destruct (lfill _ _ _) => //.
       move/eqP in IHHLF. subst LI. done.
     + rewrite H. unfold lfilled in IHHLF.
+      destruct (lfill _ _ _) => //.
+      move/eqP in IHHLF. subst LI. done.
+          + rewrite H. unfold lfilled in IHHLF.
       destruct (lfill _ _ _) => //.
       move/eqP in IHHLF. subst LI. done.
 Qed.
@@ -856,7 +944,14 @@ Proof.
 Qed.
 
 Fixpoint lfill_exact (k : nat) (lh : lholed) (es : seq administrative_instruction) : option (seq administrative_instruction) :=
-  if lh is LH_handler bef hs lh' aft then
+  if lh is LH_prompt bef ts hs lh' aft then
+    if const_list bef then
+      if lfill k lh' es is Some lfilledk then
+        Some (bef ++ [:: AI_prompt ts hs lfilledk] ++ aft)
+      else None
+    else None
+  else
+    if lh is LH_handler bef hs lh' aft then
     if const_list bef then
       if lfill k lh' es is Some lfilledk then
         Some (bef ++ [:: AI_handler hs lfilledk] ++ aft)
@@ -886,11 +981,12 @@ Fixpoint lh_depth lh :=
   match lh with
   | LH_base _ _ => 0
   | LH_rec _ _ _ lh _ => S (lh_depth lh)
+  | LH_prompt _ _ _ lh _ => lh_depth lh
   | LH_handler _ _ lh _ => lh_depth lh
   end.
 
 
-Fixpoint hfill (x : immediate) (hh : hholed) (es : seq administrative_instruction) : option (seq administrative_instruction) :=
+Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction) : option (seq administrative_instruction) :=
   match hh with
   | HH_base bef aft =>
       if const_list bef then Some (bef ++ es ++ aft) else None
@@ -908,9 +1004,24 @@ Fixpoint hfill (x : immediate) (hh : hholed) (es : seq administrative_instructio
       | None => None
       end
       else None
+  | HH_prompt bef ts hs hh aft =>
+      if const_list bef then
+        if match x with
+             Var_prompt x inst => firstx_continuation hs inst x == None
+           | _ => true
+           end
+        then match hfill x hh es with
+             | Some LI => Some (bef ++ [:: AI_prompt ts hs LI] ++ aft)
+             | None => None
+             end
+        else None
+      else None
   | HH_handler bef hs hh aft =>
       if const_list bef then
-        if List.forallb (fun '(H_on y _) => negb (Nat.eqb x y) ) hs
+        if match x with
+             Var_handler x inst => firstx_exception hs inst x == No_label
+           | _ => true
+           end
         then match hfill x hh es with
              | Some LI => Some (bef ++ [:: AI_handler hs LI] ++ aft)
              | None => None
@@ -920,10 +1031,10 @@ Fixpoint hfill (x : immediate) (hh : hholed) (es : seq administrative_instructio
   end.
 
 
-Definition hfilled (x : immediate) (hh : hholed) (es : seq administrative_instruction) (es' : seq administrative_instruction) : bool :=
+Definition hfilled (x : avoiding) (hh : hholed) (es : seq administrative_instruction) (es' : seq administrative_instruction) : bool :=
   if hfill x hh es is Some es'' then es' == es'' else false.
 
-Inductive hfilledInd : immediate -> hholed -> seq administrative_instruction -> seq administrative_instruction -> Prop :=
+Inductive hfilledInd : avoiding -> hholed -> seq administrative_instruction -> seq administrative_instruction -> Prop :=
 | HfilledBase: forall x vs es es',
     const_list vs ->
     hfilledInd x (HH_base vs es') es (vs ++ es ++ es')
@@ -935,9 +1046,22 @@ Inductive hfilledInd : immediate -> hholed -> seq administrative_instruction -> 
     const_list vs ->
     hfilledInd x hh' es LI ->
     hfilledInd x (HH_local vs n f hh' es'') es (vs ++ [:: (AI_local n f LI) ] ++ es'')
+| HfilledPrompt: forall bef ts hs hh' aft x es LI,
+    const_list bef ->
+    match x with
+      Var_prompt x inst => 
+        firstx_continuation hs inst x = None
+    | _ => True
+    end ->
+    hfilledInd x hh' es LI ->
+    hfilledInd x (HH_prompt bef ts hs hh' aft) es (bef ++ [:: AI_prompt ts hs LI] ++ aft)
 | HfilledHandler: forall bef hs hh' aft x es LI,
     const_list bef ->
-    List.Forall (fun '(H_on y _) => x <> y) hs ->
+    match x with
+      Var_handler x inst => 
+        firstx_exception hs inst x = No_label
+    | _ => True
+    end ->
     hfilledInd x hh' es LI ->
     hfilledInd x (HH_handler bef hs hh' aft) es (bef ++ [:: AI_handler hs LI] ++ aft)
 .
@@ -965,19 +1089,28 @@ Proof.
       rewrite Hfill => //.
     + unfold hfilled in Hfix. simpl in Hfix.
       destruct (const_list l) eqn:Hl => //.
-      destruct (List.forallb _ _) eqn:Hforall => //.
-      destruct (hfill _ _ _) eqn:Hfill => //.
-      move/eqP in Hfix. subst LI.
-      constructor => //.
-      * clear - Hforall.
-        induction l0 => //=.
-        simpl in Hforall. move/andP in Hforall. destruct Hforall as [Ha Hforall].
-        destruct a.
-        constructor.
-        -- intros ->. rewrite PeanoNat.Nat.eqb_refl in Ha. done.
-        -- apply IHl0. done.
-      * apply IHhh => //.  unfold hfilled.
-        rewrite Hfill => //.
+      destruct x as [x inst| |] => //.
+      destruct (firstx_exception _ _ _ == _) eqn:Hclauses => //.
+      move/eqP in Hclauses.
+      all: destruct (hfill _ _ _) eqn:Hfill => //.
+      all: move/eqP in Hfix.
+      all: subst LI.
+      all: constructor => //.
+      all: apply IHhh => //.
+      all: unfold hfilled => //.
+      all: rewrite Hfill => //. 
+    + unfold hfilled in Hfix. simpl in Hfix.
+      destruct (const_list l) eqn:Hl => //.
+      destruct x as [|x inst|] => //.
+      2: destruct (firstx_continuation _ _ _ == _) eqn:Hclauses => //.
+      2: move/eqP in Hclauses.
+      all: destruct (hfill _ _ _) eqn:Hfill => //.
+      all: move/eqP in Hfix.
+      all: subst LI.
+      all: constructor => //.
+      all: apply IHhh => //.
+      all: unfold hfilled.
+      all: rewrite Hfill => //.
   - intros HLF. induction HLF; unfold hfilled => //=.
     + rewrite H. done.
     + rewrite H. unfold hfilled in IHHLF.
@@ -987,17 +1120,23 @@ Proof.
       destruct (hfill _ _ _) => //.
       move/eqP in IHHLF. subst LI. done.
     + rewrite H.
-      destruct (List.forallb _ _) eqn:Hforall.
-      * unfold hfilled in IHHLF.
-        destruct (hfill _ _ _) => //.
-        move/eqP in IHHLF. subst LI. done.
-      * clear - H0 Hforall.
-        induction hs => //=.
-        simpl in Hforall. inversion H0; subst.
-        destruct a.
-        destruct (Nat.eqb x i) eqn:Hxi.
-        { move/eqP in Hxi. done. }
-        simpl in Hforall. apply IHhs => //. 
+      destruct x as [|x inst|] => //.
+      2: destruct (firstx_continuation _ _ _ == _) eqn:Hclauses => //. 
+      all: unfold hfilled in IHHLF.
+      all: destruct (hfill _ _ _) => //.
+      all: move/eqP in IHHLF.
+      all: subst LI.
+      all: try done.
+      rewrite H0 in Hclauses. done.
+    + rewrite H.
+      destruct x as [x inst| |] => //.
+      destruct (firstx_exception _ _ _ == _) eqn:Hclauses => //. 
+      all: unfold hfilled in IHHLF.
+      all: destruct (hfill _ _ _) => //.
+      all: move/eqP in IHHLF.
+      all: subst LI.
+      all: try done.
+      rewrite H0 in Hclauses. done.
 Qed.
 
 Lemma hfilledP: forall x hh es LI,
@@ -1131,6 +1270,7 @@ Definition default_val (t: value_type) : value :=
   | T_num t => VAL_num (bitzero t)
   | T_ref (T_funcref t) => VAL_ref (VAL_ref_null (T_funcref t))
   | T_ref (T_contref t) => VAL_ref (VAL_ref_null (T_contref t))
+  | T_ref (T_exnref (* t *)) => VAL_ref (VAL_ref_null (T_exnref (* t *) )) (* placeholder *)
   end.
 
 Definition default_vals (ts: seq value_type) : seq value :=
@@ -1186,4 +1326,13 @@ Proof.
   - by apply Bool.andb_true_iff in Hvs2 as [ _ Hvs2 ].  
 Qed.
 
-
+Definition clause_addr_defined inst clause :=
+  match clause with
+  | HE_catch x _ | HE_catch_ref x _ =>
+                    match List.nth_error inst.(inst_tags) x with
+                    | Some _ => True
+                    | None => False
+                    end
+  | _ => True
+  end
+.
