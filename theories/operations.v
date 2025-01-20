@@ -248,6 +248,8 @@ Definition typeof_ref s (v : value_ref) : option reference_type :=
       | Some cont => Some (T_contref (typeof_cont cont))
       | _ => None
       end
+  | VAL_ref_exn _ =>
+      Some T_exnref
   end.
 
 Definition typeof C (v : value) : option value_type :=
@@ -701,6 +703,7 @@ Definition e_to_vref_opt (e : administrative_instruction) : option value_ref :=
   | AI_basic (BI_ref_null t) => Some (VAL_ref_null t)
   | AI_ref addr => Some (VAL_ref_func addr)
   | AI_ref_cont addr => Some (VAL_ref_cont addr)
+  | AI_ref_exn addr => Some (VAL_ref_exn addr)
 (*  | AI_ref_extern addr => Some (VAL_ref_extern addr) *)
   | _ => None
   end.
@@ -797,6 +800,10 @@ Proof.
       destruct l0 => //=.
       inversion H; subst.
       by eapply IHes.
+  - destruct (split_vals_e es) as [??] eqn:Hes.
+    destruct l0 => //=.
+    inversion H; subst.
+    by eapply IHes.
 Qed.
 
 

@@ -351,6 +351,8 @@ Proof.
     + edestruct IHes => //=.
       exists (VAL_ref (VAL_ref_func f) :: x). simpl. by rewrite H1.
     + edestruct IHes => //=.
+      exists (VAL_ref (VAL_ref_exn e) :: x). simpl. by rewrite H1.
+    + edestruct IHes => //=.
       exists (VAL_ref (VAL_ref_cont f) :: x). simpl. by rewrite H1.
 Qed.
 

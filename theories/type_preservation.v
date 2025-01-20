@@ -17,6 +17,7 @@ Ltac fold_const0 :=
   | |- context [ AI_basic (BI_ref_null ?t) ] => fold (AI_const (VAL_ref (VAL_ref_null t)))
   | |- context [ AI_ref ?r ] => fold (AI_const (VAL_ref (VAL_ref_func r)))
   | |- context [ AI_ref_cont ?r ] => fold (AI_const (VAL_ref (VAL_ref_cont r)))
+  | |- context [ AI_ref_exn ?r ] => fold (AI_const (VAL_ref (VAL_ref_exn r)))
   | _ => idtac
   end.
 
@@ -167,6 +168,10 @@ Proof.
   - destruct econst => //. destruct v => //=.
     inversion H4; subst; rewrite H => //.
     eexists. split => //. split => //. eapply ety_ref_cont; eauto.
+  - destruct econst => //. destruct v => //.
+    inversion H3; subst.
+    eexists. split => //. split => //.
+    eapply ety_ref_exn; eauto.
 Qed. 
     
 
@@ -1528,6 +1533,7 @@ Proof.
         by eapply IHe_typing.
       * eapply ety_ref; eauto.
       * eapply ety_ref_cont; eauto.
+      * eapply ety_ref_exn; eauto.
 (*        inversion H4; subst; econstructor.
         exact H5.
         rewrite - HC. exact H6. exact H7. rewrite - HC. exact H8. *)
@@ -3655,7 +3661,15 @@ Proof.
   apply IHl in H0. lias.
 Qed. 
 
-
+Lemma nth_take {A} l n k (x: A):
+  List.nth_error (take n l) k = Some x ->
+  List.nth_error l k = Some x.
+Proof.
+  generalize dependent n; generalize dependent k.
+  induction l => //=.
+  destruct n, k => //=. 
+  apply IHl.
+Qed. 
 
 Lemma value_typing_extension s s' C v t:
   store_extension s s' ->
@@ -3701,6 +3715,13 @@ Proof.
       * simpl in Hc. move/eqP in Hc. inversion Hc; subst; done.
       * simpl in Hc. move/eqP in Hc. subst; done.
       * simpl in Hc. move/eqP in Hc. subst; done.
+    + simpl in Htv. inversion Htv; subst.
+      apply AI_ref_exn_typing in Htyp as (exn & Hexn & _).
+      unfold store_extension in Hsext. remove_bools_options.
+      rewrite H0 in Hexn.
+      eapply ety_ref_exn.
+      eapply nth_take.
+      exact Hexn.
 Qed. 
 
 
@@ -3915,15 +3936,7 @@ Proof.
   - by eapply cl_typing_host; eauto.
 Qed.
 
-Lemma nth_take {A} l n k (x: A):
-  List.nth_error (take n l) k = Some x ->
-  List.nth_error l k = Some x.
-Proof.
-  generalize dependent n; generalize dependent k.
-  induction l => //=.
-  destruct n, k => //=. 
-  apply IHl.
-Qed. 
+
 
 
 Lemma all2_nth {A B} f (l1: list A) (l2 : list B) n x1:
@@ -4911,7 +4924,9 @@ Proof.
         assert (f = length l) as -> => //. 
         generalize dependent f; induction l; destruct f => //=.
         -- destruct f => //. 
-        -- intros Hf Hf'. f_equal. apply IHl => //. 
+        -- intros Hf Hf'. f_equal. apply IHl => //.
+    + simpl in Hv. inversion Hv; subst.
+      simpl. by right.
 Qed.
 
 Lemma typeof_upd_cont s cont cont' k v:

@@ -415,6 +415,7 @@ Inductive value_ref : Set :=
 | VAL_ref_null : reference_type -> value_ref
 | VAL_ref_func : funcaddr -> value_ref
 | VAL_ref_cont : funcaddr -> value_ref
+| VAL_ref_exn : exnaddr -> value_ref
 .
 
 Inductive value : Type :=
@@ -537,6 +538,7 @@ Definition AI_const v :=
       | VAL_ref_null t => AI_basic (BI_ref_null t)
       | VAL_ref_func x => AI_ref x
       | VAL_ref_cont x => AI_ref_cont x
+      | VAL_ref_exn x => AI_ref_exn x
       end
   end
   .

@@ -437,9 +437,10 @@ Definition value_ref_rec_safe (P : Type)
   (null : reference_type -> P)
   (func : funcaddr -> P)
   (cont : funcaddr -> P)
+  (exn : exnaddr -> P)
 (*  (extern : externaddr -> P) *)
   v : P :=
-  value_ref_rect null func cont (* extern *) v.
+  value_ref_rect null func cont (* extern *) exn v.
 
 (* Definition value_rec_safe (P : Type)
            (i32 : Wasm_int.Int32.int -> P)
