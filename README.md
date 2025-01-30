@@ -4,7 +4,7 @@
 
 The project can be installed using opam.
 
-We recommend creating a new switch to start from a clean environment. The newest versions of ocaml are incompatible with our required version of Coq. We have compiled the project with version 4.14.2. The following code creates a switch with the necessary version:
+We recommend creating a new switch to start from a clean environment. We have compiled the project with version 4.14.2. The following code creates a switch with the necessary version:
 ```bash
 opam switch create iris-wasm-artifact-switch ocaml.4.14.2
 ```
