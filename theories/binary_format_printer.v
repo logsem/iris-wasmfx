@@ -4,7 +4,7 @@ Require Import datatypes_properties numerics.
 From compcert Require Integers.
 From Coq.Strings Require Import Byte.
 Require leb128.
-Require Import Coq.Arith.Le.
+Require Import PeanoNat.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 
 Definition binary_of_number_type (t : number_type) : byte :=
@@ -25,14 +25,16 @@ Definition binary_of_vec {A} (f : A -> list byte) (es : list A) : list byte :=
 Fixpoint binary_of_reference_type (t: reference_type) : list byte :=
   match t with
   | T_funcref tf => xc0 :: binary_of_functype tf
-  | T_corruptref => [:: xc1]
+  | T_contref tf => xc1 :: binary_of_functype tf
+  | T_exnref => [:: xc4]
+(*  | T_corruptref => [:: xc1] *)
   end
 
 with binary_of_value_type (t : value_type) : list byte :=
        match t with
        | T_num t => [:: xc2; binary_of_number_type t]
        | T_ref t => xc3 :: binary_of_reference_type t
-       | T_bot => [:: xc4]
+(*       | T_bot => [:: xc4] *)
        end
 
 (* with binary_of_result_type rt : list byte :=
@@ -41,7 +43,7 @@ with binary_of_value_type (t : value_type) : list byte :=
 with binary_of_functype (ft : function_type) : list byte :=
        match ft with 
          Tf rt1 rt2 => x60 :: binary_of_u32_nat (List.length rt1) ++ (List.concat (List.map binary_of_value_type rt1)) ++ binary_of_u32_nat (List.length rt2) ++ (List.concat (List.map binary_of_value_type rt2)) 
-       | Cont rt1 rt2 => xc5 :: binary_of_u32_nat (List.length rt1) ++ (List.concat (List.map binary_of_value_type rt1)) ++ binary_of_u32_nat (List.length rt2) ++ (List.concat (List.map binary_of_value_type rt2)) 
+(*       | Cont rt1 rt2 => xc5 :: binary_of_u32_nat (List.length rt1) ++ (List.concat (List.map binary_of_value_type rt1)) ++ binary_of_u32_nat (List.length rt2) ++ (List.concat (List.map binary_of_value_type rt2))  *)
        end.
 
 Definition binary_of_block_type_aux (bt : list value_type) : list byte :=
@@ -83,12 +85,28 @@ Proof. exact (x00 :: x00 :: x00 :: nil). Qed.
 
 Definition binary_of_handler_clause h : list byte :=
   match h with
-  | H_on x y => xd0 :: binary_of_idx x ++ binary_of_idx y
+  | HC_catch x y => xd0 :: binary_of_idx x ++ binary_of_idx y
   end.
 
 Definition binary_of_handler_clauses hs : list byte :=
-  binary_of_vec binary_of_handler_clause hs. 
-  
+  binary_of_vec binary_of_handler_clause hs.
+
+Definition binary_of_exception_clause h : list byte :=
+  match h with
+  | HE_catch x y => xd2 :: binary_of_idx x ++ binary_of_idx y
+  | HE_catch_ref x y => xd3 :: binary_of_idx x ++ binary_of_idx y
+  | HE_catch_all x => xd4 :: binary_of_idx x
+  | HE_catch_all_ref x => xd5 :: binary_of_idx x
+  end.
+
+Definition binary_of_exception_clauses hs : list byte :=
+  binary_of_vec binary_of_exception_clause hs.
+
+ Definition binary_of_type_identifier x : list byte :=
+  match x with
+  | Type_lookup i => xc5 :: binary_of_idx i
+  | Type_explicit tf => xd1 :: binary_of_functype tf
+  end.
 
 Fixpoint binary_of_be (be : basic_instruction) : list byte :=
   let binary_of_instrs bes := List.concat (List.map binary_of_be bes) in
@@ -109,7 +127,7 @@ Fixpoint binary_of_be (be : basic_instruction) : list byte :=
     x0e :: binary_of_vec binary_of_idx ls ++ binary_of_idx l_N
   | BI_return => x0f :: nil
   | BI_call x => x10 :: binary_of_idx x
-  | BI_call_indirect x => x11 :: binary_of_idx x ++ x00 :: nil
+  | BI_call_indirect x => x11 :: binary_of_type_identifier x ++ x00 :: nil
   | BI_drop => x1a :: nil
   | BI_select => x1b :: nil
   | BI_get_local x => x20 :: binary_of_idx x
@@ -322,13 +340,15 @@ Fixpoint binary_of_be (be : basic_instruction) : list byte :=
   | BI_ref_null t => xc6 :: binary_of_reference_type t
   | BI_ref_is_null => xc7 :: nil
   | BI_ref_func x => xc8 :: binary_of_idx x
-  | BI_call_reference x => xc9 :: binary_of_idx x
+  | BI_call_reference x => xc9 :: binary_of_type_identifier x
   | BI_throw x => xca :: binary_of_idx x
-  | BI_contnew x => xcb :: binary_of_idx x
-  | BI_resume x hs => xcc :: binary_of_idx x ++ binary_of_handler_clauses hs
+  | BI_contnew x => xcb :: binary_of_type_identifier x
+  | BI_resume x hs => xcc :: binary_of_type_identifier x ++ binary_of_handler_clauses hs
   | BI_suspend x => xcd :: binary_of_idx x
-  | BI_contbind x y => xce :: binary_of_idx x ++ binary_of_idx y
-  | BI_resume_throw x y hs => xcf :: binary_of_idx x ++ binary_of_idx y ++ binary_of_handler_clauses hs
+  | BI_contbind x y => xce :: binary_of_type_identifier x ++ binary_of_type_identifier y
+  | BI_resume_throw x y hs => xcf :: binary_of_type_identifier x ++ binary_of_idx y ++ binary_of_handler_clauses hs
+  | BI_try_table tf hs bes => xd6 :: binary_of_type_identifier tf ++ binary_of_exception_clauses hs ++ binary_of_instrs bes ++ x0b :: nil
+  | BI_throw_ref => xd7 :: nil
   end.
 
 (** Expressions are encoded by their instruction sequence terminated with an

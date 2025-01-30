@@ -43,7 +43,7 @@ Section InterpInstance.
     ⊢ ([∗ list] y1;y2 ∈ n_zeros l;l, interp_value (Σ:=Σ) y2 y1)%I.
   Proof.
     iApply big_sepL2_forall.
-    iSplit;[iPureIntro;apply map_length|].
+    iSplit;[iPureIntro;apply length_map|].
     iIntros (k z v Hz Hv).
     unfold n_zeros in Hz.
     apply lookup_lt_Some in Hv as Hlt.
@@ -53,7 +53,7 @@ Section InterpInstance.
     rewrite list_lookup_middle in Hz;simplify_eq.
     { unfold interp_value. destruct v; iExists _;eauto. }
     rewrite length_is_size size_map -length_is_size.
-    rewrite take_length. lia.
+    rewrite length_take. lia.
   Qed.
 
   Lemma interp_closure_pre_ind C i ft cl fimps n (hl : seq.seq (hostfuncidx * function_type)) :
@@ -136,7 +136,7 @@ Section InterpInstance.
   Definition import_mem_nainv (wms: gmap N memory) : iProp Σ :=
     [∗ map] i ↦ v ∈ wms, ((na_inv logrel_nais (wmN i) (∃ (mem: memory),
                                                          ([∗ list] j ↦ b ∈ (mem.(mem_data).(ml_data)), i ↦[wm][N.of_nat j] b) ∗
-                                            i ↦[wmlength] mem_length mem)) ∗
+                                            i ↦[wmlength] length_mem mem)) ∗
                                         i ↪[wmlimit] mem_max_opt v).
 
   Definition import_glob_nainv (wgs: gmap N global) : iProp Σ :=
@@ -269,7 +269,7 @@ Section InterpInstance.
     ⌜length (ext_func_addrs (map (λ mexp : module_export, modexp_desc mexp) v_imps)) <= length (ext_t_funcs t_imps) ⌝.
   Proof.
     unfold ext_func_addrs.
-    rewrite map_length.
+    rewrite length_map.
     iIntros "(_ & %Ht & _)".
     iPureIntro.
     move: Ht.
@@ -288,7 +288,7 @@ Section InterpInstance.
     ⌜length (ext_tab_addrs (map (λ mexp : module_export, modexp_desc mexp) v_imps)) <= length (ext_t_tabs t_imps) ⌝.
   Proof.
     unfold ext_tab_addrs.
-    rewrite map_length.
+    rewrite length_map.
     iIntros "(_ & %Ht & _)".
     iPureIntro.
     move: Ht.
@@ -307,7 +307,7 @@ Section InterpInstance.
     ⌜length (ext_mem_addrs (map (λ mexp : module_export, modexp_desc mexp) v_imps)) <= length (ext_t_mems t_imps) ⌝.
   Proof.
     unfold ext_mem_addrs.
-    rewrite map_length.
+    rewrite length_map.
     iIntros "(_ & %Ht & _)".
     iPureIntro.
     move: Ht.
@@ -326,7 +326,7 @@ Section InterpInstance.
     ⌜length (ext_glob_addrs (map (λ mexp : module_export, modexp_desc mexp) v_imps)) <= length (ext_t_globs t_imps) ⌝.
   Proof.
     unfold ext_glob_addrs.
-    rewrite map_length.
+    rewrite length_map.
     iIntros "(_ & %Ht & _)".
     iPureIntro.
     move: Ht.
@@ -340,19 +340,19 @@ Section InterpInstance.
     by lias.
   Qed.
 
-  Lemma v_length_split v_imps:
+  Lemma length_v_split v_imps:
     length v_imps = length (ext_func_addrs v_imps) +
                     length (ext_tab_addrs v_imps) +
                     length (ext_mem_addrs v_imps) +
                     length (ext_glob_addrs v_imps).
   Proof.
     unfold ext_func_addrs, ext_tab_addrs, ext_mem_addrs, ext_glob_addrs in *.
-    repeat rewrite map_length.
+    repeat rewrite length_map.
     induction v_imps => //=.
     destruct a; by lias => //=.
   Qed.
   
-  Lemma t_length_split t_imps:
+  Lemma length_t_split t_imps:
     length t_imps = length (ext_t_funcs t_imps) +
                     length (ext_t_tabs t_imps) +
                     length (ext_t_mems t_imps) +
@@ -390,8 +390,8 @@ Section InterpInstance.
     iDestruct (import_glob_wasm_check_lengths with "Hgc") as "%Hglen".
     iPureIntro.
     remember ((map (fun e => modexp_desc e) v_imps)) as v_imps'.
-    replace (length v_imps) with (length v_imps') in Hvtlen; last by subst; rewrite map_length.
-    rewrite v_length_split t_length_split in Hvtlen.
+    replace (length v_imps) with (length v_imps') in Hvtlen; last by subst; rewrite length_map.
+    rewrite length_v_split length_t_split in Hvtlen.
     by lias.
   Qed.
     
@@ -520,7 +520,7 @@ Section InterpInstance.
     inversion Hi; subst; clear Hi.
     simpl in *.
     simpl. destruct H2 as [cl' [Hwfs ->]].
-    iDestruct (mapsto_valid_2 with "H H'") as "[% ?]". done.
+    iDestruct (pointsto_valid_2 with "H H'") as "[% ?]". done.
   Qed. 
     
 
@@ -548,7 +548,7 @@ Section InterpInstance.
        na_inv logrel_nais (wmN (N.of_nat addr))
               (∃ (mem : memory),
                   ([∗ list] i ↦ b ∈ (mem.(mem_data).(ml_data)), (N.of_nat addr) ↦[wm][ (N.of_nat i) ] b) ∗
-                                                                (N.of_nat addr) ↦[wmlength] mem_length mem)      
+                                                                (N.of_nat addr) ↦[wmlength] length_mem mem)      
     )%I.
 
   Lemma module_inst_resources_mem_invs_alloc E mmems inst_m :
@@ -705,11 +705,11 @@ Section InterpInstance.
     destruct m. simpl in *.
     rewrite Hlenfr' in Hlenfr.
     destruct Hprefunc as [inst_funcs_new Heqf].
-    rewrite Heqf. rewrite !app_length.
+    rewrite Heqf. rewrite !length_app.
     rewrite Hlenfr Hlenir.
     edestruct get_import_count_length as [-> _];eauto.
-    rewrite drop_length.
-    rewrite Heqf. rewrite app_length. rewrite Hlenir.
+    rewrite length_drop.
+    rewrite Heqf. rewrite length_app. rewrite Hlenir.
     rewrite Nat.add_comm Nat.add_sub Heq. lia. 
   Qed.
 
@@ -728,11 +728,11 @@ Section InterpInstance.
     destruct m. simpl in *.
     rewrite Hlenfr' in Hlenfr.
     destruct Hprefunc as [inst_funcs_new Heqf].
-    rewrite Heqf. rewrite !app_length.
+    rewrite Heqf. rewrite !length_app.
     rewrite Hlenfr Hlenir.
     edestruct get_import_count_length as [_ [-> _]];eauto.
-    rewrite drop_length.
-    rewrite Heqf. rewrite app_length. rewrite Hlenir.
+    rewrite length_drop.
+    rewrite Heqf. rewrite length_app. rewrite Hlenir.
     rewrite Nat.add_comm Nat.add_sub Heq. lia.
   Qed.
 
@@ -751,11 +751,11 @@ Section InterpInstance.
     destruct m. simpl in *.
     rewrite Hlenfr' in Hlenfr.
     destruct Hprefunc as [inst_funcs_new Heqf].
-    rewrite Heqf. rewrite !app_length.
+    rewrite Heqf. rewrite !length_app.
     rewrite Hlenfr Hlenir.
     edestruct get_import_count_length as [_ [_ [-> _]]];eauto.
-    rewrite drop_length.
-    rewrite Heqf. rewrite app_length. rewrite Hlenir.
+    rewrite length_drop.
+    rewrite Heqf. rewrite length_app. rewrite Hlenir.
     rewrite Nat.add_comm Nat.add_sub Heq. lia.
   Qed.
 
@@ -774,11 +774,11 @@ Section InterpInstance.
     destruct m. simpl in *.
     rewrite Hlenfr' in Hlenfr.
     destruct Hprefunc as [inst_funcs_new Heqf].
-    rewrite Heqf. rewrite !app_length.
+    rewrite Heqf. rewrite !length_app.
     rewrite Hlenfr Hlenir.
     edestruct get_import_count_length as [_ [_ [_ ->]]];eauto.
-    rewrite drop_length.
-    rewrite Heqf. rewrite app_length. rewrite Hlenir.
+    rewrite length_drop.
+    rewrite Heqf. rewrite length_app. rewrite Hlenir.
     rewrite Nat.add_comm Nat.add_sub Heq. lia.
   Qed.
 
@@ -1433,7 +1433,7 @@ Section InterpInstance.
     apply fold_left_preserve.
     { destruct m0,  modtab_type, tt_limits.
       rewrite /module_inst_table_base_create /=.
-      by rewrite repeat_length.
+      by rewrite length_repeat.
     }
     { intros tt me Heq.
       destruct me,modelem_table.
@@ -1458,7 +1458,7 @@ Section InterpInstance.
     intros T x y n i Hx.
     apply lookup_lt_Some in Hx as Hlt.
     eapply repeat_lookup in Hlt.
-    rewrite repeat_length in Hlt.
+    rewrite length_repeat in Hlt.
     erewrite Hx in Hlt;simplify_eq. auto.
   Qed.  
   
@@ -1483,7 +1483,7 @@ Section InterpInstance.
       unfold table_init_replace_single in Hx.
       simpl in Hx.
       apply lookup_lt_Some in Hx as Hlt'.
-      rewrite take_length in Hlt'.
+      rewrite length_take in Hlt'.
       rewrite lookup_take in Hx;[|lia].
       apply lookup_app_Some in Hx as [Hx | Hx].
       { apply lookup_take_Some in Hx as [Hx Hlt2].
@@ -1613,7 +1613,7 @@ Section InterpInstance.
         unfold table_init_replace_single in Hx.
         simpl in Hx.
         apply lookup_lt_Some in Hx as Hlt'.
-        rewrite take_length in Hlt'.
+        rewrite length_take in Hlt'.
         rewrite lookup_take in Hx;[|lia].
         apply lookup_app_Some in Hx as [Hx | Hx].
         { apply lookup_take_Some in Hx as [Hx Hlt2].
@@ -1632,7 +1632,7 @@ Section InterpInstance.
         { apply not_lt in n1.
           assert (assert_const1_i32_to_nat modelem_offset `min` length (table_data tt) =
                     length (table_data tt)) as Heq'';[lia|].
-          revert Hx Hle' Hle Hlt'. rewrite !app_length !drop_length !take_length !Heq''.
+          revert Hx Hle' Hle Hlt'. rewrite !length_app !length_drop !length_take !Heq''.
           clear. intros. exfalso. lia. }
         assert (assert_const1_i32_to_nat modelem_offset +
            length (lookup_funcaddr i modelem_init) +
@@ -1640,12 +1640,12 @@ Section InterpInstance.
             length
               (take (assert_const1_i32_to_nat modelem_offset) (table_data tt)) -
               length (lookup_funcaddr i modelem_init)) = j) as Heqj.
-        { rewrite take_length.          
+        { rewrite length_take.          
         assert (assert_const1_i32_to_nat modelem_offset `min` length (table_data tt) =
                   assert_const1_i32_to_nat modelem_offset) as Heq'';[lia|].
         rewrite Heq''. rewrite -PeanoNat.Nat.sub_add_distr. rewrite Nat.add_comm.
         apply Nat.sub_add.
-        rewrite take_length in Hle'. rewrite take_length in Hle.
+        rewrite length_take in Hle'. rewrite length_take in Hle.
         rewrite Heq'' in Hle'. rewrite Heq'' in Hle.
           clear -Hle Hle'. revert Hle Hle'.
           unfold funcaddr,immediate,funcelem. lia.
@@ -1670,11 +1670,11 @@ Section InterpInstance.
   Proof.
     unfold module_inst_build_mems.
     apply fold_left_preserve.
-    { rewrite fmap_length. auto. }
+    { rewrite length_fmap. auto. }
     { intros mm md Hlen. destruct md,moddata_data.
       destruct (n <? get_import_mem_count m);auto.
       destruct (nth_error mm (n - get_import_mem_count m)) eqn:Hsome;auto.
-      by rewrite insert_length. }
+      by rewrite length_insert. }
   Qed.
 
   Definition module_inst_build_mem (m : module) (inst: instance) (n : nat) (mmem : memory) : memory :=
@@ -1765,7 +1765,7 @@ Section InterpInstance.
     length (ml_data (mem_data (mem_init_replace_single mem offset bs))) = length (ml_data (mem_data mem)).
   Proof.
     unfold mem_init_replace_single. simpl.
-    rewrite take_length !app_length take_length drop_length. lia.
+    rewrite length_take !length_app length_take length_drop. lia.
   Qed.
   
   Lemma module_import_init_mem_lookup_length m i n mem :
@@ -1983,18 +1983,21 @@ Section InterpInstance.
         rewrite Himpdeclapp.
         eassert (get_import_func_count _ = length _) as ->.
         { eapply get_import_count_length;eauto. }
-        rewrite -Hlenir. rewrite drop_app.
+        rewrite -Hlenir. rewrite drop_app_length.
         eapply Forall2_lookup_r in Htypes as [mf [Hmf Hftyp]];[|eauto].
         simpl.
         rewrite lookup_app_r in Hfa;[|rewrite Hlenir//].
         rewrite Hlenir in Hfa.
         
         assert (wfs !! (N.of_nat fa) = None) as Hnone.
-        { apply Hdisj with ((k - length (ext_t_funcs t_imps))). rewrite Heqi. simpl datatypes.inst_funcs.
+        { apply Hdisj with ((k - length (ext_t_funcs t_imps))).
+          rewrite Heqi. simpl datatypes.inst_funcs.
           rewrite Himpdeclapp.
           eassert (get_import_func_count _ = length _) as ->.
           { eapply get_import_count_length;eauto. }
-          rewrite -Hlenir drop_app. rewrite Hlenir. auto. }
+          rewrite -Hlenir drop_app_length. rewrite Hlenir.
+
+          auto. }
 
         iDestruct (big_sepL2_lookup with "Hfr") as "Hf";[eauto..|].
         destruct mf,ft. simpl in *.
@@ -2018,7 +2021,7 @@ Section InterpInstance.
       eassert (get_import_table_count _ = length _) as ->.
       { eapply get_import_count_length;simpl;eauto. }
       rewrite Himpdeclapp. simpl datatypes.mod_tables.
-      rewrite -Hlenir0 drop_app.
+      rewrite -Hlenir0 drop_app_length.
       rewrite -/its in Hlenir0.
       iDestruct (big_sepL2_length with "Htr") as %Htbllen.
       remember (its).
@@ -2051,7 +2054,7 @@ Section InterpInstance.
           iApply big_sepL_forall.
           iIntros (k j Hj).
           apply lookup_lt_Some in Hj as Hlt.
-          rewrite repeat_length in Hlt.
+          rewrite length_repeat in Hlt.
           apply module_inst_build_table_lt_is_Some with (m:=m) (i:=i) (n:=get_import_table_count m) in Hlt as [x Hlook].
           iDestruct (big_sepL_lookup _ _ k with "Ht") as "Hk";[eauto|].
           apply module_inst_build_table_lookup_Some in Hlook as Heq.
@@ -2105,7 +2108,7 @@ Section InterpInstance.
                eassert (get_import_func_count m = length _) as Heq.
                { eapply get_import_count_length;eauto. rewrite Heqm0. eauto. }
                rewrite Heq.
-               rewrite -Hlenir Hfunceq. rewrite drop_app. eauto. }
+               rewrite -Hlenir Hfunceq. rewrite drop_app_length. eauto. }
              iDestruct (big_sepL2_length with "Hfr") as %Hfrlen.
              apply lookup_lt_Some in Hfid as Hltfid.
              rewrite -Hfrlen in Hltfid.
@@ -2167,7 +2170,7 @@ Section InterpInstance.
       eassert (get_import_mem_count _ = length _) as ->.
       { eapply get_import_count_length;simpl;eauto. }
       rewrite Himpdeclapp. simpl datatypes.mod_mems.
-      rewrite -Hlenir1 drop_app.
+      rewrite -Hlenir1 drop_app_length.
       rewrite -/ims in Hlenir1.
       iDestruct (big_sepL2_length with "Hmr") as %Hmemlen.
       remember (ims).
@@ -2226,7 +2229,7 @@ Section InterpInstance.
       eassert (get_import_global_count _ = length _) as ->.
       { eapply get_import_count_length;simpl;eauto. }
       rewrite Himpdeclapp. simpl datatypes.mod_globals.
-      rewrite -Hlenir2 drop_app.
+      rewrite -Hlenir2 drop_app_length.
       rewrite -/igs in Hlenir2.
       iDestruct (big_sepL2_length with "Hgr") as %Hgloblen.
       iApply big_sepL2_app.
@@ -2264,13 +2267,13 @@ Section InterpInstance.
       { (* declared globals *)
         iApply big_sepL2_forall.
         apply Forall2_length in Hglobals as Hgloblen'.
-        rewrite -Hgloblen module_inst_global_init_length fmap_length Hgloblen'.
+        rewrite -Hgloblen module_inst_global_init_length length_fmap Hgloblen'.
         iSplit;auto.
         iIntros (k n gt Hlook1 Hlook2).
         eapply Forall2_lookup_r in Hglobals as [g [Hg Hgtyp]];eauto.
         assert (is_Some (glob_inits !! k)) as [init Hinit].
         { apply lookup_lt_is_Some. unfold glob_inits. simpl. rewrite module_inst_global_init_length.
-          rewrite fmap_length. apply lookup_lt_is_Some. eauto. }
+          rewrite length_fmap. apply lookup_lt_is_Some. eauto. }
         iDestruct (big_sepL2_lookup with "Hgr") as (τg) "[%Hgts Hg]";[eauto..|].
         rewrite Hlook2 in Hgts. inversion Hgts.
         unfold interp_global. iSimpl. 

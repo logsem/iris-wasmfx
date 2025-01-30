@@ -26,7 +26,7 @@ Fixpoint indent (i : indentation) (s : string) : string :=
 
 Definition type_style := FG_cyan.
 
-Definition pp_value_type (vt : value_type) : string :=
+Definition pp_number_type (vt : number_type) : string :=
   let s :=
     match vt with
     | T_i32 => "i32"
@@ -36,12 +36,41 @@ Definition pp_value_type (vt : value_type) : string :=
     end in
   with_fg type_style s.
 
-Definition pp_value_types (vts : list value_type) : string :=
-  "[" ++ String.concat ", " (List.map pp_value_type vts) ++ "]".
+Fixpoint pp_reference_type (tr : reference_type) : string :=
+  match tr with
+  | T_funcref tf => "func " ++ pp_function_type tf
+  | T_contref tf => "cont " ++ pp_function_type tf
+  | T_exnref => "exn"
+  end 
 
-Definition pp_function_type (tf : function_type) : string :=
-  let '(Tf ts1 ts2) := tf in
-  pp_value_types ts1 ++ " -> " ++ pp_value_types ts2.
+with pp_value_type (vt : value_type) : string :=
+       match vt with
+       | T_ref rt => pp_reference_type rt
+       | T_num t => pp_number_type t
+       end
+
+(*with pp_value_types_aux (vts : list value_type) : string :=
+       match vts with
+       | [::] => "]"
+       | [:: v] => pp_value_type v ++ "]"
+       | v :: q => pp_value_type v ++ ", " ++ pp_value_types_aux q
+       end 
+       
+with pp_value_types (vts : list value_type) : string :=
+       "[" ++ pp_value_types_aux vts
+(*       "[" ++ String.concat ", " (List.map pp_value_type vts) ++ "]" *)
+*)
+
+with pp_function_type (tf : function_type) : string :=
+       let '(Tf ts1 ts2) := tf in
+       "[" ++ String.concat ", " (List.map pp_value_type ts1) ++ "]"
+           ++ "->" ++ 
+           "[" ++ String.concat ", " (List.map pp_value_type ts2) ++ "]" 
+           (*  pp_value_types ts1 ++ " -> " ++ pp_value_types ts2. *)
+.
+
+Definition pp_value_types ts1 : string :=
+  "[" ++ String.concat ", " (List.map pp_value_type ts1) ++ "]".
 
 Definition pp_block_tf (tf : function_type) : string :=
   match tf with
@@ -123,12 +152,26 @@ Definition pp_f64 (f : float) : string :=
     bytes_pp.hex_small_no_prefix_of_bytes_compact (pp_bools nil (bool_list_of_pos nil p))
   end.
 
+Definition pp_value_num (v : value_num) : string :=
+  match v with
+  | VAL_int32 i => pp_number_type T_i32 ++ ".const " ++ with_fg FG_green (pp_i32 i) ++ newline
+  | VAL_int64 i => pp_number_type T_i64 ++ ".const " ++ with_fg FG_green (pp_i64 i) ++ newline
+  | VAL_float32 f => pp_number_type T_f32 ++ ".const " ++ with_fg FG_green (pp_f32 f) ++ newline
+  | VAL_float64 f => pp_number_type T_f64 ++ ".const " ++ with_fg FG_green (pp_f64 f) ++ newline
+  end.
+
+Definition pp_value_ref (v : value_ref) : string :=
+  match v with
+  | VAL_ref_null r => "(" ++ pp_reference_type r ++ ").null" ++ newline
+  | VAL_ref_func f => "ref.func " ++ pp_immediate f ++ newline
+  | VAL_ref_cont f => "ref.cont " ++ pp_immediate f ++ newline
+  | VAL_ref_exn e => "ref.exn" ++ pp_immediate e ++ newline
+  end .
+
 Definition pp_value (v : value) : string :=
   match v with
-  | VAL_int32 i => pp_value_type T_i32 ++ ".const " ++ with_fg FG_green (pp_i32 i) ++ newline
-  | VAL_int64 i => pp_value_type T_i64 ++ ".const " ++ with_fg FG_green (pp_i64 i) ++ newline
-  | VAL_float32 f => pp_value_type T_f32 ++ ".const " ++ with_fg FG_green (pp_f32 f) ++ newline
-  | VAL_float64 f => pp_value_type T_f64 ++ ".const " ++ with_fg FG_green (pp_f64 f) ++ newline
+  | VAL_num v => pp_value_num v
+  | VAL_ref v => pp_value_ref v
   end.
 
 Definition pp_values (vs : list value) : string :=
@@ -227,6 +270,31 @@ Definition pp_ps (ps : packed_type * sx) : string :=
 
 Definition be_style := FG_magenta.
 
+Definition pp_type_identifier x :=
+  match x with
+  | Type_lookup i => pp_immediate i
+  | Type_explicit tf => pp_function_type tf
+  end.
+
+Definition pp_continuation_clause h : string :=
+  match h with
+  | HC_catch x y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  end.
+
+Definition pp_continuation_clauses hs : string :=
+  "(" ++ String.concat ", " (List.map pp_continuation_clause hs) ++ ")" .
+
+Definition pp_exception_clause h : string :=
+  match h with
+  | HE_catch x y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | HE_catch_ref x y => "On ref " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | HE_catch_all x => "Else do " ++ pp_immediate x
+  | HE_catch_all_ref x => "Else ref do " ++ pp_immediate x
+  end .
+
+Definition pp_exception_clauses hs : string :=
+  "(" ++ String.concat ", " (List.map pp_exception_clause hs) ++ ")" .
+
 Fixpoint pp_basic_instruction (i : indentation) (be : basic_instruction) : string :=
   let pp_basic_instructions bes i :=
     String.concat "" (List.map (pp_basic_instruction (S i)) bes) in
@@ -264,7 +332,7 @@ Fixpoint pp_basic_instruction (i : indentation) (be : basic_instruction) : strin
   | BI_call x =>
     indent i (with_fg be_style "call " ++ pp_immediate x ++ newline)
   | BI_call_indirect x =>
-    indent i (with_fg be_style "call_indirect " ++ pp_immediate x ++ newline)
+    indent i (with_fg be_style "call_indirect " ++ pp_type_identifier x ++ newline)
   | BI_get_local x =>
     indent i (with_fg be_style "local.get " ++ pp_immediate x ++ newline)
   | BI_set_local x =>
@@ -276,34 +344,52 @@ Fixpoint pp_basic_instruction (i : indentation) (be : basic_instruction) : strin
   | BI_set_global x =>
     indent i (with_fg be_style "global.set " ++ pp_immediate x ++ newline)
   | BI_load vt None a o =>
-    indent i (pp_value_type vt ++ ".load " ++ pp_ao a o ++ newline)
+    indent i (pp_number_type vt ++ ".load " ++ pp_ao a o ++ newline)
   | BI_load vt (Some ps) a o =>
-    indent i (pp_value_type vt ++ ".load" ++ pp_ps ps ++ " " ++ pp_ao a o ++ newline)
+    indent i (pp_number_type vt ++ ".load" ++ pp_ps ps ++ " " ++ pp_ao a o ++ newline)
   | BI_store vt None a o =>
-    indent i (pp_value_type vt ++ ".store " ++ pp_ao a o ++ newline)
+    indent i (pp_number_type vt ++ ".store " ++ pp_ao a o ++ newline)
   | BI_store vt (Some p) a o =>
-    indent i (pp_value_type vt ++ ".store" ++ pp_packing p ++ " " ++ pp_ao a o ++ newline)
+    indent i (pp_number_type vt ++ ".store" ++ pp_packing p ++ " " ++ pp_ao a o ++ newline)
   | BI_current_memory =>
     indent i (with_fg be_style "memory.size" ++ newline ++ newline)
   | BI_grow_memory =>
     indent i (with_fg be_style "memory.grow" ++ newline)
   | BI_const v =>
-    indent i (pp_value v)
+    indent i (pp_value_num v)
   | BI_unop vt (Unop_i uoi) =>
-    indent i (pp_value_type vt ++ "." ++ pp_unary_op_i uoi ++ newline)
+    indent i (pp_number_type vt ++ "." ++ pp_unary_op_i uoi ++ newline)
   | BI_unop vt (Unop_f uof) =>
-    indent i (pp_value_type vt ++ "." ++ pp_unary_op_f uof ++ newline)
+    indent i (pp_number_type vt ++ "." ++ pp_unary_op_f uof ++ newline)
   | BI_binop vt (Binop_i boi) =>
-    indent i (pp_value_type vt ++ "." ++ pp_binary_op_i boi ++ newline)
+    indent i (pp_number_type vt ++ "." ++ pp_binary_op_i boi ++ newline)
   | BI_binop vt (Binop_f bof) =>
-    indent i (pp_value_type vt ++ "." ++ pp_binary_op_f bof ++ newline)
+    indent i (pp_number_type vt ++ "." ++ pp_binary_op_f bof ++ newline)
   | BI_testop vt Eqz =>
-    indent i (pp_value_type vt ++ ".eqz" ++ newline)
+    indent i (pp_number_type vt ++ ".eqz" ++ newline)
   | BI_relop vt (Relop_i roi) =>
-    indent i (pp_value_type vt ++ "." ++ pp_rel_op_i roi ++ newline)
+    indent i (pp_number_type vt ++ "." ++ pp_rel_op_i roi ++ newline)
   | BI_relop vt (Relop_f rof) =>
-    indent i (pp_value_type vt ++ "." ++ pp_rel_op_f rof ++ newline)
+    indent i (pp_number_type vt ++ "." ++ pp_rel_op_f rof ++ newline)
   | BI_cvtop vt1 cvtop vt2 sxo => "?" ++ newline (* TODO: ??? *)
+                                     
+  | BI_ref_null t => indent i (with_fg be_style "ref.null " ++ pp_reference_type t ++ newline)
+| BI_ref_is_null => indent i (with_fg be_style "ref.is_null" ++ newline)
+| BI_ref_func f => indent i (with_fg be_style "ref.func " ++ pp_immediate f ++ newline) 
+| BI_call_reference x => indent i (with_fg be_style "call_reference " ++ pp_type_identifier x ++ newline) 
+  | BI_try_table x hs bes =>
+      indent i (with_fg be_style "try_table " ++ pp_type_identifier x ++ pp_exception_clauses hs ++ newline) ++
+        pp_basic_instructions bes (S i) ++
+        indent i (with_fg be_style "end" ++ newline)
+| BI_throw k => indent i (with_fg be_style "throw " ++ pp_immediate k ++ newline)
+| BI_throw_ref => indent i (with_fg be_style "throw_ref" ++ newline)
+
+| BI_contnew x => indent i (with_fg be_style "cont.new " ++ pp_type_identifier x ++ newline)
+| BI_resume x hs => indent i (with_fg be_style "resume " ++ pp_type_identifier x ++ pp_continuation_clauses hs ++ newline)
+| BI_suspend k => indent i (with_fg be_style "suspend " ++ pp_immediate k ++ newline) 
+| BI_contbind x y => indent i (with_fg be_style "cont.bind " ++ pp_type_identifier x ++ ", " ++ pp_type_identifier y ++ newline) 
+| BI_resume_throw x k hs => indent i (with_fg be_style "resume_throw " ++ pp_type_identifier x ++ ", " ++ pp_immediate k ++ pp_continuation_clauses hs ++ newline)
+                                     
   end.
 
 Definition pp_basic_instructions n bes :=
@@ -357,7 +443,20 @@ Fixpoint pp_administrative_instruction (n : indentation) (e : administrative_ins
     indent n (with_fg ae_style "end local" ++ newline)
   | AI_call_host tf h cvs =>
       indent n (with_fg ae_style "call host function " ++ pp_hostfuncidx h ++ newline) ++
-             indent n (with_fg ae_style "with values " ++ pp_values_hint_empty cvs ++ newline)
+        indent n (with_fg ae_style "with values " ++ pp_values_hint_empty cvs ++ newline)
+
+  | AI_ref f => indent n (with_fg ae_style "ref " ++ pp_immediate f ++ newline) 
+| AI_ref_exn e => indent n (with_fg ae_style "ref.exn " ++ pp_immediate e ++ newline)
+| AI_ref_cont f => indent n (with_fg ae_style "ref.cont " ++ pp_immediate f ++ newline) 
+| AI_suspend_desugared i => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i) 
+  | AI_handler hs es =>
+      indent n (with_fg ae_style "handler " ++ pp_exception_clauses hs) ++
+        String.concat "" (List.map (pp_administrative_instruction (n.+1)) es) ++
+        indent n (with_fg ae_style "end handler" ++ newline)
+  | AI_prompt ts hs es =>
+      indent n (with_fg ae_style "prompt " ++ pp_value_types ts ++ pp_continuation_clauses hs) ++
+        String.concat "" (List.map (pp_administrative_instruction (n.+1)) es) ++
+        indent n (with_fg ae_style "end prompt" ++ newline)
              
   end.
 

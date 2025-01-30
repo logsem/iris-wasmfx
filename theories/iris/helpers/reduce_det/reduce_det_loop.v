@@ -54,7 +54,7 @@ Proof.
                   - rewrite Hvs' in H.
                     unfold const_list in H. rewrite forallb_app in H.
                       by apply andb_true_iff in H as [_ Hys].
-                  - rewrite Hvs' in H0. simpl in H0. subst. rewrite app_length in H0.
+                  - rewrite Hvs' in H0. simpl in H0. subst. rewrite length_app in H0.
                     lia. }
                 get_tail a aft aft' a' Htail. rewrite Htail in H3.
   rewrite <- Heqes0 in H3. do 2 rewrite app_assoc in H3.

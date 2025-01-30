@@ -62,7 +62,7 @@ Proof.
                                     - rewrite Hlen.
                                       replace (length vcs) with (length (v_to_e_list vcs)); last by apply v_to_e_length.
                                       rewrite Hvs' => /=.
-                                      rewrite app_length.
+                                      rewrite length_app.
                                       lia. }
                                   exfalso.
       get_tail ea aft aft' a' Htail. rewrite Htail in H.

@@ -177,7 +177,7 @@ Proof.
   iMod 1 as (nt' ?) "(Hσ & Hval) /=".
   iDestruct (big_sepL2_app_inv_r with "Hval") as (es' t2' ->) "[Hes' Ht2']".
   iDestruct (big_sepL2_length with "Ht2'") as %Hlen2.
-  rewrite replicate_length in Hlen2; subst.
+  rewrite length_replicate in Hlen2; subst.
   iDestruct (big_sepL2_length with "Hes'") as %Hlen3.
   rewrite -plus_n_O.
   iApply ("Hφ" with "[//] [%] [//] Hσ Hes'"); [congruence|].

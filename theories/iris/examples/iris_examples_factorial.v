@@ -194,7 +194,7 @@ Section Factorial.
               apply Zmult_gt_0_lt_reg_r with (p:=intval). lia.
               assert ((ssrnat.factorial (Z.to_nat intval - 1) * intval)%Z
                       = ssrnat.muln (Z.to_nat intval) (ssrnat.factorial (Z.to_nat intval - 1))) as Heq.
-              { unfold ssrnat.muln. unfold ssrnat.muln_rec. lia. }
+              { unfold ssrnat.muln. lia. }
               rewrite Heq factPred;[|lia]. etrans. apply Hoverflow.
               apply Z.lt_mul_diag_r;lia.
               
@@ -266,7 +266,7 @@ Section Factorial.
       rewrite (Nat2Z.id 1).
       assert ((ssrnat.factorial (Z.to_nat intval - 1) * intval)%Z
               = ssrnat.muln (Z.to_nat intval) (ssrnat.factorial (Z.to_nat intval - 1))) as Heq.
-      { unfold ssrnat.muln. unfold ssrnat.muln_rec. lia. }
+      { unfold ssrnat.muln. lia. }
       rewrite Zmod_small.
       rewrite Heq factPred;lia.
       split. lia.
@@ -522,7 +522,7 @@ Section Factorial.
               apply Zmult_gt_0_lt_reg_r with (p:=intval). lia.
               assert ((ssrnat.factorial (Z.to_nat intval - 1) * intval)%Z
                       = ssrnat.muln (Z.to_nat intval) (ssrnat.factorial (Z.to_nat intval - 1))) as Heq.
-              { unfold ssrnat.muln. unfold ssrnat.muln_rec. lia. }
+              { unfold ssrnat.muln. lia. }
               rewrite Heq factPred;[|lia]. etrans. apply Hoverflow.
               apply Z.lt_mul_diag_r;lia.
               
@@ -594,7 +594,7 @@ Section Factorial.
       rewrite (Nat2Z.id 1).
       assert ((ssrnat.factorial (Z.to_nat intval - 1) * intval)%Z
               = ssrnat.muln (Z.to_nat intval) (ssrnat.factorial (Z.to_nat intval - 1))) as Heq.
-      { unfold ssrnat.muln. unfold ssrnat.muln_rec. lia. }
+      { unfold ssrnat.muln. lia. }
       rewrite Zmod_small.
       rewrite Heq factPred;lia.
       split. lia.
@@ -890,13 +890,13 @@ Section FactorialHost.
       mod_start := Some (Build_module_start (Mk_funcidx 4)) ;
       mod_imports :=
         [ {|
-            imp_module := list_byte_of_string "Host" ;
-            imp_name := list_byte_of_string "modify_table" ;
+            imp_module := String.list_byte_of_string "Host" ;
+            imp_name := String.list_byte_of_string "modify_table" ;
             imp_desc := ID_func 2
           |};
           {|
-            imp_module := list_byte_of_string "Host" ;
-            imp_name := list_byte_of_string "ret" ;
+            imp_module := String.list_byte_of_string "Host" ;
+            imp_name := String.list_byte_of_string "ret" ;
             imp_desc := ID_global {| tg_mut := MUT_mut ; tg_t := T_i32 |}
           |}
         ];
@@ -960,23 +960,23 @@ Section FactorialHost.
   Definition factorial_module_instantiate :=
     [ ID_instantiate [] 0 [0%N;1%N] ].
 
-  Notation "{{{ P }}} es {{{ v , Q }}}" :=
+  Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
   Lemma instantiate_factorial hidx gidx mod_tab n :
     (ssrnat.factorial (Wasm_int.nat_of_uint i32m n) < Wasm_int.Int32.modulus)%Z -> (* no overflow *)
     (0 <= (Wasm_int.Int32.intval n))%Z -> (* the parameter must be positive *)
     
-    ⊢ {{{ (N.of_nat hidx) ↦[wf] (FC_func_host (Tf [T_i32; T_i32] []) (Mk_hostfuncidx mod_tab)) ∗
+    ⊢ {{{{ (N.of_nat hidx) ↦[wf] (FC_func_host (Tf [T_i32; T_i32] []) (Mk_hostfuncidx mod_tab)) ∗
           (N.of_nat mod_tab) ↦[ha] HA_modify_table ∗
           (N.of_nat gidx) ↦[wg] {| g_mut := MUT_mut; g_val := VAL_int32 n |} ∗
           0%N ↪[mods] factorial_module ∗
           (∃ name, 0%N ↪[vis] {| modexp_name := name; modexp_desc := MED_func (Mk_funcidx hidx) |}) ∗
           (∃ name, 1%N ↪[vis] {| modexp_name := name; modexp_desc := MED_global (Mk_globalidx gidx) |}) ∗
           ↪[frame] empty_frame
-      }}}
+      }}}}
         ((factorial_module_instantiate,[]) : host_expr) 
-      {{{ v, ⌜v = immHV []⌝ ∗ ∃ w, fact_val n (immV [w]) ∗ (N.of_nat gidx) ↦[wg] {| g_mut := MUT_mut; g_val := w |} }}} .
+      {{{{ v, ⌜v = immHV []⌝ ∗ ∃ w, fact_val n (immV [w]) ∗ (N.of_nat gidx) ↦[wg] {| g_mut := MUT_mut; g_val := w |} }}}} .
   Proof.
     iIntros (Hoverflow Hpos Φ). iModIntro. iIntros "(Hmod_tab & HA & Hglob & Hmod & Hvis1 & Hvis2 & Hf) HΦ".
     iDestruct "Hvis1" as (name1) "Hvis1".

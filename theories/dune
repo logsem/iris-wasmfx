@@ -2,6 +2,6 @@
 
 (coq.theory
   (name Wasm)
-  (package Wasm)
+  (package iris-wasmfx)
   (flags -w -ambiguous-paths -w -notation-overridden -w -abstract-large-number -w -extraction-reserved-identifier))
 

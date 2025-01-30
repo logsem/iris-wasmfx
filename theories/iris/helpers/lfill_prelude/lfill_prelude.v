@@ -9,23 +9,23 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Lemma cons_length_rec a es :
+Lemma length_cons_rec a es :
   length_rec (a :: es) > length_rec es.
 Proof.
   unfold length_rec => //=. destruct a => //= ; lia.
 Qed. 
 
-Lemma app_length_rec l1 l2 :
+Lemma length_app_rec l1 l2 :
   length_rec (app l1 l2) = length_rec l1 + length_rec l2.
 Proof.
   unfold length_rec. rewrite map_app. rewrite list_sum_app. done.  
 Qed. 
 
-Lemma lfilled_length_rec k lh es les :
+Lemma length_lfilled_rec k lh es les :
   lfilled k lh es les -> length_rec es <= length_rec les.
 Proof.
   move => Hlf; move/lfilledP in Hlf.
-  induction Hlf; repeat rewrite app_length_rec => /=; first lia.
+  induction Hlf; repeat rewrite length_app_rec => /=; first lia.
   unfold length_rec in * => /=; by lias.
 Qed.
 
@@ -116,9 +116,9 @@ Proof.
   inversion Hlab' ; subst.
   assert (e = e' /\ i = i' /\ (length vs = length vs' -> vs = vs' /\ lh = lh')) as (? & ? & ?).
   apply (IHn i lh vs e i' lh' vs' e' l1) => //=.
-  rewrite app_length_rec in Hlab.
+  rewrite length_app_rec in Hlab.
   replace (AI_label n'' l' l1 :: aft') with ([AI_label n'' l' l1] ++ aft') in Hlab => //=.
-  rewrite app_length_rec in Hlab. simpl in Hlab.
+  rewrite length_app_rec in Hlab. simpl in Hlab.
   rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
   fold (length_rec l1) in Hlab. lia.
   unfold lfilled ; rewrite <- Heqles ; done.
@@ -762,9 +762,9 @@ Proof.
   apply first_values in Hfill' as ( Hl & Hlab' & _ ) => //= ; try by left.
   inversion Hlab' ; subst.
   eapply (IHn lh vs e lh' vs' n0 es _) => //=.
-  rewrite app_length_rec in Hlab.
+  rewrite length_app_rec in Hlab.
   rewrite list_extra.cons_app in Hlab. 
-  rewrite app_length_rec in Hlab. simpl in Hlab.
+  rewrite length_app_rec in Hlab. simpl in Hlab.
   rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
   fold (length_rec (llfill lh (vs ++ [e]))) in Hlab.
   rewrite - H2 in Hlab. lia.
@@ -788,9 +788,9 @@ Proof.
   all:try apply v_to_e_is_const_list.
   inversion Hloc ; subst.
   eapply (IHn lh vs e lh' vs' n0 es _) => //=.
-  rewrite app_length_rec in Hlab.
+  rewrite length_app_rec in Hlab.
   rewrite list_extra.cons_app in Hlab. 
-  rewrite app_length_rec in Hlab. simpl in Hlab.
+  rewrite length_app_rec in Hlab. simpl in Hlab.
   rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
   fold (length_rec (llfill lh' [AI_label n0 es vs'])) in Hlab.
   lia.
@@ -881,9 +881,9 @@ Proof.
   apply first_values in Hfill' as ( Hl & Hlab' & _ ) => //= ; try by left.
   inversion Hlab' ; subst.
   apply (IHn i lh vs e i' lh' vs' n0 es l1) => //=.
-  rewrite app_length_rec in Hlab.
+  rewrite length_app_rec in Hlab.
   replace (AI_label n'' l' l1 :: aft) with ([AI_label n'' l' l1] ++ aft) in Hlab => //=.
-  rewrite app_length_rec in Hlab. simpl in Hlab.
+  rewrite length_app_rec in Hlab. simpl in Hlab.
   rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
   fold (length_rec l1) in Hlab. lia.
   unfold lfilled ; rewrite <- Heqles ; done.
@@ -954,9 +954,9 @@ Proof.
   apply first_values in Hfill' as ( Hl & Hlab' & _ ) => //= ; try by left.
   inversion Hlab' ; subst.
   eapply (IHn lh vs e lh' vs' n0 es _) => //=.
-  rewrite app_length_rec in Hlab.
+  rewrite length_app_rec in Hlab.
   rewrite list_extra.cons_app in Hlab. 
-  rewrite app_length_rec in Hlab. simpl in Hlab.
+  rewrite length_app_rec in Hlab. simpl in Hlab.
   rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
   fold (length_rec (llfill lh (vs ++ [e]))) in Hlab.
   rewrite - H2 in Hlab. lia.
@@ -999,9 +999,9 @@ Proof.
   all:try apply v_to_e_is_const_list.
   inversion Hloc ; subst.
   eapply (IHn lh vs e lh' vs' n0 es _) => //=.
-  rewrite app_length_rec in Hlab.
+  rewrite length_app_rec in Hlab.
   rewrite list_extra.cons_app in Hlab. 
-  rewrite app_length_rec in Hlab. simpl in Hlab.
+  rewrite length_app_rec in Hlab. simpl in Hlab.
   rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
   fold (length_rec (llfill lh' [AI_local n0 es vs'])) in Hlab.
   lia.
@@ -1070,26 +1070,26 @@ Proof.
                                     rewrite app_nil_r in H0. subst.
                                     exfalso ; apply IHHred2 => //=. }
         simpl in H. rewrite H in Hlab.
-                     rewrite app_length_rec in Hlab.
+                     rewrite length_app_rec in Hlab.
                      assert (length_rec (a :: l0) > 0) ;
-                       first by (specialize (cons_length_rec a l0)) ; lia.
+                       first by (specialize (length_cons_rec a l0)) ; lia.
                      lia. }
-      rewrite H in Hlab. do 2 rewrite app_length_rec in Hlab.
-      assert (length_rec (a :: l) > 0) ; first by specialize (cons_length_rec a l) ; lia.
+      rewrite H in Hlab. do 2 rewrite length_app_rec in Hlab.
+      assert (length_rec (a :: l) > 0) ; first by specialize (length_cons_rec a l) ; lia.
       lia. }
     fold lfill in H. destruct lh0 => //. 
     destruct (const_list l) => //. 
     remember (lfill _ _ _) as fill ; destruct fill => //. 
     move/eqP in H. rewrite H in Hlab.
     replace (AI_label n l0 l2 :: l1) with ([AI_label n l0 l2] ++ l1) in Hlab => //=.
-    do 2 rewrite app_length_rec in Hlab.
+    do 2 rewrite length_app_rec in Hlab.
     unfold length_rec in Hlab. simpl in Hlab.
     rewrite <- (Nat.add_0_r (S n0)) in Hlab. rewrite Nat.add_comm in Hlab.
     apply Nat.le_lt_add_lt in Hlab ; try lia. 
     apply Nat.succ_lt_mono in Hlab. rewrite Nat.add_0_r in Hlab.
     assert (lfilled k0 lh0 es l2) as Hfill''.
     { unfold lfilled ; by rewrite <- Heqfill. }
-    apply lfilled_length_rec in Hfill''. unfold length_rec.
+    apply length_lfilled_rec in Hfill''. unfold length_rec.
     unfold length_rec in Hfill''. lia.
 Qed.
 
@@ -1146,23 +1146,23 @@ Proof.
                                    rewrite app_nil_r in H. subst.
                                    exfalso ; apply IHHred2 => //=. }
         simpl in H. rewrite H in Hlab.
-                    rewrite app_length_rec in Hlab.
-                    destruct (cons_length_rec a l0) as [ | ? ]; lia. }
-      rewrite H in Hlab. do 2 rewrite app_length_rec in Hlab.
-      destruct (cons_length_rec a l) as [ | ?] ; lia. }
+                    rewrite length_app_rec in Hlab.
+                    destruct (length_cons_rec a l0) as [ | ? ]; lia. }
+      rewrite H in Hlab. do 2 rewrite length_app_rec in Hlab.
+      destruct (length_cons_rec a l) as [ | ?] ; lia. }
     fold lfill in H. destruct lh0 => //. 
     destruct (const_list l) => //. 
     remember (lfill _ _ _) as fill ; destruct fill => //. 
     move/eqP in H. rewrite H in Hlab.
     replace (AI_label n l0 l2 :: l1) with ([AI_label n l0 l2] ++ l1) in Hlab => //=.
-    do 2 rewrite app_length_rec in Hlab.
+    do 2 rewrite length_app_rec in Hlab.
     unfold length_rec in Hlab. simpl in Hlab.
     rewrite <- (Nat.add_0_r (S n0)) in Hlab. rewrite Nat.add_comm in Hlab.
     apply Nat.le_lt_add_lt in Hlab ; try lia. 
     apply Nat.succ_lt_mono in Hlab. rewrite Nat.add_0_r in Hlab.
     assert (lfilled k0 lh0 es l2) as Hfill''.
     { unfold lfilled ; by rewrite <- Heqfill. }
-    apply lfilled_length_rec in Hfill''. unfold length_rec.
+    apply length_lfilled_rec in Hfill''. unfold length_rec.
     unfold length_rec in Hfill''. lia.
 Qed.
 
@@ -1246,9 +1246,9 @@ Proof.
       apply v_to_e_inj in Hl as ->. inversion Hlab' ; subst.
       assert (e = e' /\ (length vs = length vs' -> vs = vs' /\ lh = lh')) as (? & ?).
       eapply (IHn lh vs e lh' vs' e' _) => //=.
-      rewrite app_length_rec in Hlab.
+      rewrite length_app_rec in Hlab.
       rewrite list_extra.cons_app in Hlab.
-      rewrite app_length_rec in Hlab. simpl in Hlab.
+      rewrite length_app_rec in Hlab. simpl in Hlab.
       rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
       
       fold (length_rec (llfill lh (vs ++ [e]))) in Hlab.
@@ -1278,9 +1278,9 @@ Proof.
       apply v_to_e_inj in Hl as ->. inversion Hlab' ; subst.
       assert (e = e' /\ (length vs = length vs' -> vs = vs' /\ lh = lh')) as (? & ?).
       eapply (IHn lh vs e lh' vs' e' _) => //=.
-      rewrite app_length_rec in Hlab.
+      rewrite length_app_rec in Hlab.
       rewrite list_extra.cons_app in Hlab.
-      rewrite app_length_rec in Hlab. simpl in Hlab.
+      rewrite length_app_rec in Hlab. simpl in Hlab.
       rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
       
       fold (length_rec (llfill lh (vs ++ [e]))) in Hlab.
@@ -1370,9 +1370,9 @@ Proof.
     inversion Hlab' ; subst.
     assert (e = e' /\ (length vs = length vs' -> vs = vs')) as (? & ?).
     eapply (IHn i lh vs e lh' vs' e' _) => //=.
-    rewrite app_length_rec in Hlab.
+    rewrite length_app_rec in Hlab.
     rewrite list_extra.cons_app in Hlab.
-    rewrite app_length_rec in Hlab. simpl in Hlab.
+    rewrite length_app_rec in Hlab. simpl in Hlab.
     rewrite Nat.add_0_r in Hlab. rewrite <- Nat.add_succ_l in Hlab.
     
     fold (length_rec (llfill lh' (vs' ++ [e']))) in Hlab. lia.
@@ -1482,23 +1482,23 @@ Proof.
                                    rewrite app_nil_r in H. subst.
                                    exfalso ; apply IHHred2 => //=. }
         simpl in H. rewrite H in Hlab.
-                    rewrite app_length_rec in Hlab.
-                    destruct (cons_length_rec a l0) as [ | ? ]; lia. }
-      rewrite H in Hlab. do 2 rewrite app_length_rec in Hlab.
-      destruct (cons_length_rec a l) as [ | ?] ; lia. }
+                    rewrite length_app_rec in Hlab.
+                    destruct (length_cons_rec a l0) as [ | ? ]; lia. }
+      rewrite H in Hlab. do 2 rewrite length_app_rec in Hlab.
+      destruct (length_cons_rec a l) as [ | ?] ; lia. }
     fold lfill in H. destruct lh0 => //. 
     destruct (const_list l) => //. 
     remember (lfill _ _ _) as fill ; destruct fill => //. 
     move/eqP in H. rewrite H in Hlab.
     replace (AI_label n l0 l2 :: l1) with ([AI_label n l0 l2] ++ l1) in Hlab => //=.
-    do 2 rewrite app_length_rec in Hlab.
+    do 2 rewrite length_app_rec in Hlab.
     unfold length_rec in Hlab. simpl in Hlab.
     rewrite <- (Nat.add_0_r (S n0)) in Hlab. rewrite Nat.add_comm in Hlab.
     apply Nat.le_lt_add_lt in Hlab ; try lia. 
     apply Nat.succ_lt_mono in Hlab. rewrite Nat.add_0_r in Hlab.
     assert (lfilled k lh0 es l2) as Hfill''.
     { unfold lfilled ; by rewrite <- Heqfill. }
-    apply lfilled_length_rec in Hfill''. unfold length_rec.
+    apply length_lfilled_rec in Hfill''. unfold length_rec.
     unfold length_rec in Hfill''. lia.
   * assert (llfill (LL_local [] n f (LL_base [] []) []) es = [AI_local n f es]).
     simpl. by rewrite app_nil_r.
@@ -1562,23 +1562,23 @@ Proof.
                                    rewrite app_nil_r in H. subst.
                                    exfalso ; apply IHHred2 => //=. }
         simpl in H. rewrite H in Hlab.
-                    rewrite app_length_rec in Hlab.
-                    destruct (cons_length_rec a l0) as [ | ? ]; lia. }
-      rewrite H in Hlab. do 2 rewrite app_length_rec in Hlab.
-      destruct (cons_length_rec a l) as [ | ?] ; lia. }
+                    rewrite length_app_rec in Hlab.
+                    destruct (length_cons_rec a l0) as [ | ? ]; lia. }
+      rewrite H in Hlab. do 2 rewrite length_app_rec in Hlab.
+      destruct (length_cons_rec a l) as [ | ?] ; lia. }
     fold lfill in H. destruct lh0 => //. 
     destruct (const_list l) => //. 
     remember (lfill _ _ _) as fill ; destruct fill => //. 
     move/eqP in H. rewrite H in Hlab.
     replace (AI_label n l0 l2 :: l1) with ([AI_label n l0 l2] ++ l1) in Hlab => //=.
-    do 2 rewrite app_length_rec in Hlab.
+    do 2 rewrite length_app_rec in Hlab.
     unfold length_rec in Hlab. simpl in Hlab.
     rewrite <- (Nat.add_0_r (S n0)) in Hlab. rewrite Nat.add_comm in Hlab.
     apply Nat.le_lt_add_lt in Hlab ; try lia. 
     apply Nat.succ_lt_mono in Hlab. rewrite Nat.add_0_r in Hlab.
     assert (lfilled k0 lh0 es l2) as Hfill''.
     { unfold lfilled ; by rewrite <- Heqfill. }
-    apply lfilled_length_rec in Hfill''. unfold length_rec.
+    apply length_lfilled_rec in Hfill''. unfold length_rec.
     unfold length_rec in Hfill''. lia.
 Qed.
 

@@ -201,7 +201,7 @@ Proof.
     lia.
   - move => Hlookup.
     apply lookup_lt_Some in Hlookup.
-    by rewrite repeat_length in Hlookup.
+    by rewrite length_repeat in Hlookup.
 Qed.
 
 Lemma repeat_lookup_None {T: Type} (x: T) (n i: nat):
@@ -215,7 +215,7 @@ Proof.
     lia.
   - move => Hlookup.
     apply lookup_ge_None in Hlookup.
-    by rewrite repeat_length in Hlookup.
+    by rewrite length_repeat in Hlookup.
 Qed.
 
 Lemma seq_map_fmap {X Y: Type} (f: X -> Y) (l: list X):
@@ -231,8 +231,8 @@ Proof.
   move => Hrlookup.
   assert (i < length (repeat v n)); first by eapply lookup_lt_Some.
 
-  split; last by rewrite repeat_length in H.
-  assert (repeat v n !! i = Some v); first by apply repeat_lookup; rewrite repeat_length in H.
+  split; last by rewrite length_repeat in H.
+  assert (repeat v n !! i = Some v); first by apply repeat_lookup; rewrite length_repeat in H.
   rewrite H0 in Hrlookup.
   by inversion Hrlookup.
 Qed.
@@ -303,12 +303,12 @@ Proof.
       rewrite list_lookup_insert => //.
       by apply lookup_lt_Some in Hk; lias.
     }
-    { by rewrite insert_length. }
+    { by rewrite length_insert. }
   - rewrite lookup_insert_ne => //.
     destruct (list_to_map (zip l1 _) !! i) eqn:Hli => /=.
     { symmetry.
       apply list_to_map_zip_lookup => //.
-      { by rewrite insert_length. }
+      { by rewrite length_insert. }
       { apply elem_of_list_to_map in Hli; last first.
         { rewrite fst_zip => //; by lias. }
         apply elem_of_list_lookup in Hli.
@@ -326,7 +326,7 @@ Proof.
       rewrite fst_zip in H2; last by lias.
       rewrite not_elem_of_list_to_map_1 => //.
       rewrite fst_zip => //.
-      by rewrite insert_length; lias.
+      by rewrite length_insert; lias.
     }
 Qed.
     
@@ -336,9 +336,9 @@ Lemma fmap_fmap_lookup {T1 T2 T: Type} (f1: T1 -> T) (f2: T2 -> T) (l1: list T1)
 Proof.
   move => Heq i.
   assert (length l1 = length l2) as Hlen.
-  { erewrite <- fmap_length with (f := f1).
+  { erewrite <- length_fmap with (f := f1).
     rewrite Heq.
-    by rewrite fmap_length.
+    by rewrite length_fmap.
   }
   destruct (l1 !! i) eqn:Hl1; destruct (l2 !! i) eqn:Hl2 => //=.
   - assert ((fmap f1 l1) !! i = (fmap f2 l2) !! i) as Heqi; first by rewrite Heq.
@@ -470,19 +470,19 @@ Lemma update_twice {A} l i (x : A) y :
 Proof.
   move => H.
   rewrite update_list_at_insert; last first.
-  { rewrite update_list_at_insert => //; by rewrite insert_length. }
+  { rewrite update_list_at_insert => //; by rewrite length_insert. }
   repeat rewrite update_list_at_insert => //.
   by rewrite list_insert_insert.
 Qed.
 
 
-Lemma update_length {A} l i (x : A) :
+Lemma length_update {A} l i (x : A) :
   i < length l ->
   length (update_list_at l i x) = length l.
 Proof.
   move => H.
   rewrite update_list_at_insert => //.
-  by rewrite insert_length.
+  by rewrite length_insert.
 Qed.
 
 
@@ -574,7 +574,7 @@ Proof.
   induction l;auto.
 Qed.
 
-Lemma those_length  {A B : Type} (f : A -> option B) l l' :
+Lemma length_those  {A B : Type} (f : A -> option B) l l' :
   those (map f l) = Some l' -> length l = length l'.
 Proof.
   rewrite -those_those0.
@@ -633,8 +633,8 @@ Lemma gen_index_length n len:
   length (gen_index n len) = len.
 Proof.
   unfold gen_index.
-  rewrite imap_length.
-  by rewrite repeat_length.
+  rewrite length_imap.
+  by rewrite length_repeat.
 Qed.
 
 Lemma gen_index_extend offset len:

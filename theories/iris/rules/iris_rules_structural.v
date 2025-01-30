@@ -86,8 +86,8 @@ Proof.
         iDestruct "H" as "[Hσ H]".
         iDestruct "H" as  (f1) "(Hf1 & Hes & Hefs)".
         iSimpl.
-        iFrame. iExists _. iFrame.
-        iSplit => //.
+        iFrame. (* iExists _. iFrame. *)
+        iSplit => //. 
         iIntros "?"; iSpecialize ("Hes" with "[$]").
         iApply "IH".
         by iFrame.
@@ -112,7 +112,7 @@ Proof.
         iDestruct "H" as "[Hσ H]".
         iDestruct "H" as (f1) "(Hf1 & Hes & Hefs)".
         iFrame.
-        iModIntro. iExists _. iFrame.
+        iModIntro. (* iExists _. iFrame. *)
         iSplit => //.
         iIntros "?"; iSpecialize ("Hes" with "[$]").
         repeat rewrite wp_unfold /wp_pre /=.
@@ -233,7 +233,7 @@ Proof.
         iModIntro.
         iDestruct "H2" as "(Hσ & Hes)".
         iDestruct "Hes" as (f1) "(Hf & Hes'' & Hefs)".
-        iFrame. iExists _. iFrame.
+        iFrame. (* iExists _. iFrame. *) 
         iSplit =>//.
         iIntros "?"; iSpecialize ("Hes''" with "[$]").
         iDestruct ("IH" with "[$Hntrap $Hes'' $Hes2]") as "Hcont"; by iApply "Hcont".
@@ -254,7 +254,7 @@ Proof.
         iDestruct "H2" as "[Hσ H]".
         iDestruct "H" as (f) "(Hf1 & Hes'' & Hefs)".
         iModIntro => /=.
-        iFrame. iExists _. iFrame.
+        iFrame. (* iExists _. iFrame. *) 
         iIntros "?"; iSpecialize ("Hes''" with "[$]").
         replace [AI_trap] with (iris.of_val trapV) => //=.
         iDestruct (wp_unfold with "Hes''") as "Hes''";rewrite /wp_pre /=.
@@ -413,7 +413,7 @@ Proof.
         subst f1.
         iMod (ghost_map_update (Build_frame locs2 inst2) with "Hframe Hf") as "[Hframe Hf]"; rewrite insert_insert.
         iModIntro. iFrame.
-        iExists _. iFrame. iIntros "Hf".
+        (* iExists _. iFrame. *)  iIntros "Hf".
         iDestruct ("Hes2" with "[$]") as "Hes2".
         iDestruct ("Hes2" with "[]") as "Hes2".
         { iPureIntro. apply of_to_val in HLI. rewrite HLI. eauto. }
@@ -429,7 +429,7 @@ Proof.
         subst f1.
         iMod (ghost_map_update (Build_frame locs2 inst2) with "Hframe Hf") as "[Hframe Hf]"; rewrite insert_insert.
         iModIntro. iFrame.
-        iExists _. iFrame. iIntros "Hf".
+        (* iExists _. iFrame. *) iIntros "Hf".
         iDestruct ("Hes2" with "[$]") as "Hes2".
         iDestruct ("Hes2" with "[]") as "Hes2".
         { iPureIntro. erewrite of_to_val;eauto. }
@@ -443,11 +443,11 @@ Proof.
       rewrite - sfill_to_llfill in Hetov4.
       rewrite -Hvh' -Hsh'' - Hsh' in Hetov4.
 
-      iFrame.
+(*       iFrame. *)
       iMod (ghost_map_update (Build_frame locs2 inst2) with "Hframe Hf1") as "[Hframe Hf]"; rewrite insert_insert.
       iModIntro. iFrame.
       
-      iExists _. iFrame.
+(*      iExists _. iFrame. *)
       iSplit => //. iIntros "Hf".
       iApply ("IH" with "[] [$] []");auto.
       iPureIntro. intros LI HLI.
@@ -547,7 +547,7 @@ Proof.
         destruct σ2 as [[??]?].
         iDestruct "H2" as "[Hσ H]".
         iDestruct "H" as (f1) "(Hf1 & Hes'' & Hefs)".
-        iFrame. iExists _. iFrame.
+        iFrame. (* iExists _. iFrame. *) 
         iIntros "?"; iSpecialize ("Hes''" with "[$]").
         iApply "IH".
         by iFrame. 
@@ -568,7 +568,7 @@ Proof.
         destruct σ as [[??]?].
         iDestruct "H2" as "[Hσ H]".
         iDestruct "H" as (f1) "(Hf1 & Hes'' & Hefs)".
-        iFrame. iExists _. iFrame.
+        iFrame. (* iExists _. iFrame. *) 
         iModIntro.
         iFrame.
         iIntros "?"; iSpecialize ("Hes''" with "[$]").

@@ -76,7 +76,8 @@ Section fundamental.
         iApply big_sepL2_app;eauto. }
       iDestruct (big_sepL2_length with "Hv1") as %Hlen1.
       rewrite Hbase' Hbase.
-      rewrite app_length -drop_drop -Hlen1 drop_app. iFrame.
+      rewrite length_app -drop_drop -Hlen1 drop_app.
+      rewrite drop_all Nat.sub_diag. iFrame.
     }
     { rewrite Hbase in Hbase'. rewrite Hbase'.
       iExists _,_,_,_,_,_,_,(τs''). iFrame "H H0 H1 H2". iFrame.
@@ -121,16 +122,16 @@ Section fundamental.
       destruct Hj3 as [lh'' Hlh''].
         
       iDestruct (big_sepL2_length with "Hws'") as %Hlen.
-      rewrite app_length in Hlen.
+      rewrite length_app in Hlen.
       rewrite -(take_drop (length τs'') ws').
       iDestruct (big_sepL2_app_inv with "Hws'") as "[Hws1 Hws2]".
-      { right. rewrite drop_length. lia. }
+      { right. rewrite length_drop. lia. }
       iDestruct (big_sepL2_length with "Hws2") as %Hlen'.        
 
       iIntros (f0 f1) "Hf". iSpecialize ("Hret" $! f0 with "[$]").
       iApply (wp_ret_shift with "Hret");[| |apply Hlh''|apply Hlh'].
       { apply const_list_of_val. }
-      { rewrite fmap_length. auto. }
+      { rewrite length_fmap. auto. }
     }
     { rewrite Hbase in Hbase'. rewrite Hbase'.
       iExists (τs'').
@@ -149,16 +150,16 @@ Section fundamental.
       destruct Hj3 as [lh'' Hlh''].
       
       iDestruct (big_sepL2_length with "Hws'") as %Hlen.
-      rewrite app_length in Hlen.
+      rewrite length_app in Hlen.
       rewrite -(take_drop (length τs'') ws').
       iDestruct (big_sepL2_app_inv with "Hws'") as "[Hws1 Hws2]".
-      { right. rewrite drop_length. lia. }
+      { right. rewrite length_drop. lia. }
       iDestruct (big_sepL2_length with "Hws2") as %Hlen'.        
 
       iIntros (f0 f1) "Hf". iSpecialize ("Hret" $! f0 with "[$]").
       iApply (wp_ret_shift with "Hret");[| |apply Hlh''|apply Hlh'].
       { apply const_list_of_val. }
-      { rewrite fmap_length. auto. }
+      { rewrite length_fmap. auto. }
     }
   Qed.
 
@@ -253,7 +254,7 @@ Section fundamental.
     { iApply iRewrite_nil_l.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_app_inv_r with "Hv") as (ws1 ws2 Heq) "[Hv1 Hv2]".
     rewrite Heq. simpl of_val. rewrite - v_to_e_cat - app_assoc.
@@ -275,7 +276,7 @@ Section fundamental.
 
     iApply (wp_wand with "[-]").
     { iApply (HIH with "[] [] [-]");iFrame "∗ # %".
-      iRight. iExists _. iSplit;eauto. }
+      iRight. done. }
 
     iIntros (v) "[Hw Hf0]".
     iFrame.

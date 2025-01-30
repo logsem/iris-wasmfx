@@ -67,8 +67,8 @@ Proof.
         destruct Htakestep as (H2 & _ & _).
         destruct f ; destruct f2.
         assert (length_rec (es ++ ys) < nnn).
-        { rewrite H in Hlen. rewrite app_length_rec in Hlen.
-          assert (length_rec [y] > 0) ; first by apply cons_length_rec.
+        { rewrite H in Hlen. rewrite length_app_rec in Hlen.
+          assert (length_rec [y] > 0) ; first by apply length_cons_rec.
           replace (es ++ ys)%list with (es ++ ys)%SEQ in Hlen => //=.
           lia. }
         destruct (IHnnn _ _ _ _ _ _ H1 H2 H3) as [Hσ | [[i Hstart] |
@@ -142,7 +142,7 @@ Proof.
       { rewrite H in Hlen. rewrite <- app_comm_cons in Hlen.
         replace (AI_basic (BI_const v) :: (bef ++ es ++ aft)) with
             ([AI_basic (BI_const v)] ++ (bef ++ es ++ aft)) in Hlen => //=.
-        rewrite app_length_rec in Hlen. simpl in Hlen. 
+        rewrite length_app_rec in Hlen. simpl in Hlen. 
           by apply Nat.succ_lt_mono. }
       destruct (IHnnn _ _ _ _ _ _ H1 H2 H3) as [Hσ | [[i Hstart] |
                                                       (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
@@ -310,8 +310,8 @@ Proof.
         destruct Htakestep as (H2 & _ & _).
         destruct f ; destruct f2.
         assert (length_rec (AI_label n es0 l :: ys) < nnn).
-        { rewrite H in Hlen. rewrite app_length_rec in Hlen.
-          assert (length_rec [y] > 0) ; first by apply cons_length_rec.
+        { rewrite H in Hlen. rewrite length_app_rec in Hlen.
+          assert (length_rec [y] > 0) ; first by apply length_cons_rec.
           replace (es ++ ys)%list with (es ++ ys)%SEQ in Hlen => //=.
           lia. }
         destruct (IHnnn _ _ _ _ _ _ H1 H2 H3) as [Hσ | [ [i Hstart] |
@@ -384,7 +384,7 @@ Proof.
       { rewrite H in Hlen. rewrite <- app_comm_cons in Hlen.
         replace (AI_basic (BI_const v) :: (bef ++ AI_label n es0 l :: aft)) with
             ([AI_basic (BI_const v)] ++ (bef ++ AI_label n es0 l :: aft)) in Hlen => //=.
-        rewrite app_length_rec in Hlen. simpl in Hlen. 
+        rewrite length_app_rec in Hlen. simpl in Hlen. 
           by apply Nat.succ_lt_mono. }          
       destruct (IHnnn _ _ _ _ _ _ Hles H2 H1) as [Hσ | [ [i Hstart] |
                                                          (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)

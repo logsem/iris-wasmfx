@@ -140,7 +140,7 @@ Section fundamental.
       iDestruct (big_sepL2_length with "Hv'") as %Hlen.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = immV _⌝ ∗ ↪[frame] _)%I with "[Hf]").
       { iApply (wp_frame_value with "Hf");eauto. 1: apply to_of_val.
-        rewrite fmap_length. auto. }
+        rewrite length_fmap. auto. }
       iIntros (v) "[-> Hf]". iFrame.
       iDestruct "Hf0v" as (?) "[_ [_ Hown]]".
       iFrame. iRight. iExists _. eauto. }
@@ -158,18 +158,18 @@ Section fundamental.
       inversion Hmin;simplify_eq. simpl lh_depth.
       pose proof (vfill_to_lfilled vh [AI_basic (BI_br p)]) as [_ Hfill].
       iDestruct "Hws'" as "[%Hcontr|Hws']";[done|iDestruct "Hws'" as (ww Heqw) "Hws'"].
-      iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !app_length in Hlen.
+      iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !length_app in Hlen.
       rewrite -(take_drop (length (τs'')) ww). inversion Heqw.
       rewrite -(take_drop (length (τs'')) ww) in H0.
       eapply lfilled_get_base_pull in H0 as [lh' Hlh'];[|eauto].
       iIntros (LI Hfill'%lfilled_Ind_Equivalent). inversion Hfill';simplify_eq.
       inversion H8;simplify_eq. repeat erewrite app_nil_l,app_nil_r.      
       iDestruct (big_sepL2_app_inv with "Hws'") as "[Hws1 Hws2]".
-      { right. rewrite drop_length. lia. }
+      { right. rewrite length_drop. lia. }
       iDestruct (big_sepL2_length with "Hws2") as %Hlen2.
       simpl in Hlook. inversion Hlook;subst τs'. rewrite Hdepth in Hlh'.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = immV _⌝ ∗ ↪[frame] _)%I with "[Hf0]").
-      { iApply (wp_br with "Hf0") ;[| |apply Hlh'|];[apply const_list_of_val|by rewrite /= fmap_length|].
+      { iApply (wp_br with "Hf0") ;[| |apply Hlh'|];[apply const_list_of_val|by rewrite /= length_fmap|].
         iNext. iIntros "Hf". rewrite app_nil_r.
         iApply wp_value;[done|].
         iFrame;eauto. }
@@ -177,7 +177,7 @@ Section fundamental.
       iExists _. iFrame. iIntros "Hf".
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = immV _⌝ ∗ ↪[frame] _)%I with "[Hf]").
       { iApply (wp_frame_value with "Hf");eauto. 1: apply to_of_val.
-        rewrite fmap_length. auto. }
+        rewrite length_fmap. auto. }
       iIntros (v) "[-> Hf]". iFrame.
       iDestruct "Hf0v" as (?) "[_ [_ Hown]]". iFrame.
       iRight. iExists _. eauto. }
@@ -185,11 +185,11 @@ Section fundamental.
     { iDestruct "Hret" as (vh vs' -> Hbase) "Hret".
       iDestruct "Hret" as (τs'') "[#Hws' _]".
       iDestruct "Hws'" as "[%Hcontr|Hws']";[done|iDestruct "Hws'" as (ww Heqw) "Hws'"].
-      iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !app_length in Hlen.
+      iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !length_app in Hlen.
       rewrite -(take_drop (length (τs'')) ww). inversion Heqw.
       rewrite -(take_drop (length (τs'')) ww) in H0. rewrite H0 in Hbase.
       iDestruct (big_sepL2_app_inv with "Hws'") as "[Hws1 Hws2]".
-      { right. rewrite drop_length. lia. }
+      { right. rewrite length_drop. lia. }
       iDestruct (big_sepL2_length with "Hws2") as %Hlen2.
       simpl iris.of_val.
       pose proof (sfill_to_lfilled vh [AI_basic BI_return]) as Hfill.
@@ -208,7 +208,7 @@ Section fundamental.
           apply lfilled_Ind_Equivalent. apply Hlh'. }
         { iApply wp_value;[done|]. iFrame;eauto. }
         { apply to_of_val. }
-        { rewrite fmap_length. auto. } }
+        { rewrite length_fmap. auto. } }
       iIntros (v) "[-> Hf]". iFrame.
       iSplitR;[iRight;iExists _;eauto|].
       iDestruct "Hf0v" as (?) "[_ [_ Hown]]". iFrame. }

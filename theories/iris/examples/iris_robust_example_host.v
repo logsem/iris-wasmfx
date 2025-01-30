@@ -35,7 +35,7 @@ End Host_instance.
 Section Host_robust_example.
   Context `{!wasmG Σ, !logrel_na_invs Σ, !hvisG Σ, !hmsG Σ, !hasG Σ}.
 
-Notation "{{{ P }}} es {{{ v , Q }}}" :=
+Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
   (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
   
   Definition lse_log_expr f log :=
@@ -284,17 +284,17 @@ Notation "{{{ P }}} es {{{ v , Q }}}" :=
     (inst_funcs inst) !! g = Some g_func ->
     (inst_funcs inst) !! log = Some log_func -> 
     
-    ⊢ {{{ ↪[frame] f
+    ⊢ {{{{ ↪[frame] f
          ∗ na_own logrel_nais ⊤
          ∗ N.of_nat idnstart ↦[wf] FC_func_native inst (Tf [] []) [T_i32] (lse_log_expr g log)
          ∗ na_inv logrel_nais (wfN (N.of_nat g_func)) ((N.of_nat g_func) ↦[wf] (FC_func_native i (Tf [] []) locs es))
          ∗ interp_instance C [(Mk_hostfuncidx h, Tf [T_i32] [])] i
          ∗ na_inv logrel_nais logN ((N.of_nat h) ↦[ha] HA_print)
          ∗ na_inv logrel_nais (wfN (N.of_nat log_func))
-         (N.of_nat log_func↦[wf]FC_func_host (Tf [T_i32] []) (Mk_hostfuncidx h)) }}}
+         (N.of_nat log_func↦[wf]FC_func_host (Tf [T_i32] []) (Mk_hostfuncidx h)) }}}}
       ([], [AI_invoke idnstart])
-      {{{ w, (⌜w = trapHV⌝ ∨ (⌜w = immHV []⌝ ∗ na_own logrel_nais ⊤))
-               ∗ ↪[frame] f }}}.
+      {{{{ w, (⌜w = trapHV⌝ ∨ (⌜w = immHV []⌝ ∗ na_own logrel_nais ⊤))
+               ∗ ↪[frame] f }}}}.
   Proof.
     iIntros (HC Htyp Hg Hlog).
     iModIntro. iIntros (Φ) "(Hf & Hown & Hidnstart & #Hadv & #Hi & #Hh & #Hlog) HΦ".
@@ -409,11 +409,11 @@ Notation "{{{ P }}} es {{{ v , Q }}}" :=
       mod_elem := [];
       mod_data := [];
       mod_start := Some {| modstart_func := Mk_funcidx 2 |};
-      mod_imports := [ {| imp_module := list_byte_of_string "Adv";
-                         imp_name := list_byte_of_string "adv_call";
+      mod_imports := [ {| imp_module := String.list_byte_of_string "Adv";
+                         imp_name := String.list_byte_of_string "adv_call";
                          imp_desc := ID_func 0 |};
-                       {| imp_module := list_byte_of_string "Host";
-                         imp_name := list_byte_of_string "log_call";
+                       {| imp_module := String.list_byte_of_string "Host";
+                         imp_name := String.list_byte_of_string "log_call";
                          imp_desc := ID_func 1 |} ];
       mod_exports := []
     |}.
@@ -479,16 +479,16 @@ Notation "{{{ P }}} es {{{ v , Q }}}" :=
     module_data_bound_check_gmap ∅ [] adv_module ->
     (* if the adversary module declares a memory, there cannot be more initializers that its size *)
 
-    ⊢ {{{ ↪[frame] empty_frame ∗
+    ⊢ {{{{ ↪[frame] empty_frame ∗
           N.of_nat log_func ↦[wf] (FC_func_host (Tf [T_i32] []) (Mk_hostfuncidx h)) ∗
           N.of_nat h ↦[ha] HA_print ∗
           0%N ↪[mods] adv_module ∗
           1%N ↪[mods] lse_log_module ∗
           na_own logrel_nais ⊤ ∗
           (∃ name, 0%N ↪[vis] {| modexp_name := name; modexp_desc := MED_func (Mk_funcidx log_func) |}) ∗
-          (∃ vs, 1%N ↪[vis] vs) }}}
+          (∃ vs, 1%N ↪[vis] vs) }}}}
         ((adv_lse_instantiate,[]) : host_expr)
-      {{{ v, (⌜v = trapHV⌝ ∨ (⌜v = immHV []⌝ ∗ na_own logrel_nais ⊤)) }}} .
+      {{{{ v, (⌜v = trapHV⌝ ∨ (⌜v = immHV []⌝ ∗ na_own logrel_nais ⊤)) }}}} .
   Proof.
     iIntros (Htyp Hnostart Hrestrict Hboundst Hboundsm).
     iModIntro. iIntros (Φ) "(Hemptyframe & Hlogfunc & Hh & Hmod_adv & Hmod_lse & Hown & Hvis1 & Hvis) HΦ".
@@ -621,7 +621,7 @@ Notation "{{{ P }}} es {{{ v , Q }}}" :=
     inversion Hcl; subst cl; clear Hcl.
     clear Hft.
     
-    iDestruct (mapsto_ne with "Hadvf Hlogfunc") as %Hne.
+    iDestruct (pointsto_ne with "Hadvf Hlogfunc") as %Hne.
     
     iApply (weakestpre.wp_wand _ _ _ (λ v, _ ∗ ↪[frame]empty_frame)%I with "[-HΦ] [HΦ]");cycle 1.
     { iIntros (v) "[Hv ?]". iApply "HΦ". iExact "Hv". }

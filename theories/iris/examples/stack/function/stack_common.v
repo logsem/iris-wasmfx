@@ -5,18 +5,19 @@ From iris.base_logic Require Export gen_heap ghost_map proph_map na_invariants.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre.
 From Wasm.iris.rules Require Export iris_rules proofmode.
-From Wasm.iris.rules Require Export iris_example_helper.
+From Wasm.iris.rules Require Export iris_example_helper. 
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 
-Notation "{{{ P }}} es {{{ v , Q }}}" :=
-  (□ ∀ Φ, P -∗ (∀ v : iris.val, Q -∗ Φ v) -∗ WP (es : iris.expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50). 
+ Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
+  (□ ∀ Φ, P -∗ (∀ v : iris.val, Q -∗ Φ v) -∗ WP (es : iris.expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).   
    
-Notation "{{{ P }}} es @ E {{{ v , Q }}}" :=
+Notation "{{{{ P }}}} es @ E {{{{ v , Q }}}}" :=
   (□ ∀ Φ, P -∗ (∀ v : iris.val, Q -∗ Φ v) -∗ (WP (es : iris.expr) @ NotStuck ; E {{ v, Φ v }}))%I (at level 50).
+
 
 Definition i32const (n:Z) := BI_const (VAL_int32 (Wasm_int.int_of_Z i32m n)).
 Definition value_of_int (n:Z) := VAL_int32 (Wasm_int.int_of_Z i32m n).
@@ -51,7 +52,7 @@ Lemma drop_is_nil {A} n (s : seq.seq A) :
   drop n s = [] -> n >= length s.
 Proof.
   move => Hdrop.
-  assert (length s - n = 0) as Hdroplen; first by rewrite - drop_length; rewrite Hdrop.
+  assert (length s - n = 0) as Hdroplen; first by rewrite - length_drop; rewrite Hdrop.
   by lias.
 Qed.
 
@@ -616,7 +617,7 @@ Proof.
   simpl.
   rewrite separate1.
   (* case splitting *)
-  destruct (N.ltb len (Wasm_int.N_of_uint i32m ((Wasm_int.int_of_Z i32m (Z.of_N v))) + N.of_nat (t_length T_i32))%N) eqn:Hlen.
+  destruct (N.ltb len (Wasm_int.N_of_uint i32m ((Wasm_int.int_of_Z i32m (Z.of_N v))) + N.of_nat (length_t T_i32))%N) eqn:Hlen.
   - apply N.ltb_lt in Hlen. iApply wp_seq.
     instantiate (1 := λ x, (⌜ x = immV [value_of_uint v] ⌝ ∗ ↪[frame] f)%I).
     iSplitR; first by iIntros "(%H & _)".
@@ -683,7 +684,7 @@ Proof.
   iSplitL "Hlen".
   { iIntros "Hf".
     iApply (wp_wand _ _ _ (λ v, (⌜v = trapV⌝ ∗ _) ∗ _)%I with "[-]").
-    iApply (wp_load_failure with "[$Hf $Hlen]");eauto. simpl t_length. lias.
+    iApply (wp_load_failure with "[$Hf $Hlen]");eauto. simpl length_t. lias.
     iIntros (v0) "[[-> ?] ?]". iFrame. auto. }
   iIntros (w f0) "[[-> %Hlen'] [Hf [-> Hlen]]] /=". lia.
 Qed.
@@ -861,8 +862,8 @@ Proof.
   iSplit => //.
   iFrame "Hf".
   repeat iSplit => //=.
-  { by rewrite insert_length. }
-  repeat rewrite insert_length.
+  { by rewrite length_insert. }
+  repeat rewrite length_insert.
   iFrame.
   iApply "Hcrest".
   iDestruct (i32_wms with "Hj") as "Hj".

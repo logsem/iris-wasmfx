@@ -4,7 +4,7 @@ From compcert Require Import Integers.
 From parseque Require Import Parseque.
 From Coq.Strings Require Import Byte.
 Require Import leb128.
-Require Import Coq.Arith.Le.
+Require Import PeanoNat.
 
 Inductive repr_unsigned : list byte -> module -> Prop :=
 .

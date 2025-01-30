@@ -32,7 +32,7 @@ Section fundamental.
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
 
     iDestruct (interp_instance_function_lookup with "Hi") as (func Hfunc) "Hfunc";[eauto..|].
@@ -91,11 +91,12 @@ Section fundamental.
           iApply (wp_wand with "H'").
           iIntros (w) "[[#Hw | Hw] [? ?]]".
           { iSplitR;[by iLeft|].
-            iExists _. iFrame. iExists _. iFrame. auto. }
+            iExists _. iFrame. auto. }
           { iSplitL "Hw".
             { repeat iRight. iNext.
               iApply "IH". iFrame. }
-            iExists _. iFrame. iExists _. iFrame. auto. }          
+
+            iExists _. iFrame. auto. }
         }
       }
       { (* host function *)
@@ -122,7 +123,7 @@ Section fundamental.
     }
 
     iIntros (v) "[[Hw Hown] Hf]".
-    iFrame. iSplitR "Hf".
+    iSplitR "Hf Hown".
     { iDestruct "Hw" as "[Hw | Hw]";[by iLeft|by iRight;iRight;iRight]. }
     iExists _. iFrame. eauto.
   Qed.

@@ -21,7 +21,7 @@ Section stack.
 Section code.
 
 (*
-  stack_length: [i32] -> [i32]
+  length_stack: [i32] -> [i32]
   locals declared: []
 
   Given a stack pointer, find the length of the stack.
@@ -35,7 +35,7 @@ Section code.
   0 (input)     stack pointer
  *)
   
-Definition stack_length_op :=
+Definition length_stack_op :=
   [
     BI_get_local 0 ;
     BI_load T_i32 None N.zero N.zero ;
@@ -46,26 +46,27 @@ Definition stack_length_op :=
   ].
 
 
-Definition stack_length :=
+Definition length_stack :=
   validate_stack 0 ++
   validate_stack_bound 0 ++
-  stack_length_op.
+  length_stack_op.
 
 End code.
 
 
 
 Section specs.
+
   
 Lemma spec_stack_length_op f0 n (v: N) s E (len: N): 
-  ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ (f_locs f0) !! 0 = Some (value_of_uint v) ⌝ ∗ 
         ⌜ (N.of_nat (length s) = len)%N ⌝ ∗ 
         ↪[frame] f0 ∗
-        isStack v s n }}}
-    to_e_list stack_length_op @ E
-    {{{ w, ⌜ w = immV [value_of_uint len] ⌝ ∗ isStack v s n ∗
-           ↪[frame] f0}}}.
+        isStack v s n }}}}
+    to_e_list length_stack_op @ E
+    {{{{ w, ⌜ w = immV [value_of_uint len] ⌝ ∗ isStack v s n ∗
+           ↪[frame] f0}}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinst & %Hlocv & %Hlen & Hf & Hstack) HΦ" => /=.
 
@@ -142,14 +143,14 @@ Proof.
 Qed.
 
 Lemma spec_stack_length f0 n (v: N) s E (len: N): 
-  ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ (f_locs f0) !! 0 = Some (value_of_uint v) ⌝ ∗ 
         ⌜ (N.of_nat (length s) = len)%N ⌝ ∗ 
         ↪[frame] f0 ∗
-        isStack v s n }}}
-    to_e_list stack_length @ E
-    {{{ w, ⌜ w = immV [value_of_uint len] ⌝ ∗ isStack v s n ∗
-           ↪[frame] f0}}}.
+        isStack v s n }}}}
+    to_e_list length_stack @ E
+    {{{{ w, ⌜ w = immV [value_of_uint len] ⌝ ∗ isStack v s n ∗
+           ↪[frame] f0}}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinst & %Hlocv & %Hlen & Hf & Hstack) HΦ" => /=.
   

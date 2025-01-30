@@ -264,7 +264,7 @@ Note that this is a property very similar to Iris context.
         subst.
         rewrite H1.
         simpl.
-        rewrite app_length.
+        rewrite length_app.
         lia.
         destruct He ; destruct e => //. destruct b => //. 
         by const_list_app.
@@ -290,7 +290,7 @@ Note that this is a property very similar to Iris context.
         subst.
         rewrite H1.
         simpl.
-        rewrite app_length.
+        rewrite length_app.
         lia.
         destruct He ; destruct e => //. destruct b => //. 
         by const_list_app.
@@ -414,7 +414,7 @@ Note that this is a property very similar to Iris context.
       rewrite H4.
       rewrite - v_to_e_length.
       rewrite Hvs'. simpl.
-      rewrite app_length.
+      rewrite length_app.
       lia.
       destruct He ; destruct e => // ; destruct b => //. 
       rewrite H1.
@@ -448,7 +448,7 @@ Note that this is a property very similar to Iris context.
       rewrite H3.
       rewrite - v_to_e_length.
       rewrite Hvs'. simpl.
-      rewrite app_length.
+      rewrite length_app.
       lia.
       destruct He ; destruct e => // ; destruct b => //. 
       rewrite H1.
@@ -603,7 +603,7 @@ Note that this is a property very similar to Iris context.
         unfold lfilled, lfill => //=.
         rewrite Hbef0.
         done. }
-      destruct (lfilled_length_rec_or_same k lh0 es0 les) as [Hlenr | Heqes] => //=.
+      destruct (length_lfilled_rec_or_same k lh0 es0 les) as [Hlenr | Heqes] => //=.
       assert (length_rec es0 < nnn) ; first lia.
       eapply IHnnn in H3 as [( es'' & (Hstep & _ & _) & Hfill0) | [lhtrap Htrap]] => //=.
       + left ; exists es''.

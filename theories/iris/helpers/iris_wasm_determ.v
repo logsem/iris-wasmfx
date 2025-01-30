@@ -439,7 +439,7 @@ Section determ.
         assert (length (a1 :: (bef ++ ys)) = length t1s) ;
           first by rewrite H1 v_to_e_length ; subst.
         simpl in H7.
-        rewrite app_length in H7.
+        rewrite length_app in H7.
         lia. } 
       get_tail a2 aft ys y Htail.
       rewrite Htail app_assoc app_assoc in H9.

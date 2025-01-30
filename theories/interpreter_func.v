@@ -325,7 +325,7 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
           (fun j =>
              if List.nth_error s.(s_mems) j is Some mem_s_j then
                expect
-                 (load (mem_s_j) (Wasm_int.N_of_uint i32m k) off (t_length t))
+                 (load (mem_s_j) (Wasm_int.N_of_uint i32m k) off (length_t t))
                  (fun bs => (s, f, RS_normal (vs_to_es (wasm_deserialise bs t :: ves'))))
                  (s, f, RS_normal (vs_to_es ves' ++ [::AI_trap]))
              else (s, f, crash_error))
@@ -338,7 +338,7 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
           (fun j =>
              if List.nth_error s.(s_mems) j is Some mem_s_j then
                expect
-                 (load_packed sx (mem_s_j) (Wasm_int.N_of_uint i32m k) off (tp_length tp) (t_length t))
+                 (load_packed sx (mem_s_j) (Wasm_int.N_of_uint i32m k) off (length_tp tp) (length_t t))
                  (fun bs => (s, f, RS_normal (vs_to_es (wasm_deserialise bs t :: ves'))))
                  (s, f, RS_normal (vs_to_es ves' ++ [::AI_trap]))
              else (s, f, crash_error))
@@ -353,7 +353,7 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
             (fun j =>
                if List.nth_error s.(s_mems) j is Some mem_s_j then
                  expect
-                   (store mem_s_j (Wasm_int.N_of_uint i32m k) off (bits v) (t_length t))
+                   (store mem_s_j (Wasm_int.N_of_uint i32m k) off (bits v) (length_t t))
                    (fun mem' =>
                       (upd_s_mem s (update_list_at s.(s_mems) j mem'), f, RS_normal (vs_to_es ves')))
                    (s, f, RS_normal (vs_to_es ves' ++ [::AI_trap]))
@@ -370,7 +370,7 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
             (fun j =>
                if List.nth_error s.(s_mems) j is Some mem_s_j then
                  expect
-                   (store_packed mem_s_j (Wasm_int.N_of_uint i32m k) off (bits v) (tp_length tp))
+                   (store_packed mem_s_j (Wasm_int.N_of_uint i32m k) off (bits v) (length_tp tp))
                    (fun mem' =>
                       (upd_s_mem s (update_list_at s.(s_mems) j mem'), f, RS_normal (vs_to_es ves')))
                    (s, f, RS_normal (vs_to_es ves' ++ [::AI_trap]))

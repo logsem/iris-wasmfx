@@ -50,9 +50,9 @@ Record host := {
       store_typing st ->
       store_typing st' (** [host_application] preserves store typing. **) ;
     host_application_respect : forall s t1s t2s st h vs s' st' r,
-      all2 types_agree t1s vs ->
+      all2 (types_agree st) t1s vs ->
       host_application s st (Tf t1s t2s) h vs s' (Some (st', r)) ->
-      result_types_agree t2s r (** [host_application] respects types. **)
+      result_types_agree st t2s r (** [host_application] respects types. **)
   }.
 
 End Predicate.
@@ -138,9 +138,9 @@ Definition hostfuncidx_eqb f1 f2 : bool := hostfuncidx_eq_dec f1 f2.
 Definition hostfuncidxP : Equality.axiom hostfuncidx_eqb :=
   eq_dec_Equality_axiom hostfuncidx_eq_dec. 
 
-Canonical Structure hostfuncidx_eqMixin := EqMixin hostfuncidxP.
+Canonical Structure hostfuncidx_eqMixin := Equality.Mixin hostfuncidxP.
 Canonical Structure host_function :=
-  Eval hnf in EqType _ hostfuncidx_eqMixin. 
+  Eval hnf in Equality.Pack (Equality.Class hostfuncidx_eqMixin). 
 (*
 Definition executable_host := executable_host H.host_function.
 Definition store_record := store_record H.host_function.

@@ -19,8 +19,8 @@ Definition number_type_eqb v1 v2 : bool := number_type_eq_dec v1 v2.
 Definition eqnumber_typeP : Equality.axiom number_type_eqb :=
   eq_dec_Equality_axiom number_type_eq_dec.
 
-Canonical Structure number_type_eqMixin := EqMixin eqnumber_typeP.
-Canonical Structure number_type_eqType := Eval hnf in EqType number_type number_type_eqMixin.
+Canonical Structure number_type_eqMixin := Equality.Mixin eqnumber_typeP.
+Canonical Structure number_type_eqType := Eval hnf in Equality.Pack (sort := number_type) (Equality.Class number_type_eqMixin).
 
 Definition merge_list l := List.fold_left (fun acc i => acc + i) l 0.
 Lemma merge_move x l : List.fold_left (fun acc i => acc + i) l x = x + List.fold_left (fun acc i => acc + i) l 0.
@@ -187,15 +187,15 @@ Defined.
 From mathcomp Require Import ssrnat.
 
 Canonical Structure immediate_eqType :=
-  Eval hnf in EqType immediate nat_eqMixin.
+  Eval hnf in Equality.Pack (sort := immediate) (Equality.Class nat_eqMixin).
 Canonical Structure funcaddr_eqType :=
-  Eval hnf in EqType funcaddr nat_eqMixin.
+  Eval hnf in Equality.Pack (sort := funcaddr) (Equality.Class nat_eqMixin).
 Canonical Structure tableaddr_eqType :=
-  Eval hnf in EqType tableaddr nat_eqMixin.
+  Eval hnf in Equality.Pack (sort := tableaddr) (Equality.Class nat_eqMixin).
 Canonical Structure memaddr_eqType :=
-  Eval hnf in EqType memaddr nat_eqMixin.
+  Eval hnf in Equality.Pack (sort := memaddr) (Equality.Class nat_eqMixin).
 Canonical Structure globaladdr_eqType :=
-  Eval hnf in EqType globaladdr nat_eqMixin.
+  Eval hnf in Equality.Pack (sort := globaladdr) (Equality.Class nat_eqMixin).
 
 Definition ascii_eq_dec : forall tf1 tf2 : Ascii.ascii,
   {tf1 = tf2} + {tf1 <> tf2}.
@@ -205,17 +205,17 @@ Definition ascii_eqb v1 v2 : bool := ascii_eq_dec v1 v2.
 Definition eqasciiP : Equality.axiom ascii_eqb :=
   eq_dec_Equality_axiom ascii_eq_dec.
 
-Canonical Structure ascii_eqMixin := EqMixin eqasciiP.
+Canonical Structure ascii_eqMixin := Equality.Mixin eqasciiP.
 Canonical Structure ascii_eqType :=
-  Eval hnf in EqType Ascii.ascii ascii_eqMixin.
+  Eval hnf in Equality.Pack (sort := Ascii.ascii) (Equality.Class ascii_eqMixin).
 
 Definition byte_eqb v1 v2 : bool := Byte.byte_eq_dec v1 v2.
 Definition eqbyteP : Equality.axiom byte_eqb :=
   eq_dec_Equality_axiom Byte.byte_eq_dec.
 
-Canonical Structure byte_eqMixin := EqMixin eqbyteP.
+Canonical Structure byte_eqMixin := Equality.Mixin eqbyteP.
 Canonical Structure byte_eqType :=
-  Eval hnf in EqType Byte.byte byte_eqMixin.
+  Eval hnf in Equality.Pack (sort := Byte.byte) (Equality.Class byte_eqMixin).
 
 
 Definition reference_type_eq_dec : forall t1 t2: reference_type,
@@ -280,31 +280,31 @@ Definition reference_type_eqb v1 v2 : bool := reference_type_eq_dec v1 v2.
 Definition eqreference_typeP : Equality.axiom reference_type_eqb :=
   eq_dec_Equality_axiom reference_type_eq_dec.
 
-Canonical Structure reference_type_eqMixin := EqMixin eqreference_typeP.
-Canonical Structure reference_type_eqType := Eval hnf in EqType reference_type reference_type_eqMixin. 
+Canonical Structure reference_type_eqMixin := Equality.Mixin eqreference_typeP.
+Canonical Structure reference_type_eqType := Eval hnf in Equality.Pack (sort := reference_type) (Equality.Class reference_type_eqMixin). 
 
 Definition value_type_eqb v1 v2 : bool := value_type_eq_dec v1 v2.
 Definition eqvalue_typeP : Equality.axiom value_type_eqb :=
   eq_dec_Equality_axiom value_type_eq_dec.
 
-Canonical Structure value_type_eqMixin := EqMixin eqvalue_typeP.
-Canonical Structure value_type_eqType := Eval hnf in EqType value_type value_type_eqMixin. 
+Canonical Structure value_type_eqMixin := Equality.Mixin eqvalue_typeP.
+Canonical Structure value_type_eqType := Eval hnf in Equality.Pack (sort := value_type) (Equality.Class value_type_eqMixin). 
 
 Scheme Equality for packed_type.
 Definition packed_type_eqb v1 v2 : bool := packed_type_eq_dec v1 v2.
 Definition eqpacked_typeP : Equality.axiom packed_type_eqb :=
   eq_dec_Equality_axiom packed_type_eq_dec.
 
-Canonical Structure packed_type_eqMixin := EqMixin eqpacked_typeP.
-Canonical Structure packed_type_eqType := Eval hnf in EqType packed_type packed_type_eqMixin.
+Canonical Structure packed_type_eqMixin := Equality.Mixin eqpacked_typeP.
+Canonical Structure packed_type_eqType := Eval hnf in Equality.Pack (sort := packed_type) (Equality.Class packed_type_eqMixin).
 
 Scheme Equality for mutability.
 Definition mutability_eqb v1 v2 : bool := mutability_eq_dec v1 v2.
 Definition eqmutabilityP : Equality.axiom mutability_eqb :=
   eq_dec_Equality_axiom mutability_eq_dec.
 
-Canonical Structure mutability_eqMixin := EqMixin eqmutabilityP.
-Canonical Structure mutability_eqType := Eval hnf in EqType mutability mutability_eqMixin.
+Canonical Structure mutability_eqMixin := Equality.Mixin eqmutabilityP.
+Canonical Structure mutability_eqType := Eval hnf in Equality.Pack (sort := mutability) (Equality.Class mutability_eqMixin).
 
 Definition global_type_eq_dec : forall g1 g2: global_type,
     { g1 = g2 } + { g1 <> g2 }.
@@ -318,8 +318,8 @@ Definition global_type_eqb v1 v2 : bool := global_type_eq_dec v1 v2.
 Definition eqglobal_typeP : Equality.axiom global_type_eqb :=
   eq_dec_Equality_axiom global_type_eq_dec.
 
-Canonical Structure global_type_eqMixin := EqMixin eqglobal_typeP.
-Canonical Structure global_type_eqType := Eval hnf in EqType global_type global_type_eqMixin. 
+Canonical Structure global_type_eqMixin := Equality.Mixin eqglobal_typeP.
+Canonical Structure global_type_eqType := Eval hnf in Equality.Pack (sort := global_type) (Equality.Class global_type_eqMixin). 
 
  Definition function_type_eq_dec : forall tf1 tf2 : function_type,
   {tf1 = tf2} + {tf1 <> tf2}.
@@ -329,9 +329,9 @@ Definition function_type_eqb v1 v2 : bool := function_type_eq_dec v1 v2.
 Definition eqfunction_typeP : Equality.axiom function_type_eqb :=
   eq_dec_Equality_axiom function_type_eq_dec.
 
-Canonical Structure function_type_eqMixin := EqMixin eqfunction_typeP.
+Canonical Structure function_type_eqMixin := Equality.Mixin eqfunction_typeP.
 Canonical Structure function_type_eqType :=
-  Eval hnf in EqType function_type function_type_eqMixin. 
+  Eval hnf in Equality.Pack (sort := function_type) (Equality.Class function_type_eqMixin). 
 
 Definition t_context_eq_dec : forall x y : t_context, {x = y} + {x <> y}.
 Proof. decidable_equality. Defined.
@@ -340,80 +340,80 @@ Definition t_context_eqb v1 v2 : bool := t_context_eq_dec v1 v2.
 Definition eqt_contextP : Equality.axiom t_context_eqb :=
   eq_dec_Equality_axiom t_context_eq_dec.
 
-Canonical Structure t_context_eqMixin := EqMixin eqt_contextP.
-Canonical Structure t_context_eqType := Eval hnf in EqType t_context t_context_eqMixin. 
+Canonical Structure t_context_eqMixin := Equality.Mixin eqt_contextP.
+Canonical Structure t_context_eqType := Eval hnf in Equality.Pack (sort := t_context) (Equality.Class t_context_eqMixin). 
 
 Scheme Equality for sx.
 Definition sx_eqb v1 v2 : bool := sx_eq_dec v1 v2.
 Definition eqsxP : Equality.axiom sx_eqb :=
   eq_dec_Equality_axiom sx_eq_dec.
 
-Canonical Structure sx_eqMixin := EqMixin eqsxP.
-Canonical Structure sx_eqType := Eval hnf in EqType sx sx_eqMixin.
+Canonical Structure sx_eqMixin := Equality.Mixin eqsxP.
+Canonical Structure sx_eqType := Eval hnf in Equality.Pack (sort := sx) (Equality.Class sx_eqMixin).
 
 Scheme Equality for unop_i.
 Definition unop_i_eqb v1 v2 : bool := unop_i_eq_dec v1 v2.
 Definition equnop_iP : Equality.axiom unop_i_eqb :=
   eq_dec_Equality_axiom unop_i_eq_dec.
 
-Canonical Structure unop_i_eqMixin := EqMixin equnop_iP.
-Canonical Structure unop_i_eqType := Eval hnf in EqType unop_i unop_i_eqMixin.
+Canonical Structure unop_i_eqMixin := Equality.Mixin equnop_iP.
+Canonical Structure unop_i_eqType := Eval hnf in Equality.Pack (sort := unop_i) (Equality.Class unop_i_eqMixin).
 
 Scheme Equality for unop_f.
 Definition unop_f_eqb v1 v2 : bool := unop_f_eq_dec v1 v2.
 Definition equnop_fP : Equality.axiom unop_f_eqb :=
   eq_dec_Equality_axiom unop_f_eq_dec.
 
-Canonical Structure unop_f_eqMixin := EqMixin equnop_fP.
-Canonical Structure unop_f_eqType := Eval hnf in EqType unop_f unop_f_eqMixin.
+Canonical Structure unop_f_eqMixin := Equality.Mixin equnop_fP.
+Canonical Structure unop_f_eqType := Eval hnf in Equality.Pack (sort := unop_f) (Equality.Class unop_f_eqMixin).
 
 Scheme Equality for binop_i.
 Definition binop_i_eqb v1 v2 : bool := binop_i_eq_dec v1 v2.
 Definition eqbinop_iP : Equality.axiom binop_i_eqb :=
   eq_dec_Equality_axiom binop_i_eq_dec.
 
-Canonical Structure binop_i_eqMixin := EqMixin eqbinop_iP.
-Canonical Structure binop_i_eqType := Eval hnf in EqType binop_i binop_i_eqMixin.
+Canonical Structure binop_i_eqMixin := Equality.Mixin eqbinop_iP.
+Canonical Structure binop_i_eqType := Eval hnf in Equality.Pack (sort := binop_i) (Equality.Class binop_i_eqMixin).
 
 Scheme Equality for binop_f.
 Definition binop_f_eqb v1 v2 : bool := binop_f_eq_dec v1 v2.
 Definition eqbinop_fP : Equality.axiom binop_f_eqb :=
   eq_dec_Equality_axiom binop_f_eq_dec.
 
-Canonical Structure binop_f_eqMixin := EqMixin eqbinop_fP.
-Canonical Structure binop_f_eqType := Eval hnf in EqType binop_f binop_f_eqMixin.
+Canonical Structure binop_f_eqMixin := Equality.Mixin eqbinop_fP.
+Canonical Structure binop_f_eqType := Eval hnf in Equality.Pack (sort := binop_f) (Equality.Class binop_f_eqMixin).
 
 Scheme Equality for testop.
 Definition testop_eqb v1 v2 : bool := testop_eq_dec v1 v2.
 Definition eqtestopP : Equality.axiom testop_eqb :=
   eq_dec_Equality_axiom testop_eq_dec.
 
-Canonical Structure testop_eqMixin := EqMixin eqtestopP.
-Canonical Structure testop_eqType := Eval hnf in EqType testop testop_eqMixin.
+Canonical Structure testop_eqMixin := Equality.Mixin eqtestopP.
+Canonical Structure testop_eqType := Eval hnf in Equality.Pack (sort := testop) (Equality.Class testop_eqMixin).
 
 Scheme Equality for relop_i.
 Definition relop_i_eqb v1 v2 : bool := relop_i_eq_dec v1 v2.
 Definition eqrelop_iP : Equality.axiom relop_i_eqb :=
   eq_dec_Equality_axiom relop_i_eq_dec.
 
-Canonical Structure relop_i_eqMixin := EqMixin eqrelop_iP.
-Canonical Structure relop_i_eqType := Eval hnf in EqType relop_i relop_i_eqMixin.
+Canonical Structure relop_i_eqMixin := Equality.Mixin eqrelop_iP.
+Canonical Structure relop_i_eqType := Eval hnf in Equality.Pack (sort := relop_i) (Equality.Class relop_i_eqMixin).
 
 Scheme Equality for relop_f.
 Definition relop_f_eqb v1 v2 : bool := relop_f_eq_dec v1 v2.
 Definition eqrelop_fP : Equality.axiom relop_f_eqb :=
   eq_dec_Equality_axiom relop_f_eq_dec.
 
-Canonical Structure relop_f_eqMixin := EqMixin eqrelop_fP.
-Canonical Structure relop_f_eqType := Eval hnf in EqType relop_f relop_f_eqMixin.
+Canonical Structure relop_f_eqMixin := Equality.Mixin eqrelop_fP.
+Canonical Structure relop_f_eqType := Eval hnf in Equality.Pack (sort := relop_f) (Equality.Class relop_f_eqMixin).
 
 Scheme Equality for cvtop.
 Definition cvtop_eqb v1 v2 : bool := cvtop_eq_dec v1 v2.
 Definition eqcvtopP : Equality.axiom cvtop_eqb :=
   eq_dec_Equality_axiom cvtop_eq_dec.
 
-Canonical Structure cvtop_eqMixin := EqMixin eqcvtopP.
-Canonical Structure cvtop_eqType := Eval hnf in EqType cvtop cvtop_eqMixin.
+Canonical Structure cvtop_eqMixin := Equality.Mixin eqcvtopP.
+Canonical Structure cvtop_eqType := Eval hnf in Equality.Pack (sort := cvtop) (Equality.Class cvtop_eqMixin).
 
  Definition value_eq_dec : forall v1 v2 : value, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -422,8 +422,8 @@ Definition value_eqb v1 v2 : bool := value_eq_dec v1 v2.
 Definition eqvalueP : Equality.axiom value_eqb :=
   eq_dec_Equality_axiom value_eq_dec.
 
-Canonical Structure value_eqMixin := EqMixin eqvalueP.
-Canonical Structure value_eqType := Eval hnf in EqType value value_eqMixin. 
+Canonical Structure value_eqMixin := Equality.Mixin eqvalueP.
+Canonical Structure value_eqType := Eval hnf in Equality.Pack (sort := value) (Equality.Class value_eqMixin). 
 
 (** Some helper functions for [value] that can safely extract. **)
 Definition value_num_rec_safe (P : Type)
@@ -469,9 +469,9 @@ Definition basic_instruction_eqb cl1 cl2 : bool :=
 Definition eqbasic_instructionP : Equality.axiom basic_instruction_eqb :=
   eq_dec_Equality_axiom basic_instruction_eq_dec.
 
-Canonical Structure basic_instruction_eqMixin := EqMixin eqbasic_instructionP.
+Canonical Structure basic_instruction_eqMixin := Equality.Mixin eqbasic_instructionP.
 Canonical Structure basic_instruction_eqType :=
-  Eval hnf in EqType basic_instruction basic_instruction_eqMixin. 
+  Eval hnf in Equality.Pack (sort := basic_instruction) (Equality.Class basic_instruction_eqMixin). 
 
  Definition instance_eq_dec : forall (i1 i2 : instance), {i1 = i2} + {i1 <> i2}.
 Proof. decidable_equality. Defined.
@@ -481,8 +481,8 @@ Definition instance_eqb i1 i2 : bool := instance_eq_dec i1 i2.
 Definition eqinstanceP : Equality.axiom instance_eqb :=
   eq_dec_Equality_axiom instance_eq_dec.
 
-Canonical Structure instance_eqMixin := EqMixin eqinstanceP.
-Canonical Structure instance_eqType := Eval hnf in EqType instance instance_eqMixin.
+Canonical Structure instance_eqMixin := Equality.Mixin eqinstanceP.
+Canonical Structure instance_eqType := Eval hnf in Equality.Pack (sort := instance) (Equality.Class instance_eqMixin).
 
 
 
@@ -498,9 +498,9 @@ Definition function_closure_eqb cl1 cl2 : bool := function_closure_eq_dec cl1 cl
 Definition eqfunction_closureP : Equality.axiom function_closure_eqb :=
   eq_dec_Equality_axiom function_closure_eq_dec.
 
-Canonical Structure function_closure_eqMixin := EqMixin eqfunction_closureP.
+Canonical Structure function_closure_eqMixin := Equality.Mixin eqfunction_closureP.
 Canonical Structure function_closure_eqType :=
-  Eval hnf in EqType function_closure function_closure_eqMixin. 
+  Eval hnf in Equality.Pack (sort := function_closure) (Equality.Class function_closure_eqMixin). 
 
 Definition tableinst_eq_dec : forall v1 v2 : tableinst, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -509,8 +509,8 @@ Definition tableinst_eqb v1 v2 : bool := tableinst_eq_dec v1 v2.
 Definition eqtableinstP : Equality.axiom tableinst_eqb :=
   eq_dec_Equality_axiom tableinst_eq_dec.
 
-Canonical Structure tableinst_eqMixin := EqMixin eqtableinstP.
-Canonical Structure tableinst_eqType := Eval hnf in EqType tableinst tableinst_eqMixin.
+Canonical Structure tableinst_eqMixin := Equality.Mixin eqtableinstP.
+Canonical Structure tableinst_eqType := Eval hnf in Equality.Pack (sort := tableinst) (Equality.Class tableinst_eqMixin).
 
 Definition global_eq_dec : forall v1 v2 : global, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -519,8 +519,8 @@ Definition global_eqb v1 v2 : bool := global_eq_dec v1 v2.
 Definition eqglobalP : Equality.axiom global_eqb :=
   eq_dec_Equality_axiom global_eq_dec.
 
-Canonical Structure global_eqMixin := EqMixin eqglobalP.
-Canonical Structure global_eqType := Eval hnf in EqType global global_eqMixin. 
+Canonical Structure global_eqMixin := Equality.Mixin eqglobalP.
+Canonical Structure global_eqType := Eval hnf in Equality.Pack (sort := global) (Equality.Class global_eqMixin). 
 
 
 
@@ -533,8 +533,8 @@ Definition frame_eqb v1 v2 : bool := frame_eq_dec v1 v2.
 Definition eqframeP : Equality.axiom frame_eqb :=
   eq_dec_Equality_axiom frame_eq_dec.
 
-Canonical Structure frame_eqMixin := EqMixin eqframeP.
-Canonical Structure frame_eqType := Eval hnf in EqType frame frame_eqMixin.
+Canonical Structure frame_eqMixin := Equality.Mixin eqframeP.
+Canonical Structure frame_eqType := Eval hnf in Equality.Pack (sort := frame) (Equality.Class frame_eqMixin).
 
 Definition module_export_desc_eq_dec : forall v1 v2 : module_export_desc, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -543,9 +543,9 @@ Definition module_export_desc_eqb v1 v2 : bool := module_export_desc_eq_dec v1 v
 Definition eqmodule_export_descP : Equality.axiom module_export_desc_eqb :=
   eq_dec_Equality_axiom module_export_desc_eq_dec.
 
-Canonical Structure module_export_desc_eqMixin := EqMixin eqmodule_export_descP.
+Canonical Structure module_export_desc_eqMixin := Equality.Mixin eqmodule_export_descP.
 Canonical Structure module_export_desc_eqType :=
-  Eval hnf in EqType module_export_desc module_export_desc_eqMixin.
+  Eval hnf in Equality.Pack (sort := module_export_desc) (Equality.Class module_export_desc_eqMixin).
 
 Definition module_export_eq_dec : forall v1 v2 : module_export, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -554,8 +554,8 @@ Definition module_export_eqb v1 v2 : bool := module_export_eq_dec v1 v2.
 Definition eqmodule_exportP : Equality.axiom module_export_eqb :=
   eq_dec_Equality_axiom module_export_eq_dec.
 
-Canonical Structure module_export_eqMixin := EqMixin eqmodule_exportP.
-Canonical Structure module_export_eqType := Eval hnf in EqType module_export module_export_eqMixin. 
+Canonical Structure module_export_eqMixin := Equality.Mixin eqmodule_exportP.
+Canonical Structure module_export_eqType := Eval hnf in Equality.Pack (sort := module_export) (Equality.Class module_export_eqMixin). 
 
 (** Induction scheme for [administrative_instruction]. **)
 Definition administrative_instruction_rect' :=
@@ -583,9 +583,9 @@ Definition administrative_instruction_eqb cl1 cl2 : bool :=
 Definition eqadministrative_instructionP : Equality.axiom administrative_instruction_eqb :=
   eq_dec_Equality_axiom administrative_instruction_eq_dec.
 
-Canonical Structure administrative_instruction_eqMixin := EqMixin eqadministrative_instructionP.
+Canonical Structure administrative_instruction_eqMixin := Equality.Mixin eqadministrative_instructionP.
 Canonical Structure administrative_instruction_eqType :=
-  Eval hnf in EqType administrative_instruction administrative_instruction_eqMixin. 
+  Eval hnf in Equality.Pack (sort := administrative_instruction) (Equality.Class administrative_instruction_eqMixin). 
 
  Definition lholed_eq_dec : forall v1 v2 : lholed, {v1 = v2} + {v1 <> v2}.
 Proof. 
@@ -596,8 +596,8 @@ Definition lholed_eqb v1 v2 : bool := lholed_eq_dec v1 v2.
 Definition eqlholedP : Equality.axiom lholed_eqb :=
   eq_dec_Equality_axiom lholed_eq_dec.
 
-Canonical Structure lholed_eqMixin := EqMixin eqlholedP.
-Canonical Structure lholed_eqType := Eval hnf in EqType lholed lholed_eqMixin. 
+Canonical Structure lholed_eqMixin := Equality.Mixin eqlholedP.
+Canonical Structure lholed_eqType := Eval hnf in Equality.Pack (sort := lholed) (Equality.Class lholed_eqMixin). 
 
 
 (* Definition handler_clauses_eq_dec : forall v1 v2 : handler_clauses, {v1 = v2} + {v1 <> v2}.
@@ -607,8 +607,8 @@ Definition handler_clauses_eqb v1 v2 : bool := handler_clauses_eq_dec v1 v2.
 Definition eqhandler_clausesP : Equality.axiom handler_clauses_eqb :=
   eq_dec_Equality_axiom handler_clauses_eq_dec.
 
-Canonical Structure handler_clauses_eqMixin := EqMixin eqhandler_clausesP.
-Canonical Structure handler_clauses_eqType := Eval hnf in EqType handler_clauses handler_clauses_eqMixin. 
+Canonical Structure handler_clauses_eqMixin := Equality.Mixin eqhandler_clausesP.
+Canonical Structure handler_clauses_eqType := Eval hnf in Equality.Pack (sort := handler_clauses) (Equality.Class handler_clauses_eqMixin). 
 *)
 
 Definition clause_result_eq_dec : forall v1 v2 : clause_result, {v1 = v2} + {v1 <> v2}.
@@ -618,8 +618,8 @@ Definition clause_result_eqb v1 v2 : bool := clause_result_eq_dec v1 v2.
 Definition eqclause_resultP : Equality.axiom clause_result_eqb :=
   eq_dec_Equality_axiom clause_result_eq_dec.
 
-Canonical Structure clause_result_eqMixin := EqMixin eqclause_resultP.
-Canonical Structure clause_result_eqType := Eval hnf in EqType clause_result clause_result_eqMixin. 
+Canonical Structure clause_result_eqMixin := Equality.Mixin eqclause_resultP.
+Canonical Structure clause_result_eqType := Eval hnf in Equality.Pack (sort := clause_result) (Equality.Class clause_result_eqMixin). 
 
 
  Definition hholed_eq_dec : forall v1 v2 : hholed, {v1 = v2} + {v1 <> v2}.
@@ -630,8 +630,8 @@ Definition hholed_eqb v1 v2 : bool := hholed_eq_dec v1 v2.
 Definition eqhholedP : Equality.axiom hholed_eqb :=
   eq_dec_Equality_axiom hholed_eq_dec.
 
-Canonical Structure hholed_eqMixin := EqMixin eqhholedP.
-Canonical Structure hholed_eqType := Eval hnf in EqType hholed hholed_eqMixin. 
+Canonical Structure hholed_eqMixin := Equality.Mixin eqhholedP.
+Canonical Structure hholed_eqType := Eval hnf in Equality.Pack (sort := hholed) (Equality.Class hholed_eqMixin). 
 
 
 
@@ -643,8 +643,8 @@ Definition store_record_eqb v1 v2 : bool := store_record_eq_dec v1 v2.
 Definition eqstore_recordP : Equality.axiom store_record_eqb :=
   eq_dec_Equality_axiom store_record_eq_dec.
 
-Canonical Structure store_record_eqMixin := EqMixin eqstore_recordP.
-Canonical Structure store_record_eqType := Eval hnf in EqType store_record store_record_eqMixin. 
+Canonical Structure store_record_eqMixin := Equality.Mixin eqstore_recordP.
+Canonical Structure store_record_eqType := Eval hnf in Equality.Pack (sort := store_record) (Equality.Class store_record_eqMixin). 
 
 Definition exception_eq_dec : forall v1 v2 : exception, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -653,8 +653,8 @@ Definition exception_eqb v1 v2 : bool := exception_eq_dec v1 v2.
 Definition eqexceptionP : Equality.axiom exception_eqb :=
   eq_dec_Equality_axiom exception_eq_dec.
 
-Canonical Structure exception_eqMixin := EqMixin eqexceptionP.
-Canonical Structure exception_eqType := Eval hnf in EqType exception exception_eqMixin. 
+Canonical Structure exception_eqMixin := Equality.Mixin eqexceptionP.
+Canonical Structure exception_eqType := Eval hnf in Equality.Pack (sort := exception) (Equality.Class exception_eqMixin). 
 
 
 
@@ -665,8 +665,8 @@ Definition limits_eqb v1 v2 : bool := limits_eq_dec v1 v2.
 Definition eqlimitsP : Equality.axiom limits_eqb :=
   eq_dec_Equality_axiom limits_eq_dec.
 
-Canonical Structure limits_eqMixin := EqMixin eqlimitsP.
-Canonical Structure limits_eqType := Eval hnf in EqType limits limits_eqMixin.
+Canonical Structure limits_eqMixin := Equality.Mixin eqlimitsP.
+Canonical Structure limits_eqType := Eval hnf in Equality.Pack (sort := limits) (Equality.Class limits_eqMixin).
 
 
 Definition table_type_eq_dec : forall v1 v2 : table_type, {v1 = v2} + {v1 <> v2}.
@@ -675,8 +675,8 @@ Definition table_type_eqb v1 v2 : bool := table_type_eq_dec v1 v2.
 Definition eqtable_typeP : Equality.axiom table_type_eqb :=
   eq_dec_Equality_axiom table_type_eq_dec.
 
-Canonical Structure table_type_eqMixin := EqMixin eqtable_typeP.
-Canonical Structure table_type_eqType := Eval hnf in EqType table_type table_type_eqMixin.
+Canonical Structure table_type_eqMixin := Equality.Mixin eqtable_typeP.
+Canonical Structure table_type_eqType := Eval hnf in Equality.Pack (sort := table_type) (Equality.Class table_type_eqMixin).
 
 Definition memory_type_eq_dec : forall v1 v2 : memory_type, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -684,8 +684,8 @@ Definition memory_type_eqb v1 v2 : bool := memory_type_eq_dec v1 v2.
 Definition eqmemory_typeP : Equality.axiom memory_type_eqb :=
   eq_dec_Equality_axiom memory_type_eq_dec.
 
-Canonical Structure memory_type_eqMixin := EqMixin eqmemory_typeP.
-Canonical Structure memory_type_eqType := Eval hnf in EqType memory_type memory_type_eqMixin.
+Canonical Structure memory_type_eqMixin := Equality.Mixin eqmemory_typeP.
+Canonical Structure memory_type_eqType := Eval hnf in Equality.Pack (sort := memory_type) (Equality.Class memory_type_eqMixin).
 
 Definition memory_eq_dec : forall m1 m2: memory, {m1 = m2} + {m1 <> m2}.
 Proof.
@@ -701,8 +701,8 @@ Definition res_crash_eqb c1 c2 := is_left (res_crash_eq_dec c1 c2).
 Definition eqres_crashP : Equality.axiom res_crash_eqb :=
   eq_dec_Equality_axiom res_crash_eq_dec.
 
-Canonical Structure res_crash_eqMixin := EqMixin eqres_crashP.
-Canonical Structure res_crash_eqType := Eval hnf in EqType res_crash res_crash_eqMixin.
+Canonical Structure res_crash_eqMixin := Equality.Mixin eqres_crashP.
+Canonical Structure res_crash_eqType := Eval hnf in Equality.Pack (sort := res_crash) (Equality.Class res_crash_eqMixin).
 
 Definition continuation_eq_dec: forall r1 r2: continuation, { r1 = r2 } + { r1 <> r2 }.
 Proof.
@@ -712,8 +712,8 @@ Definition continuation_eqb c1 c2 := is_left (continuation_eq_dec c1 c2).
 Definition eqcontinuationP : Equality.axiom continuation_eqb :=
   eq_dec_Equality_axiom continuation_eq_dec.
 
-Canonical Structure continuation_eqMixin := EqMixin eqcontinuationP.
-Canonical Structure continuation_eqType := Eval hnf in EqType continuation continuation_eqMixin.
+Canonical Structure continuation_eqMixin := Equality.Mixin eqcontinuationP.
+Canonical Structure continuation_eqType := Eval hnf in Equality.Pack (sort := continuation) (Equality.Class continuation_eqMixin).
 
 Definition res_step_eq_dec : forall r1 r2 : res_step, {r1 = r2} + {r1 <> r2}.
 Proof.
@@ -726,8 +726,8 @@ Definition res_step_eqb (r1 r2 : res_step) : bool := res_step_eq_dec r1 r2.
 Definition eqres_stepP : Equality.axiom res_step_eqb :=
   eq_dec_Equality_axiom res_step_eq_dec.
 
-Canonical Structure res_step_eqMixin := EqMixin eqres_stepP.
-Canonical Structure res_step_eqType := Eval hnf in EqType res_step res_step_eqMixin.
+Canonical Structure res_step_eqMixin := Equality.Mixin eqres_stepP.
+Canonical Structure res_step_eqType := Eval hnf in Equality.Pack (sort := res_step) (Equality.Class res_step_eqMixin).
 
 
 

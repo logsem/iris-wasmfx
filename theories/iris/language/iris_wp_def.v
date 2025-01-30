@@ -72,7 +72,7 @@ Definition gen_heap_wasm_store `{!wasmG Σ} (s: store_record) : iProp Σ :=
    (gen_heap_interp (gmap_of_table s.(s_tables))) ∗
    (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
    (gen_heap_interp (gmap_of_list s.(s_globals))) ∗
-   (gen_heap_interp (gmap_of_list (fmap operations.mem_length s.(s_mems)))) ∗
+   (gen_heap_interp (gmap_of_list (fmap operations.length_mem s.(s_mems)))) ∗
    (gen_heap_interp (gmap_of_list (fmap tab_size s.(s_tables)))) ∗
    (@gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt s.(s_mems)))) ∗
    (@gen_heap_interp _ _ _ _ _ tablimit_hsG (gmap_of_list (fmap table_max_opt s.(s_tables)))))%I.
@@ -86,7 +86,7 @@ Definition state_interp `{!wasmG Σ} σ :=
       (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
       (gen_heap_interp (gmap_of_list s.(s_globals))) ∗
       (ghost_map_auth frameGName 1 (<[ tt := Build_frame locs inst ]> ∅)) ∗ 
-      (gen_heap_interp (gmap_of_list (fmap operations.mem_length s.(s_mems)))) ∗
+      (gen_heap_interp (gmap_of_list (fmap operations.length_mem s.(s_mems)))) ∗
       (gen_heap_interp (gmap_of_list (fmap tab_size s.(s_tables)))) ∗
       (@gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt s.(s_mems)))) ∗
       (@gen_heap_interp _ _ _ _ _ tablimit_hsG (gmap_of_list (fmap table_max_opt s.(s_tables))))
@@ -109,30 +109,30 @@ Global Instance heapG_irisG `{!wasmG Σ} : irisGS wasm_lang Σ := {
 
 End wp_def.
 
-(* Resource ownerships *)
-Notation "n ↦[wf]{ q } v" := (mapsto (L:=N) (V:=function_closure) n q v%V)
+(* Resource ownerships *) 
+Notation "n ↦[wf]{ q } v" := (pointsto (L:=N) (V:=function_closure) n q v%V)
                            (at level 20, q at level 5, format "n ↦[wf]{ q } v") : bi_scope.
-Notation "n ↦[wf] v" := (mapsto (L:=N) (V:=function_closure) n (DfracOwn 1) v%V)
+Notation "n ↦[wf] v" := (pointsto (L:=N) (V:=function_closure) n (DfracOwn 1) v%V)
                       (at level 20, format "n ↦[wf] v") : bi_scope.
-Notation "n ↦[wt]{ q } [ i ] v" := (mapsto (L:=N*N) (V:=funcelem) (n, i) q v%V)
+Notation "n ↦[wt]{ q } [ i ] v" := (pointsto (L:=N*N) (V:=funcelem) (n, i) q v%V)
                            (at level 20, q at level 5, format "n ↦[wt]{ q } [ i ] v") : bi_scope.
-Notation "n ↦[wt][ i ] v" := (mapsto (L:=N*N) (V:=funcelem) (n, i) (DfracOwn 1) v%V)
+Notation "n ↦[wt][ i ] v" := (pointsto (L:=N*N) (V:=funcelem) (n, i) (DfracOwn 1) v%V)
                            (at level 20, format "n ↦[wt][ i ] v") : bi_scope.
-Notation "n ↪[wtsize] m" := (mapsto (L:=N) (V:=nat) n (DfracDiscarded) m%V)
+Notation "n ↪[wtsize] m" := (pointsto (L:=N) (V:=nat) n (DfracDiscarded) m%V)
                               (at level 20, format "n ↪[wtsize] m") : bi_scope.
-Notation "n ↪[wtlimit] m" := (mapsto (L:=N) (V:=option N) (hG:=tablimit_hsG) n (DfracDiscarded) m%V)
+Notation "n ↪[wtlimit] m" := (pointsto (L:=N) (V:=option N) (hG:=tablimit_hsG) n (DfracDiscarded) m%V)
                               (at level 20, format "n ↪[wtlimit] m") : bi_scope.
-Notation "n ↦[wm]{ q } [ i ] v" := (mapsto (L:=N*N) (V:=byte) (n, i) q v%V)
+Notation "n ↦[wm]{ q } [ i ] v" := (pointsto (L:=N*N) (V:=byte) (n, i) q v%V)
                            (at level 20, q at level 5, format "n ↦[wm]{ q } [ i ] v") : bi_scope.
-Notation "n ↦[wm][ i ] v" := (mapsto (L:=N*N) (V:=byte) (n, i) (DfracOwn 1) v% V)
+Notation "n ↦[wm][ i ] v" := (pointsto (L:=N*N) (V:=byte) (n, i) (DfracOwn 1) v% V)
                            (at level 20, format "n ↦[wm][ i ] v") : bi_scope.
-Notation "n ↦[wmlength] v" := (mapsto (L:=N) (V:=N) n (DfracOwn 1) v% V)
+Notation "n ↦[wmlength] v" := (pointsto (L:=N) (V:=N) n (DfracOwn 1) v% V)
                            (at level 20, format "n ↦[wmlength] v") : bi_scope.
-Notation "n ↪[wmlimit] v" := (mapsto (L:=N) (V:=option N) (hG:=memlimit_hsG) n (DfracDiscarded) v% V)
+Notation "n ↪[wmlimit] v" := (pointsto (L:=N) (V:=option N) (hG:=memlimit_hsG) n (DfracDiscarded) v% V)
                            (at level 20, format "n ↪[wmlimit] v") : bi_scope.
-Notation "n ↦[wg]{ q } v" := (mapsto (L:=N) (V:=global) n q v%V)
+Notation "n ↦[wg]{ q } v" := (pointsto (L:=N) (V:=global) n q v%V)
                            (at level 20, q at level 5, format "n ↦[wg]{ q } v").
-Notation "n ↦[wg] v" := (mapsto (L:=N) (V:=global) n (DfracOwn 1) v%V)
+Notation "n ↦[wg] v" := (pointsto (L:=N) (V:=global) n (DfracOwn 1) v%V)
                       (at level 20, format "n ↦[wg] v") .
 Notation " ↪[frame]{ q } v" := (ghost_map_elem frameGName tt q v%V)
                            (at level 20, q at level 5, format " ↪[frame]{ q } v") .
@@ -142,7 +142,7 @@ Notation " ↪[frame] v" := (ghost_map_elem frameGName tt (DfracOwn 1) v%V)
 (* Predicates for memory blocks and whole tables *)  
 Definition mem_block `{!wasmG Σ} (n: N) (m: memory) :=
   (([∗ list] i ↦ b ∈ (m.(mem_data).(ml_data)), n ↦[wm][ (N.of_nat i) ] b ) ∗
-     n ↦[wmlength] mem_length m ∗ n ↪[wmlimit] (mem_max_opt m))%I.
+     n ↦[wmlength] length_mem m ∗ n ↪[wmlimit] (mem_max_opt m))%I.
 
 Definition mem_block_at_pos `{!wasmG Σ} (n: N) (l:bytes) k :=
   ([∗ list] i ↦ b ∈ l, n ↦[wm][ (N.of_nat (N.to_nat k+i)) ] b)%I.
@@ -244,7 +244,7 @@ Notation "'WP' e 'CTX' i ; lh ? {{ v , Q } }" := (wp_wasm_ctx MaybeStuck ⊤ e%E
 (* Frame wps for Local *)
 
 Notation "'WP' e @ s ; E 'FRAME' n ; f {{ Φ } }" := (wp_wasm_frame s E e%E Φ n f)
-  (at level 20, only parsing) : bi_scope.
+  (at level 20, e, Φ, n, f at level 200, only parsing) : bi_scope.
 
 Notation "'WP' e @ s ; E 'FRAME' n ; f {{ v , Q } }" := (wp_wasm_frame s E e%E (λ v, Q) n f)
   (at level 20, e, Q, n, f at level 200,

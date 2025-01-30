@@ -510,7 +510,7 @@ Section trap_rules.
       iDestruct "Hcont" as "[Hcont _]".
 
       destruct (iris.to_val [AI_local n {| f_locs := f_locs0; f_inst := f_inst0 |} x]) eqn:Hetov'.
-      { iFrame.
+      { 
         iDestruct ("Hcont" with "Hf") as "Hx".
         iDestruct (wp_unfold with "Hx") as "Hx".
         apply to_val_local_inv in Hetov' as Heq.
@@ -670,8 +670,8 @@ Section trap_rules.
           iModIntro.
           iDestruct "H2" as "(Hσ & Hes)".
           iDestruct "Hes" as (f1) "(Hf & Hes'' & Hefs)".
-          iFrame. iExists _. iFrame.
-          iSplit =>//.
+          iFrame. (* iExists _. iFrame. *) 
+          iSplit => //.
           iIntros "Hf".
           iDestruct ("IH" with "[Hf Ht $Hntrap $Hes'' $Hes2 ]") as "Hcont". iFrame. by iApply "Hcont".
           
@@ -691,7 +691,7 @@ Section trap_rules.
           iDestruct "H2" as "[Hσ H]".
           iDestruct "H" as (f') "(Hf1 & Hes'' & Hefs)".
           iModIntro => /=.
-          iFrame. iExists _. iFrame.
+          iFrame. (* iExists _. iFrame. *) 
           iIntros "?"; iSpecialize ("Hes''" with "[$]").
           replace [AI_trap] with (iris.of_val trapV) => //=.
           iDestruct (wp_unfold with "Hes''") as "Hes''".
@@ -783,7 +783,7 @@ Section trap_rules.
         iDestruct "H" as "[Hσ H]".
         iDestruct "H" as  (f1) "(Hf1 & Hes & Hefs)".
         iSimpl.
-        iFrame. iExists _. iFrame.
+        iFrame. (* iExists _. iFrame. *) 
         iSplit => //.
         iIntros "Hf".
         iApply "IH".
@@ -809,7 +809,7 @@ Section trap_rules.
         iDestruct "H" as "[Hσ H]".
         iDestruct "H" as (f1) "(Hf1 & Hes & Hefs)".
         iFrame.
-        iModIntro. iExists _. iFrame.
+        iModIntro. (* iExists _. iFrame. *) 
         iSplit => //.
         iIntros "Hf".
         iSpecialize ("Hes" with "[$]").

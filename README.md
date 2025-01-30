@@ -4,9 +4,9 @@
 
 The project can be installed using opam.
 
-We recommend creating a new switch to start from a clean environment. The newest versions of ocaml are incompatible with our required version of Coq. We have compiled the project with version 4.13.1. The following code creates a switch with the necessary version:
+We recommend creating a new switch to start from a clean environment. The newest versions of ocaml are incompatible with our required version of Coq. We have compiled the project with version 4.14.2. The following code creates a switch with the necessary version:
 ```bash
-opam switch create iris-wasm-artifact-switch ocaml.4.13.1
+opam switch create iris-wasm-artifact-switch ocaml.4.14.2
 ```
 
 Depending on the opam configuration, it may be necessary to manually switch to the newly created switch:
@@ -18,7 +18,6 @@ eval $(opam env --switch iris-wasm-artifact-switch --set-switch)
 The following code fetches all necessary dependencies from opam and compiles the development:
 ```bash
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam install .
 ```
 
@@ -51,14 +50,13 @@ If running `make` fails, the issue is likely a missing package in opam, or a pac
 
 Missing packages, or packages with the wrong version, can be installed manually using `opam install`. For instance, to get the correct version of `coq-iris` or `mdx`, run:
 ```bash
-opam install coq-iris.dev.2023-06-30.0.7e865892
-opam install mdx.2.4.1
+opam install coq-iris.4.3.0
+opam install mdx.2.5.0
 ```
 
-Some packages are in the `coq-released` repository or in the iris development repository; in order to let opam know where to fetch these, before running `opam install` run:
+Some packages are in the `coq-released` repository; in order to let opam know where to fetch these, before running `opam install` run:
 ```bash
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 ```
 
 A shorthand to install all missing dependencies and compile the development is:

@@ -963,7 +963,7 @@ Proof.
           -- convert_pickable Pparse.
         * case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse es)) es').
           -- move=> [[vs es''] [E1 [C Ex]]].
-             destruct es'' as [| [| | | | | | | | n es1 LI | |] es2];
+             destruct es'' as [| [| | | | | | | | | n es1 LI | |] es2];
                try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
              clear Ex. rewrite E1.
              exfalso. subst es'.
@@ -982,7 +982,7 @@ Proof.
                 ** convert_pickable Pparse.
              ++ case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse' es)) es').
                 ** move => [[vs es''] [E1 [C Ex]]].
-                   destruct es'' as [| [| | | | |  hs LI| | | | |] es2];
+                   destruct es'' as [| [| | | | | | hs LI| | | | |] es2];
                      try solve [ exfalso; move: Ex => [? [? [? E']]]; inversion E' ].
                    clear Ex. rewrite E1.
                    exfalso. subst es'.
@@ -1001,7 +1001,7 @@ Proof.
                        +++ convert_pickable Pparse.
                    --- case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse'' es)) es').
                        +++ move => [[vs es''] [E1 [C Ex]]].
-                           destruct es'' as [| [| | | | | | ts hs LI | | | |] es2];
+                           destruct es'' as [| [| | | | | | | ts hs LI | | | |] es2];
                              try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
                            clear Ex. rewrite E1.
                            exfalso. subst es'.
@@ -1061,7 +1061,7 @@ Proof.
   }
   case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse es)) es').
   - move=> [[vs es''] [E1 [C Ex]]].
-    destruct es'' as [| [| | | | | | | | n es1 LI | |] es2];
+    destruct es'' as [| [| | | | | | | | | n es1 LI | |] es2];
       try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
     clear Ex. rewrite E1.
     destruct m.
@@ -1105,7 +1105,7 @@ Proof.
       * convert_pickable Pparse.
     + case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse' es)) es').
       * move => [[vs es''] [E1 [C Ex]]].
-        destruct es'' as [| [| | | | | hs LI| | | | |] es2];
+        destruct es'' as [| [| | | | | | hs LI| | | | |] es2];
           try solve [ exfalso; move: Ex => [? [? [? E']]]; inversion E' ].
         clear Ex. rewrite E1.
         destruct m.
@@ -1150,7 +1150,7 @@ Proof.
             ++ convert_pickable Pparse.
         -- case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse'' es)) es').
            ++ move => [[vs es''] [E1 [C Ex]]].
-              destruct es'' as [| [| | | | | |ts hs LI | | | |] es2];
+              destruct es'' as [| [| | | | | | |ts hs LI | | | |] es2];
           try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
         clear Ex. rewrite E1.
         destruct m.
@@ -1244,7 +1244,7 @@ Proof.
     case.
     + intros [[[bef esh] aft] (E & C & E1 & E2 & E3)].
       destruct esh => //. destruct a => //. destruct esh => //.
-      destruct E3 as [-> ->]. subst.
+      subst.
       destruct (IHlh l3).
       * left. by constructor.
       * right. intros Habs. inversion Habs; subst.
@@ -1394,6 +1394,535 @@ Proof.
   move=> es D. by apply: lfilled_pickable_rec_gen.
 Defined.
 
+(*
+(** Same with hfilled *)
+
+Fixpoint hfilled_pickable_rec_gen_measure_single (e : administrative_instruction) :=
+  match e with
+  | AI_handler _ es1
+  | AI_prompt _ _ es1
+  | AI_local _ _ es1 
+  | AI_label _ _ es1 =>
+      1 + List.fold_left (fun a b => max a (hfilled_pickable_rec_gen_measure_single b)) es1 0
+  | _ => 0
+  end.
+     
+                
+
+Definition hfilled_pickable_rec_gen_measure (LI : seq administrative_instruction) :=
+  List.fold_left (fun a b => max a (hfilled_pickable_rec_gen_measure_single b)) LI 0.
+
+
+
+Lemma hfilled_pickable_rec_gen_measure_cons : forall I LI,
+  hfilled_pickable_rec_gen_measure LI <= hfilled_pickable_rec_gen_measure (I :: LI).
+Proof.
+  move=> I LI. unfold hfilled_pickable_rec_gen_measure.
+  rewrite fold_left_max_app_cons. lias.
+Qed.
+
+Lemma hfilled_pickable_rec_gen_measure_concat_l : forall LI1 LI2,
+  hfilled_pickable_rec_gen_measure LI1 <= hfilled_pickable_rec_gen_measure (LI1 ++ LI2).
+Proof.
+  move => LI1 LI2. induction LI1 => /=.
+  - rewrite {1} /hfilled_pickable_rec_gen_measure /=. by lias.
+  - rewrite /hfilled_pickable_rec_gen_measure /=.
+    do 2 rewrite (fold_left_max_rem (_ a)).
+    unfold hfilled_pickable_rec_gen_measure in IHLI1. lias.
+Qed.
+
+Lemma hfilled_pickable_rec_gen_measure_concat_r : forall LI1 LI2,
+  hfilled_pickable_rec_gen_measure LI2 <= hfilled_pickable_rec_gen_measure (LI1 ++ LI2).
+Proof.
+  move => LI1 LI2. induction LI1 => /=.
+  - rewrite {1} /hfilled_pickable_rec_gen_measure /=. by lias.
+  - rewrite /hfilled_pickable_rec_gen_measure /=.
+    rewrite (fold_left_max_rem (_ a)).
+    unfold hfilled_pickable_rec_gen_measure in IHLI1. lias.
+Qed.
+
+Lemma hfilled_pickable_rec_gen_measure_label_r : forall n es LI LI',
+  hfilled_pickable_rec_gen_measure LI < hfilled_pickable_rec_gen_measure (AI_label n es LI :: LI').
+Proof.
+  move=> n es LI LI'. rewrite /hfilled_pickable_rec_gen_measure /=.
+  rewrite (fold_left_max_rem (S _)). lias. 
+Qed.
+
+Lemma hfilled_pickable_rec_gen_measure_handler_r : forall hs LI LI',
+  hfilled_pickable_rec_gen_measure LI < hfilled_pickable_rec_gen_measure (AI_handler hs LI :: LI').
+Proof.
+  move=> hs LI LI'. rewrite /hfilled_pickable_rec_gen_measure /=.
+  rewrite (fold_left_max_rem (S _)). lias. 
+Qed.
+Lemma hfilled_pickable_rec_gen_measure_prompt_r : forall ts hs LI LI',
+  hfilled_pickable_rec_gen_measure LI < hfilled_pickable_rec_gen_measure (AI_prompt ts hs LI :: LI').
+Proof.
+  move=> ts hs LI LI'. rewrite /hfilled_pickable_rec_gen_measure /=.
+  rewrite (fold_left_max_rem (S _)). lias. 
+Qed.
+Lemma hfilled_pickable_rec_gen_measure_local_r : forall ts hs LI LI',
+  hfilled_pickable_rec_gen_measure LI < hfilled_pickable_rec_gen_measure (AI_local ts hs LI :: LI').
+Proof.
+  move=> ts hs LI LI'. rewrite /hfilled_pickable_rec_gen_measure /=.
+  rewrite (fold_left_max_rem (S _)). lias. 
+Qed.
+
+(** A helper definition for [hfilled_decidable_rec]. **)
+Definition hfilledInd_pickable_rec_gen : forall fes x,
+  (forall es' bef aft lh', decidable (hfilledInd x (HH_base bef aft) (fes lh') es')) ->
+  forall es', pickable (fun lh => hfilledInd x lh (fes lh) es').
+Proof.
+  move=> fes x D0 es'.
+  move: No_var => k. 
+  have [m E]: { m | hfilled_pickable_rec_gen_measure es' = m }; first by eexists.
+  move: fes D0 es' E k.
+  assert (forall m' m, m <= m' ->
+                  forall fes : hholed -> seq administrative_instruction,
+                    (forall (es' : seq administrative_instruction) bef aft (lh' : hholed),
+                        decidable (hfilledInd x (HH_base bef aft) (fes lh') es')) ->
+                    forall es' : seq administrative_instruction,
+                      hfilled_pickable_rec_gen_measure es' = m ->
+                      forall k : avoiding,
+                        pickable (fun (lh : hholed) => hfilledInd x lh (fes lh) es')) as H.
+  2:{ apply (H (S m) m). lias. }
+  clear m. induction m'.
+
+  { move=> m Hm fes D0 es' E k.
+    destruct m; last lias.
+    have Dcl: forall vs, decidable (const_list vs).
+    { move=> vs. by apply: is_true_decidable. }
+    (** First, we check whether we can use HH_base. **)
+    have P0: pickable2 (fun vs es'' =>
+                       let lh := HH_base vs es'' in
+                       let es := fes lh in
+                       es' = vs ++ es ++ es'' /\ const_list vs /\ hfilledInd x lh es es').
+    - have: pickable3 (fun vs es es'' => 
+                         es' = vs ++ es ++ es'' /\ let lh := HH_base vs es'' in
+                                                  es = fes lh /\ const_list vs /\ hfilledInd x lh es es').
+      + apply: list_split_pickable3_gen. move=> vs es es'' Ees /=.
+        case E': (es == fes (HH_base vs es'')); move/eqP: E' => E'.
+        * rewrite E'. 
+          repeat apply: decidable_and => //.
+          by apply: eq_comparable.
+        * right. by move=> [Ees2 [Cl I]].
+      + case.
+        * move=> [[[vs es] es''] [E1 [E2 [Cl I]]]].
+          left. exists (vs, es''). by subst.
+        * move=> Ex. right. move=> [vs [es'' [E' [Cl I]]]].
+          apply: Ex.
+          by repeat eexists; eassumption.
+    - case P0.
+      + move=> [[vs es''] [E' [Cvs I]]]. left.
+        exists (HH_base vs es'').
+        subst. by apply: HfilledBase.
+      + move=> nE.
+        (** Otherwise, we have to apply [HfilledRec]. **)
+        have Dparse: forall es' : seq administrative_instruction,
+        decidable (exists n es1 LI es2, es' = [:: AI_label n es1 LI] ++ es2).
+        * clear. move=> es'.
+          have Pparse: pickable4 (fun n es1 LI es2 => es' = [:: AI_label n es1 LI] ++ es2).
+          -- let no := by intros; right; intros (?&?&?&?&?) in
+             (case es'; first by no); case; try by no.
+             move=> n l1 l2 l3. left. by eexists (n, l1, l2, l3).
+          -- convert_pickable Pparse.
+        * case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse es)) es').
+          -- move=> [[vs es''] [E1 [C Ex]]].
+             destruct es'' as [| [| | | | | | | | n es1 LI | |] es2];
+               try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
+             clear Ex. rewrite E1.
+             exfalso. subst es'.
+             specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_label n es1 LI :: es2)) as H.
+             specialize (hfilled_pickable_rec_gen_measure_label_r n es1 LI es2) as H'.
+             lias. 
+          -- move=> nE'.
+             (** If we get here, we have to apply [HfilledHandler]. **)
+             have Dparse': forall es': seq administrative_instruction,
+                 decidable (exists hs LI es2, es' = [:: AI_handler hs LI] ++ es2).
+             ++ clear. move => es'.
+                have Pparse: pickable3 (fun hs LI es2 => es' = [:: AI_handler hs LI] ++ es2).
+                ** let no := by intros; right; intros (?&?&?&?) in
+                   (case es'; first by no); case; try by no.
+                   move => hs l0 l1. left. by eexists (hs, l0, l1).
+                ** convert_pickable Pparse.
+             ++ case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse' es)) es').
+                ** move => [[vs es''] [E1 [C Ex]]].
+                   destruct es'' as [| [| | | | |  hs LI| | | | |] es2];
+                     try solve [ exfalso; move: Ex => [? [? [? E']]]; inversion E' ].
+                   clear Ex. rewrite E1.
+                   exfalso. subst es'.
+                   specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_handler hs LI :: es2)) as H.
+                   specialize (hfilled_pickable_rec_gen_measure_handler_r hs LI es2) as H'.
+                   lias.
+                ** move => nE''.
+                     (** If we get here, we have to apply [HfilledPrompt]. **)
+             have Dparse'': forall es': seq administrative_instruction,
+                 decidable (exists ts hs LI es2, es' = [:: AI_prompt ts hs LI] ++ es2).
+                   --- clear. move => es'.
+                       have Pparse: pickable4 (fun ts hs LI es2 => es' = [:: AI_prompt ts hs LI] ++ es2).
+                       +++ let no := by intros; right; intros (?&?&?&?&?) in
+                           (case es'; first by no); case; try by no.
+                           move => ts hs l0 l1. left. by eexists (ts, hs, l0, l1).
+                       +++ convert_pickable Pparse.
+                   --- case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse'' es)) es').
+                       +++ move => [[vs es''] [E1 [C Ex]]].
+                           destruct es'' as [| [| | | | | | ts hs LI | | | |] es2];
+                             try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
+                           clear Ex. rewrite E1.
+                           exfalso. subst es'.
+                           specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_prompt ts hs LI :: es2)) as H.
+                           specialize (hfilled_pickable_rec_gen_measure_prompt_r ts hs LI es2) as H'.
+                           lias.
+                       +++ move => nE'''.
+                           (** If we get here then local *)
+                            have Dparse''': forall es': seq administrative_instruction,
+                 decidable (exists ts hs LI es2, es' = [:: AI_local ts hs LI] ++ es2).
+                           *** clear. move => es'.
+                               have Pparse: pickable4 (fun ts hs LI es2 => es' = [:: AI_local ts hs LI] ++ es2).
+                               ---- let no := by intros; right; intros (?&?&?&?&?) in
+                           (case es'; first by no); case; try by no.
+                           move => ts hs l0 l1. left. by eexists (ts, hs, l0, l1).
+                               ---- convert_pickable Pparse.
+                           *** case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse''' es)) es').
+                               ---- move => [[vs es''] [E1 [C Ex]]].
+                                    destruct es'' as [| [| | | | | | | | | ts hs LI | ] es2];
+                             try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
+                           clear Ex. rewrite E1.
+                           exfalso. subst es'.
+                           specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_local ts hs LI :: es2)) as H.
+                           specialize (hfilled_pickable_rec_gen_measure_local_r ts hs LI es2) as H'.
+                           lias.
+                               ---- move => nE''''.
+                           right. move=> [lh I]. inversion I; subst.
+                                    ++++ apply: nE. do 2 eexists.
+                                         repeat split; try eassumption.
+                                    ++++ apply: nE'. by repeat eexists.
+                                    ++++ apply: nE''''. by repeat eexists.
+                                    ++++ apply: nE'''. by repeat eexists.
+                                    ++++ apply: nE''. by repeat eexists.
+  } 
+
+   move=> m Hm fes D0 es' E k.
+  have Dcl: forall vs, decidable (const_list vs).
+  { move=> vs. by apply: is_true_decidable. }
+  (** First, we check whether we can set [n = 0]. **)
+  have P0: pickable2 (fun vs es'' =>
+                       let lh := HH_base vs es'' in
+                       let es := fes lh in
+                       es' = vs ++ es ++ es'' /\ const_list vs /\ hfilledInd x lh es es').
+  {
+    have: pickable3 (fun vs es es'' =>
+      es' = vs ++ es ++ es'' /\ let lh := HH_base vs es'' in
+      es = fes lh /\ const_list vs /\ hfilledInd x lh es es').
+    {
+      apply: list_split_pickable3_gen. move=> vs es es'' Ees /=.
+      case E': (es == fes (HH_base vs es'')); move/eqP: E' => E'.
+      - rewrite E'. repeat apply: decidable_and => //. by apply: eq_comparable.
+      - right. by move=> [Ees2 [Cl I]].
+    }
+    case.
+    - move=> [[[vs es] es''] [E1 [E2 [Cl I]]]]. left. exists (vs, es''). by subst.
+    - move=> Ex. right. move=> [vs [es'' [E' [Cl I]]]]. apply: Ex.
+      by repeat eexists; eassumption.
+  }
+  case P0.
+  {
+    move=> [[vs es''] [E' [Cvs I]]]. left. exists (HH_base vs es'').
+    subst. by apply: HfilledBase.
+  }
+  move=> nE.
+  (** Otherwise, we have to apply [LfilledRec]. **)
+  have Dparse: forall es' : seq administrative_instruction,
+    decidable (exists n es1 LI es2, es' = [:: AI_label n es1 LI] ++ es2).
+  {
+    clear. move=> es'.
+    have Pparse: pickable4 (fun n es1 LI es2 => es' = [:: AI_label n es1 LI] ++ es2).
+    {
+      let no := by intros; right; intros (?&?&?&?&?) in
+      (case es'; first by no); case; try by no.
+      move=> n l1 l2 l3. left. by exists (n, l1, l2, l3).
+    }
+    convert_pickable Pparse.
+  }
+  case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse es)) es').
+  - move=> [[vs es''] [E1 [C Ex]]].
+    destruct es'' as [| [| | | | | | | | n es1 LI | |] es2];
+      try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
+    clear Ex. rewrite E1.
+    destruct m.
+    { exfalso. subst es'.
+      specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_label n es1 LI :: es2)) as H.
+      specialize (hfilled_pickable_rec_gen_measure_label_r n es1 LI es2) as H'.
+      lias. 
+    } 
+    have I_LI: (hfilled_pickable_rec_gen_measure LI <= m').
+    {
+      assert (hfilled_pickable_rec_gen_measure LI < S m); last lias.
+      rewrite -E E1. eapply leq_trans.
+      - by eapply hfilled_pickable_rec_gen_measure_label_r.
+      - by apply: hfilled_pickable_rec_gen_measure_concat_r.
+    }
+    set fes' := fun lh => fes (HH_label vs n es1 lh es2).
+    have D1: forall es' bef aft lh', decidable (hfilledInd x (HH_base bef aft) (fes' lh') es').
+    { move=> ? ? ? ?. by apply: D0. }
+    specialize (IHm' (hfilled_pickable_rec_gen_measure LI) I_LI fes' D1 LI (erefl _) k) as [[ lh LF]|NP].
+    + eapply HfilledLabel with (vs := vs) in LF => //.
+      left. exists (HH_label vs n es1 lh es2). exact LF.
+(*      move: LF. rewrite /fes'. rewrite_by (k + n' + 1 = k + n'.+1) => /= LF. by apply: LF. *)
+    + right. move=> [lh FI]. apply: NP. inversion FI; subst.
+      * exfalso. apply: nE. exists vs0. exists es'0. repeat split => //.
+        (* rewrite -H. by apply HfilledBase. *)
+      * apply const_list_concat_inv in H => //.
+        move: H => [? [E' ?]]. inversion E'; subst.
+        eexists. rewrite /fes'.
+        by apply: H4.
+      * apply const_list_concat_inv in H => //.
+        move: H => [? [E' ?]]. inversion E'; subst.
+      * apply const_list_concat_inv in H => //.
+        move: H => [? [E' ?]]. inversion E'; subst.
+      * apply const_list_concat_inv in H => //.
+        move: H => [? [E' ?]]. inversion E'; subst.
+
+        
+  - move=> nE'.
+    (** If we get here, we have to apply [LfilledHandler]. **)
+    have Dparse': forall es': seq administrative_instruction,
+        decidable (exists hs LI es2, es' = [:: AI_handler hs LI] ++ es2).
+    + clear. move => es'.
+      have Pparse: pickable3 (fun hs LI es2 => es' = [:: AI_handler hs LI] ++ es2).
+      * let no := by intros; right; intros (?&?&?&?) in
+                   (case es'; first by no); case; try by no.
+        move => hs l0 l1. left. by eexists (hs, l0, l1).
+      * convert_pickable Pparse.
+    + case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse' es)) es').
+      * move => [[vs es''] [E1 [C Ex]]].
+        destruct es'' as [| [| | | | | hs LI| | | | |] es2];
+          try solve [ exfalso; move: Ex => [? [? [? E']]]; inversion E' ].
+        clear Ex. rewrite E1.
+        destruct m.
+        { exfalso. subst es'.
+          specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_handler hs LI :: es2)) as H.
+          specialize (hfilled_pickable_rec_gen_measure_handler_r hs LI es2) as H'.
+          lias. 
+        } 
+        have I_LI: (hfilled_pickable_rec_gen_measure LI <= m').
+        {
+          assert (hfilled_pickable_rec_gen_measure LI < S m); last lias.
+          rewrite -E E1. eapply leq_trans.
+          - by eapply hfilled_pickable_rec_gen_measure_handler_r.
+          - by apply: hfilled_pickable_rec_gen_measure_concat_r.
+        }
+        set fes' := fun lh => fes (HH_handler vs hs lh es2).
+        have D1: forall es' bef aft lh', decidable (hfilledInd x (HH_base bef aft) (fes' lh') es').
+        { move=>  ? ? ? ?. by apply: D0. }
+        specialize (IHm' (hfilled_pickable_rec_gen_measure LI) I_LI fes' D1 LI (erefl _) k) as [[ lh LF]|NP].
+        -- assert (decidable
+                     (match x with
+                      | Var_handler x0 inst => firstx_exception hs inst x0 = No_label
+                      | _ => True
+                      end)).
+           { destruct x; try by left.
+             decidable_equality. }
+           destruct H. 
+           ++ eapply HfilledHandler with (bef := vs) in LF => //.
+              left. exists (HH_handler vs hs lh es2).
+              move: LF. rewrite /fes'. intros H. exact H.
+              exact y.
+           ++ right. intros [hh Habs].
+              apply n. inversion Habs; subst.
+              ** exfalso. apply: nE. exists vs0. exists es'0.
+                 repeat split => //.
+              ** apply const_list_concat_inv in H => //.
+                 move: H => [? [E' ?]]. inversion E'; subst.
+              ** apply const_list_concat_inv in H => //.
+                 move: H => [? [E' ?]]. inversion E'; subst.
+              ** apply const_list_concat_inv in H => //.
+                 move: H => [? [E' ?]]. inversion E'; subst.
+              ** apply const_list_concat_inv in H => //.
+                 move: H => [? [E' ?]]. inversion E'; subst.
+                 exact H1.
+        -- right. move=> [lh FI]. apply: NP. inversion FI; subst.
+           ++ exfalso. apply: nE. exists vs0. exists es'0. repeat split => //.
+           ++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+           ++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+           ++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+           ++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+              eexists. rewrite /fes'. exact H5.
+
+
+      * move=> nE''.
+    (** If we get here, we have to apply [LfilledPrompt]. **)
+    have Dparse'': forall es': seq administrative_instruction,
+        decidable (exists ts hs LI es2, es' = [:: AI_prompt ts hs LI] ++ es2).
+        --  clear. move => es'.
+            have Pparse: pickable4 (fun ts hs LI es2 => es' = [:: AI_prompt ts hs LI] ++ es2).
+            ++ let no := by intros; right; intros (?&?&?&?&?) in
+                   (case es'; first by no); case; try by no.
+               move => ts hs l0 l1. left. by eexists (ts, hs, l0, l1).
+            ++ convert_pickable Pparse.
+        -- case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse'' es)) es').
+           ++ move => [[vs es''] [E1 [C Ex]]].
+              destruct es'' as [| [| | | | | |ts hs LI | | | |] es2];
+          try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
+        clear Ex. rewrite E1.
+        destruct m.
+        { exfalso. subst es'.
+          specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_prompt ts hs LI :: es2)) as H.
+          specialize (hfilled_pickable_rec_gen_measure_prompt_r ts hs LI es2) as H'.
+          lias. 
+        } 
+        have I_LI: (hfilled_pickable_rec_gen_measure LI <= m').
+        {
+          assert (hfilled_pickable_rec_gen_measure LI < S m); last lias.
+          rewrite -E E1. eapply leq_trans.
+          - by eapply hfilled_pickable_rec_gen_measure_prompt_r.
+          - by apply: hfilled_pickable_rec_gen_measure_concat_r.
+        }
+        set fes' := fun lh => fes (HH_prompt vs ts hs lh es2).
+        have D1: forall es' bef aft lh' , decidable (hfilledInd x (HH_base bef aft) (fes' lh') es').
+        { move=> ? ? ? ?. by apply: D0. }
+        specialize (IHm' (hfilled_pickable_rec_gen_measure LI) I_LI fes' D1 LI (erefl _) k) as [[ lh LF]|NP].
+              **  assert (decidable
+                     (match x with
+                      | Var_prompt x0 inst => firstx_continuation hs inst x0 = None
+                      | _ => True
+                      end)).
+           { destruct x; try by left.
+             decidable_equality. }
+           destruct H. 
+                  --- eapply HfilledPrompt with (bef := vs) in LF => //.
+                      left. exists (HH_prompt vs ts hs lh es2). 
+                      move: LF. rewrite /fes'. intros H. exact H.
+                      exact y.
+                  --- right. intros [hh Habs].
+                      apply n. inversion Habs; subst.
+                      +++ exfalso. apply :nE. exists vs0. exists es'0. repeat split => //.
+                      +++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                      +++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                      +++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                          exact H1.
+                      +++ apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                          
+              ** right. move=> [lh FI]. apply: NP. inversion FI; subst.
+                 --- exfalso. apply: nE. exists vs0. exists es'0. repeat split => //.
+                 --- apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                 --- apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                 --- apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                     eexists. rewrite /fes'. exact H5.
+                 --- apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+           ++ intros nE'''.
+              (** If we get here, we have to apply [HfilledLocal]. **)
+             have Dparse''': forall es': seq administrative_instruction,
+                 decidable (exists ts hs LI es2, es' = [:: AI_local ts hs LI] ++ es2).
+             **  clear. move => es'.
+                 have Pparse: pickable4 (fun ts hs LI es2 => es' = [:: AI_local ts hs LI] ++ es2).
+                 --- let no := by intros; right; intros (?&?&?&?&?) in
+                   (case es'; first by no); case; try by no.
+                     move => ts hs l0 l1. left. by eexists (ts, hs, l0, l1).
+                 --- convert_pickable Pparse.
+             ** case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse''' es)) es').
+                --- move => [[vs es''] [E1 [C Ex]]].
+              destruct es'' as [| [| | | | | | | | | ts hs LI |] es2];
+          try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
+        clear Ex. rewrite E1.
+        destruct m.
+        { exfalso. subst es'.
+          specialize (hfilled_pickable_rec_gen_measure_concat_r vs (AI_local ts hs LI :: es2)) as H.
+          specialize (hfilled_pickable_rec_gen_measure_local_r ts hs LI es2) as H'.
+          lias. 
+        } 
+        have I_LI: (hfilled_pickable_rec_gen_measure LI <= m').
+        {
+          assert (hfilled_pickable_rec_gen_measure LI < S m); last lias.
+          rewrite -E E1. eapply leq_trans.
+          - by eapply hfilled_pickable_rec_gen_measure_local_r.
+          - by apply: hfilled_pickable_rec_gen_measure_concat_r.
+        }
+        set fes' := fun lh => fes (HH_local vs ts hs lh es2).
+        have D1: forall es' bef aft lh' , decidable (hfilledInd x (HH_base bef aft) (fes' lh') es').
+        { move=> ? ? ? ?. by apply: D0. }
+        specialize (IHm' (hfilled_pickable_rec_gen_measure LI) I_LI fes' D1 LI (erefl _) k) as [[ lh LF]|NP].
+                    +++ eapply HfilledLocal in LF => //.
+                        left. exists (HH_local vs ts hs lh es2). 
+                        move: LF. rewrite /fes'. intros H. exact H.
+                        done. 
+                    +++ right. move=> [lh FI]. apply: NP. inversion FI; subst.
+                        *** exfalso. apply: nE. exists vs0. exists es'0. repeat split => //.
+                        *** apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                        *** apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                            eexists. rewrite /fes'. exact H4.
+                        *** apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                        *** apply const_list_concat_inv in H => //. move: H => [? [E' ?]]. inversion E'; subst.
+                --- intros nE''''.
+              right. move=> [lh I]. inversion I; subst.
+                    +++ apply: nE. do 2 eexists. repeat split; try eassumption.
+                    +++ apply: nE'. by repeat eexists.
+                    +++ apply: nE''''. by repeat eexists.
+           +++ apply: nE'''. by repeat eexists.
+              +++ apply: nE''. by repeat eexists.
+Defined.
+
+Definition hfilled_pickable_rec_gen : forall fes x,
+  (forall es' bef aft lh', decidable (hfilled x (HH_base bef aft) (fes lh') es')) ->
+  forall es', pickable (fun lh => hfilled x lh (fes lh) es').
+Proof.
+  move=> fes x D0 es'.
+  apply: (@pickable_equiv _ (fun lh => hfilledInd x lh (fes lh) es')).
+  { move=> lh. by split; apply hfilled_Ind_Equivalent. }
+  apply: hfilledInd_pickable_rec_gen => es'' bef aft lh'.
+  by apply: decidable_equiv; first by apply: hfilled_Ind_Equivalent.
+Defined.
+
+
+
+(** We can always decide [hfilled hhbase]. **)
+Lemma hfilled_decidable_base : forall es es' bef aft x,
+  decidable (hfilled x (HH_base bef aft) es es').
+Proof.
+  move=> es es' bef aft x.
+  apply: (@decidable_equiv (hfilledInd x (HH_base bef aft) es es')).
+  { by split; apply hfilled_Ind_Equivalent. }
+ have: pickable2 (fun vs es'' => es' = vs ++ es ++ es'' /\ const_list vs /\ vs = bef /\ es'' = aft).
+    {
+      apply: list_search_split_pickable2.
+      - by apply: administrative_instruction_eq_dec.
+      - move=> ? ?. by repeat apply: decidable_and; apply: eq_comparable.
+    }
+    case.
+    + move=> [[vs es''] [E [C [E1 E2]]]]. left. subst. by constructor.
+    + move=> nE. right. move=> I. apply: nE. inversion I. subst. by repeat eexists.
+Defined. 
+
+(** We can furthermore rebuild the stack [lh] for any [lfilled 0] predicate. **)
+Lemma hfilled_pickable_base : forall es es' x,
+  pickable2 (fun bef aft => hfilled x (HH_base bef aft) es es').
+Proof.
+  move=> es es' x. 
+  apply: (@pickable2_equiv _ _ (fun bef aft => hfilledInd x (HH_base bef aft) es es')).
+  { move=> lh. by split; apply hfilled_Ind_Equivalent. }
+  have: pickable2 (fun vs es'' => es' = vs ++ es ++ es'' /\ const_list vs /\ True).
+     {
+       apply: list_search_split_pickable2.
+       - by apply: administrative_instruction_eq_dec.
+       - move=> ? ?. apply: decidable_and.
+         + by apply: is_true_decidable.
+         + by left.
+     }
+     case.
+  - move=> [[vs es''] [E [C _]]]. left. eexists (_,_).
+    subst. by constructor.
+  - move=> nE. right.  intros (bef & aft & Habs).
+    inversion Habs; subst => //.
+    apply nE. repeat eexists => //.
+Defined. 
+
+Definition hfilled_pickable_rec : forall es x,
+  (forall es' bef aft, decidable (hfilled x (HH_base bef aft) es es')) -> 
+  forall es', pickable (fun lh => hfilled x lh es es').
+Proof.
+  move=> es x D. by apply: hfilled_pickable_rec_gen.
+Defined.
+*)
+
 (** The lemmas [r_eliml] and [r_elimr] are the fundamental framing lemmas.
   They enable to focus on parts of the stack, ignoring the context. **)
 
@@ -1409,7 +1938,7 @@ Proof.
     f_equal. by apply: cats0.
   - replace (lconst++es') with (lconst++es'++[::]); first by apply: LfilledBase.
     f_equal. by apply: cats0.
-Qed.
+Qed. 
 
 Lemma r_elimr: forall s f es s' f' es' les,
     reduce s f es s' f' es' ->
@@ -1686,6 +2215,12 @@ Proof.
     repeat split => //.
     + apply ety_a' => //.
     + econstructor; eauto.
+  - (* Suspend_desugared *)
+    exists [::], t1s, t2s, t1s.
+    repeat split => //.
+    + apply et_weakening_empty_both.
+      apply ety_a' => //.
+    + constructor. done.
   - (* Prompt *)
     exists [::], [::], t2s, [::]. repeat split => //=.
     + apply ety_a' => //.
@@ -1936,28 +2471,41 @@ Qed.
 
  Lemma typeof_extension: forall s s' v,
     store_extension s s' ->
-    typeof s v = typeof s' v \/ typeof s v = None /\ exists tf, typeof s' v = Some (T_ref (T_contref tf)).
+    typeof s v = typeof s' v \/ typeof s v = None /\ (exists tf, typeof s' v = Some (T_ref (T_contref tf))) \/ typeof s v = None /\ typeof s' v = Some (T_ref T_exnref).
 Proof.
   intros s s' v HSF. unfold store_extension in HSF. remove_bools_options.
   induction v => //=; try by left.
   induction v => //=; try by left.
-  left; by rewrite H.
-  remember (s_conts s) as l. remember (s_conts s') as l'.
-  clear - H4.
-  generalize dependent l'. generalize dependent f.
-  induction l; intros f l' Hextension.
-  - destruct (List.nth_error l' f).
-    + right. split; first by destruct f.
-      exists (typeof_cont c). done.
-    + left. by destruct f.
-  - destruct l' => //. simpl in Hextension.
-    unfold cont_extension in Hextension. remove_bools_options.
-    destruct c => //.
-    + move/eqP in H. subst a. destruct f => //=.
+  - left; by rewrite H.
+  - remember (s_conts s) as l. remember (s_conts s') as l'.
+    clear - H4.
+    generalize dependent l'. generalize dependent f.
+    induction l; intros f l' Hextension.
+    + destruct (List.nth_error l' f).
+      * right. left. split; first by destruct f.
+        exists (typeof_cont c). done.
+      * left. by destruct f.
+    + destruct l' => //. simpl in Hextension.
+      unfold cont_extension in Hextension. remove_bools_options.
+      destruct c => //.
+      * move/eqP in H. subst a. destruct f => //=.
+        -- by left.
+        -- apply IHl. done.
+      * move/eqP in H. destruct f => //=.
+        -- rewrite H. by left.
+        -- apply IHl. done.
+  - remember (s_exns s) as l. remember (s_exns s') as l'.
+    clear - H0.
+    generalize dependent l'. generalize dependent e.
+    induction l; intros e l' Hextension.
+    + destruct (List.nth_error l' e).
+      * right. right. split; first by destruct e. done.
+      * left. by destruct e.
+    + destruct l' => //. simpl in Hextension.
+      inversion Hextension.
+      subst e0. rewrite - H1.
+      destruct e => //=.
       * by left.
-      * apply IHl. done.
-    + move/eqP in H. destruct f => //=.
-      * rewrite H. by left.
-      * apply IHl. done.
+      * apply IHl. exact H1.
 Qed. 
 

@@ -171,7 +171,7 @@ Section wp.
     iIntros ">[Hσ H]". iDestruct "H" as (a') "(H' & H & Hefs)". destruct s.
     - rewrite !wp_unfold /wp_pre. destruct (to_val e2) as [v2|] eqn:He2.
       + iDestruct ("H" with "H'") as ">>[? ?]". iFrame.
-        iModIntro. iExists _. iFrame. iIntros "?".
+        iModIntro. (* iExists _. iFrame. *) iIntros "?".
         iApply wp_unfold. rewrite /wp_pre /= He2. by iFrame.
       + iDestruct ("H" with "H'") as "H".
         iMod ("H" $! _ _ [] with "[$]") as "[H _]". iDestruct "H" as %(? & ? & ? & ? & ?).
@@ -213,7 +213,7 @@ Section wp.
     - iApply (step_fupdN_wand with "H").
       iIntros ">[$ H]".
       iDestruct "H" as (a) "(pred & Hwp & H)". iFrame. iMod "HP".
-      iModIntro. iExists _. iFrame. iIntros "H'". iDestruct ("Hwp" with "H'") as "Hwp".
+      iModIntro. (* iExists _. iFrame. *) iIntros "H'". iDestruct ("Hwp" with "H'") as "Hwp".
       iApply (wp_strong_mono with "Hwp"); [done|set_solver|].
       iIntros (v) "HΦ". iFrame. iApply ("HΦ" with "HP").
     - destruct n0 as [|n0]; [lia|]=>/=. iMod "HP". iMod "H". iIntros "!> !>".

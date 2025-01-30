@@ -479,17 +479,17 @@ Section lfilled_properties.
   Qed.                                 
 
   
-  Lemma lfilled_length_rec_or_same k lh es LI :
+  Lemma length_lfilled_rec_or_same k lh es LI :
     lfilled k lh es LI -> length_rec es < length_rec LI \/ es = LI.
   Proof.
     move => Hlf; move/lfilledP in Hlf.
     induction Hlf.
-    { repeat rewrite app_length_rec.
+    { repeat rewrite length_app_rec.
       destruct vs, es' => /=; try by left; unfold length_rec; destruct a; lias.
       right. by rewrite cats0.
     }
     { destruct IHHlf; last subst.
-      all: rewrite app_length_rec cat_app app_length_rec;
+      all: rewrite length_app_rec cat_app length_app_rec;
         unfold length_rec in * => /=; lia.
     }
   Qed.
@@ -506,7 +506,7 @@ Section lfilled_properties.
     destruct (const_list l) ; last by false_assumption.
     move/eqP in Hfill. 
     assert (length es = length (l ++ es ++ l0)%list) ; first by rewrite - Hfill.
-    repeat rewrite app_length in H.
+    repeat rewrite length_app in H.
     destruct l ; last by simpl in H ; lia.
     destruct l0 ; last by simpl in H ; lia.
     done.
@@ -518,12 +518,12 @@ Section lfilled_properties.
     assert (length_rec es = length_rec (l ++ (AI_label n l0 l2 :: l1)%SEQ)) ;
       first by rewrite Hfill.
     rewrite list_extra.cons_app in H.
-    repeat rewrite app_length_rec in H.
+    repeat rewrite length_app_rec in H.
     unfold length_rec at 3 in H.
     simpl in H.
     fold (length_rec l2) in H.
     assert (lfilled k lh es l2) ; first by unfold lfilled ; rewrite Hfill'.
-    apply lfilled_length_rec in H0.
+    apply length_lfilled_rec in H0.
     lia.
   Qed.
 

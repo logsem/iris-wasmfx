@@ -71,7 +71,7 @@ Definition stack_module :=
       {|
         modfunc_type := Mk_typeidx 1 ;
         modfunc_locals := [] ;
-        modfunc_body := stack_length
+        modfunc_body := length_stack
       |}
     ] ;
     mod_tables := [ {| modtab_type := {| tt_limits := {| lim_min := 1%N ; lim_max := None |} ;
@@ -86,35 +86,35 @@ Definition stack_module :=
     mod_imports := [] ;
     mod_exports := [
       {|
-        modexp_name := list_byte_of_string "new_stack" ;
+        modexp_name := String.list_byte_of_string "new_stack" ;
         modexp_desc := MED_func (Mk_funcidx 0)
       |} ;
       {|
-        modexp_name := list_byte_of_string "is_empty" ;
+        modexp_name := String.list_byte_of_string "is_empty" ;
         modexp_desc := MED_func (Mk_funcidx 1)
       |} ;
       {|
-        modexp_name := list_byte_of_string "is_full" ;
+        modexp_name := String.list_byte_of_string "is_full" ;
         modexp_desc := MED_func (Mk_funcidx 2)
       |} ;
       {|
-        modexp_name := list_byte_of_string "pop" ;
+        modexp_name := String.list_byte_of_string "pop" ;
         modexp_desc := MED_func (Mk_funcidx 3)
       |} ;
       {|
-        modexp_name := list_byte_of_string "push" ;
+        modexp_name := String.list_byte_of_string "push" ;
         modexp_desc := MED_func (Mk_funcidx 4)
       |} ;
       {|
-        modexp_name := list_byte_of_string "stack_map" ;
+        modexp_name := String.list_byte_of_string "stack_map" ;
         modexp_desc := MED_func (Mk_funcidx 5)
       |} ;
       {|
-        modexp_name := list_byte_of_string "stack_length" ;
+        modexp_name := String.list_byte_of_string "stack_length" ;
         modexp_desc := MED_func (Mk_funcidx 6)
       |} ;
       {|
-        modexp_name := list_byte_of_string "table" ;
+        modexp_name := String.list_byte_of_string "table" ;
         modexp_desc := MED_table (Mk_tableidx 0)
       |}
     ]
@@ -304,7 +304,7 @@ Proof.
   }
 Qed.
 
-Lemma stack_length_typing tt tf tlab tret:
+Lemma length_stack_typing tt tf tlab tret:
    be_typing
     {|
       tc_types_t := tt;
@@ -315,7 +315,7 @@ Lemma stack_length_typing tt tf tlab tret:
       tc_local := [T_i32];
       tc_label := tlab;
       tc_return := tret;
-    |} stack_length (Tf [] [T_i32]).
+    |} length_stack (Tf [] [T_i32]).
 Proof.
   eapply bet_composition'; first by apply validate_stack_typing.
   eapply bet_composition'; first by apply validate_stack_bound_typing.
@@ -335,7 +335,7 @@ Proof.
   - by apply pop_typing.
   - by apply push_typing.
   - by apply stack_map_typing.
-  - by apply stack_length_typing.
+  - by apply length_stack_typing.
   - unfold module_export_typing.
     repeat (apply Forall2_cons ; repeat split => //) => //=.
 Qed.
@@ -356,75 +356,75 @@ Definition spec0_new_stack (idf0 : nat) (i0 : instance) (l0 : seq.seq value_type
            (nextStackAddrIs : nat -> iPropI Σ) E : iPropI Σ :=
 
  (∀ (f : frame) (addr : nat), 
-      {{{ ↪[frame] f ∗ 
+      {{{{ ↪[frame] f ∗ 
            N.of_nat idf0 ↦[wf] FC_func_native i0 (Tf [] [T_i32]) l0 f0 ∗
            nextStackAddrIs addr ∗
            ⌜ (Wasm_int.Int32.modulus - 1)%Z <> Wasm_int.Int32.Z_mod_modulus (ssrnat.nat_of_bin (N.of_nat addr `div` page_size)) ⌝ ∗
            ⌜ (N.of_nat addr + 4 < Z.to_N (two_power_nat 32))%N ⌝ ∗
-           ⌜ (page_size | N.of_nat addr)%N ⌝  }}}
+           ⌜ (page_size | N.of_nat addr)%N ⌝  }}}}
         [AI_invoke idf0] @ E
-        {{{  v, (( ⌜ v = immV [value_of_int (-1)%Z] ⌝ ∗
+        {{{{  v, (( ⌜ v = immV [value_of_int (-1)%Z] ⌝ ∗
                               nextStackAddrIs addr ) ∨
                  (∃ k, (⌜ v = immV [value_of_uint k]⌝ ∗
                      ⌜ (0 <= k <= ffff0000)%N ⌝ ∗
                      isStack k []  ∗
                      nextStackAddrIs (addr + N.to_nat page_size)) ))   ∗
                      N.of_nat idf0 ↦[wf] FC_func_native i0 (Tf [] [T_i32]) l0 f0 ∗
-                      ↪[frame] f }}} )%I.
+                      ↪[frame] f }}}} )%I.
 
   
 Definition spec1_is_empty idf1 i1 l1 f1 (isStack : N -> seq.seq i32 -> iPropI Σ) (E: coPset) :=
-  (∀ (v: N) s f, {{{ ↪[frame] f  ∗
+  (∀ (v: N) s f, {{{{ ↪[frame] f  ∗
                  N.of_nat idf1 ↦[wf] FC_func_native i1 (Tf [T_i32] [T_i32]) l1 f1 ∗
-                 isStack v s }}}
+                 isStack v s }}}}
               [AI_basic (u32const v) ; AI_invoke idf1] @ E
-              {{{ w, (∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗ isStack v s ∗
+              {{{{ w, (∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗ isStack v s ∗
                                       ⌜ (k = 1 /\ s = []) \/
                              (k = 0 /\ s <> []) ⌝) ∗
                                                  N.of_nat idf1 ↦[wf] FC_func_native i1 (Tf [T_i32] [T_i32]) l1 f1 ∗ 
-                                                 ↪[frame] f}}})%I.
+                                                 ↪[frame] f}}}})%I.
 
 
 Definition spec2_is_full idf2 i2 l2 f2 (isStack : N -> seq.seq i32 -> iPropI Σ) E :=
-  (∀ (v: N) s f, {{{ ↪[frame] f ∗
+  (∀ (v: N) s f, {{{{ ↪[frame] f ∗
                  N.of_nat idf2 ↦[wf] FC_func_native i2 (Tf [T_i32] [T_i32]) l2 f2 ∗
-                 isStack v s }}} 
+                 isStack v s }}}} 
               [AI_basic (u32const v) ; AI_invoke idf2] @ E
-              {{{ w, (∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗
+              {{{{ w, (∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗
                                       isStack v s ∗
                                       ⌜ (k = 1 /\ (N.of_nat (length s) = two14 - 1)%N) \/ (k = 0 /\ (N.of_nat (length s) < two14 - 1)%N) ⌝) ∗
                                       N.of_nat idf2 ↦[wf] FC_func_native i2 (Tf [T_i32] [T_i32]) l2 f2 ∗ 
-                                                                            ↪[frame] f }}})%I.
+                                                                            ↪[frame] f }}}})%I.
 
 
 Definition spec3_pop idf3 i3 l3 f3 (isStack : N -> seq.seq i32 -> iPropI Σ) E :=
-  (∀ a (v: N) s f, {{{ ↪[frame] f ∗
+  (∀ a (v: N) s f, {{{{ ↪[frame] f ∗
                    N.of_nat idf3 ↦[wf] FC_func_native i3 (Tf [T_i32] [T_i32]) l3 f3
-                   ∗ isStack v (a :: s) }}}
+                   ∗ isStack v (a :: s) }}}}
                 [AI_basic (u32const v) ; AI_invoke idf3] @ E
-                {{{ w, ⌜ w = immV [VAL_int32 a] ⌝ ∗
+                {{{{ w, ⌜ w = immV [VAL_int32 a] ⌝ ∗
                                   isStack v s ∗
                                   N.of_nat idf3 ↦[wf] FC_func_native i3 (Tf [T_i32] [T_i32]) l3 f3 ∗
-                                  ↪[frame] f }}})%I.
+                                  ↪[frame] f }}}})%I.
 
 
 Definition spec4_push idf4 i4 l4 f4 (isStack: N -> list i32 -> iPropI Σ) E :=
-  (∀ a (v: N) s f, {{{ ↪[frame] f ∗
+  (∀ a (v: N) s f, {{{{ ↪[frame] f ∗
                    N.of_nat idf4 ↦[wf] FC_func_native i4 (Tf [T_i32 ; T_i32] []) l4 f4 
                    ∗ ⌜ (N.of_nat (length s) < two14 - 1)%N ⌝
-                   ∗ isStack v s }}}
+                   ∗ isStack v s }}}}
                 [ AI_basic (u32const v); AI_basic (BI_const (VAL_int32 a)); 
                   AI_invoke idf4 ] @ E
-                {{{ w, ⌜ w = immV [] ⌝ ∗
+                {{{{ w, ⌜ w = immV [] ⌝ ∗
                                   isStack v (a :: s) ∗
                                   N.of_nat idf4 ↦[wf] FC_func_native i4 (Tf [T_i32 ; T_i32] []) l4 f4 ∗
-                                  ↪[frame] f }}})%I.
+                                  ↪[frame] f }}}})%I.
 
 
 Definition spec5_stack_map idf5 i5 l5 f5 (isStack : N -> seq.seq i32 -> iPropI Σ) j0 E :=
   (∀ (f0 : frame) (f : i32) (v : N) (s : seq.seq i32) a cl
       (Φ : i32 -> iPropI Σ) (Ψ : i32 -> i32 -> iPropI Σ) ,
-      {{{  ↪[frame] f0 ∗
+      {{{{  ↪[frame] f0 ∗
             N.of_nat idf5 ↦[wf] FC_func_native i5 (Tf [T_i32 ; T_i32] []) l5 f5 ∗
             isStack v s ∗
             stackAll s Φ ∗
@@ -432,27 +432,27 @@ Definition spec5_stack_map idf5 i5 l5 f5 (isStack : N -> seq.seq i32 -> iPropI �
             (N.of_nat a) ↦[wf] cl ∗
             ⌜ cl_type cl = Tf [T_i32] [T_i32] ⌝ ∗ 
               (∀ (u : i32) (fc : frame),
-                   {{{ Φ u ∗
+                   {{{{ Φ u ∗
                       ⌜ i5 = f_inst fc ⌝ ∗
                        ↪[frame] fc ∗
                        N.of_nat j0 ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m f) ] (Some a) ∗
                        (N.of_nat a) ↦[wf] cl
-                  }}}
+                  }}}}
                   [ AI_basic (BI_const (VAL_int32 u)) ;
                     AI_invoke a ] @ E
-                  {{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
+                  {{{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
                            ∗ ↪[frame] fc
                            ∗ N.of_nat j0 ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m f) ] (Some a) 
-                           ∗ (N.of_nat a) ↦[wf] cl }}}
-                  )  }}}
+                           ∗ (N.of_nat a) ↦[wf] cl }}}}
+                  )  }}}}
     [ AI_basic (u32const v); AI_basic (BI_const (VAL_int32 f)) ; AI_invoke idf5 ] @ E
-    {{{ w, ⌜ w = immV [] ⌝ ∗
+    {{{{ w, ⌜ w = immV [] ⌝ ∗
            (∃ s', isStack v s' ∗ stackAll2 s s' Ψ) ∗
            N.of_nat idf5 ↦[wf] FC_func_native i5 (Tf [T_i32 ; T_i32] []) l5 f5 ∗
            ↪[frame] f0 ∗
             N.of_nat j0 ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m f) ] (Some a) ∗
             (N.of_nat a) ↦[wf] cl
-  }}})%I.
+  }}}})%I.
 
 
 (* A trap allowing version for code that might trap *)
@@ -460,7 +460,7 @@ Definition spec5_stack_map_trap `{!logrel_na_invs Σ} idf5 i5 l5 f5 (isStack : N
   (∀ (f0 : frame) (f : i32) (v : N) (s : seq.seq i32) a cl γ1
      (Φ : i32 -> iPropI Σ) (Ψ : i32 -> i32 -> iPropI Σ) ,
       ⌜↑γ1 ⊆ E⌝ →
-      {{{  N.of_nat idf5 ↦[wf] FC_func_native i5 (Tf [T_i32 ; T_i32] []) l5 f5 ∗
+      {{{{  N.of_nat idf5 ↦[wf] FC_func_native i5 (Tf [T_i32 ; T_i32] []) l5 f5 ∗
            isStack v s ∗
            stackAll s Φ ∗
            na_inv logrel_nais γ1 ((N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m f) ] a) ∗
@@ -468,36 +468,36 @@ Definition spec5_stack_map_trap `{!logrel_na_invs Σ} idf5 i5 l5 f5 (isStack : N
            | Some a => ∃ γ2, ⌜↑γ2 ⊆ E ∧ @up_close _ coPset _ γ2 ⊆ ⊤ ∖ ↑γ1⌝ ∗ na_inv logrel_nais γ2 ((N.of_nat a) ↦[wf] cl) ∗
              ⌜ cl_type cl = Tf [T_i32] [T_i32] ⌝ ∗  
            (∀ (u : i32) (fc : frame),
-               {{{ Φ u ∗
+               {{{{ Φ u ∗
                      ⌜ i5 = f_inst fc ⌝ ∗
                      ↪[frame] fc ∗
                      na_own logrel_nais ⊤
-               }}}
+               }}}}
                  [ AI_basic (BI_const (VAL_int32 u)) ;
                    AI_invoke a ] @ E
-                 {{{ w, (⌜ w = trapV ⌝ ∨ ((∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)))
-                          ∗ na_own logrel_nais ⊤ ∗ ↪[frame] fc}}})
+                 {{{{ w, (⌜ w = trapV ⌝ ∨ ((∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)))
+                          ∗ na_own logrel_nais ⊤ ∗ ↪[frame] fc}}}})
         | None => True
            end ∗
-                 na_own logrel_nais ⊤ ∗ ↪[frame] f0 }}}
+                 na_own logrel_nais ⊤ ∗ ↪[frame] f0 }}}}
         [ AI_basic (u32const v); AI_basic (BI_const (VAL_int32 f)) ; AI_invoke idf5 ] @ E
-      {{{ w, (⌜ w = trapV ⌝ ∨ (⌜ w = immV [] ⌝ ∗
+      {{{{ w, (⌜ w = trapV ⌝ ∨ (⌜ w = immV [] ⌝ ∗
                               (∃ s', isStack v s' ∗ stackAll2 s s' Ψ) ∗
                               N.of_nat idf5 ↦[wf] FC_func_native i5 (Tf [T_i32 ; T_i32] []) l5 f5)) ∗
       na_own logrel_nais ⊤ ∗
       ↪[frame] f0
-  }}})%I.
+  }}}})%I.
 
 
 Definition spec6_stack_length idf i l fn (isStack : N -> seq.seq i32 -> iPropI Σ) (E: coPset) :=
-  (∀ (v: N) s f len, {{{ ↪[frame] f  ∗
+  (∀ (v: N) s f len, {{{{ ↪[frame] f  ∗
                       N.of_nat idf ↦[wf] FC_func_native i (Tf [T_i32] [T_i32]) l fn ∗
                       ⌜ (N.of_nat (length s) = len)%N ⌝ ∗
-                 isStack v s }}}
+                 isStack v s }}}}
               [AI_basic (u32const v) ; AI_invoke idf] @ E
-              {{{ w, ⌜ w = immV [value_of_uint len] ⌝ ∗ isStack v s ∗
+              {{{{ w, ⌜ w = immV [value_of_uint len] ⌝ ∗ isStack v s ∗
                      N.of_nat idf ↦[wf] FC_func_native i (Tf [T_i32] [T_i32]) l fn ∗ 
-                     ↪[frame] f}}})%I.
+                     ↪[frame] f}}}})%I.
 
 
 Definition stack_instantiate_para (exp_addrs: list N) (stack_mod_addr : N) := [ ID_instantiate exp_addrs stack_mod_addr [] ].
@@ -548,7 +548,7 @@ Proof.
     apply lookup_ge_None in Hl; lia.
   }
   destruct Hm as [? Hm].
-  iDestruct (big_sepL2_lookup with "Hw") as "Hcontra" => //; last by iDestruct (mapsto_ne with "Hf Hcontra") as "%".
+  iDestruct (big_sepL2_lookup with "Hw") as "Hcontra" => //; last by iDestruct (pointsto_ne with "Hf Hcontra") as "%".
 Qed.
 
 Lemma instantiate_stack_spec `{!logrel_na_invs Σ} (s : stuckness) (E: coPset) (exp_addrs: list N) (stack_mod_addr : N) :
@@ -624,7 +624,7 @@ Lemma instantiate_stack_spec `{!logrel_na_invs Σ} (s : stuckness) (E: coPset) (
                     (* Spec of stack_map (call 5) *)
                     spec5_stack_map idf5 i0 l5 f5 isStack idt E ∗
                     spec5_stack_map_trap idf5 i0 l5 f5 isStack idt E ∗
-                    (* Spec of stack_length (call 6) *)
+                    (* Spec of length_stack (call 6) *)
                     spec6_stack_length idf6 i0 l6 f6 isStack E
              }}.
 Proof.

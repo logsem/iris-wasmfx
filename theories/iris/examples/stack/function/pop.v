@@ -60,15 +60,15 @@ End code.
 Section specs.
 
 Lemma spec_pop_op f0 n (v:N) (a : i32) s E:
-  ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
+  ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
          ∗ ⌜ f0.(f_locs) !! 0 = Some (value_of_uint v) ⌝
          ∗ ⌜ length f0.(f_locs) >= 2 ⌝
          ∗ isStack v (a :: s) n
-         ∗ ↪[frame] f0 }}}
+         ∗ ↪[frame] f0 }}}}
     to_e_list pop_op @ E
-    {{{ w, ⌜ w = immV [VAL_int32 a] ⌝ ∗
+    {{{{ w, ⌜ w = immV [VAL_int32 a] ⌝ ∗
                       isStack v s n ∗
-                      ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}.
+                      ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinst & %Hlocv & %Hlocs & Hstack & Hf) HΦ" => /=.
   
@@ -234,7 +234,7 @@ Proof.
     iApply "HΦ".
     iSplitR => //.
     unfold isStack.
-    rewrite cons_length in Hlens.
+    rewrite length_cons in Hlens.
     iSplitR "Hf".
     repeat iSplit => //.
     iPureIntro.
@@ -251,7 +251,7 @@ Proof.
     iSplitL "Hs".
     iApply (big_sepL_impl with "Hs").
     iIntros "!>" (k y) "% H".
-    rewrite cons_length.
+    rewrite length_cons.
     remember (length s) as x.
     iApply (points_to_i32_eq with "H") => //.
     lia.
@@ -259,14 +259,14 @@ Proof.
     iExists (serialise_i32 a ++ bs).
     iSplit.
     iPureIntro.
-    rewrite app_length.
+    rewrite length_app.
     rewrite Nat2N.inj_add.
     rewrite Hbs.
     remember (serialise_i32 a) as l.
     repeat (destruct l ; first done).
     destruct l ; last done.
-    repeat rewrite cons_length.
-    rewrite nil_length.
+    repeat rewrite length_cons.
+    rewrite length_nil.
     remember (length s) as x.
     unfold two16.
     unfold two14 in Hlens.
@@ -288,21 +288,21 @@ Proof.
     remember (serialise_i32 a) as l.
     repeat (destruct l => //).
     iApply (points_to_wm_eq with "H") => //.
-    repeat rewrite cons_length.
+    repeat rewrite length_cons.
     by lias.
     iExists _ ; by subst ; iFrame.
 Qed.    
     
 Lemma spec_pop f0 n v (a : i32) s E:
-  ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
+  ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
          ∗ ⌜ f0.(f_locs) !! 0 = Some (value_of_uint v) ⌝
          ∗ ⌜ length f0.(f_locs) >= 2 ⌝
          ∗ isStack v (a :: s) n
-         ∗ ↪[frame] f0 }}}
+         ∗ ↪[frame] f0 }}}}
     to_e_list pop @ E
-    {{{ w, ⌜ w = immV [VAL_int32 a] ⌝ ∗
+    {{{{ w, ⌜ w = immV [VAL_int32 a] ⌝ ∗
                       isStack v s n ∗
-                      ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}.
+                      ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinst & %Hlocv & %Hlocs & Hstack & Hf) HΦ" => /=.
   
@@ -375,10 +375,10 @@ Section valid.
       iIntros "Hf".
       iApply (wp_frame_trap with "Hf").
       iNext. iLeft. iLeft. auto.
-    - iIntros "Hf". iFrame.
+    - iIntros "Hf". 
       iApply (wp_wand with "[Hf]").
       iApply check_stack_valid;iFrame;subst;eauto.
-      iIntros (v0) "[$ HH]". eauto.
+      iIntros (v0) "[$ HH]". by iFrame. 
     - subst f'. iIntros (w f0) "([-> %Hdiv] & Hf & -> & Hown) /=".
       deconstruct_ctx.
       take_drop_app_rewrite (length (validate_stack_bound 0)).

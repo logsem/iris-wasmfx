@@ -31,7 +31,7 @@ Section fundamental.
     iInduction len as [|len] "IH";iIntros (ml_data start m cond Hcond Hgt Hbounds) "Hm";[lia|].
     assert (is_Some (ml_data !! N.to_nat start)) as [x Hx].
     { apply lookup_lt_is_Some_2.
-      rewrite /mem_length /memory_list.mem_length /= in Hbounds. lia. }
+      rewrite /length_mem /memory_list.length_mem /= in Hbounds. lia. }
     unfold mem_block_at_pos;simpl.
     iDestruct (big_sepL_delete' with "Hm") as "[Hm Hcls]";[apply Hx|].
     iSpecialize ("Hm" with "[]").
@@ -69,7 +69,7 @@ Section fundamental.
 
   Lemma mem_extract ms start len m :
     len > 0  ->
-    (mem_length ms >= start + N.of_nat len)%N ->
+    (length_mem ms >= start + N.of_nat len)%N ->
     ⊢ ([∗ list] i↦b ∈ ml_data (mem_data ms), m ↦[wm][N.of_nat i] b) -∗
       (∃ bv, m ↦[wms][ start ] bv ∗
             (m ↦[wms][ start ] bv -∗ [∗ list] i↦b ∈ ml_data (mem_data ms), m ↦[wm][N.of_nat i] b) ∗
@@ -77,7 +77,7 @@ Section fundamental.
   Proof.
     destruct ms. simpl in *.
     destruct mem_data. simpl.
-    unfold mem_length,memory_list.mem_length;simpl.
+    unfold length_mem,memory_list.length_mem;simpl.
     iIntros (Hlt Hbounds) "Hm".
     iDestruct (big_sepL_cond_impl with "Hm") as "Hm".
     iDestruct (mem_extract_mid _ _ _ _ (λ _, True) with "[Hm]") as "Hm";eauto.
@@ -100,7 +100,7 @@ Section fundamental.
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
     destruct ws as [|w ws];[done|destruct ws;[|done]].
@@ -122,7 +122,7 @@ Section fundamental.
     { (* it is a packed load *)
       destruct p.
 
-      destruct (N.ltb (mem_length ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (tp_length p))))%N eqn:Hmemlen.
+      destruct (N.ltb (length_mem ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (length_tp p))))%N eqn:Hmemlen.
       { apply N.ltb_lt in Hmemlen. iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = trapV⌝ ∗ _) ∗ _)%I with "[Hsize Hf]").
         { by iApply (wp_load_packed_failure with "[$Hf $Hsize]");[by rewrite Hlocs /=|by apply N.lt_gt|]. }
@@ -133,7 +133,7 @@ Section fundamental.
         iSplitR;[by iLeft; iLeft|iExists _;iFrame].
         iExists _. eauto. 
       }
-      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract _ (Wasm_int.N_of_uint i32m z + off) (tp_length p) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct p;simpl;lia|lia|].
+      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract _ (Wasm_int.N_of_uint i32m z + off) (length_tp p) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct p;simpl;lia|lia|].
         iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = immV _⌝ ∗ _) ∗ _)%I with "[Ha Hf]").
         { iApply (wp_load_packed_deserialize with "[$Hf $Ha]");eauto;by rewrite Hlocs /=. }
@@ -151,7 +151,7 @@ Section fundamental.
 
     { (* it is a regular load *)
       
-      destruct (N.ltb (mem_length ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (t_length t))))%N eqn:Hmemlen.
+      destruct (N.ltb (length_mem ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (length_t t))))%N eqn:Hmemlen.
       { apply N.ltb_lt in Hmemlen. iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = trapV⌝ ∗ _) ∗ _)%I with "[Hsize Hf]").
         { by iApply (wp_load_failure with "[$Hf $Hsize]");[by rewrite Hlocs /=|by apply N.lt_gt|]. }
@@ -162,7 +162,7 @@ Section fundamental.
         iSplitR;[by iLeft; iLeft|iExists _;iFrame].
         iExists _. eauto. 
       }
-      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract _ (Wasm_int.N_of_uint i32m z + off) (t_length t) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct t;simpl;lia|lia|].
+      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract _ (Wasm_int.N_of_uint i32m z + off) (length_t t) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct t;simpl;lia|lia|].
         iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = immV _⌝ ∗ _) ∗ _)%I with "[Ha Hf]").
         { iApply (wp_load_deserialize with "[$Hf $Ha]");eauto;by rewrite Hlocs /=. }
@@ -173,7 +173,7 @@ Section fundamental.
         iModIntro.
         iSplitR;[iLeft; iRight|iExists _;iFrame;iExists _;eauto].
         iExists _. iSplit;[eauto|]. iSimpl.
-        iSplit =>//. unfold interp_value.
+        iSplit => //. unfold interp_value.
         destruct t;iSimpl;eauto.
       }
 

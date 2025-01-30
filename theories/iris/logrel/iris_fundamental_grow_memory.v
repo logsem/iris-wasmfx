@@ -30,7 +30,7 @@ Section fundamental.
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
     destruct ws as [|w ws];[done|destruct ws;[|done]].
@@ -66,8 +66,8 @@ Section fundamental.
         { iApply (big_sepL_mono with "Hb").
           iIntros (k y Hy). iSimpl. iIntros "H".
           rewrite Nat2N.id. iFrame. }
-        { unfold mem_length, memory_list.mem_length. simpl ml_data.
-          rewrite app_length repeat_length.
+        { unfold length_mem, memory_list.length_mem. simpl ml_data.
+          rewrite length_app length_repeat.
           assert ((N.of_nat (length (ml_data (mem_data ms))) +
                      Wasm_int.N_of_uint i32m z * page_size)%N =
                     N.of_nat (length (ml_data (mem_data ms)) +
@@ -76,14 +76,14 @@ Section fundamental.
       iSplitR;[|iExists _;iFrame;iExists _;eauto].
       iModIntro. iLeft;iRight.
       iExists _;iSplit;[eauto|].
-      iSimpl. iSplit =>//. iExists _;eauto.
+      iSimpl. iSplit => //. iExists _;eauto.
     }
     { iMod ("Hcls" with "[$Hown Hsize Hmem]") as "Hown".
       { iNext. iExists _. iFrame. }
       iSplitR;[|iExists _;iFrame;iExists _;eauto].
       iModIntro. iLeft;iRight.
       iExists _;iSplit;[eauto|].
-      iSimpl. iSplit =>//. iExists _;eauto.
+      iSimpl. iSplit => //. iExists _;eauto.
     }
   Qed.    
 

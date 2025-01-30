@@ -30,7 +30,7 @@ Section fundamental.
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
     destruct ws;[|done].
@@ -64,8 +64,8 @@ Section fundamental.
     iMod ("Hcls" with "[$Hown Hn HP]") as "Hown".
     { iNext. iExists _. iFrame. }
     iModIntro. iSplitR;[|iExists _;iFrame].
-    { iLeft. iRight. iExists _. iSplit =>//.
-      iSplit =>//. }
+    { iLeft. iRight. iExists _. iSplit => //.
+      iSplit => //. }
     iExists _. eauto.
   Qed.
 

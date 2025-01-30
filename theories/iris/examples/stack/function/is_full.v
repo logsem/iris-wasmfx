@@ -58,14 +58,14 @@ End code.
 Section specs.
 
 Lemma spec_is_full_op f0 n (v : N) (s : seq.seq i32) E: 
-  ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ (f_locs f0) !! 0 = Some (value_of_uint v) ⌝ ∗ 
         ↪[frame] f0 ∗
-        isStack v s n }}}
+        isStack v s n }}}}
     to_e_list is_full_op @ E
-    {{{ w, ∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗ isStack v s n ∗
+    {{{{ w, ∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗ isStack v s n ∗
                            ⌜ (k = 1) /\ (N.of_nat (length s) = (two14 - 1)%N)%N \/ (k = 0) /\ (N.of_nat (length s) < two14 - 1)%N ⌝ ∗
-          ↪[frame] f0 }}}.
+          ↪[frame] f0 }}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinst & %Hlocv & Hf & Hstack) HΦ" => /=.
   
@@ -199,14 +199,14 @@ Proof.
 Qed.    
     
 Lemma spec_is_full f0 n (v : N) (s : seq.seq i32) E: 
-  ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ (f_locs f0) !! 0 = Some (value_of_uint v) ⌝ ∗ 
         ↪[frame] f0 ∗
-        isStack v s n }}}
+        isStack v s n }}}}
     to_e_list is_full @ E
-    {{{ w, ∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗ isStack v s n ∗
+    {{{{ w, ∃ k, ⌜ w = immV [value_of_int k] ⌝ ∗ isStack v s n ∗
                            ⌜ (k = 1) /\ (N.of_nat (length s) = (two14 - 1)%N)%N \/ (k = 0) /\ (N.of_nat (length s) < two14 - 1)%N ⌝ ∗
-          ↪[frame] f0 }}}.
+          ↪[frame] f0 }}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinst & %Hlocv & Hf & Hstack) HΦ" => /=.
   
@@ -279,10 +279,10 @@ Section valid.
       iIntros "Hf".
       iApply (wp_frame_trap with "Hf").
       iNext. iLeft. iLeft. auto.
-    - iIntros "Hf". iFrame.
+    - iIntros "Hf". 
       iApply (wp_wand with "[Hf]").
       iApply check_stack_valid;iFrame;subst;eauto.
-      iIntros (v0) "[$ HH]". eauto.
+      iIntros (v0) "[$ HH]". by iFrame.
     - subst f'. iIntros (w f0) "([-> %Hdiv] & Hf & -> & Hown) /=".
       deconstruct_ctx.
       take_drop_app_rewrite (length (validate_stack_bound 0)).

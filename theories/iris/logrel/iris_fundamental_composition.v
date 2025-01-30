@@ -114,8 +114,8 @@ Section fundamental.
     iIntros (f0 f1) "Hf". iSpecialize ("Hret" $! f0 with "[$]").
     iApply (wp_ret_shift with "Hret");[| |apply Hlh''|apply Hlh'].
     { apply const_list_of_val. }
-    { rewrite fmap_length. rewrite drop_length.
-      rewrite app_length in Hlen. apply Nat.add_sub_eq_r. rewrite Hlen. lia. }
+    { rewrite length_fmap. rewrite length_drop.
+      rewrite length_app in Hlen. apply Nat.add_sub_eq_r. rewrite Hlen. lia. }
   Qed.
 
   Lemma llfill_sh_append vh es es' :

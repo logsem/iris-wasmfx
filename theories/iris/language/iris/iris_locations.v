@@ -2,8 +2,6 @@
 
 From mathcomp Require Import ssreflect ssrbool eqtype seq.
 
-shawarma (* remove when ready to work on iris *)
-
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -132,7 +130,7 @@ Proof with resolve_finmap.
     destruct lookup_res...
     + assert (N.to_nat i < length l) as HLength.
       { apply lookup_lt_Some in Hlookup.
-        rewrite app_length in Hlookup. simpl in Hlookup.
+        rewrite length_app in Hlookup. simpl in Hlookup.
         lia. }
       rewrite lookup_insert_ne => //.
       rewrite gmap_of_list_lookup.
@@ -141,7 +139,7 @@ Proof with resolve_finmap.
       rewrite lookup_insert_ne => //.
       rewrite gmap_of_list_lookup.
       apply lookup_ge_None.
-      rewrite app_length in Hlookup; simpl in Hlookup.
+      rewrite length_app in Hlookup; simpl in Hlookup.
       lia.
 Qed.
 
@@ -169,7 +167,7 @@ Proof.
     unfold flatten_list.
     apply lookup_ge_None.
     apply lookup_ge_None in Hl.
-    by rewrite imap_length.
+    by rewrite length_imap.
 Qed.
   
 Lemma flatten_2d_list_i_acc_shift {T: Type} (l: list (list T)) n i t acc:
@@ -515,7 +513,7 @@ Proof.
     assert (N.to_nat (n-off) <= length l) as Hlen.
     {
       apply lookup_lt_Some in Hlookup2.
-      rewrite app_length in Hlookup2.
+      rewrite length_app in Hlookup2.
       simpl in Hlookup2.
       lia.
     }
@@ -543,7 +541,7 @@ Proof.
     + assert (N.to_nat (n-off) <= length l) as Hlen.
       {
         apply lookup_lt_Some in Hlookup2.
-        rewrite app_length in Hlookup2.
+        rewrite length_app in Hlookup2.
         simpl in Hlookup2.
         lia.
       }
@@ -578,7 +576,7 @@ Proof.
       destruct (_ !! N.to_nat (n-off)) eqn:Hlookup => //.
       clear Hlookup2.
       apply lookup_ge_None in Hlookup.
-      rewrite app_length in Hlookup.
+      rewrite length_app in Hlookup.
       simpl in Hlookup.
       symmetry.
       apply lookup_union_None.
@@ -641,7 +639,7 @@ Lemma gmap_of_table_append_disjoint l len:
 Proof.
   unfold gmap_of_table.
   replace (length l) with (length (table_to_list <$> l)); first by apply gmap_of_list_2d_append_disjoint.
-  by rewrite fmap_length.
+  by rewrite length_fmap.
 Qed.
 
 Lemma gmap_of_memory_append_disjoint l len init_b:
@@ -649,7 +647,7 @@ Lemma gmap_of_memory_append_disjoint l len init_b:
 Proof.
   unfold gmap_of_memory.
   replace (length l) with (length (memory_to_list <$> l)); first by apply gmap_of_list_2d_append_disjoint.
-  by rewrite fmap_length.
+  by rewrite length_fmap.
 Qed.
 
 Lemma gmap_of_table_append l len:
@@ -657,7 +655,7 @@ Lemma gmap_of_table_append l len:
   new_2d_gmap_at_n (N.of_nat (length l)) (repeat None (N.to_nat len)) ∪ gmap_of_table l.
 Proof.
   unfold gmap_of_table, create_table.
-  replace (length l) with (length (table_to_list <$> l)); last by rewrite fmap_length.
+  replace (length l) with (length (table_to_list <$> l)); last by rewrite length_fmap.
   rewrite fmap_app => /=.
   by apply gmap_of_list_2d_append.
 Qed.
@@ -667,7 +665,7 @@ Lemma gmap_of_memory_append l sz sz_lim init_b:
   new_2d_gmap_at_n (N.of_nat (length l)) (repeat init_b (N.to_nat sz)) ∪ gmap_of_memory l.
 Proof.
   unfold gmap_of_memory, create_memory.
-  replace (length l) with (length (memory_to_list <$> l)); last by rewrite fmap_length.
+  replace (length l) with (length (memory_to_list <$> l)); last by rewrite length_fmap.
   rewrite fmap_app => /=.
   by apply gmap_of_list_2d_append.
 Qed.
@@ -745,14 +743,14 @@ Proof.
     by repeat destruct (_ !! _) => //=.
 Qed.
 
-Lemma mem_length_divisible (m: memory_list):
+Lemma length_mem_divisible (m: memory_list):
   ml_valid m ->
-  ((N.div (mem_length m) page_size) * page_size)%N = mem_length m.
+  ((N.div (length_mem m) page_size) * page_size)%N = length_mem m.
 Proof.
   move => Hmlvalid.
   unfold ml_valid in Hmlvalid.
   rewrite N.mul_comm.
-  specialize (N.div_mod (mem_length m) page_size) as Hdm.
+  specialize (N.div_mod (length_mem m) page_size) as Hdm.
   rewrite Hmlvalid in Hdm.
   rewrite N.add_0_r in Hdm.
   symmetry.
@@ -763,7 +761,7 @@ Lemma mem_grow_data m n m':
   operations.mem_grow m n = Some m' ->
   m'.(mem_data).(memory_list.ml_data) = (m.(mem_data).(memory_list.ml_data) ++ (repeat #00 (N.to_nat (n*page_size))))%SEQ.
 Proof.
-  unfold operations.mem_grow, mem_size, mem_length, memory_list.mem_length => //=.
+  unfold operations.mem_grow, mem_size, length_mem, memory_list.length_mem => //=.
   destruct (_ <=? page_limit)%N => //=.
   move => H.
   destruct (mem_max_opt m) in H => //=.
@@ -774,13 +772,13 @@ Qed.
 
 Lemma mem_grow_length m n m':
   operations.mem_grow m n = Some m' ->
-  operations.mem_length m' = (operations.mem_length m + n * page_size)%N.
+  operations.length_mem m' = (operations.length_mem m + n * page_size)%N.
 Proof.
   move => H.
   apply mem_grow_data in H.
-  unfold mem_size, operations.mem_length, memory_list.mem_length.
+  unfold mem_size, operations.length_mem, memory_list.length_mem.
   rewrite H.
-  rewrite app_length repeat_length.
+  rewrite length_app length_repeat. 
   by rewrite Nat2N.inj_add N2Nat.id.
 Qed.
 
@@ -810,8 +808,8 @@ Proof.
     rewrite - Hlookup2. clear Hlookup2.
     apply lookup_ge_None.
     unfold memory_to_list, mem_size.
-    rewrite mem_length_divisible => //.
-    unfold mem_length, memory_list.mem_length.
+    rewrite length_mem_divisible => //.
+    unfold length_mem, memory_list.length_mem.
     lia.
   - assert (x1 = x3); first lia.
     subst.
@@ -833,7 +831,7 @@ Lemma gmap_of_memory_grow m n m' mn mems:
 Proof.
   move => Hlen Hmemlookup Hmlvalid Hmemgrow.
   remember (mem_grow_length Hmemgrow) as Hmemlen; clear HeqHmemlen.
-  unfold operations.mem_length, mem_length in Hmemlen.
+  unfold operations.length_mem, length_mem in Hmemlen.
   remember (mem_grow_data Hmemgrow) as Hmemgrowdata; clear HeqHmemgrowdata.
   apply map_eq.
   move => [i j].
@@ -869,16 +867,16 @@ Proof.
            ++ repeat f_equal.
               rewrite N2Nat.id.
               unfold mem_size.
-              rewrite mem_length_divisible => //.
-              unfold mem_length, memory_list.mem_length.
+              rewrite length_mem_divisible => //.
+              unfold length_mem, memory_list.length_mem.
               lia.
            ++ rewrite Hmemgrowdata in Hl.
               rewrite lookup_app_r in Hl; last lia.
               rewrite - Hl.
               f_equal.
               unfold mem_size.
-              rewrite mem_length_divisible => //.
-              unfold mem_length, memory_list.mem_length.
+              rewrite length_mem_divisible => //.
+              unfold length_mem, memory_list.length_mem.
               lia.
       * destruct (_ !! N.to_nat j) eqn:Hl; first by apply lookup_lt_Some in Hl; lia.
         apply lookup_union_None.
@@ -888,7 +886,7 @@ Proof.
            resolve_finmap; subst => //=.
            inversion Heq; subst; clear Heq.
            apply lookup_lt_Some in Helem0.
-           rewrite repeat_length in Helem0.
+           rewrite length_repeat in Helem0.
            apply n1.
            rewrite N2Nat.inj_add Nat2N.id.
            apply N2Nat.inj_iff in Hmemlen.
@@ -896,8 +894,8 @@ Proof.
            repeat rewrite Nat2N.id in Hmemlen.
            rewrite Hmemlen.
            unfold mem_size.
-           rewrite mem_length_divisible => //.
-           unfold mem_length, memory_list.mem_length.
+           rewrite length_mem_divisible => //.
+           unfold length_mem, memory_list.length_mem.
            lia.
         -- rewrite gmap_of_list_2d_lookup list_lookup_fmap Hmemlookup => /=.
            apply lookup_ge_None.
@@ -937,7 +935,7 @@ Proof.
         f_equal.
         rewrite insert_empty.
         f_equal.
-        rewrite app_length.
+        rewrite length_app.
         by lias.
       * rewrite lookup_union_r.
         { rewrite <- not_elem_of_list_to_map.
@@ -950,13 +948,13 @@ Proof.
           inversion Heq2; subst; clear Heq2.
           apply lookup_lt_Some in Hlookup.
           apply Nat2N.inj in H0.
-          rewrite app_length in H0.
+          rewrite length_app in H0.
           by lias.
         }
         { rewrite gmap_of_list_lookup.
           rewrite Nat2N.id.
           apply lookup_ge_None.
-          rewrite app_length.
+          rewrite length_app.
           by lias.
         }
     + apply map_disjoint_spec.
@@ -1020,7 +1018,7 @@ Proof.
     + repeat rewrite map_union_assoc.
       rewrite N.add_0_r.
       rewrite <- Nat2N.inj_add.
-      rewrite app_length.
+      rewrite length_app.
       replace (length l2 + length l1) with (length l1 + length l2); last lia.
       by rewrite (map_union_comm (new_2d_gmap_at_n (N.of_nat (length l1 + length l2)) x) (gmap_of_list_2d_offset l1 0)) => //.
     + apply map_disjoint_union_r.

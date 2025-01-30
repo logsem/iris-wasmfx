@@ -166,9 +166,9 @@ Section fundamental.
       auto. }
   Qed.
 
-  Lemma lholed_lengths_gt0_get_snoc lh lbs :
+  Lemma length_lholeds_gt0_get_snoc lh lbs :
     lh_depth lh > 0 ->
-    lholed_lengths (rev lbs) lh ->
+    length_lholeds (rev lbs) lh ->
     ∃ lbs' tc, lbs = lbs' ++ [tc].
   Proof.
     induction lbs using rev_ind;intros Hlh Hh.
@@ -179,7 +179,7 @@ Section fundamental.
   Lemma of_val_length ws :
     length (of_val (immV ws)) = length ws.
   Proof.
-    by rewrite fmap_length.
+    by rewrite length_fmap.
   Qed.
 
   Lemma base_is_empty_push_base lh n es :
@@ -188,9 +188,9 @@ Section fundamental.
     induction lh;simpl;auto.
   Qed.
 
-  Lemma lholed_lengths_push_base lh l tn es :
-    lholed_lengths l lh ->
-    lholed_lengths (l ++ [tn]) (push_base lh (length tn) es [] []).
+  Lemma length_lholeds_push_base lh l tn es :
+    length_lholeds l lh ->
+    length_lholeds (l ++ [tn]) (push_base lh (length tn) es [] []).
   Proof.
     revert lh. induction l;intros lh Hlh.
     { destruct lh;inversion Hlh. simpl. eauto. }
@@ -229,8 +229,8 @@ Section fundamental.
     }
   Qed.
 
-  Lemma lholed_lengths_length_depth l lh :
-    lholed_lengths l lh ->
+  Lemma length_lholeds_length_depth l lh :
+    length_lholeds l lh ->
     length l = lh_depth lh.
   Proof.
     revert lh;induction l;intros lh Hlen.
@@ -254,7 +254,7 @@ Section fundamental.
   Proof.
     exists (take n1 ws), (drop n1 ws).
     split => //; first by rewrite take_drop.
-    rewrite take_length drop_length.
+    rewrite length_take length_drop.
     split; by lias.
   Qed.
 
@@ -311,7 +311,7 @@ Section fundamental.
   Qed.
 
   Lemma get_layer_lookup_lh_lengths l lh i ts vs' n2 es lh' es2' :
-    lholed_lengths (rev l) lh ->
+    length_lholeds (rev l) lh ->
     l !! i = Some ts ->
     get_layer lh (lh_depth lh - S i) = Some (vs', n2, es, lh', es2') ->
     n2 = length ts.
@@ -319,22 +319,22 @@ Section fundamental.
     revert lh i ts vs' n2 es lh' es2'.
     induction l using rev_ind;intros lh i ts vs' n2 es lh' es2' Hlen Hlook Hlay.
     { done. }
-    { apply lholed_lengths_length_depth in Hlen as Hdep.
-      rewrite rev_length in Hdep.
+    { apply length_lholeds_length_depth in Hlen as Hdep.
+      rewrite length_rev in Hdep.
       destruct lh;[done|].
       destruct (decide (i = length l)).
       { subst. simpl in *.
-        rewrite app_length /= PeanoNat.Nat.add_1_r in Hdep.
+        rewrite length_app /= PeanoNat.Nat.add_1_r in Hdep.
         inversion Hdep as [Heq].
         rewrite Heq PeanoNat.Nat.sub_diag in Hlay. simplify_eq.
         rewrite rev_unit in Hlen. simpl in Hlen. destruct Hlen as [? ?].
         rewrite lookup_snoc in Hlook. by simplify_eq. }
       { apply lookup_lt_Some in Hlook as Hlt.
-        rewrite app_length /= PeanoNat.Nat.add_1_r in Hlt.
+        rewrite length_app /= PeanoNat.Nat.add_1_r in Hlt.
         assert (i < length l) as Hlt';[lia|].
         rewrite lookup_app_l in Hlook;auto.
         simpl in Hlay.
-        rewrite app_length /= PeanoNat.Nat.add_1_r in Hdep.
+        rewrite length_app /= PeanoNat.Nat.add_1_r in Hdep.
         inversion Hdep as [Heq].
         destruct (lh_depth lh - i) eqn:Hi;[lia|].
         assert (n1 = lh_depth lh - S i);[lia|subst n1].
@@ -559,7 +559,7 @@ Section fundamental.
   Proof.
     intros Hbase Hpull.
     induction vh;simpl in *;simplify_eq.
-    { rewrite drop_length. auto. }
+    { rewrite length_drop. auto. }
     { destruct (pull_base_l_drop_len vh len) eqn:Heq'.
       simplify_eq. simpl. erewrite IHvh;eauto. }
   Qed.
@@ -576,11 +576,11 @@ Section fundamental.
     { destruct (pull_base_l_drop_len vh len) eqn:Heq'.
       simplify_eq. simpl. erewrite IHvh;eauto.
       assert (len = length (take len (get_base_l vh))) as Heq.
-      { rewrite take_length. lia. }
+      { rewrite length_take. lia. }
       assert (take len (take len (get_base_l vh) ++ vs)%list ++ vs =
                 take (length (take len (get_base_l vh)))
                      (take len (get_base_l vh) ++ vs)%list ++ vs) as ->;[rewrite -Heq;auto|].      
-      rewrite take_app. auto.
+      rewrite take_app_length. auto.
     }
   Qed.
 
@@ -816,7 +816,7 @@ Section fundamental.
     get_base_l vh = vs ->
     lh_depth (lh_of_vh vh) = p ->
     j ≠ p ->
-    lholed_lengths (rev (tc_label C)) lh ->
+    length_lholeds (rev (tc_label C)) lh ->
     lholed_valid lh ->
     base_is_empty lh ->
     interp_br_body (tc_label (upd_label C ([tm] ++ tc_label C)))
@@ -832,7 +832,7 @@ Section fundamental.
            ∨ interp_call_host (tc_local C) i τto hl v lh (tc_label C) tm') ∗
            (∃ f0,  ↪[frame]f0 ∗ interp_frame (tc_local C) i f0) }}.
   Proof.
-    iIntros (Hlen Hbase Hsize n Hlh_length Hlh_valid Hlh_empty) "Hbr Hf Hfv".
+    iIntros (Hlen Hbase Hsize n length_Hlh Hlh_valid Hlh_empty) "Hbr Hf Hfv".
     unfold interp_br_body.
     apply lh_depth_ge in Hsize as Hge.
     assert (j > p);[lia|].
@@ -865,8 +865,8 @@ Section fundamental.
     { iPureIntro. simpl. erewrite <-lh_depth_vh_decrease_eq;eauto. }
         
     rewrite !Nat.sub_succ.
-    apply lholed_lengths_length_depth in Hlh_length as Hlen'.
-    rewrite rev_length in Hlen'. apply lookup_lt_Some in Hlook as Hlt.
+    apply length_lholeds_length_depth in length_Hlh as Hlen'.
+    rewrite length_rev in Hlen'. apply lookup_lt_Some in Hlook as Hlt.
     rewrite Hlen' in Hlt.
     apply get_layer_push_inv in Hlayer as Hlayer';[|lia].
     destruct Hlayer' as [lh0 [Hlh'eq Hlayer2]].
@@ -883,16 +883,16 @@ Section fundamental.
     apply get_layer_lh_depth in Hlayer2 as Hlh0depth;[|lia].
     rewrite Hlh0depth.
     iDestruct (big_sepL2_length with "Hvalvs") as %Hlen_vs''.
-    rewrite -(take_drop (length τs'') vs''). rewrite app_length in Hlen_vs''.
+    rewrite -(take_drop (length τs'') vs''). rewrite length_app in Hlen_vs''.
     iDestruct (big_sepL2_app_inv with "Hvalvs") as "[Hvalvs1 Hvalvs2]".
-    { right. rewrite drop_length. lia. }
+    { right. rewrite length_drop. lia. }
     iDestruct (big_sepL2_length with "Hvalvs2") as %HH.
     iDestruct (wp_br_ctx_shift_inv with "Hbr") as "Hbr".
     { apply const_list_of_val. }
     { auto. }
-    { rewrite fmap_length. rewrite drop_length.
-      eapply get_layer_lookup_lh_lengths in Hlh_length;eauto.
-      simplify_eq. rewrite drop_length in HH. auto. }
+    { rewrite length_fmap. rewrite length_drop.
+      eapply get_layer_lookup_lh_lengths in length_Hlh;eauto.
+      simplify_eq. rewrite length_drop in HH. auto. }
     simpl. iFrame.
   Qed.
 
@@ -940,7 +940,7 @@ Section fundamental.
     get_base_l vh = vs ->
     lh_depth (lh_of_vh vh) = p ->
     j ≠ p ->
-    lholed_lengths (rev (tc_label C)) lh ->
+    length_lholeds (rev (tc_label C)) lh ->
     lholed_valid lh ->
     base_is_empty lh ->
     ▷ interp_br_body (tc_label (upd_label C ([tm] ++ tc_label C)))
@@ -956,7 +956,7 @@ Section fundamental.
            ∨ interp_call_host (tc_local C) i τto hl v lh (tc_label C) tm') ∗
            (∃ f0,  ↪[frame]f0 ∗ interp_frame (tc_local C) i f0) }}.
   Proof.
-    iIntros (Hlen Hbase Hsize n Hlh_length Hlh_valid Hlh_empty) "Hbr Hf Hfv".
+    iIntros (Hlen Hbase Hsize n length_Hlh Hlh_valid Hlh_empty) "Hbr Hf Hfv".
     unfold interp_br_body.
     apply lh_depth_ge in Hsize as Hge.
     assert (j > p);[lia|].
@@ -989,8 +989,8 @@ Section fundamental.
     { iPureIntro. simpl. erewrite <-lh_depth_vh_decrease_eq;eauto. }
         
     rewrite !Nat.sub_succ.
-    apply lholed_lengths_length_depth in Hlh_length as Hlen'.
-    rewrite rev_length in Hlen'. apply lookup_lt_Some in Hlook as Hlt.
+    apply length_lholeds_length_depth in length_Hlh as Hlen'.
+    rewrite length_rev in Hlen'. apply lookup_lt_Some in Hlook as Hlt.
     rewrite Hlen' in Hlt.
     apply get_layer_push_inv in Hlayer as Hlayer';[|lia].
     destruct Hlayer' as [lh0 [Hlh'eq Hlayer2]].
@@ -1007,16 +1007,16 @@ Section fundamental.
     apply get_layer_lh_depth in Hlayer2 as Hlh0depth;[|lia].
     rewrite Hlh0depth.
     iDestruct (big_sepL2_length with "Hvalvs") as %Hlen_vs''.
-    rewrite -(take_drop (length τs'') vs''). rewrite app_length in Hlen_vs''.
+    rewrite -(take_drop (length τs'') vs''). rewrite length_app in Hlen_vs''.
     iDestruct (big_sepL2_app_inv with "Hvalvs") as "[Hvalvs1 Hvalvs2]".
-    { right. rewrite drop_length. lia. }
+    { right. rewrite length_drop. lia. }
     iDestruct (big_sepL2_length with "Hvalvs2") as %HH.
     iDestruct (wp_br_ctx_shift_inv with "Hbr") as "Hbr".
     { apply const_list_of_val. }
     { auto. }
-    { rewrite fmap_length. rewrite drop_length.
-      eapply get_layer_lookup_lh_lengths in Hlh_length;eauto.
-      simplify_eq. rewrite drop_length in HH. auto. }
+    { rewrite length_fmap. rewrite length_drop.
+      eapply get_layer_lookup_lh_lengths in length_Hlh;eauto.
+      simplify_eq. rewrite length_drop in HH. auto. }
     simpl. iFrame.
   Qed.
 
@@ -1120,7 +1120,7 @@ Section fundamental.
       apply lfilled_Ind_Equivalent. eauto.
     }
     { apply const_list_of_val. }
-    { rewrite fmap_length drop_length. rewrite app_length in Hlen'.
+    { rewrite length_fmap length_drop. rewrite length_app in Hlen'.
       apply Nat.add_sub_eq_r. rewrite Hlen'. lia. }
   Qed.
   
@@ -1155,11 +1155,11 @@ Section fundamental.
     iDestruct "Hvalvs" as "[%|Hvalvs]";[done|].
     iDestruct "Hvalvs" as (ws' Heq') "Hvalvs". inversion Heq';subst ws'.
     iDestruct (big_sepL2_length with "Hvalvs") as %Hlen2.
-    rewrite app_length in Hlen2. subst j.
+    rewrite length_app in Hlen2. subst j.
         
     iApply (wp_br with "Hf");[..|apply Hfill|].
     { apply const_list_of_val. }
-    { rewrite fmap_length. eapply length_pull_base_l_take_len in Hpb;[|eauto]. rewrite Hpb.
+    { rewrite length_fmap. eapply length_pull_base_l_take_len in Hpb;[|eauto]. rewrite Hpb.
       rewrite Hlen.
       assert (length vs >= length tm);[|lia]. rewrite Hlen2. lia. }
     iNext. iIntros "Hf".
@@ -1201,7 +1201,7 @@ Section fundamental.
     destruct (decide (j = p)).
     { iApply (interp_br_step with "Hbr Hf Hfv");eauto. }
 
-    { iAssert (⌜lholed_lengths (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
+    { iAssert (⌜length_lholeds (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
       { iDestruct "Hc" as "[% [% [% _]]]". auto. }
       iApply (interp_br_stuck_push with "Hbr Hf Hfv");eauto. }
   Qed.
@@ -1287,7 +1287,7 @@ Section fundamental.
         { iRight. iRight. iLeft. iFrame. }
         { repeat iRight. iNext. iFrame. } }
         
-      { iAssert (⌜lholed_lengths (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
+      { iAssert (⌜length_lholeds (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
         { iDestruct "Hc" as "[% [% [% _]]]". auto. }
         iApply (wp_wand with "[-]").
         { iApply (interp_br_stuck_push_later with "Hbr Hf Hfv");eauto. }
@@ -1750,7 +1750,7 @@ Section fundamental.
     iDestruct (big_sepL2_length with "Hv'") as %Hlen.
     iApply (wp_wand _ _ _ (λ vs, ⌜vs = immV _⌝ ∗ ↪[frame] _)%I with "[Hf]").
     { iApply (wp_frame_value with "Hf");eauto. 1: apply to_of_val.
-      rewrite fmap_length. auto. }
+      rewrite length_fmap. auto. }
     iIntros (v) "[-> Hf]". iFrame.
     iDestruct "Hf0v" as (?) "[_ [_ Hown]]".
     iFrame. iLeft. iRight. iExists _. eauto.
@@ -1787,18 +1787,18 @@ Section fundamental.
     inversion Hmin;simplify_eq. simpl lh_depth.
     pose proof (vfill_to_lfilled vh [AI_basic (BI_br p)]) as [_ Hfill].
     iDestruct "Hws'" as "[%Hcontr|Hws']";[done|iDestruct "Hws'" as (ww Heqw) "Hws'"].
-    iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !app_length in Hlen.
+    iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !length_app in Hlen.
     rewrite -(take_drop (length (τs'')) ww). inversion Heqw.
     rewrite -(take_drop (length (τs'')) ww) in H0.
     eapply lfilled_get_base_pull in H0 as [lh' Hlh'];[|eauto].
     iIntros (LI Hfill'%lfilled_Ind_Equivalent). inversion Hfill';simplify_eq.
     inversion H8;simplify_eq. repeat erewrite app_nil_l,app_nil_r.      
     iDestruct (big_sepL2_app_inv with "Hws'") as "[Hws1 Hws2]".
-    { right. rewrite drop_length. lia. }
+    { right. rewrite length_drop. lia. }
     iDestruct (big_sepL2_length with "Hws2") as %Hlen2.
     simpl in Hlook. inversion Hlook;subst τs'. rewrite Hdepth in Hlh'.
     iApply (wp_wand _ _ _ (λ vs, ⌜vs = immV _⌝ ∗ ↪[frame] _)%I with "[Hf0]").
-    { iApply (wp_br with "Hf0") ;[| |apply Hlh'|];[apply const_list_of_val|by rewrite /= fmap_length|].
+    { iApply (wp_br with "Hf0") ;[| |apply Hlh'|];[apply const_list_of_val|by rewrite /= length_fmap|].
       iNext. iIntros "Hf". rewrite app_nil_r.
       iApply wp_value;[done|].
       iFrame;eauto. }
@@ -1806,7 +1806,7 @@ Section fundamental.
     iExists _. iFrame. iIntros "Hf".
     iApply (wp_wand _ _ _ (λ vs, ⌜vs = immV _⌝ ∗ ↪[frame] _)%I with "[Hf]").
     { iApply (wp_frame_value with "Hf");eauto. 1: apply to_of_val.
-      rewrite fmap_length. auto. }
+      rewrite length_fmap. auto. }
     iIntros (v) "[-> Hf]". iFrame.
     iDestruct "Hf0v" as (?) "[_ [_ Hown]]". iFrame. iLeft.
     iRight. iExists _. eauto.
@@ -1832,11 +1832,11 @@ Section fundamental.
     iDestruct "Hret" as (vh vs' -> Hbase) "Hret".
     iDestruct "Hret" as (τs'') "[#Hws' _]".
     iDestruct "Hws'" as "[%Hcontr|Hws']";[done|iDestruct "Hws'" as (ww Heqw) "Hws'"].
-    iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !app_length in Hlen.
+    iDestruct (big_sepL2_length with "Hws'") as %Hlen. rewrite !length_app in Hlen.
     rewrite -(take_drop (length (τs'')) ww). inversion Heqw.
     rewrite -(take_drop (length (τs'')) ww) in H0. rewrite H0 in Hbase.
     iDestruct (big_sepL2_app_inv with "Hws'") as "[Hws1 Hws2]".
-    { right. rewrite drop_length. lia. }
+    { right. rewrite length_drop. lia. }
     iDestruct (big_sepL2_length with "Hws2") as %Hlen2.
     simpl iris.of_val.
     pose proof (sfill_to_lfilled vh [AI_basic BI_return]) as Hfill.
@@ -1855,7 +1855,7 @@ Section fundamental.
         apply lfilled_Ind_Equivalent. apply Hlh'. }
       { iApply wp_value;[done|]. iFrame;eauto. }
       { apply to_of_val. }
-      { rewrite fmap_length. auto. } }
+      { rewrite length_fmap. auto. } }
     iIntros (v) "[-> Hf]". iFrame.
     iSplitR;[iLeft;iRight;iExists _;eauto|].
     iDestruct "Hf0v" as (?) "[_ [_ Hown]]". iFrame.

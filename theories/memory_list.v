@@ -12,7 +12,7 @@ Record memory_list : Type := {
 Definition mem_make : Memory.mem_make_t memory_list :=
   fun v len => {| ml_data := List.repeat v (N.to_nat len) |}.
 
-Definition mem_length : Memory.mem_length_t memory_list :=
+Definition length_mem : Memory.length_mem_t memory_list :=
     fun ml => N.of_nat (List.length ml.(ml_data)).
 
 Definition mem_grow : Memory.mem_grow_t memory_list :=
@@ -31,10 +31,10 @@ Definition mem_update : Memory.mem_update_t memory_list :=
     else None.
 
 Lemma memory_list_ax_lookup_out_of_bounds :
-  Memory.mem_ax_lookup_out_of_bounds memory_list mem_make mem_length mem_grow mem_lookup mem_update.
+  Memory.mem_ax_lookup_out_of_bounds memory_list mem_make length_mem mem_grow mem_lookup mem_update.
 Proof.
 move => mem i.
-rewrite /mem_length /mem_lookup.
+rewrite /length_mem /mem_lookup.
 move => H.
 apply (List.nth_error_None mem.(ml_data) (N.to_nat i)).
 apply N.ge_le in H.
@@ -110,7 +110,7 @@ Proof.
   by simpl in Hlen; lia.
 Qed.
   
-Lemma memory_list_ax_lookup_make : Memory.mem_ax_lookup_make memory_list mem_make mem_length mem_grow mem_lookup mem_update.
+Lemma memory_list_ax_lookup_make : Memory.mem_ax_lookup_make memory_list mem_make length_mem mem_grow mem_lookup mem_update.
 Proof.
 move => i len b mem.
 apply: nth_repeat.
@@ -118,12 +118,12 @@ lia.
 Qed.
 
 Lemma memory_list_ax_lookup_update :
-  Memory.mem_ax_lookup_update memory_list mem_make mem_length mem_grow mem_lookup mem_update.
+  Memory.mem_ax_lookup_update memory_list mem_make length_mem mem_grow mem_lookup mem_update.
 Proof.
 move => mem mem' i b H H0.
 rewrite /mem_update in H0.
 apply N.ltb_lt in H.
-rewrite /mem_length in H.
+rewrite /length_mem in H.
 rewrite H in H0.
 case: mem' H0 => data_ [Hdata].
 rewrite Hdata /= {data_ Hdata}.
@@ -135,7 +135,7 @@ by apply: lookup_split.
 Qed.
 
 Lemma memory_list_ax_lookup_skip :
-  Memory.mem_ax_lookup_skip memory_list mem_make mem_length mem_grow mem_lookup mem_update.
+  Memory.mem_ax_lookup_skip memory_list mem_make length_mem mem_grow mem_lookup mem_update.
 Proof.
 move => mem mem' i i' b Hii' H0.
 case: mem' H0 => data_.
@@ -150,10 +150,10 @@ lia.
 Qed.
 
 Lemma memory_list_ax_length_constant_update :
-  Memory.mem_ax_length_constant_update memory_list mem_make mem_length mem_grow mem_lookup mem_update.
+  Memory.mem_ax_length_constant_update memory_list mem_make length_mem mem_grow mem_lookup mem_update.
 Proof.
 move => i b [dv_list1] [dv_list2].
-rewrite /mem_update /mem_length /=.
+rewrite /mem_update /length_mem /=.
 case_eq (N.ltb i (N.of_nat (length dv_list1))); last by discriminate.
 move => Hlen [Hlist].
 apply N.ltb_lt in Hlen.
@@ -174,8 +174,8 @@ Definition memory_list_eqb i1 i2 : bool := memory_list_eq_dec i1 i2.
 Definition eqmemory_listP : Equality.axiom memory_list_eqb :=
   eq_dec_Equality_axiom memory_list_eq_dec.
 
-Canonical Structure memory_list_eqMixin := EqMixin eqmemory_listP.
-Canonical Structure memory_list_eqType := Eval hnf in EqType memory_list memory_list_eqMixin.
+Canonical Structure memory_list_eqMixin := Equality.Mixin eqmemory_listP.
+Canonical Structure memory_list_eqType := Eval hnf in Equality.Pack (sort := memory_list) (Equality.Class memory_list_eqMixin).
 
 Definition list_memoryMixin :=
   Memory.Mixin

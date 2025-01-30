@@ -61,17 +61,17 @@ Section stack.
   Section specs.
     
     Lemma spec_push_op f0 n (v: N) (a : i32) s E :
-      ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
+      ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
           ∗ ⌜ f0.(f_locs) !! 0 = Some (value_of_uint v) ⌝
           ∗ ⌜ f0.(f_locs) !! 1 = Some (VAL_int32 a) ⌝ 
           ∗ ⌜ length f0.(f_locs) >= 3 ⌝
           ∗ ⌜ (N.of_nat (length s) < two14 - 1)%N ⌝
           ∗ isStack v s n
-          ∗ ↪[frame] f0 }}}
+          ∗ ↪[frame] f0 }}}}
         to_e_list push_op @ E
-        {{{ w, ⌜ w = immV [] ⌝ ∗
+        {{{{ w, ⌜ w = immV [] ⌝ ∗
                        isStack v (a :: s) n ∗
-                       ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}. 
+                       ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}}. 
     Proof.
       iIntros "!>" (Φ) "(%Hinst & %Hlocv & %Hloca & %Hlocs & %Hlens & Hstack & Hf) HΦ" => /=.
       
@@ -243,10 +243,8 @@ Section stack.
         iSplit => //.
         rewrite - Heqx.
         iFrame.
-        iExists bs.
-        iSplit; last by iFrame.
         unfold two16.
-        repeat rewrite cons_length in Hbs.
+        repeat rewrite length_cons in Hbs.
         remember (length bs) as x'.
         iPureIntro.
         lia.
@@ -326,18 +324,18 @@ Section stack.
         iApply (big_sepL_impl with "Hs").
         iIntros "!>" (k y) "%Hbits H".
         iApply (points_to_i32_eq with "H") => //.
-        rewrite cons_length - Heqx.
+        rewrite length_cons - Heqx.
         lia.
         
         iDestruct "Hrest" as (bs0) "(%Hbslen & Hrest)".
         iExists bs0.
         iSplit => //.
         iPureIntro.
-        rewrite cons_length.
-        repeat rewrite cons_length in Hbs.
+        rewrite length_cons.
+        repeat rewrite length_cons in Hbs.
         rewrite - Heqx.
         lias.
-        rewrite cons_length -Heqx.
+        rewrite length_cons -Heqx.
         unfold mem_block_at_pos.
         iApply (big_sepL_impl with "Hrest").
         iIntros "!>" (k y) "%Hl Hy".
@@ -346,17 +344,17 @@ Section stack.
     Qed.
 
     Lemma spec_push f0 n (v: N) (a : i32) s E :
-      ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
+      ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝
           ∗ ⌜ f0.(f_locs) !! 0 = Some (value_of_uint v) ⌝
           ∗ ⌜ f0.(f_locs) !! 1 = Some (VAL_int32 a) ⌝ 
           ∗ ⌜ length f0.(f_locs) >= 3 ⌝
          ∗ ⌜ (N.of_nat (length s) < two14 - 1)%N ⌝
           ∗ isStack v s n
-          ∗ ↪[frame] f0 }}}
+          ∗ ↪[frame] f0 }}}}
         to_e_list push @ E
-        {{{ w, ⌜ w = immV [] ⌝ ∗
+        {{{{ w, ⌜ w = immV [] ⌝ ∗
                        isStack v (a :: s) n ∗
-                       ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}. 
+                       ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝ }}}}. 
     Proof.
       iIntros "!>" (Φ) "(%Hinst & %Hlocv & %Hloca & %Hlocs & %Hlens & Hstack & Hf) HΦ" => /=.
       
@@ -430,10 +428,10 @@ Section stack.
       iIntros "Hf".
       iApply (wp_frame_trap with "Hf").
       iNext. iLeft. iLeft. auto.
-    - iIntros "Hf". iFrame.
+    - iIntros "Hf". 
       iApply (wp_wand with "[Hf]").
       iApply check_stack_valid;iFrame;subst;eauto.
-      iIntros (v0) "[$ HH]". eauto.
+      iIntros (v0) "[$ HH]". by iFrame. 
     - subst f'. iIntros (w f0) "([-> %Hdiv] & Hf & -> & Hown) /=".
       deconstruct_ctx.
       take_drop_app_rewrite (length (validate_stack_bound 0)).

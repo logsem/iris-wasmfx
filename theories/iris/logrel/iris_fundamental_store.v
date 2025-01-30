@@ -71,7 +71,7 @@ Section fundamental.
     iInduction len as [|len] "IH";iIntros (ml_data start m cond Hcond Hgt Hbounds) "Hm";[lia|].
     assert (is_Some (ml_data !! N.to_nat start)) as [x Hx].
     { apply lookup_lt_is_Some_2.
-      rewrite /mem_length /memory_list.mem_length /= in Hbounds. lia. }
+      rewrite /length_mem /memory_list.length_mem /= in Hbounds. lia. }
     unfold mem_block_at_pos;simpl.
     destruct len.
     { iDestruct (big_sepL_insert_acc with "Hm") as "[Hm Hcls]";[apply Hx|].
@@ -126,8 +126,8 @@ Section fundamental.
       iIntros (y k Hy) "H".
       iIntros (Hcond1 Hcond2);iApply "H";iPureIntro;split;auto. lia. } 
     iSplitR "H2".
-    { rewrite take_length. iIntros (Hcontr). exfalso. lia. }
-    rewrite !take_length.
+    { rewrite length_take. iIntros (Hcontr). exfalso. lia. }
+    rewrite !length_take.
     assert (N.to_nat (start + 1) + length bv' = N.to_nat start + S (length bv')) as ->;[lia|].
     iApply (big_sepL_mono with "H2").
     iIntros (y k Hy) "H".
@@ -138,7 +138,7 @@ Section fundamental.
 
   Lemma mem_extract_insert ms start len m :
     len > 0  ->
-    (mem_length ms >= start + N.of_nat len)%N ->
+    (length_mem ms >= start + N.of_nat len)%N ->
     ⊢ ([∗ list] i↦b ∈ ml_data (mem_data ms), m ↦[wm][N.of_nat i] b) -∗
       (∃ bv, m ↦[wms][ start ] bv ∗
         (∀ bv', ⌜length bv = length bv'⌝ -∗ m ↦[wms][ start ] bv' -∗
@@ -147,7 +147,7 @@ Section fundamental.
   Proof.
     destruct ms. simpl in *.
     destruct mem_data. simpl.
-    unfold mem_length,memory_list.mem_length;simpl.
+    unfold length_mem,memory_list.length_mem;simpl.
     iIntros (Hlt Hbounds) "Hm".
     iDestruct (big_sepL_cond_impl with "Hm") as "Hm".
     iDestruct (mem_extract_insert_mid _ _ _ _ (λ _, True) with "[Hm]") as "Hm";eauto.
@@ -169,7 +169,7 @@ Section fundamental.
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
     destruct ws as [|w ws];[done|destruct ws as [|w1 ws];[done|destruct ws;[|done]]].
@@ -192,12 +192,12 @@ Section fundamental.
 
     destruct tp.
     { (* it is a packed store *)
-      assert (tp_length p < t_length t) as Hlt.
+      assert (length_tp p < length_t t) as Hlt.
       { rewrite /= in Hload. revert Hload. move/andP =>[Hload Hint].
         revert Hload. move/andP =>[Ha Htp].
         revert Htp. move/ssrnat.leP;lia. }
 
-      destruct (N.ltb (mem_length ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (tp_length p))))%N eqn:Hmemlen.
+      destruct (N.ltb (length_mem ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (length_tp p))))%N eqn:Hmemlen.
       { apply N.ltb_lt in Hmemlen. iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = trapV⌝ ∗ _) ∗ _)%I with "[Hsize Hf]").
         { iApply (wp_store_packed_failure with "[$Hf $Hsize]");[|by rewrite Hlocs /=|by apply N.lt_gt|];auto. }
@@ -208,7 +208,7 @@ Section fundamental.
         iSplitR;[by iLeft; iLeft|iExists _;iFrame].
         iExists _. eauto. 
       }
-      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract_insert _ (Wasm_int.N_of_uint i32m z + off) (tp_length p) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct p;simpl;lia|lia|].
+      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract_insert _ (Wasm_int.N_of_uint i32m z + off) (length_tp p) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct p;simpl;lia|lia|].
         iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = immV _⌝ ∗ _) ∗ _)%I with "[Ha Hf]").
         { iApply (wp_store_packed with "[$Hf $Ha]");eauto. by rewrite Hlocs /=. }
@@ -220,14 +220,14 @@ Section fundamental.
         iMod ("Hcls" with "[$Hown Hsize Hmem]") as "Hown".
         { iNext. unfold mem_block.
           set (mem' := {| ml_data := update_list_range (ml_data (mem_data ms))
-                                                      (bytes_takefill #00%byte (tp_length p) (bits w1))
+                                                      (bytes_takefill #00%byte (length_tp p) (bits w1))
                                                       (N.to_nat (Wasm_int.N_of_uint i32m z + off)) |}).
           iExists {| mem_data := mem' ;
                     mem_max_opt := (mem_max_opt ms) |}.
-          iFrame. unfold mem_length, memory_list.mem_length. iSimpl.
+          iFrame. unfold length_mem, memory_list.length_mem. iSimpl.
           rewrite -update_list_range_length;[iFrame|].
           { rewrite length_bytes_takefill. simpl in Hmemlen.
-            unfold mem_length, memory_list.mem_length in Hmemlen. lia. }
+            unfold length_mem, memory_list.length_mem in Hmemlen. lia. }
         }
         iModIntro.
         iSplitR;[iLeft; iRight|iExists _;iFrame;iExists _;eauto].
@@ -235,7 +235,7 @@ Section fundamental.
       }
     }
 
-    { destruct (N.ltb (mem_length ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (t_length t))))%N eqn:Hmemlen.
+    { destruct (N.ltb (length_mem ms) ((Wasm_int.N_of_uint i32m z) + off + (N.of_nat (length_t t))))%N eqn:Hmemlen.
       { apply N.ltb_lt in Hmemlen. iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = trapV⌝ ∗ _) ∗ _)%I with "[Hsize Hf]").
         { iApply (wp_store_failure with "[$Hf $Hsize]");[|by rewrite Hlocs /=|by apply N.lt_gt|];auto. }
@@ -246,7 +246,7 @@ Section fundamental.
         iSplitR;[by iLeft; iLeft|iExists _;iFrame].
         iExists _. eauto. 
       }
-      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract_insert _ (Wasm_int.N_of_uint i32m z + off) (t_length t) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct t;simpl;lia|lia|].
+      { apply N.ltb_ge in Hmemlen. iDestruct (mem_extract_insert _ (Wasm_int.N_of_uint i32m z + off) (length_t t) with "Hmem") as (bv) "[Ha [Hmem %Hlenbv]]";[destruct t;simpl;lia|lia|].
         iApply wp_fupd.
         iApply (wp_wand _ _ _ (λ vs, (⌜vs = immV _⌝ ∗ _) ∗ _)%I with "[Ha Hf]").
         { iApply (wp_store with "[$Hf $Ha]");eauto. by rewrite Hlocs /=. }
@@ -262,10 +262,10 @@ Section fundamental.
                                                       (N.to_nat (Wasm_int.N_of_uint i32m z + off)) |}).
           iExists {| mem_data := mem' ;
                     mem_max_opt := (mem_max_opt ms) |}.
-          iFrame. unfold mem_length, memory_list.mem_length. iSimpl.
+          iFrame. unfold length_mem, memory_list.length_mem. iSimpl.
           rewrite -update_list_range_length;[iFrame|].
           { erewrite length_bits;[|eauto]. simpl in Hmemlen.
-            unfold mem_length, memory_list.mem_length in Hmemlen. lia. }
+            unfold length_mem, memory_list.length_mem in Hmemlen. lia. }
         }
         iModIntro.
         iSplitR;[iLeft; iRight|iExists _;iFrame;iExists _;eauto].

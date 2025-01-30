@@ -14,7 +14,7 @@ Unset Printing Implicit Defensive.
 Section Examples.
 
 
-Notation "{{{ P }}} es {{{ v , Q }}}" :=
+Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
   (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : iris.expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
 
@@ -43,16 +43,16 @@ Notation "{{{ P }}} es {{{ v , Q }}}" :=
     
     be_typing (upd_local_label_return C locs [[]] (Some [])) es (Tf [] []) ->
     
-    ⊢ {{{ ↪[frame] f
+    ⊢ {{{{ ↪[frame] f
          ∗ na_own logrel_nais ⊤
          ∗ na_inv logrel_nais (wfN (N.of_nat a)) ((N.of_nat a) ↦[wf] (FC_func_native i (Tf [] []) locs es))
          ∗ interp_instance C [] i
-         ∗ ∃ c, (N.of_nat n) ↦[wms][ 0%N ] (bits (VAL_int32 c)) }}}
+         ∗ ∃ c, (N.of_nat n) ↦[wms][ 0%N ] (bits (VAL_int32 c)) }}}}
       lse_return j
-      {{{ w, (⌜w = trapV⌝ ∨ (⌜w = immV [xx 42]⌝
+      {{{{ w, (⌜w = trapV⌝ ∨ (⌜w = immV [xx 42]⌝
                                       ∗ (N.of_nat n) ↦[wms][ 0%N ] (bits (xx 42))
                                       ∗ na_own logrel_nais ⊤))
-               ∗ ↪[frame] f }}}.
+               ∗ ↪[frame] f }}}}.
   Proof.
     iIntros (Hc Hn Ha Hes Φ). iModIntro.
     iIntros "(Hf & Hown & #Ha & #Hi & Hn) HΦ".
@@ -153,18 +153,18 @@ Notation "{{{ P }}} es {{{ v , Q }}}" :=
     
     be_typing (upd_local_label_return C locs [[]] (Some [])) es (Tf [] []) ->
     
-    ⊢ {{{ ↪[frame] f
+    ⊢ {{{{ ↪[frame] f
          ∗ na_own logrel_nais ⊤
          ∗ na_inv logrel_nais (wfN (N.of_nat a)) ((N.of_nat a) ↦[wf] (FC_func_native i (Tf [] []) locs es))
          ∗ interp_instance C [] i
          ∗ (∃ gv, N.of_nat k ↦[wg] {| g_mut := MUT_mut; g_val := gv |})
-         ∗ ∃ c, (N.of_nat n) ↦[wms][ 0%N ] (bits (VAL_int32 c)) }}}
+         ∗ ∃ c, (N.of_nat n) ↦[wms][ 0%N ] (bits (VAL_int32 c)) }}}}
       lse j g
-      {{{ w, (⌜w = trapV⌝ ∨ (⌜w = immV []⌝
+      {{{{ w, (⌜w = trapV⌝ ∨ (⌜w = immV []⌝
                                       ∗ (N.of_nat k) ↦[wg] {| g_mut := MUT_mut; g_val := xx 42 |}
                                       ∗ (N.of_nat n) ↦[wms][ 0%N ] (bits (xx 42))
                                       ∗ na_own logrel_nais ⊤))
-               ∗ ↪[frame] f }}}.
+               ∗ ↪[frame] f }}}}.
   Proof.
     iIntros (Hc Hn Ha Hg Hes Φ). iModIntro.
     iIntros "(Hf & Hown & #Ha & #Hi & Hg & Hn) HΦ".
@@ -217,7 +217,7 @@ Section Examples_host.
         !logrel_na_invs Σ}.
 
 
-  Notation "{{{ P }}} es {{{ v , Q }}}" :=
+  Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
   Lemma wp_wand_host s E (e : host_expr) (Φ Ψ : host_val -> iProp Σ) :
@@ -238,11 +238,11 @@ Section Examples_host.
       mod_elem := [];
       mod_data := [];
       mod_start := Some {| modstart_func := Mk_funcidx 1 |};
-      mod_imports := [ {| imp_module := list_byte_of_string "Adv";
-                         imp_name := list_byte_of_string "adv_call";
+      mod_imports := [ {| imp_module := String.list_byte_of_string "Adv";
+                         imp_name := String.list_byte_of_string "adv_call";
                          imp_desc := ID_func 0 |};
-                       {| imp_module := list_byte_of_string "Ret";
-                         imp_name := list_byte_of_string "ret_glob";
+                       {| imp_module := String.list_byte_of_string "Ret";
+                         imp_name := String.list_byte_of_string "ret_glob";
                          imp_desc := ID_global {| tg_mut := MUT_mut; tg_t := T_i32 |} |} ];
       mod_exports := []
     |}.
@@ -313,15 +313,15 @@ Section Examples_host.
     module_data_bound_check_gmap ∅ [] adv_module -> (* if the adversary module declares a memory, there cannot be more initializers that its size *)
     typeof wret = T_i32 -> (* the imported return global has type i32 *)
 
-    ⊢ {{{ ↪[frame] empty_frame ∗
+    ⊢ {{{{ ↪[frame] empty_frame ∗
           (N.of_nat g_ret) ↦[wg] {| g_mut := MUT_mut; g_val := wret |} ∗
           0%N ↪[mods] adv_module ∗
           1%N ↪[mods] lse_module ∗
           na_own logrel_nais ⊤ ∗
           (∃ name, 1%N ↪[vis] {| modexp_name := name; modexp_desc := MED_global (Mk_globalidx g_ret) |}) ∗
-          (∃ vs, 0%N ↪[vis] vs) }}}
+          (∃ vs, 0%N ↪[vis] vs) }}}}
         ((adv_lse_instantiate g_ret,[]) : host_expr)
-      {{{ v, ⌜v = (trapHV : host_val)⌝ ∨ ⌜v = immHV [xx 42]⌝ }}} .
+      {{{{ v, ⌜v = (trapHV : host_val)⌝ ∨ ⌜v = immHV [xx 42]⌝ }}}} .
   Proof.
     iIntros (Htyp Hnostart Hrestrict Hboundst Hboundsm Hgrettyp).
     iModIntro. iIntros (Φ) "(Hemptyframe & Hgret & Hmod_adv & Hmod_lse & Hown & Hvis1 & Hvis) HΦ".

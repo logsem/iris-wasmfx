@@ -93,6 +93,12 @@ Inductive reduce_simple : seq administrative_instruction -> seq administrative_i
   forall hs vs,
     const_list vs ->
     reduce_simple [::AI_handler hs vs] vs
+| rs_handler_trap :
+  forall hs,
+    reduce_simple [::AI_handler hs [::AI_trap]] [:: AI_trap]
+| rs_prompt_trap :
+  forall ts hs,
+    reduce_simple [::AI_prompt ts hs [::AI_trap]] [::AI_trap]
 (* | rs_handle_suspend :
   forall x hs hh LI,
     List.Forall (fun '(H_on y _) => x <> y) hs ->
@@ -268,12 +274,13 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
 
 (** Exception handling *)
 | r_try_table :
-  forall s f vs t1s t2s cs es n,
+  forall s f vs t1s t2s cs es n i,
+    stypes s (f_inst f) i = Some (Tf t1s t2s) ->
     n = length t2s ->
     const_list vs -> 
     length vs = length t1s ->
     List.Forall (clause_addr_defined (f_inst f)) cs ->
-    reduce s f (vs ++ [::AI_basic (BI_try_table (Tf t1s t2s) cs es)])
+    reduce s f (vs ++ [::AI_basic (BI_try_table i cs es)])
       s f [::AI_handler cs [:: AI_label n [::] (vs ++ to_e_list es)]]
    
 | r_throw: forall s f ves vcs x s' a ts,
@@ -318,7 +325,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
   forall s f x a tf,
     List.nth_error f.(f_inst).(inst_tags) x = Some a ->
     List.nth_error s.(s_tags) a = Some tf ->
-    reduce s f [:: AI_basic (BI_suspend (Tag_lookup x))] s f [:: AI_basic (BI_suspend (Tag_explicit a tf))]
+    reduce s f [:: AI_basic (BI_suspend x)] s f [:: AI_suspend_desugared a]
 | r_suspend :
   forall s f hs ts hh vs x (* a *) l t1s t2s LI,
     const_list vs ->
@@ -326,7 +333,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     List.nth_error (s_tags s) x (* a *) = Some (Tf t1s t2s) ->
     length vs = length t1s ->
     firstx_continuation hs (f_inst f) x (* a *) = Some l ->
-    hfilled (Var_prompt x (f_inst f)) hh (vs ++ [:: AI_basic (BI_suspend (Tag_explicit x (Tf t1s t2s)))]) LI ->
+    hfilled (Var_prompt x (f_inst f)) hh (vs ++ [:: AI_suspend_desugared x]) LI ->
     reduce s f [:: AI_prompt ts hs LI ] (new_cont s (Cont_hh (Tf t2s ts (* was probably wrong − fixed now? *))hh)) f (vs ++ [:: AI_ref_cont (length (s_conts s)); AI_basic (BI_br l)])
 | r_contbind :
   forall s f k hh vs i i' ts t1s t2s,
@@ -385,53 +392,53 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     forall s i f t bs k a off m,
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      load m (Wasm_int.N_of_uint i32m k) off (tnum_length t) = Some bs ->
+      load m (Wasm_int.N_of_uint i32m k) off (length_tnum t) = Some bs ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t None a off)] s f [::AI_basic (BI_const (wasm_deserialise bs t))]
   | r_load_failure :
     forall s i f t k a off m,
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      load m (Wasm_int.N_of_uint i32m k) off (tnum_length t) = None ->
+      load m (Wasm_int.N_of_uint i32m k) off (length_tnum t) = None ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t None a off)] s f [::AI_trap]
   | r_load_packed_success :
     forall s i f t tp k a off m bs sx,
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      load_packed sx m (Wasm_int.N_of_uint i32m k) off (tp_length tp) (tnum_length t) = Some bs ->
+      load_packed sx m (Wasm_int.N_of_uint i32m k) off (length_tp tp) (length_tnum t) = Some bs ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t (Some (tp, sx)) a off)] s f [::AI_basic (BI_const (wasm_deserialise bs t))]
   | r_load_packed_failure :
     forall s i f t tp k a off m sx,
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      load_packed sx m (Wasm_int.N_of_uint i32m k) off (tp_length tp) (tnum_length t) = None ->
+      load_packed sx m (Wasm_int.N_of_uint i32m k) off (length_tp tp) (length_tnum t) = None ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t (Some (tp, sx)) a off)] s f [::AI_trap]
   | r_store_success :
     forall t v s i f mem' k a off m,
       types_num_agree t v ->
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      store m (Wasm_int.N_of_uint i32m k) off (bits v) (tnum_length t) = Some mem' ->
+      store m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tnum t) = Some mem' ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)] (upd_s_mem s (update_list_at s.(s_mems) i mem')) f [::]
   | r_store_failure :
     forall t v s i f m k off a,
       types_num_agree t v ->
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      store m (Wasm_int.N_of_uint i32m k) off (bits v) (tnum_length t) = None ->
+      store m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tnum t) = None ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)] s f [::AI_trap]
   | r_store_packed_success :
     forall t v s i f m k off a mem' tp,
       types_num_agree t v ->
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (tp_length tp) = Some mem' ->
+      store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tp tp) = Some mem' ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)] (upd_s_mem s (update_list_at s.(s_mems) i mem')) f [::]
   | r_store_packed_failure :
     forall t v s i f m k off a tp,
       types_num_agree t v ->
       smem_ind s f.(f_inst) = Some i ->
       List.nth_error s.(s_mems) i = Some m ->
-      store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (tp_length tp) = None ->
+      store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tp tp) = None ->
       reduce s f [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)] s f [::AI_trap]
 
   (** memory **)

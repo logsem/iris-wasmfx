@@ -1,3 +1,3 @@
 (mdx
-	(package Wasm))
+	(package iris-wasmfx))
 

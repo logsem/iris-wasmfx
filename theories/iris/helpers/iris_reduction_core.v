@@ -1061,7 +1061,7 @@ Section reduction_core.
           assert (length vs0 >= n) ; first lia.
           rewrite - (take_drop (length vs0 - n) vs0) in Hbefs.
           assert (length (drop (length vs0 - n) vs0) = length vs). 
-          { rewrite drop_length. rewrite Hr2. lia. }
+          { rewrite length_drop. rewrite Hr2. lia. }
           rewrite assoc_list_seq in Hbefs.
           destruct (app_inj_2 _ _ _ _ H0 Hbefs) as [Hbefs' Hvss].
           rewrite - (take_drop (length vs0 - n) vs0) Hvss in Heq0.
@@ -1133,7 +1133,7 @@ Section reduction_core.
         destruct bef.
         eapply IHHred => //=.
         simpl in Hlen', Hnnn.
-        rewrite app_length in Hlen', Hnnn.
+        rewrite length_app in Hlen', Hnnn.
         eapply IHnnn => //= ; lia.
         rewrite H in Heq.
         apply first_values in Heq as (_ & Habs & _) ; try done ; try (by intros [? ?]); try (destruct He0 as [-> | ->]; by intros [? ?]).
@@ -1149,7 +1149,7 @@ Section reduction_core.
           assert (length vs0 >= n) ; first lia.
           rewrite - (take_drop (length vs0 - n) vs0) in Hbefs.
           assert (length (drop (length vs0 - n) vs0) = length vs). 
-          { rewrite drop_length. rewrite Hr2. lia. }
+          { rewrite length_drop. rewrite Hr2. lia. }
           rewrite assoc_list_seq in Hbefs.
           destruct (app_inj_2 _ _ _ _ H0 Hbefs) as [Hbefs' Hvss].
           rewrite - (take_drop (length vs0 - n) vs0) Hvss in Heq0.
@@ -1232,7 +1232,7 @@ Section reduction_core.
         destruct bef.
         eapply IHHred => //=.
         simpl in Hlen', Hnnn.
-        rewrite app_length in Hlen', Hnnn.
+        rewrite length_app in Hlen', Hnnn.
         eapply IHnnn => //= ; lia.
         rewrite H in Heq.
         apply first_values in Heq as (_ & Habs & _) ; try done ; try (by intros [? ?]); try (destruct He0 as [-> | ->]; by intros [? ?]).
@@ -1265,7 +1265,7 @@ Section reduction_core.
         assert (length vs0 >= n) ; first lia.
         rewrite - (take_drop (length vs0 - n) vs0) in Hbefs.
         assert (length (drop (length vs0 - n) vs0) = length ves). 
-        { rewrite drop_length. rewrite Hr3 v_to_e_length Hr4. lia. }
+        { rewrite length_drop. rewrite Hr3 v_to_e_length Hr4. lia. }
         rewrite assoc_list_seq in Hbefs.
         destruct (app_inj_2 _ _ _ _ H0 Hbefs) as [Hbefs' Hvss].
         rewrite - (take_drop (length vs0 - n) vs0) Hvss in Heq0.
@@ -1352,7 +1352,7 @@ Section reduction_core.
         destruct bef.
         eapply IHHred => //=.
         simpl in Hlen', Hnnn.
-        rewrite app_length in Hlen', Hnnn.
+        rewrite length_app in Hlen', Hnnn.
         eapply IHnnn => //= ; lia.
         rewrite H in Heq.
         apply first_values in Heq as (_ & Habs & _) ; try done ; try (by intros [? ?]); try (destruct He0 as [-> | ->]; by intros [? ?]).
@@ -1368,7 +1368,7 @@ Section reduction_core.
         assert (length vs0 >= n) ; first lia.
         rewrite - (take_drop (length vs0 - n) vs0) in Hbefs.
         assert (length (drop (length vs0 - n) vs0) = length ves). 
-        { rewrite drop_length. rewrite Hr3 v_to_e_length Hr4. lia. }
+        { rewrite length_drop. rewrite Hr3 v_to_e_length Hr4. lia. }
         rewrite assoc_list_seq in Hbefs.
         destruct (app_inj_2 _ _ _ _ H0 Hbefs) as [Hbefs' Hvss].
         rewrite - (take_drop (length vs0 - n) vs0) Hvss in Heq0.
@@ -1454,7 +1454,7 @@ Section reduction_core.
         destruct bef.
         eapply IHHred => //=.
         simpl in Hlen', Hnnn.
-        rewrite app_length in Hlen', Hnnn.
+        rewrite length_app in Hlen', Hnnn.
         eapply IHnnn => //= ; lia.
         rewrite H in Heq.
         apply first_values in Heq as (_ & Habs & _) ; try done ; try (by intros [? ?]); try (destruct He0 as [-> | ->]; by intros [? ?]).
@@ -1484,7 +1484,7 @@ Section reduction_core.
         done.
         rewrite Hr2 in Hlen.
         simpl in Hlen.
-        rewrite app_length in Hlen.
+        rewrite length_app in Hlen.
         simpl in Hlen.
         lia.
         left.
@@ -1521,7 +1521,7 @@ Section reduction_core.
         done.
         rewrite Hr2 in Hlen.
         simpl in Hlen.
-        repeat rewrite app_length in Hlen.
+        repeat rewrite length_app in Hlen.
         simpl in Hlen.
         lia.
         left.

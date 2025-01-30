@@ -20,7 +20,7 @@ Section fundamental.
 
   Lemma interp_ctx_continuations_push_label_block lh C hl i tm :
     base_is_empty lh ->
-    lholed_lengths (rev (tc_label C)) lh ->
+    length_lholeds (rev (tc_label C)) lh ->
     interp_ctx_continuations (tc_label C) (tc_return C) hl (tc_local C) i lh -∗
     interp_ctx_continuation (tc_label (upd_label C ([tm] ++ tc_label C))) (tc_return C) hl (push_base lh (length tm) [] [] [])
                               0 tm (tc_local C) i.
@@ -41,7 +41,7 @@ Section fundamental.
       take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [Hf]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
 
     iDestruct "Hv" as (ws' ->) "Hv". iExists tm.
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
@@ -61,7 +61,7 @@ Section fundamental.
     iIntros "[%Hlh_base [%Hlh_len [%Hlh_valid #Hc]]]".
     iSplit;[|iSplit;[|iSplit]].
     { iPureIntro. apply base_is_empty_push_base. }
-    { iPureIntro. apply lholed_lengths_push_base. auto. }
+    { iPureIntro. apply length_lholeds_push_base. auto. }
     { iPureIntro. apply lholed_valid_push_base. auto. }
     { iSplitR.
       { iSimpl. iSplitR;[|done].
@@ -100,13 +100,13 @@ Section fundamental.
     {  take_drop_app_rewrite_twice 0 1.
        iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
        { iApply (wp_trap with "[] [Hf]");auto. }
-       iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+       iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
 
     iApply (wp_block with "Hf");eauto.
     { apply v_to_e_is_const_list. }
-    { rewrite fmap_length //. }
+    { rewrite length_fmap //. }
     iNext. iIntros "Hf".
     iApply wp_wasm_empty_ctx.
     iApply wp_label_push_nil.
@@ -161,7 +161,7 @@ Section fundamental.
       destruct (decide (j = p)).
       { iApply (interp_br_step with "Hbr Hf Hfv");eauto. }
 
-      { iAssert (⌜lholed_lengths (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
+      { iAssert (⌜length_lholeds (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
         { iDestruct "Hc" as "[% [% [% _]]]". auto. }
         iApply (interp_br_stuck_push with "Hbr Hf Hfv");eauto. }
     }

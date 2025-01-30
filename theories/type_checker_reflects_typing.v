@@ -1280,7 +1280,7 @@ Lemma isolate_prefix_trivial ts t1s :
   isolate_prefix (ts ++ t1s) t1s = Some ts.
 Proof.
   unfold isolate_prefix.
-  rewrite List.app_length.
+  rewrite List.length_app.
   rewrite leq_addl.
   assert ((length ts + length t1s)%coq_nat - length t1s = length ts); first lias.
   rewrite H.

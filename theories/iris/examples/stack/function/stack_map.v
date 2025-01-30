@@ -94,20 +94,20 @@ End code.
 Section specs.
 
 Lemma spec_map_initialise (f: frame) s (v:N) n E:
-  ⊢ {{{ ⌜ f.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ f.(f_locs) !! 0 = Some (value_of_uint v) ⌝ ∗
         ⌜ length f.(f_locs) >= 4 ⌝ ∗
         isStack v s n ∗
-        ↪[frame] f }}}
+        ↪[frame] f }}}}
     to_e_list map_initialise @ E
-    {{{ w, ⌜ w = immV [] ⌝ ∗
+    {{{{ w, ⌜ w = immV [] ⌝ ∗
            isStack v s n ∗
            ↪[frame] {|
              f_locs := <[ 2 := value_of_uint v ]>
                        (<[ 3 := value_of_uint (v + N.of_nat (length s) * 4) ]> f.(f_locs));
              f_inst := f_inst f
            |}
-    }}}.
+    }}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinstmem & %Hlocs0 & %Hlocs & Hs & Hf) HΦ" => /=.
 
@@ -156,7 +156,7 @@ Proof.
   { iApply wp_set_local; last by iApply "Hf".
     { simpl.
       rewrite - fmap_insert_set_nth; last lia.
-      rewrite insert_length.
+      rewrite length_insert.
       lia.
     }
     by instantiate (1 := λ w, ⌜ w = immV _ ⌝%I).
@@ -167,24 +167,24 @@ Proof.
   iFrame.
   iSplit => //.
   
-  erewrite fmap_insert_set_nth => /=; last by rewrite insert_length; lia.
+  erewrite fmap_insert_set_nth => /=; last by rewrite length_insert; lia.
   erewrite fmap_insert_set_nth => /=; last lia.
   done.
 Qed.
 
 Lemma spec_map_loop_body_terminate f s (v: N) n E j k:
-  ⊢ {{{ ⌜ f.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ f.(f_locs) !! 0 = Some (value_of_uint v) ⌝ ∗
         ⌜ f.(f_locs) !! 2 = Some (value_of_int j) ⌝ ∗
         ⌜ f.(f_locs) !! 3 = Some (value_of_int k) ⌝ ∗
         ⌜ j = k ⌝ ∗
         ⌜ length f.(f_locs) >= 4 ⌝ ∗
         isStack v s n ∗
-        ↪[frame] f }}}
+        ↪[frame] f }}}}
     to_e_list map_loop_body @ E
-    {{{ w, ⌜ exists es, w = brV (VH_base 1 [] es) ⌝ ∗
+    {{{{ w, ⌜ exists es, w = brV (VH_base 1 [] es) ⌝ ∗
            isStack v s n ∗ ↪[frame] f
-    }}}.
+    }}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinstmem & %Hlocs0 & %Hlocs2 & %Hlocs3 & <- & %Hlocs & Hs & Hf) HΦ" => /=.
 
@@ -252,7 +252,7 @@ Qed.
 
 Lemma spec_map_loop_body_continue f (s: list i32) (v: N) n E j fn (sv: i32) j0 a cl
       (Φ : i32 -> iPropI Σ) (Ψ: i32 -> i32 -> iPropI Σ):
-  ⊢ {{{ ⌜ f.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ f.(f_locs) !! 0 = Some (value_of_uint v) ⌝ ∗
         ⌜ f.(f_locs) !! 1 = Some (VAL_int32 fn) ⌝  ∗
         ⌜ f.(f_locs) !! 2 = Some (value_of_uint (v + N.of_nat (length s) * 4 - 4 * j - 4)) ⌝ ∗
@@ -269,21 +269,21 @@ Lemma spec_map_loop_body_continue f (s: list i32) (v: N) n E j fn (sv: i32) j0 a
             (N.of_nat a) ↦[wf] cl ∗
             ⌜ cl_type cl = Tf [T_i32] [T_i32] ⌝ ∗ 
             (∀ (u : i32) (fc : frame),
-                {{{ Φ u ∗
+                {{{{ Φ u ∗
                       ⌜ f_inst f = f_inst fc ⌝ ∗
                        ↪[frame] fc ∗
                        (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m fn) ] (Some a) ∗
                        (N.of_nat a) ↦[wf] cl
-                  }}}
+                  }}}}
                   [ AI_basic (BI_const (VAL_int32 u)) ;
                     AI_invoke a ] @ E
-                  {{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
+                  {{{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
                            ∗ ↪[frame] fc
                            ∗ (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m fn) ] (Some a) 
-                           ∗ (N.of_nat a) ↦[wf] cl }}}) ∗   
-        ↪[frame] f }}}
+                           ∗ (N.of_nat a) ↦[wf] cl }}}}) ∗   
+        ↪[frame] f }}}}
     to_e_list map_loop_body @ E
-    {{{ w, ⌜ w = brV (VH_base 0 [] []) ⌝ ∗
+    {{{{ w, ⌜ w = brV (VH_base 0 [] []) ⌝ ∗
            (∃ (sv': i32), isStack v (<[N.to_nat j := sv']> s) n ∗ Ψ sv sv') ∗
             (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m fn) ] (Some a) ∗
             (N.of_nat a) ↦[wf] cl ∗
@@ -291,7 +291,7 @@ Lemma spec_map_loop_body_continue f (s: list i32) (v: N) n E j fn (sv: i32) j0 a
             {| f_locs := <[ 2 := value_of_uint (v + N.of_nat (length s) * 4 - 4 * j) ]> f.(f_locs);
                f_inst := f.(f_inst)
             |}
-    }}}.
+    }}}}.
 Proof.
   iIntros "!>" (Ξ) "(%Hinstmem & %Hlocs0 & %Hlocs1 & %Hlocs2 & %Hlocs3 & %Hlocs & %Hjbound & %Hslookup & Hs & HΦ & %Htypes & %Htab & Htab & Hcl & %Hclt & #Hspec & Hf) HΞ" => /=.
 
@@ -516,18 +516,18 @@ Lemma spec_map_loop_j f (s: list i32) (v: N) n E j fn j0 a cl
             (N.of_nat a) ↦[wf] cl ∗
             ⌜ cl_type cl = Tf [T_i32] [T_i32] ⌝ ∗ 
             (∀ (u : i32) (fc : frame),
-                {{{ Φ u ∗
+                {{{{ Φ u ∗
                       ⌜ f_inst f = f_inst fc ⌝ ∗
                        ↪[frame] fc ∗
                        (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m fn) ] (Some a) ∗
                        (N.of_nat a) ↦[wf] cl
-                  }}}
+                  }}}}
                   [ AI_basic (BI_const (VAL_int32 u)) ;
                     AI_invoke a ] @ E
-                  {{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
+                  {{{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
                            ∗ ↪[frame] fc
                            ∗ (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m fn) ] (Some a) 
-                           ∗ (N.of_nat a) ↦[wf] cl }}}) ∗   
+                           ∗ (N.of_nat a) ↦[wf] cl }}}}) ∗   
             ↪[frame] f) -∗
   WP (to_e_list map_loop_body) @ E CTX 2;
   push_base (LH_rec [] 0 [] (LH_base [] []) []) 0
@@ -605,7 +605,7 @@ Proof.
     iApply wp_ctx_bind => //.
     iApply (spec_map_loop_body_continue with "[Hs HsvΦ Htab Hcl Hf]").
     { iFrame.
-      repeat rewrite app_length take_length.
+      repeat rewrite length_app length_take.
       replace (S k `min` length s) with (S k); last lia.
       replace (S k + length s') with (length s); last lia.
       instantiate (6 := N.of_nat k).
@@ -652,7 +652,7 @@ Proof.
     iCombine "HΨ HΨ'" as "HΨcomb".
     iFrame.
     instantiate (1 := (sv' :: s')).
-    rewrite app_length take_length.
+    rewrite length_app length_take.
     assert (S k `min` length s = S k) as Hmin; first lia.
     rewrite Hmin.
     repeat iSplit => //.
@@ -665,7 +665,7 @@ Proof.
       by lias.
     }
     { by rewrite list_lookup_insert_ne. }
-    { rewrite insert_length. iPureIntro; lia. }
+    { rewrite length_insert. iPureIntro; lia. }
     { iPureIntro. lia. }
     { iPureIntro.
       assert (k+1 <= length s)%Z as H; first lias. clear - H.
@@ -684,18 +684,18 @@ Proof.
     { replace (<[_ := _]> _) with (take k s ++ sv' :: s'); first done.
       erewrite take_S_r => //.
       rewrite insert_app_l; last first.
-      { rewrite app_length take_length => /=.
+      { rewrite length_app length_take => /=.
         remember (length s) as x.
         rewrite - Heqx.
         lia.
       }
       rewrite insert_app_r_alt; last first.
-      { rewrite take_length => /=.
+      { rewrite length_take => /=.
         remember (length s) as x.
         rewrite - Heqx.
         lia.
       }
-      rewrite take_length.
+      rewrite length_take.
       remember (length s) as x.
       rewrite - Heqx Nat2N.id.
       replace (k `min` x) with k; last lia.
@@ -716,7 +716,7 @@ Qed.
 Lemma spec_stack_map (f0 : frame) (n : immediate) (f : i32) (v : N) (s : seq.seq i32) E
       j0 a cl 
       (Φ : i32 -> iPropI Σ) (Ψ : i32 -> i32 -> iPropI Σ) :
-  ⊢ {{{  ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝  ∗
+  ⊢ {{{{  ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝  ∗
             ⌜ f0.(f_locs) !! 0 = Some (value_of_uint v) ⌝ ∗
             ⌜ f0.(f_locs) !! 1 = Some (VAL_int32 f) ⌝  ∗
             ⌜ length f0.(f_locs) >= 4 ⌝ ∗
@@ -728,26 +728,26 @@ Lemma spec_stack_map (f0 : frame) (n : immediate) (f : i32) (v : N) (s : seq.seq
             (N.of_nat a) ↦[wf] cl ∗
             ⌜ cl_type cl = Tf [T_i32] [T_i32] ⌝ ∗ 
             (∀ (u : i32) (fc : frame),
-                {{{ Φ u ∗
+                {{{{ Φ u ∗
                       ⌜ f_inst f0 = f_inst fc ⌝ ∗
                        ↪[frame] fc ∗
                        (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m f) ] (Some a) ∗
                        (N.of_nat a) ↦[wf] cl
-                  }}}
+                  }}}}
                   [ AI_basic (BI_const (VAL_int32 u)) ;
                     AI_invoke a ] @ E
-                  {{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
+                  {{{{ w, (∃ v, ⌜ w = immV [VAL_int32 v] ⌝ ∗ Ψ u v)
                            ∗ ↪[frame] fc
                            ∗ (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m f) ] (Some a) 
-                           ∗ (N.of_nat a) ↦[wf] cl }}}) ∗   
-            ↪[frame] f0 }}}
+                           ∗ (N.of_nat a) ↦[wf] cl }}}}) ∗   
+            ↪[frame] f0 }}}}
     to_e_list stack_map @ E
-    {{{ w, ⌜ w = immV [] ⌝ ∗
+    {{{{ w, ⌜ w = immV [] ⌝ ∗
            (∃ s', isStack v s' n ∗ stackAll2 s s' Ψ) ∗
            (∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f0 = f_inst f1 ⌝) ∗
             (N.of_nat j0) ↦[wt][ N.of_nat (Wasm_int.nat_of_uint i32m f) ] (Some a) ∗
             (N.of_nat a) ↦[wf] cl
-    }}}.
+    }}}}.
 Proof.
   iIntros "!>" (Ξ) "(%Hinstmem & %Hlocs0 & %Hlocs1 & %Hlocs & Hs & HΦ & %Htypes & %Htab & Htab & Hcl & %Hclt & #Hspec & Hf) HΞ" => /=.
 
@@ -806,7 +806,7 @@ Proof.
       rewrite list_lookup_insert_ne; last lia.
       by rewrite Hlocs1.
     }
-    { rewrite list_lookup_insert; last by rewrite insert_length; lia.
+    { rewrite list_lookup_insert; last by rewrite length_insert; lia.
       instantiate (1 := N.of_nat (length s)).
       instantiate (1 := s).
       simpl.
@@ -819,7 +819,7 @@ Proof.
       rewrite list_lookup_insert; last lia.
       done.
     }
-    { by repeat rewrite insert_length. }
+    { by repeat rewrite length_insert. }
     { iPureIntro. lia. }
     { done. }
     { instantiate (1 := []) => /=.

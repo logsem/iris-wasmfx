@@ -1,8 +1,9 @@
 (** Wasm typing rules **)
 (* (C) J. Pichon, M. Bodin - see LICENSE.txt *)
+From Coq Require Import NArith.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 From Wasm Require Import operations.
-From Coq Require Import NArith.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -13,7 +14,7 @@ Unset Printing Implicit Defensive.
 
 Definition convert_helper (sxo : option sx) (t1 t2 : number_type) : bool :=
   (sxo == None) ==
-  ((is_float_t t1 && is_float_t t2) || (is_int_t t1 && is_int_t t2 && (tnum_length t1 < tnum_length t2))).
+  ((is_float_t t1 && is_float_t t2) || (is_int_t t1 && is_int_t t2 && (length_tnum t1 < length_tnum t2))).
 
 Definition convert_cond t1 t2 (sxo : option sx) : bool :=
   (t1 != t2) && convert_helper sxo t1 t2.
@@ -106,10 +107,10 @@ Definition get_type C i :=
   end. 
 
 Definition get_tag C i :=
-  match i with
-  | Tag_lookup i => List.nth_error (tc_tags_t C) i
-  | Tag_explicit _ tf => Some tf
-  end. 
+(*  match i with
+  | Tag_lookup i => *) List.nth_error (tc_tags_t C) i
+(*  | Tag_explicit _ tf => Some tf
+  end *) . 
 
 
 
@@ -124,7 +125,7 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
     relop_type_agree t op -> be_typing C [::BI_relop t op] (Tf [::T_num t; T_num t] [::T_num T_i32])
 | bet_convert : forall C t1 t2 sx, t1 <> t2 -> convert_helper sx t1 t2 ->
   be_typing C [::BI_cvtop t1 CVO_convert t2 sx] (Tf [::T_num t2] [::T_num t1]) 
-| bet_reinterpret : forall C t1 t2, t1 <> t2 -> Nat.eqb (tnum_length t1) (tnum_length t2) ->
+| bet_reinterpret : forall C t1 t2, t1 <> t2 -> Nat.eqb (length_tnum t1) (length_tnum t2) ->
   be_typing C [::BI_cvtop t1 CVO_reinterpret t2 None] (Tf [::T_num t2] [::T_num t1])
 | bet_unreachable : forall C ts ts',
   be_typing C [::BI_unreachable] (Tf ts ts')
@@ -174,11 +175,12 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
     be_typing C [:: BI_resume_throw i x hs] (Tf (ts ++ [:: T_ref (T_contref (Tf t1s t2s))]) t2s)
               
 
-| bet_try_table: forall C C' t1s t2s cs es,
+| bet_try_table: forall C C' t1s t2s cs es i,
+    get_type C i = Some (Tf t1s t2s) ->
     List.Forall (fun c => exception_clause_typing C c) cs ->
     C' = upd_label C ([::t2s] ++ tc_label C) ->
     be_typing C' es (Tf t1s t2s) ->
-    be_typing C [:: BI_try_table (Tf t1s t2s) cs es] (Tf t1s t2s)
+    be_typing C [:: BI_try_table i cs es] (Tf t1s t2s)
 
 
                                 
@@ -518,6 +520,9 @@ with e_typing : store_record -> t_context -> seq administrative_instruction -> f
 | ety_ref_exn : forall s C k exn , (* Guessing the rule here *) 
     List.nth_error (s_exns s) k = Some exn -> 
     e_typing s C [:: AI_ref_exn k] (Tf [::] [::T_ref T_exnref])
+| ety_suspend_desugared : forall s C x tf,
+    List.nth_error (s_tags s) x = Some tf ->
+    e_typing s C [::AI_suspend_desugared x] tf
 | ety_prompt : forall s C hs es ts,
     List.Forall (fun h => continuation_clause_typing C h ts) hs ->
     e_typing s empty_context es (Tf [::] ts) -> 

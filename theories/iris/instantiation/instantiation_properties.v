@@ -1,5 +1,6 @@
 Require Import Coq.Program.Equality.
-From mathcomp Require Import ssreflect eqtype seq ssrbool ssrfun.
+
+From mathcomp Require Import ssreflect eqtype seq ssrbool .
 From Wasm Require Export datatypes operations properties opsem instantiation.
 From stdpp Require Import list fin_maps gmap.
 From Wasm Require Export stdpp_aux.
@@ -402,14 +403,14 @@ Proof.
     symmetry in Heqfold_res.
     unfold add_func in Hallocfuncs.
     inversion Hallocfuncs; subst; clear Hallocfuncs.
-    rewrite map_app app_length /=.
+    rewrite map_app length_app /=.
     rewrite gen_index_extend.
     specialize (IHmodfuncs ws ws0 (rev l0)).
     destruct IHmodfuncs as [? [? [? [? ?]]]]; first by rewrite Heqfold_res.
     repeat split => //; try by eapply IHmodfuncs; rewrite Heqfold_res.
     + rewrite H.
       rewrite H0.
-      by rewrite app_length map_length.
+      by rewrite length_app length_map.
     + rewrite H0.
       rewrite - app_assoc.
       f_equal.
@@ -445,13 +446,13 @@ Proof.
     rewrite Heqfold_res in IHmodtabtypes.
     inversion Halloc; subst; clear Halloc.
     simpl in *.
-    rewrite map_app app_length /=.
+    rewrite map_app length_app /=.
     rewrite gen_index_extend.
     destruct IHmodtabtypes as [? [? [? [? ?]]]] => //.
     repeat split => //.
     + rewrite H.
       rewrite H0.
-      by rewrite app_length map_length.
+      by rewrite length_app length_map.
     + rewrite H0.
       rewrite - app_assoc.
       f_equal.
@@ -485,13 +486,13 @@ Proof.
     rewrite Heqfold_res in IHmodmemtypes.
     inversion Halloc; subst; clear Halloc.
     simpl in *.
-    rewrite map_app app_length /=.
+    rewrite map_app length_app /=.
     rewrite gen_index_extend.
     destruct IHmodmemtypes as [? [? [? [? ?]]]] => //.
     repeat split => //.
     + rewrite H.
       rewrite H0.
-      by rewrite app_length fmap_length.
+      by rewrite length_app length_fmap.
     + rewrite H0.
       rewrite - app_assoc.
       f_equal.
@@ -517,7 +518,7 @@ Proof.
     repeat split => //=.
     by rewrite app_nil_r.
   - destruct g_inits using List.rev_ind; first by destruct modglobs => /=.
-    repeat rewrite app_length in Hlen; simpl in Hlen.
+    repeat rewrite length_app in Hlen; simpl in Hlen.
     repeat rewrite - cat_app in Halloc.
     rewrite combine_app in Halloc; last by lias.
     simpl in Halloc.
@@ -531,7 +532,7 @@ Proof.
     unfold alloc_glob, add_glob in Halloc.
     simpl in Halloc.
     inversion Halloc; subst; clear Halloc.
-    rewrite map_app app_length /=.
+    rewrite map_app length_app /=.
     rewrite gen_index_extend.
     specialize (IHmodglobs g_inits ws ws0 (rev l0)).
     destruct IHmodglobs as [? [? [? [? ?]]]] => //.
@@ -540,7 +541,7 @@ Proof.
     repeat split => //.
     + rewrite H.
       rewrite H0.
-      rewrite app_length fmap_length combine_length.
+      rewrite length_app length_fmap length_combine.
       repeat f_equal.
       by lias.
     + rewrite H0.
@@ -667,7 +668,7 @@ Proof.
     eapply IHes in Hconsts => //.
     f_equal.
     assert (length t2 + 1 = length ts + length t2s) as Hlent2.
-    { rewrite <- app_length.
+    { rewrite <- length_app.
       rewrite <- cat_app.
       rewrite <- Heqt2.
       by lias.
@@ -677,13 +678,13 @@ Proof.
     { apply Get_global_typing in Hbet1.
       destruct Hbet1 as [t [? [HContra ?]]].
       subst.
-      rewrite -> app_length in *.
+      rewrite -> length_app in *.
       simpl in *.
       by lias.
     }
     { apply BI_const_typing in Hbet1.
       subst.
-      rewrite -> app_length in *.
+      rewrite -> length_app in *.
       simpl in *.
       by lias.
     }

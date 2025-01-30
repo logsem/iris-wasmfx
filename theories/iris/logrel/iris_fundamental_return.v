@@ -31,7 +31,7 @@ Section fundamental.
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
 
     assert (of_val (immV ws) = v_to_e_list ws) as ->;[auto|].
@@ -52,17 +52,17 @@ Section fundamental.
     iIntros (f0 f1) "Hf".
 
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
-    rewrite app_length in Hlen.
+    rewrite length_app in Hlen.
     rewrite -(take_drop (length t1s) ws).
     iDestruct (big_sepL2_app_inv with "Hv") as "[Hws1 Hws2]".
-    { right. rewrite drop_length. lia. }
+    { right. rewrite length_drop. lia. }
     iDestruct (big_sepL2_length with "Hws2") as %Hlen'.
 
     iApply (wp_wand _ _ _ (λ vs, ⌜vs = immV (drop (length t1s) ws)⌝ ∗ _)%I with "[Hf]").
     { iApply (wp_return with "[Hf]");[..|iFrame];cycle 3.
       { iApply wp_value. 2:eauto. done. }
       { simpl. apply to_val_fmap. }
-      { simpl. rewrite fmap_length. auto. }
+      { simpl. rewrite length_fmap. auto. }
       { simpl. rewrite - v_to_e_cat. rewrite <- app_assoc.
         instantiate (2:=0). instantiate (1:= LH_base ((λ x : value, AI_basic (BI_const x)) <$> take (length t1s) ws) []).
         unfold lfilled. simpl. rewrite const_list_of_val.

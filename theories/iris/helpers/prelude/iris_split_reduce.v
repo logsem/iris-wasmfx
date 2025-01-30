@@ -275,7 +275,7 @@ Section split_reduce_properties.
             by subst. } 
           assert (length (es' ++ aft') < len) as Hlen'.
           { rewrite H0 in Hlen. rewrite Hult in Hlen. rewrite app_nil_l in Hlen.
-            rewrite app_assoc in Hlen. rewrite app_length in Hlen. simpl in Hlen.
+            rewrite app_assoc in Hlen. rewrite length_app in Hlen. simpl in Hlen.
             rewrite Nat.add_comm in Hlen. rewrite Nat.add_1_l in Hlen.
             apply Nat.succ_lt_mono. assumption. } 
           destruct (IHlen es2' _ Hes1 (es' ++ aft') Hstep' Hlen')
@@ -290,8 +290,8 @@ Section split_reduce_properties.
             move/eqP in Hfill ; rewrite app_assoc Hfill.
             rewrite <- app_assoc. rewrite <- (app_assoc [AI_trap]).
             rewrite Hults. exists lh.
-            repeat split => //=. do 2 rewrite app_length. simpl in Hm.
-            rewrite app_length in Hm. lia.
+            repeat split => //=. do 2 rewrite length_app. simpl in Hm.
+            rewrite length_app in Hm. lia.
             cut (forall es0, m <= length es0 -> drop m es0 ++ [ult'] =
                                            drop m (es0 ++ [ult'])).
             intro Hdrop. rewrite (Hdrop ((a :: es1) ++ es2') Hm).
@@ -358,8 +358,10 @@ Section split_reduce_properties.
             rewrite H4 in H ; simpl in H ; false_assumption.
             inversion Heqes0. rewrite H1 in H ; simpl in H ; false_assumption.
             exists (2 + length es).
-            repeat split => //=. lia. rewrite app_length. lia.
-            unfold lfilled, lfill. simpl. by rewrite drop_app.
+            repeat split => //=. lia. rewrite length_app. lia.
+            unfold lfilled, lfill. simpl.
+            rewrite drop_app. rewrite Nat.sub_diag.
+            rewrite drop_all. done.
             rewrite Heqf in Heqf0 ; by inversion Heqf0.
             apply r_simple. apply (rs_trap (lh := LH_base [AI_basic (BI_const v0)] [])).
             intro Habs ; inversion Habs. unfold lfilled, lfill => //=. }
@@ -383,8 +385,8 @@ Section split_reduce_properties.
                 rewrite app_nil_l app_nil_r in H. subst.
                 rewrite app_nil_l app_nil_r.
                 apply IHHstep => //=. simpl in Hlen.
-                repeat rewrite app_length in Hlen.
-                rewrite app_length. lia. }
+                repeat rewrite length_app in Hlen.
+                rewrite length_app. lia. }
               clear IHHstep. destruct es.
               { destruct es0 ; first by empty_list_no_reduce.
                 inversion H. apply Logic.eq_sym, app_eq_nil in H3 as [_ Habs].
@@ -400,12 +402,12 @@ Section split_reduce_properties.
                 by unfold lfilled, lfill => //=.
               assert (length (es0 ++ zs) < len').
               rewrite Heqes0 in Hlen'. rewrite Hz in Hlen'. simpl in Hlen'.
-              rewrite app_assoc in Hlen'. rewrite app_length in Hlen'. simpl in Hlen'.
+              rewrite app_assoc in Hlen'. rewrite length_app in Hlen'. simpl in Hlen'.
               rewrite Nat.add_1_r in Hlen'. by apply Nat.succ_lt_mono.
               assert (length ([AI_basic (BI_const v0)] ++ (es' ++ zs)%SEQ ++ (z :: aft)%SEQ)%list < S len).
               subst les'. rewrite Hz in Hlen.
-              repeat rewrite app_length in Hlen.
-              repeat rewrite app_length.
+              repeat rewrite length_app in Hlen.
+              repeat rewrite length_app.
               simpl in Hlen.
               simpl.
               lia.
@@ -596,7 +598,7 @@ Section split_reduce_properties.
         apply andb_true_iff in H. destruct H as [ _ H ] ; exact H.
       + rewrite Ht1s. assert (length vcs = length ves).
         rewrite Hves. rewrite v_to_e_length. trivial.
-        rewrite Hvs in H. rewrite app_length in H. simpl in H. lia.
+        rewrite Hvs in H. rewrite length_app in H. simpl in H. lia.
     }
        { exfalso. destruct es. { rewrite app_nil_r in Heqves ;
                                 rewrite <- app_nil_l in Heqves ;
@@ -616,7 +618,7 @@ Section split_reduce_properties.
         apply andb_true_iff in H. destruct H as [ _ H ] ; exact H.
       + rewrite Ht1s. assert (length vcs = length ves).
         rewrite Hves. rewrite v_to_e_length. trivial.
-        rewrite Hvs in H. rewrite app_length in H. simpl in H. lia.
+        rewrite Hvs in H. rewrite length_app in H. simpl in H. lia.
     }
     unfold lfilled, lfill in Hles.
     destruct k. {
@@ -703,7 +705,7 @@ Section split_reduce_properties.
                             (s',l0,i0) []).
           repeat split => //=. by subst.
           assert (length ces < len) as Hlences.
-          rewrite <- Hes in Hlen. rewrite app_length in Hlen. simpl in Hlen ; lia.
+          rewrite <- Hes in Hlen. rewrite length_app in Hlen. simpl in Hlen ; lia.
           destruct (IHlen v ces ces' (s,l,i) _ _ _ Hlences H0 H3) as
             [[Hdrop Hstep] | (lh & lh' & Hfill & Hfill' & Hσ) ].
           { left. subst. repeat split => //=.

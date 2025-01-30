@@ -20,7 +20,7 @@ Section RobustStack.
 
   Set Bullet Behavior "Strict Subproofs".
 
-  Notation "{{{ P }}} es {{{ v , Q }}}" :=
+  Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
   
   Definition stack_adv_instantiate (exp_addrs: list N) (stack_mod_addr adv_mod_addr: N) :=
@@ -128,16 +128,16 @@ Section RobustStack.
     module_elem_bound_check_gmap ∅ [] adv_module -> (* if the adversary module declares a table, there cannot be more initializers that its size *)
     module_data_bound_check_gmap ∅ [] adv_module -> (* if the adversary module declares a memory, there cannot be more initializers that its size *)
 
-    ⊢ {{{ stack_mod_addr ↪[mods] stack_module ∗
+    ⊢ {{{{ stack_mod_addr ↪[mods] stack_module ∗
           adv_mod_addr ↪[mods] adv_module ∗
           na_own logrel_nais ⊤ ∗
           own_vis_pointers exp_addrs ∗
           ↪[frame] empty_frame
-      }}}
+      }}}}
         ((stack_adv_instantiate exp_addrs stack_mod_addr adv_mod_addr,[]) : host_expr) 
-        {{{ v, ((⌜v = trapHV ∨ v = immHV []⌝) ∗ na_own logrel_nais ⊤
+        {{{{ v, ((⌜v = trapHV ∨ v = immHV []⌝) ∗ na_own logrel_nais ⊤
                   ∗ ∃ newStackAddrIs isStack, na_inv logrel_nais stkN (stackModuleInv (λ n0, isStack n0) newStackAddrIs))
-                 ∗ ↪[frame] empty_frame }}} .
+                 ∗ ↪[frame] empty_frame }}}} .
   Proof.
     iIntros (Hexpaddrlen Htyp Hnostart Hrestrict Hboundst Hboundsm).
     do 9 (destruct exp_addrs => //); clear Hexpaddrlen.

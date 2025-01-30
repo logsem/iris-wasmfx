@@ -97,14 +97,14 @@ Context `{!wasmG Σ}.
         rewrite /wp_pre /= HLI.
         iMod "Hcont" as "Hf".
         iDestruct "Hf" as (f) "[Hcont Hf]".
-        iFrame.
+(*        iFrame. *)
         iDestruct (ghost_map_lookup with "Hff Hf") as %Hlook2.
         rewrite lookup_insert in Hlook2. inversion Hlook2. simplify_eq.
         iMod (ghost_map_update {| f_locs := l0; f_inst := i0 |} with "Hff Hf") as "[Hff Hframe]".
         rewrite insert_insert. iFrame.
 
         iApply fupd_mask_intro_subseteq;[solve_ndisj|].
-        iExists _. iFrame. iSplit =>//. iIntros "Hf". iApply wp_fupd.
+        (* iExists _. iFrame. *)  iSplit =>//. iIntros "Hf". iApply wp_fupd.
         iApply wp_value;[unfold IntoVal;eapply of_to_val;eauto|].
         iDestruct ("Hcont" with "Hf") as "Hcont".
         iDestruct (wp_unfold with "Hcont") as "Hcont".
@@ -118,7 +118,7 @@ Context `{!wasmG Σ}.
       iMod (ghost_map_update {| f_locs := l0; f_inst := i0 |} with "Hff Hf") as "[Hff Hframe]".
       rewrite insert_insert.
       simpl. iApply fupd_mask_intro_subseteq;[solve_ndisj|]. iFrame.
-      iExists _. iFrame. iSplit =>//. iIntros "Hf".
+      (* iExists _. iFrame. *) iSplit =>//. iIntros "Hf".
       iApply ("IH" with "[] Hf Hcont");[auto|..].
     }
   Qed.

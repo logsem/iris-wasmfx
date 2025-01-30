@@ -44,8 +44,8 @@ Definition val_eqb (v1 v2: val) : bool := val_eq_dec v1 v2.
 Definition eqvalP : Equality.axiom val_eqb :=
   eq_dec_Equality_axiom val_eq_dec.
 
-Canonical Structure val_eqMixin := EqMixin eqvalP.
-Canonical Structure val_eqType := Eval hnf in EqType val val_eqMixin.
+Canonical Structure val_eqMixin := Equality.Mixin eqvalP.
+Canonical Structure val_eqType := Eval hnf in Equality.Pack (sort := val) (Equality.Class val_eqMixin).
 
 
 Definition state : Type := store_record * (list value) * instance.
@@ -451,7 +451,7 @@ Proof.
         assert (H1 = f_equal S Hi) as Hproof.
         apply Eqdep.EqdepTheory.UIP.
         by rewrite Hproof ; destruct Hi.
-        specialize (cons_length_rec (AI_basic (BI_const v0)) l0).
+        specialize (length_cons_rec (AI_basic (BI_const v0)) l0).
         lia.
       + simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -557,7 +557,7 @@ Proof.
       assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
       rewrite (IHm s0 l0) => //=.
       destruct s0 => //=.
-      specialize (cons_length_rec (AI_basic (BI_const v)) l0).
+      specialize (length_cons_rec (AI_basic (BI_const v)) l0).
       lia.
     + simpl in Hmerge.
       rewrite merge_trap in Hmerge.
@@ -622,7 +622,7 @@ Proof.
       assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
       erewrite (IHm _ l0) => //=.
       destruct l4 => //=. 
-      specialize (cons_length_rec (AI_basic (BI_const v)) l0).
+      specialize (length_cons_rec (AI_basic (BI_const v)) l0).
       lia.
     + simpl in Hmerge.
       rewrite merge_trap in Hmerge.
@@ -712,7 +712,7 @@ Proof.
       assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
       destruct l3 => //=. 
-      specialize (cons_length_rec (AI_basic (BI_const v)) l).
+      specialize (length_cons_rec (AI_basic (BI_const v)) l).
       lia.
     + simpl in Hmerge.
       rewrite merge_trap in Hmerge.

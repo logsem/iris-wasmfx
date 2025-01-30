@@ -12,6 +12,8 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Section stack.
 
 
@@ -59,18 +61,18 @@ End code.
 Section specs.
 
 Lemma spec_new_stack f0 n len E: 
-  ⊢ {{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
+  ⊢ {{{{ ⌜ f0.(f_inst).(inst_memory) !! 0 = Some n ⌝ ∗
         ⌜ length (f_locs f0) >= 1 ⌝ ∗
         ⌜ (page_size | len)%N ⌝ ∗
         ↪[frame] f0 ∗
-        N.of_nat n ↦[wmlength] len }}}
+        N.of_nat n ↦[wmlength] len }}}}
     to_e_list new_stack @ E
-    {{{ v , ((⌜ v = immV [value_of_int (-1)%Z] ⌝ ∗
+    {{{{ v , ((⌜ v = immV [value_of_int (-1)%Z] ⌝ ∗
               N.of_nat n↦[wmlength] len) ∨
              (⌜ v = immV [value_of_uint len]⌝ ∗
                    isStack len [] n ∗
                    N.of_nat n ↦[wmlength] (len + page_size)%N)) ∗
-            ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f1 = f_inst f0 ⌝ }}}.
+            ∃ f1, ↪[frame] f1 ∗ ⌜ f_inst f1 = f_inst f0 ⌝ }}}}.
 Proof.
   iIntros "!>" (Φ) "(%Hinst & %Hflocs & %Hlendiv & Hframe & Hlen) HΦ".
   assert (page_size | len)%N as Hlenmod => //=.
@@ -82,89 +84,91 @@ Proof.
   iSplitR; last iSplitL "HWP".
   2: { by iApply "HWP". }
   { iIntros "[[((%Habs & _ & _) & _) | (%Habs & _)] Hf]" ; by inversion Habs. }
-  - iIntros (w) "(H & Hf)".
-    unfold of_val.
-    destruct w ; try by iDestruct "H" as "[[[%Habs _] _ ]| [%Habs _]]" ; inversion Habs.
-    destruct l ; try by iDestruct "H" as "[[[%Habs _] _ ]| [%Habs _]]" ; inversion Habs.
-    destruct l ; try by iDestruct "H" as "[[[%Habs _] _ ]| [%Habs _]]" ; inversion Habs.
-    rewrite - separate1.
-    rewrite separate2.
-    iApply (wp_seq _ E _ (λ x, (⌜ x = immV [v] ⌝
+  iIntros (w) "(H & Hf)".
+  unfold of_val.
+  destruct w ; try by iDestruct "H" as "[[[%Habs _] _ ]| [%Habs _]]" ; inversion Habs.
+  destruct l ; try by iDestruct "H" as "[[[%Habs _] _ ]| [%Habs _]]" ; inversion Habs.
+  destruct l ; try by iDestruct "H" as "[[[%Habs _] _ ]| [%Habs _]]" ; inversion Habs.
+  rewrite - separate1.
+  rewrite separate2.
+  iApply (wp_seq _ E _ (λ x, (⌜ x = immV [v] ⌝
                                       ∗ ↪[frame] {|
                                             f_locs := set_nth v (f_locs f0) 0 v;
                                             f_inst := f_inst f0
                                       |} )%I) ).
-    iSplitR.
-  - iIntros "[%Habs _]" ; done.
-  - iSplitL "Hf". 
-    iApply (wp_tee_local with "Hf").
+  iSplitR.
+  { iIntros "[%Habs _]" ; done. } 
+  iSplitL "Hf". 
+  { iApply (wp_tee_local with "Hf").
     iIntros "!> Hf".
     rewrite list_extra.cons_app.
     iApply wp_val_app => //=.
     iSplitR => //=.
-    iIntros "!> [%Habs _]" ; done.
-    iApply (wp_set_local with "[] [$Hf]") => //=.
-  - iIntros (w) "[-> Hf]".
-    unfold of_val, fmap, list_fmap.
-    rewrite - separate1.
-    rewrite separate3.
-    iApply wp_seq.
-    iSplitR.
-    instantiate (1 := (λ x, (⌜ if v == value_of_int (-1) then
+    - iIntros "!> [%Habs _]" ; done.
+    - iApply (wp_set_local with "[] [$Hf]") => //=. } 
+  iIntros (w) "[-> Hf]".
+  unfold of_val, fmap, list_fmap.
+  rewrite - separate1.
+  rewrite separate3.
+  iApply wp_seq.
+  iSplitR.
+  { instantiate (1 := (λ x, (⌜ if v == value_of_int (-1) then
                                  x = immV [value_of_int 1]
                                else x = immV [value_of_int 0] ⌝ ∗
                                              ↪[frame] {| f_locs := set_nth v
                                                                            (f_locs f0) 0 v ;
                                                          f_inst := f_inst f0 |})%I)).
     iIntros "[%Habs _]".
-    by destruct (v == value_of_int (-1)).
-  - iSplitL "Hf".
-    iApply (wp_relop with "Hf") => //=.
+    by destruct (v == value_of_int (-1)). } 
+  iSplitL "Hf".
+  { iApply (wp_relop with "Hf") => //=.
     iPureIntro.
     destruct (v == value_of_int (-1)) eqn:Hv.
-    move/eqP in Hv.
-    by rewrite Hv.
-    destruct v => //=.
-    unfold value_of_int in Hv.
-    unfold value_of_int.
-    unfold wasm_bool.
-    destruct (Wasm_int.Int32.eq s (Wasm_int.Int32.repr (-1))) eqn:Hv' => //=.
-    apply Wasm_int.Int32.same_if_eq in Hv'.
-    rewrite Hv' in Hv.
-    rewrite eq_refl in Hv.
-    inversion Hv.
+    - move/eqP in Hv.
+      by rewrite Hv.
+    - destruct v => //=.
+      unfold value_of_int in Hv.
+      unfold value_of_int.
+      unfold wasm_bool.
+      destruct (Wasm_int.Int32.eq s (Wasm_int.Int32.repr (-1))) eqn:Hv' => //=.
+      apply Wasm_int.Int32.same_if_eq in Hv'.
+      rewrite Hv' in Hv.
+      rewrite eq_refl in Hv.
+      inversion Hv. }
   (* If *)
-  - iIntros (w) "[%Hw Hf]".
-    destruct w ; try by destruct (v == value_of_int (-1)).
-    destruct l ; first by destruct (v == value_of_int (-1)).
-    destruct l ; last by destruct (v == value_of_int (-1)).
-    iSimpl.
-    destruct (v == value_of_int (-1)) eqn:Hv. 
-    + (* grow_memory failed *)
-      move/eqP in Hv ; subst v.
-      inversion Hw ; subst v0.
-      iApply (wp_if_true with "Hf").
-      intro.
-      done.
-      iIntros "!> Hf".
-      rewrite - (app_nil_l [AI_basic (BI_block _ _)]).
-      iApply wp_wand_r. 
-      iSplitL "Hf".
-      iApply (wp_block with "Hf") => //=.
+  iIntros (w) "[%Hw Hf]".
+  destruct w ; try by destruct (v == value_of_int (-1)).
+  destruct l ; first by destruct (v == value_of_int (-1)).
+  destruct l ; last by destruct (v == value_of_int (-1)).
+  iSimpl.
+  destruct (v == value_of_int (-1)) eqn:Hv. 
+  - (* grow_memory failed *)
+    move/eqP in Hv ; subst v.
+    inversion Hw ; subst v0.
+    iApply (wp_if_true with "Hf").
+    { intro.
+      done. } 
+    iIntros "!> Hf".
+    rewrite - (app_nil_l [AI_basic (BI_block _ _)]).
+    iApply wp_wand_r. 
+    iSplitL "Hf".
+    { iApply (wp_block with "Hf") => //=.
       iIntros "!> Hf".
       iApply (wp_label_value with "Hf") => //=.
       instantiate (1 := λ x, ⌜ x = immV [VAL_int32 (Wasm_int.Int32.repr (-1))] ⌝%I ).
-      done.
-      iIntros (v) "[%Hv Hf]".
-      iApply "HΦ".
-      iDestruct "H" as "[((%Hm1 & Hb & Hlen) & %Hbound) | [_ Hlen]]".
-      inversion Hm1.
+      done. } 
+    iIntros (v) "[%Hv Hf]".
+    iApply "HΦ".
+    iDestruct "H" as "[((%Hm1 & Hb & Hlen) & %Hbound) | [_ Hlen]]".
+    + inversion Hm1.
       exfalso.
       unfold mem_in_bound in Hbound.
       simpl in Hbound.
-      unfold page_limit in Hbound.
       remember (len `div` page_size)%N as pagenum.
-      assert (pagenum <= 65535)%N as Hbound'; first by lias.
+      assert (pagenum <= 65535)%N as Hbound'.
+      { clear - Hbound.
+        replace page_limit with 65536%N in Hbound; last done.
+        lias. } 
       clear - H0 Hbound'.
       rewrite Wasm_int.Int32.Z_mod_modulus_eq in H0.
       rewrite u32_modulus in H0.
@@ -172,9 +176,9 @@ Proof.
       rewrite Zmod_small in H0; last first.
       split; try by lias.
       lia.
-      iSplitR "Hf";eauto.
-    + (* grow_memory succeeded *)
-      inversion Hw ; subst v0.
+    + iSplitR "Hf";eauto.
+  - (* grow_memory succeeded *)
+    inversion Hw ; subst v0.
       iApply (wp_if_false with "Hf"). done.
       iIntros "!> Hf".
       rewrite - (app_nil_l [AI_basic (BI_block _ _)]).
@@ -183,7 +187,8 @@ Proof.
         last by rewrite eq_refl in Hv ; inversion Hv.
       (* len bound *)
       assert (len `div` page_size <= 65535)%N as Hpagebound.
-      { unfold mem_in_bound, page_limit in Hbound.
+      { unfold mem_in_bound in Hbound.
+        replace page_limit with 65536%N in Hbound; last done.
         simpl in Hbound.
         by lias.
       }
@@ -222,62 +227,61 @@ Proof.
           rewrite (separate1 (AI_basic (BI_get_local 0))).
           iApply wp_seq_ctx; eauto.
           iSplitL ""; last first.
-          - iSplitL "Hf".
-            iApply (wp_get_local with "[] [$Hf]") => /=; first by rewrite set_nth_read.
-            instantiate (1 := (λ x, ( ⌜x = immV [VAL_int32 c] ⌝)%I)) => //=.
-          - 2: { simpl. by iIntros "(%HContra & _ )". }
-            iIntros (w) "[-> Hf]".
-            unfold of_val, fmap, list_fmap.
-            rewrite - separate1.
-            rewrite (separate3 (AI_basic _)).
-            iApply wp_seq_ctx.
-            iSplitL ""; last first.
-          - iSplitL "Hf".
-            iApply (wp_binop with "Hf").
-            unfold app_binop, app_binop_i. done.
-            instantiate (1 := λ x,  ⌜ x = immV _ ⌝%I ) => //=.
-          - 2: { simpl. by iIntros "(%HContra & _ )". }
-            iIntros (w) "[-> Hf]".
-            unfold of_val, fmap, list_fmap.
-            rewrite - separate1.
-            rewrite (separate2 (AI_basic _)).
-            iApply wp_seq_ctx.
-            iSplitL ""; last first.
-            iSplitL "Hf".
-            iApply (wp_tee_local with "Hf").
-            iIntros "!> Hf".
-            rewrite separate1.
-            instantiate (1 := (λ x, (⌜ x = immV _ ⌝ ∗ ↪[frame] _)%I)). 
-        iApply wp_val_app => //=.
-        iSplit; first by iIntros "!> (%HContra & _)" => //.
-        iApply (wp_set_local with "[] [$Hf]") => //=.
-        rewrite length_is_size size_set_nth.
-        unfold ssrnat.maxn.
-        rewrite length_is_size in Hflocs.
-        destruct (ssrnat.leq 2 (seq.size (f_locs f0))) ; lia.
-        rewrite set_nth_write.
-        simpl.
-        iIntros (w) "[-> Hf]".
-        unfold of_val, fmap, list_fmap.
-        rewrite - separate1.
-        rewrite (separate2 (AI_basic _)).
-        iApply wp_seq_ctx.
-        iSplitL ""; last first.
-        iSplitL "Hf".
-        rewrite separate1.
-        iApply wp_val_app => //=.
-        instantiate (1 := (λ x, (⌜ x = immV _ ⌝ ∗ ↪[frame] _)%I)).
-        iSplitL ""; first by iIntros "!> (%HContra & _)" => //.
-        iApply (wp_get_local with "[] [$Hf]") => //=.
-        rewrite set_nth_read => //=.
-        iIntros (w) "[-> Hf]".
-        simpl.
-        rewrite (separate3 (AI_basic _)).
-        iApply wp_seq_ctx; iSplitR; last iSplitL.
-        2: { iApply (wp_store with "[Hf Hbs]") => /=.
-             { done. }
-             { by instantiate (1 := [(#00%byte); (#00%byte); (#00%byte); (#00%byte)]) => //. }
-             2: { iFrame "Hf".
+          { iSplitL "Hf".
+            - iApply (wp_get_local with "[] [$Hf]") => /=; first by rewrite set_nth_read.
+              instantiate (1 := (λ x, ( ⌜x = immV [VAL_int32 c] ⌝)%I)) => //=.
+            - iIntros (w) "[-> Hf]".
+              unfold of_val, fmap, list_fmap.
+              rewrite - separate1.
+              rewrite (separate3 (AI_basic _)).
+              iApply wp_seq_ctx.
+              iSplitL ""; last first.
+              + iSplitL "Hf".
+                iApply (wp_binop with "Hf").
+                unfold app_binop, app_binop_i. done.
+                instantiate (1 := λ x,  ⌜ x = immV _ ⌝%I ) => //=.
+(*          - 2: { simpl. by iIntros "(%HContra & _ )". } *)
+                iIntros (w) "[-> Hf]".
+                unfold of_val, fmap, list_fmap.
+                rewrite - separate1.
+                rewrite (separate2 (AI_basic _)).
+                iApply wp_seq_ctx.
+                iSplitL ""; last first.
+                iSplitL "Hf".
+                iApply (wp_tee_local with "Hf").
+                iIntros "!> Hf".
+                rewrite separate1.
+                instantiate (1 := (λ x, (⌜ x = immV _ ⌝ ∗ ↪[frame] _)%I)). 
+                iApply wp_val_app => //=.
+                iSplit; first by iIntros "!> (%HContra & _)" => //.
+                iApply (wp_set_local with "[] [$Hf]") => //=.
+                rewrite length_is_size size_set_nth.
+                unfold ssrnat.maxn.
+                rewrite length_is_size in Hflocs.
+                destruct (ssrnat.leq 2 (seq.size (f_locs f0))) ; lia.
+                rewrite set_nth_write.
+                simpl.
+                iIntros (w) "[-> Hf]".
+                unfold of_val, fmap, list_fmap.
+                rewrite - separate1.
+                rewrite (separate2 (AI_basic _)).
+                iApply wp_seq_ctx.
+                iSplitL ""; last first.
+                iSplitL "Hf".
+                rewrite separate1.
+                iApply wp_val_app => //=.
+                instantiate (1 := (λ x, (⌜ x = immV _ ⌝ ∗ ↪[frame] _)%I)).
+                iSplitL ""; first by iIntros "!> (%HContra & _)" => //.
+                iApply (wp_get_local with "[] [$Hf]") => //=.
+                rewrite set_nth_read => //=.
+                iIntros (w) "[-> Hf]".
+                simpl.
+                rewrite (separate3 (AI_basic _)).
+                iApply wp_seq_ctx; iSplitR; last iSplitL.
+                2: { iApply (wp_store with "[Hf Hbs]") => /=.
+                     { done. }
+                     { by instantiate (1 := [(#00%byte); (#00%byte); (#00%byte); (#00%byte)]) => //. }
+                     2: { iFrame "Hf".
                   instantiate (2 := λ x, ⌜x = immV []⌝%I ) => //=.
                   iSplit => //.
                   rewrite N.add_0_r => /=.
@@ -290,7 +294,8 @@ Proof.
                   unfold mem_in_bound in Hbound.
                   simpl in Hbound.
                   remember (len `div` page_size)%N as pagenum.
-                  unfold page_limit in Hbound.
+                  replace page_limit with 65536%N in Hbound; last done.
+                  
                   assert (pagenum <= 65535)%N; first by lias.
                   rewrite (Zmod_small (N.to_nat pagenum) _); last by lias.
                   rewrite Zmod_small; last by lias.
@@ -301,6 +306,9 @@ Proof.
              { done. }
         }
         { by iIntros "((%Hcontra & _)&_)". }
+        2: { simpl. by iIntros "(%HContra & _ )". }
+        2: { simpl. by iIntros "(%HContra & _ )". }
+
         iIntros (w) "((-> & Hwm) & Hf)".
         iSimpl.
         rewrite - (app_nil_r ([AI_basic _])).
@@ -369,7 +377,8 @@ Proof.
           lia.
         }
         all: try by iIntros "(%HContra & _)".
-      }
+              + by iIntros "(%HContra & _)". }
+          by iIntros "[% _]". } 
       * iIntros (w) "[[-> Hn] Hf]".
         iApply "HΦ".
         iSplitR "Hf"; last first.
@@ -395,7 +404,7 @@ Proof.
         iSplitL "Hn" => //.
         iSplit => //.
         iExists (repeat #00%byte ( N.to_nat 65532)).
-        rewrite repeat_length N2Nat.id.
+        rewrite length_repeat N2Nat.id.
         iSplit; first done.
         iApply (points_to_wms_eq with "Hb") => //; lia.
         done.
@@ -480,7 +489,7 @@ Section valid.
           rewrite N2Nat.id in Hmul. iExists (N.of_nat len :: l).
           iSplit.
           { iPureIntro. rewrite Nat2N.inj_add N2Nat.id. constructor. auto. }
-          iSimpl. iFrame. iExists _. iFrame. }
+          iSimpl. iFrame. }
     iModIntro.
     inversion Hvs;subst v.
     iApply (wp_wand _ _ _ (λ v, ⌜v = immV vs⌝ ∗ _)%I with "[Hf]").

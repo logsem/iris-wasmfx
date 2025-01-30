@@ -58,49 +58,49 @@ Section Client.
       mod_start := Some {| modstart_func := Mk_funcidx 8 |} ;
       mod_imports := [
         {|
-          imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "new_stack" ;
+          imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "new_stack" ;
           imp_desc := ID_func 1
         |} ;
         {|
-          imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "is_empty" ;
+          imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "is_empty" ;
           imp_desc := ID_func 2
         |} ;
         {|
-          imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "is_full" ;
+          imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "is_full" ;
           imp_desc := ID_func 2
         |} ;
         {|
-          imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "pop" ;
+          imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "pop" ;
           imp_desc := ID_func 2
         |} ;
         {|
-          imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "push" ;
+          imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "push" ;
           imp_desc := ID_func 3
         |} ;
-        {| imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "stack_map" ;
+        {| imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "stack_map" ;
           imp_desc := ID_func 3
         |} ;
-        {| imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "stack_length" ;
+        {| imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "stack_length" ;
           imp_desc := ID_func 2
         |} ;
-        {| imp_module := list_byte_of_string "Stack" ;
-          imp_name := list_byte_of_string "table" ;
+        {| imp_module := String.list_byte_of_string "Stack" ;
+          imp_name := String.list_byte_of_string "table" ;
           imp_desc := ID_table {| tt_limits := {| lim_min := 1%N ; lim_max := None |} ;
                                  tt_elem_type := ELT_funcref |}
         |} ;
-        {| imp_module := list_byte_of_string "Adv";
-          imp_name := list_byte_of_string "adv_call";
+        {| imp_module := String.list_byte_of_string "Adv";
+          imp_name := String.list_byte_of_string "adv_call";
           imp_desc := ID_func 2
         |} ;
-        {| imp_module := list_byte_of_string "Ret";
-          imp_name := list_byte_of_string "ret_glob";
+        {| imp_module := String.list_byte_of_string "Ret";
+          imp_name := String.list_byte_of_string "ret_glob";
           imp_desc := ID_global {| tg_mut := MUT_mut; tg_t := T_i32 |} |}
       ] ;
       mod_exports := []
@@ -148,7 +148,7 @@ Section Client_main.
     
     be_typing (upd_local_label_return C (T_i32 :: locs) [[T_i32]] (Some [T_i32])) es (Tf [] [T_i32]) ->
     
-    ⊢ {{{ ↪[frame] f
+    ⊢ {{{{ ↪[frame] f
          ∗ na_own logrel_nais ⊤
          ∗ na_inv logrel_nais (wfN (N.of_nat a)) ((N.of_nat a) ↦[wf] (FC_func_native i (Tf [T_i32] [T_i32]) locs es))
          ∗ interp_instance C [] i
@@ -169,11 +169,11 @@ Section Client_main.
          ∗ N.of_nat idt↦[wtblock]table_init_replace_single stacktab (nat_of_int (Wasm_int.Int32.repr 0)) [Some a]
          (* new stack predicate *)
          ∗ newStackAddrIs 0
-      }}}
+      }}}}
       to_e_list main
-      {{{ w, (⌜w = trapV⌝ ∨ (⌜w = immV []⌝ ∗ (N.of_nat k) ↦[wg] {| g_mut := MUT_mut; g_val := xx 2 |}
+      {{{{ w, (⌜w = trapV⌝ ∨ (⌜w = immV []⌝ ∗ (N.of_nat k) ↦[wg] {| g_mut := MUT_mut; g_val := xx 2 |}
                                                                ∗ na_own logrel_nais ⊤))
-               ∗ ∃ f', ↪[frame] f' ∗ ∃ r, ⌜f' = Build_frame (set_nth r (f_locs f) 0 r) (f_inst f)⌝ }}}.
+               ∗ ∃ f', ↪[frame] f' ∗ ∃ r, ⌜f' = Build_frame (set_nth r (f_locs f) 0 r) (f_inst f)⌝ }}}}.
   Proof.
     iIntros (HC Hglob Htab Hidf0 Hidf4 Hidf5 Hidf6 Hflocs Htablen Htyp Φ)
             "!> (Hf & Hown & #Hadv & #Hi & Hg & Hidf0 & #Hnewstack & 
@@ -421,7 +421,7 @@ Section Client_main.
           { iApply (wp_get_local with "[] [$Hf]");simpl;eauto. }
           iIntros (w) "[-> Hf]".
           iSimpl.
-          (* get_length *)
+          (* length_get *)
           (* we can infer the size of the new stack state *)
           iDestruct "Hs" as (s') "[HisStack Hstackall]".
           do 2 (destruct s';try done). { iDestruct "Hstackall" as "[? ?]";done. }
@@ -468,7 +468,7 @@ Section Client_instantiation.
   Context `{!wasmG Σ, !hvisG Σ, !hmsG Σ,
       !logrel_na_invs Σ, !hasG Σ}.
 
-  Notation "{{{ P }}} es {{{ v , Q }}}" :=
+  Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
 
@@ -490,7 +490,7 @@ Section Client_instantiation.
     module_data_bound_check_gmap ∅ [] adv_module -> (* if the adversary module declares a memory, there cannot be more initializers that its size *)
     typeof wret = T_i32 -> (* the imported return global has type i32 *)
 
-    ⊢ {{{ g_ret ↦[wg] {| g_mut := MUT_mut; g_val := wret |} ∗
+    ⊢ {{{{ g_ret ↦[wg] {| g_mut := MUT_mut; g_val := wret |} ∗
           stack_mod_addr ↪[mods] stack_module ∗
           adv_mod_addr ↪[mods] adv_module ∗
           client_mod_addr ↪[mods] client_module ∗
@@ -499,9 +499,9 @@ Section Client_instantiation.
           (own_vis_pointers (take 8 exp_addrs)) ∗
           (∃ vs, (exp_addrs !!! 8) ↪[vis] vs) ∗
           ↪[frame] empty_frame
-      }}}
+      }}}}
         ((stack_adv_client_instantiate exp_addrs stack_mod_addr adv_mod_addr client_mod_addr ,[]) : host_expr) 
-      {{{ v, ⌜v = (trapHV : host_val)⌝ ∨ g_ret ↦[wg] {| g_mut := MUT_mut; g_val := xx 2 |} }}} .
+      {{{{ v, ⌜v = (trapHV : host_val)⌝ ∨ g_ret ↦[wg] {| g_mut := MUT_mut; g_val := xx 2 |} }}}} .
   Proof.
     iIntros (Hexpaddrlen Htyp Hnostart Hrestrict Hboundst Hboundsm Hgrettyp).
     do 11 (destruct exp_addrs => //); clear Hexpaddrlen.
@@ -635,13 +635,13 @@ Section Client_instantiation.
     invert_cllookup Hcltype5 5.
     invert_cllookup Hcltype6 6.
     
-    iDestruct (mapsto_frac_ne with "Hadvf Himpfcl0") as "%Hadv0" ; first by eauto.
-    iDestruct (mapsto_frac_ne with "Hadvf Himpfcl1") as "%Hadv1" ; first by eauto.
-    iDestruct (mapsto_frac_ne with "Hadvf Himpfcl2") as "%Hadv2" ; first by eauto.
-    iDestruct (mapsto_frac_ne with "Hadvf Himpfcl3") as "%Hadv3" ; first by eauto.
-    iDestruct (mapsto_frac_ne with "Hadvf Himpfcl4") as "%Hadv4" ; first by eauto.
-    iDestruct (mapsto_frac_ne with "Hadvf Himpfcl5") as "%Hadv5" ; first by eauto.
-    iDestruct (mapsto_frac_ne with "Hadvf Himpfcl6") as "%Hadv6" ; first by eauto.
+    iDestruct (pointsto_frac_ne with "Hadvf Himpfcl0") as "%Hadv0" ; first by eauto.
+    iDestruct (pointsto_frac_ne with "Hadvf Himpfcl1") as "%Hadv1" ; first by eauto.
+    iDestruct (pointsto_frac_ne with "Hadvf Himpfcl2") as "%Hadv2" ; first by eauto.
+    iDestruct (pointsto_frac_ne with "Hadvf Himpfcl3") as "%Hadv3" ; first by eauto.
+    iDestruct (pointsto_frac_ne with "Hadvf Himpfcl4") as "%Hadv4" ; first by eauto.
+    iDestruct (pointsto_frac_ne with "Hadvf Himpfcl5") as "%Hadv5" ; first by eauto.
+    iDestruct (pointsto_frac_ne with "Hadvf Himpfcl6") as "%Hadv6" ; first by eauto.
     
     rewrite lookup_insert in Htab0.
     destruct Htab0 as [Hteq [Htt Htabt]].

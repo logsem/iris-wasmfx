@@ -227,7 +227,7 @@ Section logrel.
   Definition interp_mem : MR :=
     λne n, (na_inv logrel_nais (wmN n) (∃ (mem : memory),
                                            ([∗ list] k ↦ b ∈ (mem.(mem_data).(ml_data)), n ↦[wm][ (N.of_nat k) ] b) ∗
-                                           n ↦[wmlength] mem_length mem))%I.
+                                           n ↦[wmlength] length_mem mem))%I.
   
   (* --------------------------------------------------------------------------------------- *)
   (* --------------------------------- GLOBALS RELATION ------------------------------------ *)
@@ -479,10 +479,10 @@ Section logrel.
       eexists. apply lfilled_Ind_Equivalent. constructor;eauto. }
   Qed.
 
-  Fixpoint lholed_lengths (τc : list (list value_type)) lh : Prop :=
+  Fixpoint length_lholeds (τc : list (list value_type)) lh : Prop :=
     match τc, lh with
     | [], LH_base vs es => True
-    | τs :: τc, LH_rec _ n _ lh' _ => length τs = n ∧ lholed_lengths τc lh'
+    | τs :: τc, LH_rec _ n _ lh' _ => length τs = n ∧ length_lholeds τc lh'
     | _,_ => False
     end.
 
@@ -496,7 +496,7 @@ Section logrel.
   
   Definition interp_ctx (τc : list (list value_type)) (τto : option result_type) (hl : list (hostfuncidx * function_type)) (τl : result_type) (i : instance) : CtxR :=
     λne lh, (⌜base_is_empty lh⌝ ∗
-             ⌜lholed_lengths (rev τc) lh⌝ ∗
+             ⌜length_lholeds (rev τc) lh⌝ ∗ 
              ⌜lholed_valid lh⌝ ∗
              interp_ctx_continuations τc τto hl τl i lh
             )%I.
@@ -555,7 +555,7 @@ End logrel.
 (* --------------------------------- HOST INTEGRATION ------------------------------------ *)
 (* --------------------------------------------------------------------------------------- *)
 
-Reserved Notation "'WPh' h {{ Φ } }" (at level 20, h, Φ at level 200).
+Reserved Notation "'WPh' h {{ Φ } }" (at level 0, h, Φ at level 200).
 
 Class host_program_logic Σ `{wasmG Σ} := {
     host_function : Type ;

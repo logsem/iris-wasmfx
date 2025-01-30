@@ -12,7 +12,7 @@ From compcert Require common.Memdata.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-
+Unset Automatic Proposition Inductives. 
 
 (** * Basic Datatypes **)
 
@@ -56,7 +56,7 @@ End Byte_Index.
 Module Byte_array := array.Make Byte_Index.
 
 Record data_vec : Type := {
-  dv_length : N;
+  length_dv : N;
   dv_array : Byte_array.array;
 }.
 
@@ -318,10 +318,10 @@ Inductive cvtop : Type :=
   | Type_explicit : function_type -> type_identifier
   .
 
-  Inductive tag_identifier : Type :=
+(*  Inductive tag_identifier : Type :=
   | Tag_lookup : immediate -> tag_identifier
   | Tag_explicit : immediate -> function_type -> tag_identifier
-  .
+  . *)
 
   Inductive continuation_clause : Type :=
   | HC_catch : immediate -> immediate -> continuation_clause  
@@ -382,14 +382,14 @@ Inductive basic_instruction : Type := (* be *)
 | BI_call_reference : type_identifier -> basic_instruction
 
 (* Wasm exception handling instructions necessary to accomodate WasmFX *)
-| BI_try_table: function_type -> list exception_clause -> list basic_instruction -> basic_instruction
+| BI_try_table: type_identifier -> list exception_clause -> list basic_instruction -> basic_instruction
 | BI_throw : immediate -> basic_instruction
 | BI_throw_ref : basic_instruction
 
   (* New wasmFX instructions: *)
 | BI_contnew : type_identifier -> basic_instruction
 | BI_resume : type_identifier -> list continuation_clause -> basic_instruction
-| BI_suspend : tag_identifier -> basic_instruction
+| BI_suspend : immediate (* tag_identifier *) -> basic_instruction
 | BI_contbind : type_identifier -> type_identifier -> basic_instruction
 | BI_resume_throw : type_identifier -> immediate -> list continuation_clause -> basic_instruction
   .
@@ -522,6 +522,7 @@ Inductive administrative_instruction : Type := (* e *)
 | AI_ref : funcaddr -> administrative_instruction
 | AI_ref_exn : exnaddr -> administrative_instruction
 | AI_ref_cont : funcaddr -> administrative_instruction
+| AI_suspend_desugared : immediate -> administrative_instruction
 | AI_handler : list exception_clause -> list administrative_instruction -> administrative_instruction
 | AI_prompt : list value_type -> list continuation_clause -> list administrative_instruction -> administrative_instruction
 | AI_invoke : funcaddr -> administrative_instruction

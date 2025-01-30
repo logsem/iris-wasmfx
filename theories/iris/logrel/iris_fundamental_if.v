@@ -33,7 +33,7 @@ Section fundamental.
     {  take_drop_app_rewrite_twice 0 1.
        iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
        { iApply (wp_trap with "[] [Hf]");auto. }
-       iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+       iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
     assert (exists w ws', ws = ws' ++ [w]) as [w [ws' ->]].
@@ -60,7 +60,7 @@ Section fundamental.
       rewrite -/(iris.of_val (immV ws')).
       unfold interp_expression. simpl to_e_list.
       iApply ("HH2" with "[] [Hf Hfv]");iFrame "∗ #".
-      iRight. iExists _. iSplit;eauto.
+      iRight. done. 
     }
     { iApply (wp_if_true_ctx with "Hf");[auto|].
       iNext. iIntros "Hf".
@@ -72,7 +72,7 @@ Section fundamental.
       rewrite -/(iris.of_val (immV ws')).
       unfold interp_expression. simpl to_e_list.
       iApply ("HH2" with "[] [Hf Hfv]");iFrame "∗ #".
-      iRight. iExists _. iSplit;eauto.
+      iRight. done.
     }
   Qed.
     

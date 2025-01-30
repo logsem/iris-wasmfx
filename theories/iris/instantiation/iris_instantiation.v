@@ -1,4 +1,4 @@
-From mathcomp Require Import ssreflect eqtype seq ssrbool ssrfun.
+From mathcomp Require Import ssreflect eqtype seq ssrbool.
 From iris.program_logic Require Import language weakestpre lifting.
 From iris.proofmode Require Import base tactics classes.
 From iris.base_logic Require Export gen_heap ghost_map proph_map.
@@ -67,7 +67,7 @@ Definition module_data_bound_check_gmap (wms: gmap N memory) (imp_descs: list mo
               match (ext_mems imp_descs) !! n with
               | Some (Mk_memidx k) =>
                 match wms !! (N.of_nat k) with
-                | Some mi => (N.of_nat (nat_of_int doffi + length bs) <= mem_length mi)%N
+                | Some mi => (N.of_nat (nat_of_int doffi + length bs) <= length_mem mi)%N
                 | None => False
                 end
               | _ => 
@@ -115,7 +115,7 @@ Proof.
   }
   rewrite big_opM_insert; last first.
   { apply not_elem_of_list_to_map.
-    rewrite fst_zip; last by rewrite fmap_length; lias.
+    rewrite fst_zip; last by rewrite length_fmap; lias.
     rewrite elem_of_list_fmap.
     move => HContra.
     destruct HContra as [x [Heq Helem]].
@@ -1234,7 +1234,7 @@ Qed.
 
 Lemma import_mem_wasm_lookup v_imps t_imps wms ws :
     gen_heap_interp (gmap_of_memory (s_mems ws)) -∗
-    gen_heap_interp (gmap_of_list (fmap mem_length (s_mems ws))) -∗
+    gen_heap_interp (gmap_of_list (fmap length_mem (s_mems ws))) -∗
     @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt (s_mems ws))) -∗
     import_mem_wasm_check v_imps t_imps wms -∗
     ⌜ length v_imps = length t_imps /\ ∀ k v t, v_imps !! k = Some v -> t_imps !! k = Some t ->
@@ -1308,7 +1308,7 @@ Lemma import_resources_wasm_lookup v_imps t_imps wfs wts wms wgs ws:
     gen_heap_interp (gmap_of_list (s_globals ws)) -∗
     gen_heap_interp (gmap_of_list (fmap tab_size (s_tables ws))) -∗
     @gen_heap_interp _ _ _ _ _ tablimit_hsG (gmap_of_list (fmap table_max_opt (s_tables ws))) -∗
-    gen_heap_interp (gmap_of_list (fmap mem_length (s_mems ws))) -∗
+    gen_heap_interp (gmap_of_list (fmap length_mem (s_mems ws))) -∗
     @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt (s_mems ws))) -∗
     import_resources_wasm_typecheck v_imps t_imps wfs wts wms wgs -∗
     ⌜ length v_imps = length t_imps /\ ∀ k v t, v_imps !! k = Some v -> t_imps !! k = Some t ->
@@ -1374,7 +1374,7 @@ Qed.
 
 Lemma import_resources_wms_subset v_imps t_imps wms (ws: store_record):
   ⊢ gen_heap_interp (gmap_of_memory (s_mems ws)) -∗
-    gen_heap_interp (gmap_of_list (fmap mem_length (s_mems ws))) -∗
+    gen_heap_interp (gmap_of_list (fmap length_mem (s_mems ws))) -∗
     @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt (s_mems ws))) -∗
     import_mem_wasm_check v_imps t_imps wms -∗
     ⌜ length v_imps = length t_imps ⌝ -∗
@@ -1453,8 +1453,8 @@ Proof.
   rewrite Hwms2lookup.
   unfold mem_equiv in Hmequiv.
   destruct Hmequiv as [_ Hmdata].
-  replace (mem_length mem) with (mem_length m0) => //.
-  unfold mem_length, memory_list.mem_length.
+  replace (length_mem mem) with (length_mem m0) => //.
+  unfold length_mem, memory_list.length_mem.
   by rewrite Hmdata.
 Qed.
 
@@ -1536,9 +1536,9 @@ Proof.
   move => Hreplace.
   unfold table_init_replace_single in Hreplace.
   subst => /=.
-  rewrite take_length.
-  repeat rewrite app_length.
-  rewrite take_length drop_length.
+  rewrite length_take.
+  repeat rewrite length_app.
+  rewrite length_take length_drop.
   by lias.
 Qed.
 
@@ -1773,12 +1773,12 @@ Lemma module_inst_build_tables_length m i :
 Proof.
   unfold module_inst_build_tables.
   apply fold_left_preserve.
-  { apply fmap_length. }
+  { apply length_fmap. }
   { intros x me Heq.
     destruct me,modelem_table.
     destruct (n <? get_import_table_count m);auto.
     destruct (nth_error x (n - get_import_table_count m));auto.
-    rewrite insert_length//. }
+    rewrite length_insert//. }
 Qed.
 
 Lemma alloc_func_state_update funcs funcs' nf:
@@ -1883,7 +1883,7 @@ Proof.
 
   iClear "Httoken Htsizetoken Htlimtoken".
 
-  repeat rewrite fmap_length.
+  repeat rewrite length_fmap.
   
   iInduction nt as [ | t'] "IH" using List.rev_ind => //=.
   repeat rewrite fmap_app => /=.
@@ -1906,7 +1906,7 @@ Proof.
     rewrite list_lookup_fmap in Helem.
     destruct (nt !! i) eqn: Hntl => //.
     apply lookup_lt_Some in Hntl.
-    rewrite fmap_length in Hcontra.
+    rewrite length_fmap in Hcontra.
     by lias.
   }
   { apply map_disjoint_list_to_map_l.
@@ -1923,7 +1923,7 @@ Proof.
     rewrite list_lookup_fmap in Helem.
     destruct (nt !! i) eqn: Hntl => //.
     apply lookup_lt_Some in Hntl.
-    rewrite fmap_length in Hcontra.
+    rewrite length_fmap in Hcontra.
     by lias.
   }
 
@@ -2045,21 +2045,22 @@ Proof.
     }
   }
 
-  repeat rewrite fmap_length.
+  repeat rewrite length_fmap.
   repeat unfold tab_block.
   iSplitL "Htmapsold Htsizemapsold Htlimmapsold".
   - by iApply ("IH" with "[$] [$] [$]").
   - simpl.
     iDestruct "Htsizemapsnew" as "(Htsizemapsnew & _)".
     iDestruct "Htlimmapsnew" as "(Htlimmapsnew & _)".
-    iMod (mapsto_persist with "Htsizemapsnew") as "Htsizemapsnew".
-    iMod (mapsto_persist with "Htlimmapsnew") as "Htlimmapsnew".
+    iMod (pointsto_persist with "Htsizemapsnew") as "Htsizemapsnew".
+    iMod (pointsto_persist with "Htlimmapsnew") as "Htlimmapsnew".
     iModIntro.
+    repeat rewrite length_map.
     iFrame.
     unfold table_to_list.
     iClear "IH".
     remember (table_data t') as td.
-    clear Heqtd t'.
+    clear Heqtd t'. 
     iInduction td as [ | v] "IH" using List.rev_ind => //=.
     rewrite imap_app.
     rewrite big_sepL_app.
@@ -2077,10 +2078,10 @@ Qed.
 Lemma alloc_mem_state_update mems mems' nm:
   mems' = mems ++ nm ->
   gen_heap_interp (gmap_of_memory mems) -∗
-  gen_heap_interp (gmap_of_list (fmap mem_length mems)) -∗
+  gen_heap_interp (gmap_of_list (fmap length_mem mems)) -∗
   @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt mems)) -∗ |==> 
   ((gen_heap_interp (gmap_of_memory mems')) ∗
-   (gen_heap_interp (gmap_of_list (fmap mem_length mems'))) ∗
+   (gen_heap_interp (gmap_of_list (fmap length_mem mems'))) ∗
    (@gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt mems'))) ∗
    ([∗ list] i ↦ v ∈ nm, N.of_nat (length mems + i) ↦[wmblock] v)).
 Proof.
@@ -2102,7 +2103,7 @@ Proof.
   clear Hgunion Hgdisj.
   
   (* table size *)
-  specialize (gmap_of_list_append_big (mem_length <$> mems) (mem_length <$> nm)) as Hgmap.
+  specialize (gmap_of_list_append_big (length_mem <$> mems) (length_mem <$> nm)) as Hgmap.
   destruct Hgmap as [Hgunion Hgdisj].
   rewrite fmap_app.
   rewrite Hgunion.
@@ -2129,7 +2130,7 @@ Proof.
 
   iClear "Httoken Htsizetoken Htlimtoken".
 
-  repeat rewrite fmap_length.
+  repeat rewrite length_fmap.
   
   iInduction nm as [ | m'] "IH" using List.rev_ind => //=.
   repeat rewrite fmap_app => /=.
@@ -2152,7 +2153,7 @@ Proof.
     rewrite list_lookup_fmap in Helem.
     destruct (nm !! i) eqn: Hnml => //.
     apply lookup_lt_Some in Hnml.
-    rewrite fmap_length in Hcontra.
+    repeat rewrite length_fmap in Hcontra.
     by lias.
   }
   { apply map_disjoint_list_to_map_l.
@@ -2169,7 +2170,7 @@ Proof.
     rewrite list_lookup_fmap in Helem.
     destruct (nm !! i) eqn: Hnml => //.
     apply lookup_lt_Some in Hnml.
-    rewrite fmap_length in Hcontra.
+    repeat rewrite length_fmap in Hcontra.
     by lias.
   }
 
@@ -2291,14 +2292,14 @@ Proof.
     }
   }
 
-  repeat rewrite fmap_length.
+  repeat rewrite length_fmap.
   repeat unfold tab_block.
   iSplitL "Htmapsold Htsizemapsold Htlimmapsold".
   - by iApply ("IH" with "[$] [$] [$]").
   - simpl.
     iDestruct "Htsizemapsnew" as "(Htsizemapsnew & _)".
     iDestruct "Htlimmapsnew" as "(Htlimmapsnew & _)".
-    iMod (mapsto_persist with "Htlimmapsnew") as "Htlimmapsnew".
+    iMod (pointsto_persist with "Htlimmapsnew") as "Htlimmapsnew".
     iModIntro.
     iFrame.
     unfold table_to_list.
@@ -2390,8 +2391,8 @@ Proof.
   destruct (_ <=? _) eqn:Hle => //.
   move => H; inversion H; subst; clear H.
   apply PeanoNat.Nat.leb_le in Hle => /=.
-  repeat rewrite app_length.
-  rewrite take_length drop_length.
+  repeat rewrite length_app.
+  rewrite length_take length_drop.
   by lias.
 Qed.
 
@@ -2437,7 +2438,7 @@ Proof.
       simpl in Hle.
       by lias. }
     by rewrite Hle2. 
-  - rewrite app_length take_length => /=; rewrite drop_length.
+  - rewrite length_app length_take => /=; rewrite length_drop.
     assert (off + 1 + length td' <=? off `min` length (table_data tab) + S (length (table_data tab) - (off+1))) as Hle2.
     {
       apply PeanoNat.Nat.leb_le.
@@ -2451,15 +2452,15 @@ Proof.
       rewrite <- app_assoc.
       by f_equal.
     }
-    rewrite take_app_alt; last first.
-    { rewrite app_length take_length => /=.
+    rewrite take_app_length'; last first.
+    { rewrite length_app length_take => /=.
       by lias.
     }
     rewrite <- app_assoc => /=.
     do 3 f_equal.
     rewrite <- drop_drop.
-    rewrite drop_app_alt; last first.
-    { rewrite app_length take_length => /=.
+    rewrite drop_app_length'; last first.
+    { rewrite length_app length_take => /=.
       by lias.
     }
     rewrite drop_drop.
@@ -2657,10 +2658,10 @@ Proof.
   iApply (tab_block_update with "[$] [$] [$] [$]") => //.
   {
     unfold tab_size => /=.
-    repeat rewrite app_length.
-    rewrite take_length drop_length.
+    repeat rewrite length_app.
+    rewrite length_take length_drop.
     rewrite Hepay.
-    rewrite map_length.
+    rewrite length_map.
     simpl in Heboundcheck.
     by lias.
   }
@@ -2838,7 +2839,7 @@ Proof.
         unfold tab_typing.
         destruct (_+_ <=? _) eqn:Hle => //.
         apply PeanoNat.Nat.leb_le in Hle.
-        rewrite map_length in Hle.
+        rewrite length_map in Hle.
         inversion Hupdtab; subst; clear Hupdtab => /=.
         unfold tab_typing in H1.
         move/andP in H1.
@@ -2846,9 +2847,9 @@ Proof.
         destruct t => /=.
         unfold tab_size in * => /=.
         simpl in *.
-        repeat rewrite app_length.
-        rewrite map_length.
-        rewrite take_length drop_length.
+        repeat rewrite length_app.
+        rewrite length_map.
+        rewrite length_take length_drop.
         apply/andP; split => //.
         { replace (a `min` length table_data) with a; last by lias.
           replace (a+(length modelem_init+(length table_data-(a+length (modelem_init))))) with (length table_data); try by lias.
@@ -2915,7 +2916,7 @@ Proof.
   }
   exfalso.
   unfold update_tab in Hupd.
-  rewrite map_length in Hupd.
+  rewrite length_map in Hupd.
   by rewrite Hbc in Hupd.
 Qed.
   
@@ -3022,8 +3023,8 @@ Proof.
   destruct (_ <=? _) eqn:Hle => //.
   move => H; inversion H; subst; clear H.
   apply PeanoNat.Nat.leb_le in Hle => /=.
-  repeat rewrite app_length.
-  rewrite take_length drop_length.
+  repeat rewrite length_app.
+  rewrite length_take length_drop.
   by lias.
 Qed.
 
@@ -3069,7 +3070,7 @@ Proof.
       simpl in Hle.
       by lias. }
     by rewrite Hle2. 
-  - rewrite app_length take_length => /=; rewrite drop_length.
+  - rewrite length_app length_take => /=; rewrite length_drop.
     assert (off + 1 + length td' <=? off `min` length (ml_data (mem_data mem)) + S (length (ml_data (mem_data mem)) - (off+1))) as Hle2.
     {
       apply PeanoNat.Nat.leb_le.
@@ -3083,15 +3084,15 @@ Proof.
       rewrite <- app_assoc.
       by f_equal.
     }
-    rewrite take_app_alt; last first.
-    { rewrite app_length take_length => /=.
+    rewrite take_app_length'; last first.
+    { rewrite length_app length_take => /=.
       by lias.
     }
     rewrite <- app_assoc => /=.
     do 3 f_equal.
     rewrite <- drop_drop.
-    rewrite drop_app_alt; last first.
-    { rewrite app_length take_length => /=.
+    rewrite drop_app_length'; last first.
+    { rewrite length_app length_take => /=.
       by lias.
     }
     rewrite drop_drop.
@@ -3199,22 +3200,22 @@ Proof.
 Qed.
 
 Lemma mem_block_update mem mem' n ws ws':
-  mem_length mem = mem_length mem' ->
+  length_mem mem = length_mem mem' ->
   mem_max_opt mem = mem_max_opt mem' ->
   ws'.(s_mems) = <[ n := mem' ]> ws.(s_mems) ->
   (N.of_nat n) ↦[wmblock] mem -∗
   gen_heap_interp (gmap_of_memory ws.(s_mems)) -∗
-  gen_heap_interp (gmap_of_list (mem_length <$> ws.(s_mems))) -∗
+  gen_heap_interp (gmap_of_list (length_mem <$> ws.(s_mems))) -∗
   @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (mem_max_opt <$> ws.(s_mems))) -∗
   |==>
   (N.of_nat n) ↦[wmblock] mem' ∗
   gen_heap_interp (gmap_of_memory ws'.(s_mems)) ∗
-  gen_heap_interp (gmap_of_list (mem_length <$> ws'.(s_mems))) ∗
+  gen_heap_interp (gmap_of_list (length_mem <$> ws'.(s_mems))) ∗
   @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (mem_max_opt <$> ws'.(s_mems))).
 Proof.
   move => Hmemlength Hmemlim Hws'.
   iIntros "Hmmapsto Hm Hmlength Hmlim".
-  unfold mem_length, memory_list.mem_length in Hmemlength.
+  unfold length_mem, memory_list.length_mem in Hmemlength.
   apply Nat2N.inj in Hmemlength.
   iDestruct (mem_block_lookup with "Hm Hmlength Hmlim Hmmapsto") as "%Hmem".
   rewrite Nat2N.id in Hmem.
@@ -3229,7 +3230,7 @@ Proof.
   
   
   iDestruct "Hmmapsto" as "(Hmm & Hmlengthm & Hmlimm)".
-  replace (mem_length <$> s_mems ws') with (mem_length <$> s_mems ws); last first.
+  replace (length_mem <$> s_mems ws') with (length_mem <$> s_mems ws); last first.
   {
     rewrite Hws' => /=.
     rewrite list_fmap_insert => /=.
@@ -3237,7 +3238,7 @@ Proof.
     rewrite list_lookup_fmap.
     rewrite Hsmlookup.
     simpl.
-    unfold mem_length, memory_list.mem_length => //=.
+    unfold length_mem, memory_list.length_mem => //=.
     by do 2 f_equal. 
   }
   replace (datatypes.mem_max_opt <$> s_mems ws') with (datatypes.mem_max_opt <$> s_mems ws); last first.
@@ -3252,7 +3253,7 @@ Proof.
   iFrame.
 
 
-  unfold mem_length, memory_list.mem_length in *.
+  unfold length_mem, memory_list.length_mem in *.
   (* Now, update the contents *)
   destruct ws, ws' => /=.
   simpl in *.
@@ -3285,15 +3286,15 @@ Lemma init_mem_state_update (ws ws': store_record) (inst: instance) (d_off: N) (
   m_ind = nth match moddata_data d with | Mk_memidx i => i end (inst_memory inst) 0 ->
   mem_equiv mem' {| mem_data := {| ml_data := take (N.to_nat d_off) mem.(mem_data).(ml_data) ++ d_pay ++ drop ((N.to_nat d_off) + (length d_pay)) mem.(mem_data).(ml_data) |} ; mem_max_opt := mem.(mem_max_opt) |} ->
   d_pay = fmap compcert_byte_of_byte (d.(moddata_init)) ->
-  (d_off + N.of_nat (length d.(moddata_init)) <= mem_length mem)%N ->
+  (d_off + N.of_nat (length d.(moddata_init)) <= length_mem mem)%N ->
   (N.of_nat m_ind) ↦[wmblock] mem -∗
   gen_heap_interp (gmap_of_memory ws.(s_mems)) -∗
-  gen_heap_interp (gmap_of_list (mem_length <$> ws.(s_mems))) -∗
+  gen_heap_interp (gmap_of_list (length_mem <$> ws.(s_mems))) -∗
   @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (mem_max_opt <$> ws.(s_mems))) -∗
   |==>
   (N.of_nat m_ind) ↦[wmblock] mem' ∗
   gen_heap_interp (gmap_of_memory ws'.(s_mems)) ∗
-  gen_heap_interp (gmap_of_list (mem_length <$> ws'.(s_mems))) ∗
+  gen_heap_interp (gmap_of_list (length_mem <$> ws'.(s_mems))) ∗
   @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (mem_max_opt <$> ws'.(s_mems))).
 Proof.
   move => Hinitmem Htind Hmem' Hdpay Heboundcheck.
@@ -3301,11 +3302,11 @@ Proof.
   iIntros "Htmapsto Ht Htsize Htlim".
   iDestruct (mem_block_lookup with "Ht Htsize Htlim Htmapsto") as "%Hmem".
   destruct Hmem as [m [Hsmlookup [Hmld Hmmax]]].
-  unfold mem_length, memory_list.mem_length in Heboundcheck.
+  unfold length_mem, memory_list.length_mem in Heboundcheck.
   rewrite -> Nat2N.id in *.
   rewrite <- Htind in Hinitmem.
   destruct d, moddata_data; simpl in *.
-  rewrite map_length in Hinitmem.
+  rewrite length_map in Hinitmem.
   replace (nth m_ind (s_mems ws) dummy_mem) with m in Hinitmem; last first.
   { rewrite <- nth_error_lookup in Hsmlookup.
     by erewrite nth_error_nth.
@@ -3326,10 +3327,10 @@ Proof.
                                  (length moddata_init)) 
                               (ml_data (mem_data m)))%list
                        |}; mem_max_opt := mem_max_opt m |}).
-    unfold mem_length, memory_list.mem_length => /=.
-    repeat rewrite app_length.
-    rewrite take_length drop_length.
-    rewrite map_length.
+    unfold length_mem, memory_list.length_mem => /=.
+    repeat rewrite length_app.
+    rewrite length_take length_drop.
+    rewrite length_map.
     f_equal.
     repeat rewrite nat_bin.
     rewrite -> Hmld.
@@ -3350,7 +3351,7 @@ Proof.
   rewrite -> Hmld.
   rewrite map_fmap.
   rewrite Hdpay.
-  rewrite fmap_length.
+  rewrite length_fmap.
   by lias.
 Qed.
 
@@ -3522,7 +3523,7 @@ Proof.
         unfold mem_typing.
         destruct (_+_ <=? _) eqn:Hle => //.
         apply PeanoNat.Nat.leb_le in Hle.
-        rewrite map_length in Hle.
+        rewrite length_map in Hle.
         inversion Hupdmem; subst; clear Hupdmem => /=.
         unfold mem_typing in H1.
         move/andP in H1.
@@ -3532,11 +3533,11 @@ Proof.
         destruct m => /=.
         unfold mem_size in * => /=.
         simpl in *.
-        unfold mem_length, memory_list.mem_length.
-        repeat rewrite app_length.
-        rewrite map_length.
-        rewrite take_length drop_length.
-        unfold mem_length, memory_list.mem_length in H1.
+        unfold length_mem, memory_list.length_mem.
+        repeat rewrite length_app.
+        rewrite length_map.
+        rewrite length_take length_drop.
+        unfold length_mem, memory_list.length_mem in H1.
         simpl in *.
         apply/andP; split => //.
         { replace (a `min` length (ml_data mem_data)) with a; last by lias.
@@ -3555,7 +3556,7 @@ Qed.
 Definition wms_bound_check (wms: gmap N memory) inst (d_offs : list N) datas :=
   all2 (fun off e => match inst.(inst_memory) !! (match e.(moddata_data) with | Mk_memidx i => i end) with
                   | Some i => match wms !! (N.of_nat i) with
-                             | Some mi => (off + N.of_nat (length e.(moddata_init)) <=? mem_length mi)%N
+                             | Some mi => (off + N.of_nat (length e.(moddata_init)) <=? length_mem mi)%N
                              | None => false
                              end
                   | None => false
@@ -3595,7 +3596,7 @@ Proof.
     - subst.
       rewrite Hwmslookup in H1.
       rewrite lookup_insert.
-      unfold mem_length, memory_list.mem_length in *.
+      unfold length_mem, memory_list.length_mem in *.
       by rewrite <- Hupd.
     - rewrite lookup_insert_ne => //.
       by lias.
@@ -3606,8 +3607,8 @@ Proof.
   }
   exfalso.
   unfold update_mem in Hupd.
-  rewrite map_length in Hupd.
-  unfold mem_length, memory_list.mem_length in *.
+  rewrite length_map in Hupd.
+  unfold length_mem, memory_list.length_mem in *.
   destruct (_<=? _) eqn:Hle => //.
   move/Nat.leb_nle in Hle.
   apply Hle.
@@ -3621,12 +3622,12 @@ Lemma init_mems_state_update ws ws' inst d_offs d_offnats datas (wms wms': gmap 
   wms_bound_check wms inst d_offs datas ->
   update_wms wms inst d_offnats datas = Some wms' ->
   gen_heap_interp (gmap_of_memory ws.(s_mems)) -∗
-  gen_heap_interp (gmap_of_list (mem_length <$> ws.(s_mems))) -∗
+  gen_heap_interp (gmap_of_list (length_mem <$> ws.(s_mems))) -∗
   @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (mem_max_opt <$> ws.(s_mems))) -∗
   ([∗ map] n ↦ meminst ∈ wms, n ↦[wmblock] meminst) -∗
   |==>
   gen_heap_interp (gmap_of_memory ws'.(s_mems)) ∗
-  gen_heap_interp (gmap_of_list (mem_length <$> ws'.(s_mems))) ∗
+  gen_heap_interp (gmap_of_list (length_mem <$> ws'.(s_mems))) ∗
   @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (mem_max_opt <$> ws'.(s_mems))) ∗
   ([∗ map] n ↦ meminst ∈ wms', n ↦[wmblock] meminst).
 Proof.
@@ -3671,7 +3672,7 @@ Proof.
         rewrite Hmem.
         move => H.
         apply update_mem_length in Hupdmem.
-        unfold mem_length, memory_list.mem_length in *.
+        unfold length_mem, memory_list.length_mem in *.
         by rewrite Hupdmem in H.
       - by rewrite lookup_insert_ne; last by lias.
     }   
@@ -3822,7 +3823,7 @@ Proof.
   
   assert (length g_inits = length m.(mod_globals)) as Hginitslen.
   { assert (length (typeof <$> g_inits) = length (tg_t ∘ modglob_type <$> m.(mod_globals))) as Heq; first by rewrite Hginitstype => //.
-    by repeat rewrite fmap_length in Heq.
+    by repeat rewrite length_fmap in Heq.
   }
   
   unfold alloc_module in Hallocmod.
@@ -3981,7 +3982,7 @@ Proof.
     inversion Hlookup; subst; clear Hlookup.
     assert (i < length (mod_tables m)) as Hlen.
     { apply lookup_lt_Some in Hrlookup.
-      by rewrite repeat_length in Hrlookup. }
+      by rewrite length_repeat in Hrlookup. }
 
     assert ((repeat 0 (length (mod_tables m)) !! i) = Some 0) as Hrlookup'; first by apply repeat_lookup.
     rewrite Hrlookup' in Hrlookup.
@@ -4047,7 +4048,7 @@ Proof.
     apply all2_Forall2.
     apply Forall2_same_length_lookup.
     split => //.
-    { rewrite fmap_length.
+    { rewrite length_fmap.
       by apply Forall2_length in Hinstelem.
     }
     move => i off elem Hlo Hle.
@@ -4121,7 +4122,7 @@ Proof.
       assert (wts !! (N.of_nat t0) = None) as Hwtslookup.
       {
         apply gen_index_lookup_Some in Hinsttab.
-        rewrite map_length in Hinsttab.
+        rewrite length_map in Hinsttab.
         destruct Hinsttab as [-> Hlt].
         apply not_elem_of_dom.
         rewrite Htdom.
@@ -4147,7 +4148,7 @@ Proof.
       }
       { rewrite fst_zip; last first.
         { rewrite map_fmap.
-          repeat rewrite fmap_length.
+          repeat rewrite length_fmap.
           by rewrite gen_index_length.
         }
         { apply NoDup_fmap; first by lias.
@@ -4158,10 +4159,10 @@ Proof.
         apply elem_of_list_lookup.
         exists (t0 - length s_tables0).
         apply gen_index_lookup_Some in Hinsttab.
-        rewrite map_length in Hinsttab.
+        rewrite length_map in Hinsttab.
         destruct Hinsttab as [-> Hlt].
         apply zip_lookup_Some.
-        { repeat rewrite fmap_length.
+        { repeat rewrite length_fmap.
           by rewrite gen_index_length.
         }
         { rewrite list_lookup_fmap.
@@ -4192,7 +4193,7 @@ Proof.
       rewrite Heqtablebase.
       rewrite map_to_list_to_map => /=; last first.
       { rewrite fst_zip; last first.
-        { repeat rewrite fmap_length.
+        { repeat rewrite length_fmap.
           by rewrite gen_index_length. }
         rewrite NoDup_fmap.
         unfold gen_index.
@@ -4247,7 +4248,7 @@ Proof.
     move/eqP in H1.
     subst.
     apply all2_Forall2 in Helemcb.
-    rewrite map_length in Htindex.
+    rewrite length_map in Htindex.
     apply Forall2_lookup.
     rewrite -> Forall2_lookup in Helemcb.
     move => i.
@@ -4324,13 +4325,13 @@ Proof.
         simpl in H1.
         destruct m, modtab_type, tt_limits => /=.
         simpl in *.
-        rewrite repeat_length in H1.
+        rewrite length_repeat in H1.
         
         erewrite lookup_union_Some_r => //; last first.
         {
           apply elem_of_list_to_map.
           { rewrite fst_zip; last first.
-            { repeat rewrite fmap_length.
+            { repeat rewrite length_fmap.
               rewrite gen_index_length.
               by lias.
             }
@@ -4341,7 +4342,7 @@ Proof.
           apply elem_of_list_lookup.
           exists (n-length (ext_tabs (modexp_desc <$> v_imps))).
           apply zip_lookup_Some.
-          { repeat rewrite fmap_length.
+          { repeat rewrite length_fmap.
             rewrite gen_index_length.
             by lias.
           }
@@ -4360,7 +4361,7 @@ Proof.
         }
         { simpl.
           unfold N_of_int in H1.
-          rewrite repeat_length.
+          rewrite length_repeat.
           rewrite <- Z_nat_N in H1.
           apply N.leb_le in H1.
           apply PeanoNat.Nat.leb_le.
@@ -4535,7 +4536,7 @@ Proof.
             rewrite Hmeoff => /=.
             f_equal.
             unfold lookup_funcaddr => /=.
-            rewrite fmap_length.
+            rewrite length_fmap.
             repeat rewrite cat_app.
             
             unfold assert_const1_i32 in Hmeoff.
@@ -4552,13 +4553,13 @@ Proof.
      drop (nat_of_int t + length modelem_init) (table_data t1))) as l.
             replace (length (table_data t1)) with (length l); first by rewrite firstn_all.
             subst.
-            repeat rewrite app_length.
-            rewrite fmap_length take_length drop_length.
+            repeat rewrite length_app.
+            rewrite length_fmap length_take length_drop.
             apply PeanoNat.Nat.leb_le in Hle.
             assert (nat_of_int t <= length (table_data t1)) as Hlt.
             { unfold nat_of_int; by lias. }
             replace (nat_of_int t `min` length (table_data t1)) with (nat_of_int t); last by lias.
-            rewrite map_length in Hle.
+            rewrite length_map in Hle.
             fold (nat_of_int t) in Hle.
             by lias.
           }
@@ -4606,14 +4607,14 @@ Proof.
         unfold module_inst_build_tables.
         apply fold_left_preserve.
         { unfold module_inst_table_base.
-          by rewrite fmap_length.
+          by rewrite length_fmap.
         }
         { move => x act Hlen.
           destruct act, modelem_table => /=.
           destruct (n <? _) eqn:Hle => //.
           rewrite nth_error_lookup.
           destruct (x !! _) eqn: Hxl => //.
-          by rewrite insert_length.
+          by rewrite length_insert.
         }
       }
 
@@ -4623,10 +4624,10 @@ Proof.
         move/eqP in H1.
         rewrite H1.
         rewrite map_fmap fmap_app.
-        rewrite drop_app_alt; last by rewrite fmap_length.
+        rewrite drop_app_length'; last by rewrite length_fmap.
         rewrite map_fmap in Htindex.
         rewrite Htindex.
-        by rewrite map_length.
+        by rewrite length_map.
       }      
       iApply big_sepL2_big_sepM => //.
       { by apply gen_index_NoDup. }
@@ -4651,14 +4652,14 @@ Proof.
       { rewrite gen_index_length.
         apply fold_left_preserve => //.
         { rewrite Heqtablebase.
-          by rewrite fmap_length map_length.
+          by rewrite length_fmap length_map.
         }
         move => x act Hlen.
         destruct act, modelem_table.
         destruct (n <? _) => //.
         rewrite nth_error_lookup.
         destruct (x !! _) eqn: Hxl => //.
-        by rewrite insert_length.
+        by rewrite length_insert.
       }
       { by apply gen_index_NoDup. }
       replace (list_to_map _) with wts2' => //.
@@ -4671,7 +4672,7 @@ Proof.
         apply Forall2_same_length_lookup.
         split.
         { rewrite Heqtablebase.
-          by rewrite fmap_length map_length.
+          by rewrite length_fmap length_map.
         }
         { move => i elem t Hle Hlt.
           rewrite Heqtablebase in Hlt.
@@ -4681,7 +4682,7 @@ Proof.
           simpl in Hlt.
           destruct elem, modtab_type, tt_limits; simpl in *.
           inversion Hlt => /=.
-          rewrite repeat_length.
+          rewrite length_repeat.
           by rewrite <- N_nat_bin.
         }
       }
@@ -4692,7 +4693,7 @@ Proof.
         rewrite <- Htindex.
         by rewrite <- fmap_app.
       }
-      rewrite fmap_length in Hinsttab.
+      rewrite length_fmap in Hinsttab.
       clear H1.
       rewrite -> Hinsttab in *.
       clear Heqtablebase.
@@ -4779,9 +4780,9 @@ Proof.
             simpl in *.
             rewrite -> e in *.
             inversion Htbprop; subst; clear Htbprop.
-            rewrite take_length.
-            repeat rewrite app_length.
-            rewrite take_length drop_length fmap_length.
+            rewrite length_take.
+            repeat rewrite length_app.
+            rewrite length_take length_drop length_fmap.
             apply N.leb_le.
             rewrite Htblookup2 in Htblookup.
             inversion Htblookup; subst; clear Htblookup.
@@ -4801,7 +4802,7 @@ Proof.
         { destruct (n <? _); first by subst.
           destruct (tablebase !! _); last by subst.
           rewrite Heqtablebase'.
-          by rewrite insert_length.
+          by rewrite length_insert.
         }
         apply Forall2_same_length_lookup.
         split => //; first by apply Forall2_length in Htbprop; lias.
@@ -4828,9 +4829,9 @@ Proof.
           rewrite list_lookup_insert in Htil; last by eapply lookup_lt_Some.
           inversion Htil; subst; clear Htil.
           unfold table_init_replace_single => /=.
-          rewrite take_length.
-          repeat rewrite app_length.
-          rewrite take_length drop_length fmap_length.
+          rewrite length_take.
+          repeat rewrite length_app.
+          rewrite length_take length_drop length_fmap.
           rewrite Htblookup in H0.
           inversion H0; subst; clear H0.
           by lias.
@@ -4849,7 +4850,7 @@ Proof.
                rewrite elem_of_list_lookup.
                move => [i HContra].
                rewrite fst_zip in HContra; last first.
-               { rewrite fmap_length gen_index_length.
+               { rewrite length_fmap gen_index_length.
                  apply Forall2_length in Htbprop. by lias.
                }
                rewrite list_lookup_fmap in HContra.
@@ -4863,27 +4864,27 @@ Proof.
           rewrite <- Hwtsallocupdate.
           do 3 f_equal.
           apply lookup_lt_Some in Himplookup.
-          rewrite fmap_length in Himplookup.
+          rewrite length_fmap in Himplookup.
           move/Nat.ltb_lt in Himplookup.
           by rewrite Himplookup.
         }
         { (* Updating the table *)
           apply gen_index_lookup_Some in Hnl as [-> Hnl].
-          rewrite fmap_length in Hnl.
+          rewrite length_fmap in Hnl.
           destruct (tablebase !! (n-length (ext_tabs (modexp_desc <$> v_imps)))) eqn:Hmtlookup; last by apply lookup_ge_None in Hmtlookup; apply Forall2_length in Htbprop; lias => //.
           erewrite elem_of_list_to_map_1 in Hwtsallocupdate => //.
           2: { rewrite fst_zip; last first.
-               { rewrite fmap_length gen_index_length.
+               { rewrite length_fmap gen_index_length.
                  apply Forall2_length in Htbprop. by lias.
                }
                apply NoDup_fmap; first by lias.
                by apply gen_index_NoDup.
           }
           2: { apply elem_of_list_lookup.
-               rewrite fmap_length.
+               rewrite length_fmap.
                exists (n-length (ext_tabs (modexp_desc <$> v_imps))).
                apply zip_lookup_Some.
-               { rewrite fmap_length gen_index_length.
+               { rewrite length_fmap gen_index_length.
                   by apply Forall2_length in Htbprop.
                }
                { rewrite list_lookup_fmap.
@@ -4895,8 +4896,8 @@ Proof.
           destruct (update_tab _ _ _) eqn:Hupdtab => //=.
           rewrite <- Hwtsallocupdate.
           f_equal.
-          rewrite fmap_length.
-          destruct (n<? length(ext_tabs (modexp_desc <$> v_imps))) eqn:Hlt; first by move/Nat.ltb_lt in Hlt; apply lookup_ge_None in Himplookup; rewrite fmap_length in Himplookup; lias.
+          rewrite length_fmap.
+          destruct (n<? length(ext_tabs (modexp_desc <$> v_imps))) eqn:Hlt; first by move/Nat.ltb_lt in Hlt; apply lookup_ge_None in Himplookup; rewrite length_fmap in Himplookup; lias.
           rewrite Heqtablebase'.
           replace (table_init_replace_single _ _ _) with t2; last first.
           { unfold update_tab in Hupdtab.
@@ -4904,21 +4905,21 @@ Proof.
             destruct (_ <=? _) eqn:Hle => //=.
             inversion Hupdtab; subst; clear Hupdtab.
             f_equal.
-            repeat rewrite fmap_length.
+            repeat rewrite length_fmap.
             replace (Z.to_nat (Wasm_int.Int32.intval t)) with (nat_of_int t) => //.
             assert (length (take (nat_of_int t) (table_data t1) ++
    ((λ '(Mk_funcidx j), inst_funcs !! j) <$> modelem_init) ++
    drop (nat_of_int t + length modelem_init) (table_data t1)) = length (table_data t1)) as Hlen.
-            { repeat rewrite app_length.
-              rewrite take_length drop_length fmap_length.
+            { repeat rewrite length_app.
+              rewrite length_take length_drop length_fmap.
               move/Nat.leb_le in Hle.
               apply N.leb_le in Hcb.
               rewrite lookup_app_r in Htl; last by lias.
-              rewrite fmap_length in Htl.
+              rewrite length_fmap in Htl.
               replace (_+_-_) with (n-length (ext_tabs (modexp_desc <$> v_imps))) in Htl; last by lias.
               rewrite Hmtlookup in Htl.
               inversion Htl; subst; clear Htl.
-              rewrite map_length in Hle.
+              rewrite length_map in Hle.
               unfold nat_of_int.
               by lias.
             }
@@ -4929,7 +4930,7 @@ Proof.
           { apply NoDup_fmap; first by lias.
             by apply gen_index_NoDup.
           }
-          { rewrite fmap_length gen_index_length.
+          { rewrite length_fmap gen_index_length.
             by apply Forall2_length in Htbprop.
           }
           { rewrite list_lookup_fmap.
@@ -4993,9 +4994,9 @@ Proof.
   {
     eapply list_eq_same_length => //.
     { replace (length d_offs) with (length (mod_data m)); last by apply Forall2_length in Hinstdata.
-      replace (length (mod_data m)) with (length (moddata_offset <$> mod_data m)); last by rewrite fmap_length.
+      replace (length (mod_data m)) with (length (moddata_offset <$> mod_data m)); last by rewrite length_fmap.
       rewrite Hmoddata.
-      by rewrite fmap_length.
+      by rewrite length_fmap.
     }
     move => i x y Hlt Hl1 Hl2.
     assert ((moddata_offset <$> (mod_data m)) !! i = Some [BI_const (VAL_int32 y)]).
@@ -5061,7 +5062,7 @@ Proof.
     inversion Hlookup; subst; clear Hlookup.
     assert (i < length (mod_mems m)) as Hlen.
     { apply lookup_lt_Some in Hrlookup.
-      by rewrite repeat_length in Hrlookup. }
+      by rewrite length_repeat in Hrlookup. }
 
     assert ((repeat 0 (length (mod_mems m)) !! i) = Some 0) as Hrlookup'; first by apply repeat_lookup.
     rewrite Hrlookup' in Hrlookup.
@@ -5117,9 +5118,9 @@ Proof.
 
   assert (length (mod_data m) = length d_offs) as Hdlen.
   {
-    replace (length (mod_data m)) with (length (moddata_offset <$> mod_data m)); last by rewrite fmap_length.
+    replace (length (mod_data m)) with (length (moddata_offset <$> mod_data m)); last by rewrite length_fmap.
     rewrite Hmoddata.
-    by rewrite fmap_length.
+    by rewrite length_fmap.
   }
 
   rewrite map_fmap in H0.
@@ -5148,7 +5149,7 @@ Proof.
     unfold wms_bound_check.
     apply all2_Forall2.
     apply Forall2_same_length_lookup.
-    split => //; first by rewrite fmap_length.
+    split => //; first by rewrite length_fmap.
     move => i off elem Hlo Hle.
     rewrite list_lookup_fmap in Hlo.
     destruct (d_offs !! i) eqn:Hldo; rewrite Hldo in Hlo => //.
@@ -5197,7 +5198,7 @@ Proof.
       {
         simpl in Hinstmem.
         apply gen_index_lookup_Some in Hinstmem as [-> Hlt].
-        rewrite fmap_length in Hlt.
+        rewrite length_fmap in Hlt.
         apply not_elem_of_dom.
         rewrite Hmdom.
         rewrite elem_of_list_to_set.
@@ -5213,7 +5214,7 @@ Proof.
         destruct m0.
         simpl in Helem.
         inversion Helem; subst; clear Helem.
-        rewrite fmap_length in Hlookup.
+        rewrite length_fmap in Hlookup.
         apply Hextmemelem in Hlookup.
         by lias.
       }
@@ -5226,7 +5227,7 @@ Proof.
         by lias.
       }
       { rewrite fst_zip; last first.
-        { repeat rewrite fmap_length.
+        { repeat rewrite length_fmap.
           by rewrite gen_index_length.
         }
         { apply NoDup_fmap; first by lias.
@@ -5237,10 +5238,10 @@ Proof.
         apply elem_of_list_lookup.
         exists (m0 - length s_mems1).
         apply gen_index_lookup_Some in Hinstmem.
-        rewrite map_length in Hinstmem.
+        rewrite length_map in Hinstmem.
         destruct Hinstmem as [-> Hlt].
         apply zip_lookup_Some.
-        { repeat rewrite fmap_length.
+        { repeat rewrite length_fmap.
           by rewrite gen_index_length.
         }
         { rewrite list_lookup_fmap.
@@ -5272,7 +5273,7 @@ Proof.
       rewrite Heqmemorybase.
       rewrite map_to_list_to_map => /=; last first.
       { rewrite fst_zip; last first.
-        { repeat rewrite fmap_length.
+        { repeat rewrite length_fmap.
           by rewrite gen_index_length. }
         rewrite NoDup_fmap.
         unfold gen_index.
@@ -5371,16 +5372,16 @@ Proof.
         unfold N_of_int in H1.
         rewrite <- Z_nat_N in H1.
         apply N.leb_le.
-        unfold mem_length, memory_list.mem_length.
-        unfold instantiation.mem_length, memory_list.mem_length in H1.
+        unfold length_mem, memory_list.length_mem.
+        unfold instantiation.length_mem, memory_list.length_mem in H1.
         simpl in *.
         by lias.
       }
       { (* Alloc *)
         simpl in Hextmeml.
         apply gen_index_lookup_Some in Hextmeml as [-> Hlt].
-        rewrite fmap_length in Hlt.
-        rewrite fmap_length in H1.
+        rewrite length_fmap in Hlt.
+        rewrite length_fmap in H1.
         destruct (s_mems1 !! _) eqn:Hsmlookup; first by apply lookup_lt_Some in Hsmlookup; lias.
         rewrite list_lookup_fmap in H1.
 
@@ -5388,17 +5389,17 @@ Proof.
         destruct (mod_mems !! (n-length (ext_mems (modexp_desc <$> v_imps)))) eqn:Hmtlookup; rewrite Hmtlookup in H1 => //=.
         simpl in H1.
         apply N.leb_le in H1.
-        unfold instantiation.mem_length, memory_list.mem_length in H1.
+        unfold instantiation.length_mem, memory_list.length_mem in H1.
         destruct m => /=.
         simpl in *.
-        rewrite repeat_length in H1.
+        rewrite length_repeat in H1.
         rewrite N2Nat.id in H1.
         
         erewrite lookup_union_Some_r => //; last first.
         {
           apply elem_of_list_to_map.
           { rewrite fst_zip; last first.
-            { repeat rewrite fmap_length.
+            { repeat rewrite length_fmap.
               rewrite gen_index_length.
               by lias.
             }
@@ -5409,7 +5410,7 @@ Proof.
           apply elem_of_list_lookup.
           exists (n-length (ext_mems (modexp_desc <$> v_imps))).
           apply zip_lookup_Some.
-          { repeat rewrite fmap_length.
+          { repeat rewrite length_fmap.
             rewrite gen_index_length.
             by lias.
           }
@@ -5418,7 +5419,7 @@ Proof.
             { apply lookup_lt_Some in Hmtlookup; by lias. }
             simpl.
             do 2 f_equal.
-            rewrite fmap_length.
+            rewrite length_fmap.
             by lias.
           }
           { rewrite list_lookup_fmap.
@@ -5427,8 +5428,8 @@ Proof.
         }
         { simpl.
           unfold N_of_int in H1.
-          unfold mem_length, memory_list.mem_length.
-          rewrite repeat_length.
+          unfold length_mem, memory_list.length_mem.
+          rewrite length_repeat.
           rewrite <- Z_nat_N in H1.
           apply N.leb_le.
           rewrite N2Nat.id.
@@ -5561,9 +5562,9 @@ Proof.
             - rewrite lookup_insert.
               rewrite Hwmslookup in Hwmslookup2.
               inversion Hwmslookup2; subst; clear Hwmslookup2.
-              replace (mem_length m0) with (mem_length m1) => //.
+              replace (length_mem m0) with (length_mem m1) => //.
               apply update_mem_length in Hupdmem.
-              unfold mem_length, memory_list.mem_length.
+              unfold length_mem, memory_list.length_mem.
               by rewrite Hupdmem.
             - rewrite lookup_insert_ne; last by lias.
               by rewrite Hwmslookup2.
@@ -5605,13 +5606,13 @@ Proof.
           { f_equal.
             unfold update_mem in Hupdmem.
             unfold mem_init_replace_single.
-            rewrite fmap_length in Hupdmem.
+            rewrite length_fmap in Hupdmem.
             destruct (_+_<=? _) eqn:Hle => //=.
             inversion Hupdmem; subst; clear Hupdmem.
             simpl in *.
             unfold assert_const1_i32_to_nat => /=.
             do 2 f_equal.
-            rewrite fmap_length.
+            rewrite length_fmap.
             repeat rewrite cat_app.
             
             assert ((N.to_nat (N_of_int t)) = (nat_of_int t)) as Ht.
@@ -5625,8 +5626,8 @@ Proof.
             remember (_ ++ _ ++ _) as l.
             replace (length (ml_data (mem_data m))) with (length l); first by rewrite firstn_all.
             subst.
-            repeat rewrite app_length.
-            rewrite fmap_length take_length drop_length.
+            repeat rewrite length_app.
+            rewrite length_fmap length_take length_drop.
             apply Nat.leb_le in Hle.
             by lias.
           }
@@ -5671,14 +5672,14 @@ Proof.
         unfold module_inst_build_mems.
         apply fold_left_preserve.
         { unfold module_inst_mem_base.
-          by rewrite fmap_length.
+          by rewrite length_fmap.
         }
         { move => x act Hlen.
           destruct act, moddata_data => /=.
           destruct (n <? _) eqn:Hle => //.
           rewrite nth_error_lookup.
           destruct (x !! _) eqn: Hxl => //.
-          by rewrite insert_length.
+          by rewrite length_insert.
         }
       }
 
@@ -5686,7 +5687,7 @@ Proof.
       replace (drop _ (inst_memory inst)) with (gen_index (length s_mems1) (length (mod_mems m))); last first.
       { rewrite Hmtlen Hvtmemlen.
         rewrite Hinstm.
-        by rewrite drop_app_alt; last by rewrite fmap_length.
+        by rewrite drop_app_length'; last by rewrite length_fmap.
       }      
       iApply big_sepL2_big_sepM => //.
       { by apply gen_index_NoDup. }
@@ -5698,14 +5699,14 @@ Proof.
       { rewrite gen_index_length.
         apply fold_left_preserve => //.
         { rewrite Heqmemorybase.
-          by rewrite fmap_length.
+          by rewrite length_fmap.
         }
         move => x act Hlen.
         destruct act, moddata_data.
         destruct (n <? _) => //.
         rewrite nth_error_lookup.
         destruct (x !! _) eqn: Hxl => //.
-        by rewrite insert_length.
+        by rewrite length_insert.
       }
       { by apply gen_index_NoDup. }
       replace (list_to_map _) with wms2' => //.
@@ -5718,7 +5719,7 @@ Proof.
         apply Forall2_same_length_lookup.
         split.
         { rewrite Heqmemorybase.
-          by rewrite fmap_length.
+          by rewrite length_fmap.
         }
         { move => i data t Hle Hlt.
           rewrite Heqmemorybase in Hlt.
@@ -5727,7 +5728,7 @@ Proof.
           simpl in Hlt.
           destruct data; simpl in *.
           inversion Hlt => /=.
-          rewrite repeat_length.
+          rewrite length_repeat.
           by rewrite N2Nat.id.
         }
       }
@@ -5793,15 +5794,15 @@ Proof.
             simpl in *.
             rewrite -> e in *.
             inversion Hmbprop; subst; clear Hmbprop.
-            unfold instantiation.mem_length, memory_list.mem_length.
-            rewrite take_length.
-            repeat rewrite app_length.
-            rewrite take_length drop_length fmap_length.
+            unfold instantiation.length_mem, memory_list.length_mem.
+            rewrite length_take.
+            repeat rewrite length_app.
+            rewrite length_take length_drop length_fmap.
             apply N.leb_le.
             destruct x => /=.
             simpl in *.
             apply N.leb_le in H4.
-            unfold instantiation.mem_length, memory_list.mem_length in H4.
+            unfold instantiation.length_mem, memory_list.length_mem in H4.
             by lias.
           }
           {
@@ -5819,7 +5820,7 @@ Proof.
         { destruct (n <? _); first by subst.
           destruct (memorybase !! _); last by subst.
           rewrite Heqmemorybase'.
-          by rewrite insert_length.
+          by rewrite length_insert.
         }
         apply Forall2_same_length_lookup.
         split => //; first by apply Forall2_length in Hmbprop; lias.
@@ -5846,9 +5847,9 @@ Proof.
           rewrite list_lookup_insert in Hmil; last by eapply lookup_lt_Some.
           inversion Hmil; subst; clear Hmil.
           unfold mem_init_replace_single => /=.
-          rewrite take_length.
-          repeat rewrite app_length.
-          rewrite take_length drop_length fmap_length.
+          rewrite length_take.
+          repeat rewrite length_app.
+          rewrite length_take length_drop length_fmap.
           rewrite Hmblookup in H0.
           inversion H0; subst; clear H0.
           by lias.
@@ -5870,7 +5871,7 @@ Proof.
           2: {
             apply Hextmemelem in Himplookup.
             rewrite fst_zip; last first.
-            { rewrite fmap_length gen_index_length.
+            { rewrite length_fmap gen_index_length.
               apply Forall2_length in Hmbprop. by lias.
             }
             
@@ -5893,21 +5894,21 @@ Proof.
         { (* Updating the mem *)
           simpl in Hnl.
           apply gen_index_lookup_Some in Hnl as [-> Hnl].
-          rewrite fmap_length in Hnl.
+          rewrite length_fmap in Hnl.
           destruct (memorybase !! (n-length (ext_mems (modexp_desc <$> v_imps)))) eqn:Hmtlookup; last by apply lookup_ge_None in Hmtlookup; apply Forall2_length in Hmbprop; lias => //.
           erewrite elem_of_list_to_map_1 in Hwmsallocupdate => //.
           2: { rewrite fst_zip; last first.
-               { rewrite fmap_length gen_index_length.
+               { rewrite length_fmap gen_index_length.
                  apply Forall2_length in Hmbprop. by lias.
                }
                apply NoDup_fmap; first by lias.
                by apply gen_index_NoDup.
           }
           2: { apply elem_of_list_lookup.
-               rewrite fmap_length.
+               rewrite length_fmap.
                exists (n-length (ext_mems (modexp_desc <$> v_imps))).
                apply zip_lookup_Some.
-               { rewrite fmap_length gen_index_length.
+               { rewrite length_fmap gen_index_length.
                   by apply Forall2_length in Hmbprop.
                }
                { rewrite list_lookup_fmap.
@@ -5919,7 +5920,7 @@ Proof.
           destruct (update_mem _ _ _) eqn:Hupdmem => //=.
           rewrite <- Hwmsallocupdate.
           f_equal.
-          rewrite fmap_length.
+          rewrite length_fmap.
           destruct (n <? length (ext_mems (modexp_desc <$> v_imps))) eqn:Hlt; first by move/Nat.ltb_lt in Hlt; apply lookup_ge_None in Himplookup; lias.
           rewrite Heqmemorybase'.
           replace (mem_init_replace_single _ _ _) with m1; last first.
@@ -5928,7 +5929,7 @@ Proof.
             destruct (_ <=? _) eqn:Hle => //=.
             inversion Hupdmem; subst; clear Hupdmem.
             do 2 f_equal.
-            repeat rewrite fmap_length.
+            repeat rewrite length_fmap.
             assert ((N.to_nat (N_of_int t)) = (nat_of_int t)) as Ht.
             {
               unfold nat_of_int, N_of_int.
@@ -5940,16 +5941,16 @@ Proof.
             assert (length (take (nat_of_int t) (ml_data (mem_data m0)) ++
    (compcert_byte_of_byte <$> moddata_init) ++
    drop (nat_of_int t + length moddata_init) (ml_data (mem_data m0))) = length (ml_data (mem_data m0))) as Hlen.
-            { repeat rewrite app_length.
-              rewrite take_length drop_length fmap_length.
+            { repeat rewrite length_app.
+              rewrite length_take length_drop length_fmap.
               move/Nat.leb_le in Hle.
               apply N.leb_le in Hcb.
-              rewrite fmap_length in Hml.
+              rewrite length_fmap in Hml.
               destruct (s_mems1 !! _) eqn:Hsmlookup; first by apply lookup_lt_Some in Hsmlookup; lias.
               replace (_+_-_) with (n-length (ext_mems (modexp_desc <$> v_imps))) in Hml; last by lias.
               rewrite Hmtlookup in Hml.
               inversion Hml; subst; clear Hml.
-              rewrite map_length in Hle.
+              rewrite length_map in Hle.
               by lias.
             }
             rewrite <- Hlen.
@@ -5959,7 +5960,7 @@ Proof.
           { apply NoDup_fmap; first by lias.
             by apply gen_index_NoDup.
           }
-          { rewrite fmap_length gen_index_length.
+          { rewrite length_fmap gen_index_length.
             by apply Forall2_length in Hmbprop.
           }
           { rewrite list_lookup_fmap.
@@ -5974,11 +5975,10 @@ Proof.
 
   (* state update done at this point, framing the gen_heaps away *)
   
-  iFrame.
+            iFrame.
+  iModIntro. 
 
-  iModIntro.
-
-  iExists g_inits, (module_inst_build_tables m inst), (module_inst_build_mems m inst), (module_inst_global_init (module_inst_build_globals (mod_globals m)) g_inits), (module_import_init_tabs m inst wts), (module_import_init_mems m inst wms).
+  iExists g_inits, (* (module_inst_build_tables m inst), (module_inst_build_mems m inst),*)  (module_inst_global_init (module_inst_build_globals (mod_globals m)) g_inits)(* , (module_import_init_tabs m inst wts), (module_import_init_mems m inst wms) *) .
     
   iFrame.
 
@@ -6090,18 +6090,23 @@ Proof.
     rewrite Hfindex.
     clear.
     iInduction mfuncs as [ | f'] "IH" using List.rev_ind => //=.
+    rewrite drop_all.  rewrite length_map.
+    rewrite Nat.sub_diag. simpl. done.
+    rewrite drop_all. rewrite length_map. rewrite Nat.sub_diag.
+    unfold drop. simpl. 
     unfold gen_index.
-    rewrite app_length repeat_app imap_app fmap_app => /=.
+    rewrite length_app repeat_app imap_app fmap_app => /=.
+    rewrite length_repeat.
     rewrite big_sepL_app.
     iDestruct "Hfmapsto" as "(Hh & Ht)".
+
     simpl.
     iDestruct ("IH" with "Hh") as "Hh".
     iFrame.
-    rewrite repeat_length.
-    simpl.
+    simpl. 
     iDestruct "Ht" as "(Ht & _)".
     iSplit => //.
-    rewrite fmap_length.
+    rewrite length_fmap.
     repeat rewrite Nat.add_0_r.
     rewrite Nat.add_comm.
     by iApply "Ht".
@@ -6122,9 +6127,11 @@ Proof.
     iRevert "Hwgmapsto".
     iRevert (g_inits).
     iInduction mglobs as [ | g'] "IH" using List.rev_ind => //=.
+    all: rewrite drop_all length_map Nat.sub_diag.
+    simpl. done. simpl. 
     iIntros (g_inits) "Hwgmapsto".
     iIntros "%Hginitslen".
-    rewrite app_length in Hginitslen.
+    rewrite length_app in Hginitslen.
     assert (exists gi g', g_inits = gi ++ [g']).
     { destruct g_inits => //; first by simpl in Hginitslen; lias.
       clear.
@@ -6138,13 +6145,13 @@ Proof.
         by f_equal.
     }
     destruct H as [gi [gt ->]].
-    rewrite app_length in Hginitslen.
+    rewrite length_app in Hginitslen.
     simpl in Hginitslen.
     unfold gen_index.
-    rewrite app_length repeat_app imap_app => /=.
+    rewrite length_app repeat_app imap_app => /=.
     rewrite combine_app => /=; last by lias.
     rewrite fmap_app.
-    rewrite repeat_length.
+    rewrite length_repeat.
     rewrite big_sepL_app.
     iDestruct "Hwgmapsto" as "(Hh & Ht)".
     iDestruct ("IH" with "Hh") as "Hh".
@@ -6154,7 +6161,7 @@ Proof.
     rewrite fmap_app.
     simpl.
 
-    rewrite module_inst_global_init_cat; last by rewrite fmap_length; lias.
+    rewrite module_inst_global_init_cat; last by rewrite length_fmap; lias.
 
     simpl.
 
@@ -6164,7 +6171,7 @@ Proof.
 
     iDestruct "Ht" as "(Ht & _)".
     iSplit => //.
-    rewrite fmap_length combine_length.
+    rewrite length_fmap length_combine.
     replace (length gi) with (length mglobs); last by lias.
     rewrite Nat.min_id Nat.add_comm.
     unfold global_init_replace_single.

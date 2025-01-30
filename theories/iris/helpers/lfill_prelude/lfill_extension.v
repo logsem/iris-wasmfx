@@ -6,7 +6,6 @@ From Wasm Require Export common operations opsem properties list_extra.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-Set Bullet Behavior "Strict Subproofs".
 
 
 Global Instance ai_list_eq_dec: EqDecision (seq.seq administrative_instruction).
@@ -33,7 +32,6 @@ Fixpoint size_of_instruction e :=
   match e with
   | AI_label _ _ LI => S (List.list_sum (map size_of_instruction LI))
   | AI_local _ _ LI => S (List.list_sum (map size_of_instruction LI))
-  | AI_handler _ LI => S (List.list_sum (map size_of_instruction LI))
   | _ => 1
   end.
 
@@ -46,16 +44,14 @@ Definition length_rec es := List.list_sum (map size_of_instruction es).
 Inductive valid_holed : nat -> Type :=
 | VH_base (n : nat) : list value -> list administrative_instruction -> valid_holed n
 | VH_rec (n : nat) : list value -> nat -> list administrative_instruction ->
-                   valid_holed n -> list administrative_instruction -> valid_holed (S n)
-| VH_handler (n : nat) : list value -> list handler_clause -> valid_holed n -> list administrative_instruction -> valid_holed n
-.
+                   valid_holed n -> list administrative_instruction -> valid_holed (S n).
 
 Definition valid_holed_eq_dec :
   forall i (lh1 lh2 : valid_holed i), { lh1 = lh2 } + { lh1 <> lh2 }.
 Proof.
   clear.
   induction lh1 ; intros.
-  - destruct lh2 ; try by right.
+  - destruct lh2 ; last by right.
     destruct (decide (l = l1)), (decide (l0 = l2)) ; solve [ by right ; intro H ; inversion H | by subst ; left].
   - set (k := S n) in lh2.
 (*    change (valid_holed k) in lh2. *)
@@ -69,10 +65,6 @@ Proof.
                | Logic.eq_refl => VH_base n1 l2 l3
                end = VH_base (S n) l2 l3) as Hdone ; last by rewrite Hdone in Habs.
       rewrite -> Hk. done. }
-    2:{ right. intro Habs.
-        assert (match Hk in (_ = w) return (valid_holed w) with
-                | Logic.eq_refl => VH_handler l2 l3 lh2 l4
-                end = @VH_handler (S n) l2 l3 lh2 l4) as Hdone; last by rewrite Hdone in Habs.
 
     pose proof (eq_add_S _ _ Hk) as Hn.
 

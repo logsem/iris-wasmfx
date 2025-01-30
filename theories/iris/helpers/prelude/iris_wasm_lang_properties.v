@@ -1379,7 +1379,7 @@ Section wasm_lang_properties.
         apply lfilled_vLI in Hfilled as [(lh' & Hlh & Hfilled) | (-> & -> & aft & -> & <-)].
         + rewrite app_comm_cons in Hfilled.
           assert (length_rec LI < m) ;
-            first by specialize (cons_length_rec (AI_basic (BI_const v)) LI) ; lia.
+            first by specialize (length_cons_rec (AI_basic (BI_const v)) LI) ; lia.
           specialize (IHm _ H _ _ _ Hfilled i1 lh1).
           unfold to_val in IHm at 1.
           unfold iris.to_val in IHm.
@@ -1390,7 +1390,7 @@ Section wasm_lang_properties.
         + assert (lfilled 0 (LH_base [] aft) (es1 ++ es2) ((es1 ++ es2) ++ aft)).
           unfold lfilled, lfill => //=.
           assert (length_rec ((es1 ++ es2) ++ aft) < m).
-          { specialize (cons_length_rec (AI_basic (BI_const v))
+          { specialize (length_cons_rec (AI_basic (BI_const v))
                                         ((es1 ++ es2) ++ aft)) as H1.
             rewrite app_comm_cons in Hsize.
             repeat rewrite - cat_app in Hsize.
@@ -1517,7 +1517,7 @@ Section wasm_lang_properties.
         apply lfilled_vLI in Hfilled as [(lh' & Hlh & Hfilled) | (-> & -> & aft & -> & <-)].
         + rewrite app_comm_cons in Hfilled.
           assert (length_rec LI < m) ;
-            first by specialize (cons_length_rec (AI_basic (BI_const v)) LI) ; lia.
+            first by specialize (length_cons_rec (AI_basic (BI_const v)) LI) ; lia.
           specialize (IHm _ H _ _ _ Hfilled s0).
           unfold to_val in IHm at 1.
           unfold iris.to_val in IHm.
@@ -1528,7 +1528,7 @@ Section wasm_lang_properties.
         + assert (lfilled 0 (LH_base [] aft) (es1 ++ es2) ((es1 ++ es2) ++ aft)).
           unfold lfilled, lfill => //=.
           assert (length_rec ((es1 ++ es2) ++ aft) < m).
-          { specialize (cons_length_rec (AI_basic (BI_const v))
+          { specialize (length_cons_rec (AI_basic (BI_const v))
                                         ((es1 ++ es2) ++ aft)) as H1.
             rewrite app_comm_cons in Hsize.
             repeat rewrite - cat_app in Hsize.
@@ -1635,7 +1635,7 @@ Section wasm_lang_properties.
         apply lfilled_vLI in Hfilled as [(lh' & Hlh & Hfilled) | (-> & -> & aft & -> & <-)].
         + rewrite app_comm_cons in Hfilled.
           assert (length_rec LI < m) ;
-            first by specialize (cons_length_rec (AI_basic (BI_const v)) LI) ; lia.
+            first by specialize (length_cons_rec (AI_basic (BI_const v)) LI) ; lia.
           specialize (IHm _ H _ _ _ Hfilled l2).
           unfold to_val in IHm at 1.
           unfold iris.to_val in IHm.
@@ -1647,7 +1647,7 @@ Section wasm_lang_properties.
         + assert (lfilled 0 (LH_base [] aft) (es1 ++ es2) ((es1 ++ es2) ++ aft)).
           unfold lfilled, lfill => //=.
           assert (length_rec ((es1 ++ es2) ++ aft) < m).
-          { specialize (cons_length_rec (AI_basic (BI_const v))
+          { specialize (length_cons_rec (AI_basic (BI_const v))
                                         ((es1 ++ es2) ++ aft)) as H1.
             rewrite app_comm_cons in Hsize.
             repeat rewrite - cat_app in Hsize.

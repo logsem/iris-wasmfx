@@ -12,23 +12,34 @@ Unset Printing Implicit Defensive.
 
 (** * Structures **)
 
+
+Lemma nat_eqP : Equality.axiom PeanoNat.Nat.eq_dec.
+Proof.
+  move=> x y. case: PeanoNat.Nat.eq_dec; by [ left | right ].
+Qed.
+
+Definition nat_eqMixin := Equality.Mixin nat_eqP.
+Definition nat_eqType := Datatypes_nat__canonical__eqtype_Equality.
+
+
 Lemma Z_eqP : Equality.axiom Coqlib.zeq.
 Proof.
   move=> x y. case: Coqlib.zeq; by [ left | right ].
 Qed.
 
-Definition Z_eqMixin := EqMixin Z_eqP.
+Definition Z_eqMixin := Equality.Mixin Z_eqP.
 
-Canonical Structure Z_eqType := EqType BinNums.Z Z_eqMixin.
+Canonical Structure Z_eqType := Equality.Pack (sort := BinNums.Z) (Equality.Class Z_eqMixin).
 
 Lemma Pos_eqP : Equality.axiom BinPosDef.Pos.eqb.
 Proof.
   move=> x y. apply: Bool.iff_reflect. by rewrite BinPos.Pos.eqb_eq.
 Qed.
                                                                       
-Definition Pos_eqMixin := EqMixin Pos_eqP.
+Definition Pos_eqMixin := Equality.Mixin Pos_eqP.
 
-Canonical Structure Pos_eqType := EqType BinNums.positive Pos_eqMixin.
+Canonical Structure Pos_eqType := Equality.Pack (sort := BinNums.positive) (Equality.Class Pos_eqMixin).
+
 
 (** * Equalities **)
 
@@ -45,8 +56,8 @@ Ltac lias_simpl :=
   repeat lazymatch goal with
   | |- ~ _ => intro
   | |- is_true (~~ _) => apply/negP
-  | |- context C [subn] => rewrite /subn /subn_rec
-  | |- context C [addn] => rewrite /addn /addn_rec
+  | |- context C [subn] => rewrite /subn
+  | |- context C [addn] => rewrite /addn
   | |- is_true (leq _ _) => apply/leP
   | |- is_true (@eq_op nat_eqType _ _) => rewrite -eqnE; apply/eqnP
   | |- is_true (@eq_op Z_eqType _ _) => apply/Z_eqP
@@ -57,8 +68,8 @@ Ltac lias_simpl :=
   | |- _ /\ _ => split
   | |- is_true (_ && _) => apply/andP; split
   | |- _ <-> _ => split; intros
-  | H: context C [subn] |- _ => unfold subn, subn_rec in H
-  | H: context C [addn] |- _ => unfold addn, addn_rec in H
+  | H: context C [subn] |- _ => unfold subn in H
+  | H: context C [addn] |- _ => unfold addn in H
   | H: is_true (~~ _) |- _ => move/negP: H => H
   | H: _ /\ _ |- _ => move: H; intros [? ?]
   | H: _ <-> _ |- _ => move: H; intros [? ?]
@@ -190,16 +201,16 @@ Proof.
   move=> P b. by case; [ apply: BoolSpecT | apply: BoolSpecF ].
 Qed.
 
-Import ZArith.BinInt.
 
-Lemma gtb_spec0 : forall x y, reflect (x > y)%Z (x >? y)%Z.
+
+Lemma gtb_spec0 : forall x y, reflect (ZArith.BinInt.Z.gt x y) (ZArith.BinInt.Z.gtb x y).
 Proof.
-  move=> x y. apply: Bool.iff_reflect. rewrite Z.gtb_lt. by lias.
+  move=> x y. apply: Bool.iff_reflect. rewrite ZArith.BinInt.Z.gtb_lt. by lias.
 Qed.
 
-Lemma geb_spec0 : forall x y, reflect (x >= y)%Z (x >=? y)%Z.
+Lemma geb_spec0 : forall x y, reflect (ZArith.BinInt.Z.ge x y) (ZArith.BinInt.Z.geb x y).
 Proof.
-  move=> x y. apply: Bool.iff_reflect. rewrite Z.geb_le. by lias.
+  move=> x y. apply: Bool.iff_reflect. rewrite ZArith.BinInt.Z.geb_le. by lias.
 Qed.
 
 
@@ -249,13 +260,13 @@ Proof.
 Qed.
 
 Lemma filter_out_zlt : forall (a : nat) l,
-  (Z.of_nat a) \notin l ->
-  [seq x <- l | Coqlib.zlt x (Z.of_nat a)]
-  = [seq x <- l | Coqlib.zlt x (Z.pos (Pos.of_succ_nat a))].
+  (ZArith.BinInt.Z.of_nat a) \notin l ->
+  [seq x <- l | Coqlib.zlt x (ZArith.BinInt.Z.of_nat a)]
+  = [seq x <- l | Coqlib.zlt x (ZArith.BinInt.Z.pos (PArith.BinPos.Pos.of_succ_nat a))].
 Proof.
   move=> a l N. rewrite (filter_notin _ N). apply: eq_in_filter.
   move=> x I. rewrite Znat.Zpos_P_of_succ_nat -Znat.Nat2Z.inj_succ.
-  case_eq (x == Z.of_nat a) => /eqP.
+  case_eq (x == ZArith.BinInt.Z.of_nat a) => /eqP.
   - move=> E. subst. exfalso. by move/negP: N.
   - move=> D. by destruct Coqlib.zlt as [L|L], Coqlib.zlt as [L'|L'] => //; exfalso; lias.
 Qed.

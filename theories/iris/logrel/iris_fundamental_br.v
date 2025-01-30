@@ -28,13 +28,13 @@ Section fundamental.
     iIntros (j lh hl).
     iIntros "#Hi [%Hlh_base [%Hlh_len [%Hlh_valid #Hc]]]" (f vs) "[Hf Hfv] #Hv".
     unfold interp_expression.
-    apply lholed_lengths_length_depth in Hlh_len as Hleneq.
+    apply length_lholeds_length_depth in Hlh_len as Hleneq.
     
     iDestruct "Hv" as "[-> | Hv]".
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [Hf]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
 
@@ -50,11 +50,11 @@ Section fundamental.
     iRight. iLeft. iApply fixpoint_interp_br_eq. iExists _,_,_,0. iSplit;[eauto|].
     iSplit;[eauto|]. iSplit;[eauto|]. rewrite PeanoNat.Nat.sub_0_r.
     iDestruct (big_sepL_lookup with "Hc") as (vs n es lh' es' lh'' Hlayer Hdep Hmin) "Hbr";[apply Hlook|].
-    rewrite app_length in Hlen.
+    rewrite length_app in Hlen.
     apply list_app_split in Hlen as [ws1 [ws2 [-> [Hlen1 Hlen2]]]].
     apply get_layer_lh_depth in Hlayer as Heq;cycle 1.
-    { rewrite -(lholed_lengths_length_depth (rev (tc_label C)))//.
-      rewrite rev_length. apply lookup_lt_is_Some_1. eauto. }
+    { rewrite -(length_lholeds_length_depth (rev (tc_label C)))//.
+      rewrite length_rev. apply lookup_lt_is_Some_1. eauto. }
     eapply get_layer_lookup_lh_lengths in Hlayer as Hn;[|eauto..].
     iExists ts, vs, n, es, lh', es', lh'',t1s.
     repeat (iSplitR;[auto|]).
@@ -63,7 +63,8 @@ Section fundamental.
     rewrite Heq.
     iApply (iris_rules_control.wp_br_ctx with "Hf0").
     { apply v_to_e_is_const_list. }
-    { rewrite fmap_length. rewrite -Hlen1 drop_app. simplify_eq;auto. }
+    { rewrite length_fmap. rewrite -Hlen1 drop_app. simplify_eq;auto.
+    rewrite drop_all. rewrite Nat.sub_diag. done. }
     iNext. iIntros "Hf". rewrite -Hlen1 drop_app.
 
     unfold interp_expression.
@@ -72,6 +73,7 @@ Section fundamental.
     { iRight. iExists _. iFrame "Hv2". auto. }
     { iFrame. }
     rewrite !app_assoc. iFrame.
+    rewrite drop_all Nat.sub_diag.
     iApply (wp_wand with "Hcont").
     { iIntros (v) "[[H|[H|[H|H]]] $]";auto.
       repeat iRight. iNext. iExists _. iFrame.

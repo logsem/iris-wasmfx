@@ -7,7 +7,7 @@ From compcert Require Import Integers.
 From parseque Require Import Parseque.
 From Coq.Strings Require Import Byte.
 From Wasm Require Import leb128.
-Require Import Coq.Arith.Le.
+Require Import PeanoNat.
 Require Import BinNat.
 
 Notation "p $> b" := (cmap b p) (at level 59, right associativity).
@@ -107,17 +107,66 @@ Definition parse_number_type {n} : byte_parser number_type n :=
   (exact_byte x7d $> T_f32) <|>
   (exact_byte x7c $> T_f64).
 
+(** Cannot figure out how to do recursive definitions… commenting out for now *)
+(*
 
+Record LanguageTypes (n : nat) : Type :=
+  MkLanguageTypes {
+      _reference_type : byte_parser reference_type n;
+      _value_type : byte_parser value_type n;
+      _function_type : byte_parser function_type n;
+}.
+
+Arguments MkLanguageTypes {_}.
+
+ Context
+  {Tok : Type} {A B : Type} {n : nat}. 
+
+Definition languagetypes : [ LanguageTypes ] := Fix LanguageTypes (fun k rec =>
+  let reference_type_aux := Induction.map _reference_type _ rec in
+  let value_type_aux := Induction.map _value_type _ rec in
+  let function_type_aux := Induction.map _function_type _ rec in
+  let parse_reference_type := 
+    (exact_byte xc0 &> (T_funcref <$> function_type_aux)) <|>
+    (exact_byte xc1 &> (T_contref <$> function_type_aux)) <|>
+    (exact_byte xc4 $> T_exnref) in
+  let parse_value_type :=
+      (exact_byte xc2 &> (T_num <$> parse_number_type)) <|>
+        (exact_byte xc3 &> (T_ref <$> parse_reference_type)) in
+  let parse_function_type :=
+    (exact_byte x60 &> (uncurry Tf <$> parse_vec parse_value_type <&> parse_vec parse_value_type)) in
+  MkLanguageTypes parse_reference_type parse_value_type parse_function_type).
+
+Definition parse_reference_type : [ byte_parser reference_type ] := fun n => _reference_type n (language n).
+Definition parse_value_type : [ byte_parser value_type ] := fun n => _value_type n (language n).
+Definition parse_function_type : [ byte_parser function_type ] := fun n => _function_type n (language n).
+ *)
+
+
+(** What an actual recursion definition should
+look like, but Coq won't allow it; the solution is probably something like the commented
+code right before this comment *)
+(*
 Fixpoint parse_reference_type {n} : byte_parser reference_type n :=
   (exact_byte xc0 &> (T_funcref <$> parse_function_type)) <|>
-    (exact_byte xc1 $> T_corruptref)
+    (exact_byte xc1 &> (T_contref <$> parse_function_type)) <|>
+    (exact_byte xc4 $> T_exnref) 
 with parse_value_type {n} : byte_parser value_type n :=
   (exact_byte xc2 &> (T_num <$> parse_number_type)) <|>
-    (exact_byte xc3 &> (T_ref <$> parse_reference_type)) <|>
-    (exact_byte xc4 $> T_bot)
+    (exact_byte xc3 &> (T_ref <$> parse_reference_type)) 
 with parse_function_type {n} : byte_parser function_type n :=
-  (exact_byte x60 &> (uncurry Tf <$> parse_vec parse_value_type <&> parse_vec parse_value_type)) <|>
-(exact_byte xc5 &> (uncurry Cont <$> parse_vec parse_value_type <&> parse_vec parse_value_type)).
+       (exact_byte x60 &> (uncurry Tf <$> parse_vec parse_value_type <&> parse_vec parse_value_type))
+. *)
+
+(** Placeholders: parse_reference_type is WRONG, should call parse_function_type *)
+Definition parse_reference_type {n} : byte_parser reference_type n :=
+  exact_byte xc4 $> T_exnref.
+Definition parse_value_type {n} : byte_parser value_type n :=
+  (exact_byte xc2 &> (T_num <$> parse_number_type)) <|>
+    (exact_byte xc3 &> (T_ref <$> parse_reference_type)) .
+Definition parse_function_type {n} : byte_parser function_type n :=
+  (exact_byte x60 &> (uncurry Tf <$> parse_vec parse_value_type <&> parse_vec parse_value_type)).
+
 
 
 Definition parse_block_type {n} : byte_parser (list value_type) n :=
@@ -136,6 +185,7 @@ Definition parse_nop {n} : byte_parser basic_instruction n :=
 Definition extract_labelidx {B} (f : nat -> B) (x : labelidx) : B :=
   match x with Mk_labelidx n => f n end.
 
+
 Definition extract_funcidx {B} (f : nat -> B) (x : funcidx) : B :=
   match x with Mk_funcidx n => f n end.
 
@@ -150,6 +200,71 @@ Definition extract_globalidx {B} (f : nat -> B) (x : globalidx) : B :=
 
 Definition parse_br {n} : byte_parser basic_instruction n :=
   exact_byte x0c &> (extract_labelidx BI_br <$> parse_labelidx).
+
+Definition parse_type_identifier {n} : byte_parser type_identifier n :=
+  exact_byte xc5 &> (extract_labelidx Type_lookup <$> parse_labelidx) <|>
+(exact_byte xd1 &> (Type_explicit <$> parse_function_type)). 
+
+Definition parse_ref_null {n} : byte_parser basic_instruction n :=
+  exact_byte xc6 &> (BI_ref_null <$> parse_reference_type).
+
+Definition parse_ref_is_null {n} : byte_parser basic_instruction n :=
+  exact_byte xc7 $> BI_ref_is_null.
+
+Definition parse_ref_func {n} : byte_parser basic_instruction n :=
+  exact_byte xc8 &> (extract_labelidx BI_ref_func <$> parse_labelidx).
+
+Definition parse_call_reference {n} : byte_parser basic_instruction n :=
+  exact_byte xc9 &> (BI_call_reference <$> parse_type_identifier).
+
+Definition parse_throw {n} : byte_parser basic_instruction n :=
+  exact_byte xca &> (extract_labelidx BI_throw <$> parse_labelidx).
+
+Definition parse_contnew {n} : byte_parser basic_instruction n :=
+  exact_byte xcb &> (BI_contnew <$> parse_type_identifier).
+
+Definition parse_handler_clause_aux (x : labelidx) (y : labelidx) :=
+  HC_catch (extract_labelidx (fun x => x) x) (extract_labelidx (fun y => y) y).
+
+Definition parse_handler_clause {n} : byte_parser continuation_clause n :=
+  exact_byte xd0 &> (( parse_handler_clause_aux <$> parse_labelidx) <*> parse_labelidx).
+
+Definition parse_handler_clauses {n} : byte_parser (list continuation_clause) n :=
+  parse_vec parse_handler_clause.
+
+Definition parse_resume {n} : byte_parser basic_instruction n :=
+  exact_byte xcc &> ((BI_resume <$> parse_type_identifier) <*> parse_handler_clauses).
+
+Definition parse_suspend {n} : byte_parser basic_instruction n :=
+  exact_byte xcd &> (extract_labelidx BI_suspend <$> parse_labelidx).
+
+Definition parse_contbind {n} : byte_parser basic_instruction n :=
+  exact_byte xce &> ((BI_contbind <$> parse_type_identifier) <*> parse_type_identifier).
+
+Definition parse_resume_throw_aux x y z :=
+  BI_resume_throw x (extract_labelidx (fun y => y) y) z. 
+
+Definition parse_resume_throw {n} : byte_parser basic_instruction n :=
+  exact_byte xcf &> (((parse_resume_throw_aux <$> parse_type_identifier) <*> parse_labelidx) <*> parse_handler_clauses).
+
+Definition parse_exception_clause_aux (x : labelidx) (y : labelidx) :=
+  HE_catch (extract_labelidx (fun x => x) x) (extract_labelidx (fun y => y) y).
+Definition parse_exception_clause_aux2 (x : labelidx) (y : labelidx) :=
+  HE_catch_ref (extract_labelidx (fun x => x) x) (extract_labelidx (fun y => y) y).
+
+Definition parse_exception_clause {n} : byte_parser exception_clause n :=
+  (exact_byte xd2 &> (( parse_exception_clause_aux <$> parse_labelidx) <*> parse_labelidx)) <|>
+    (exact_byte xd3 &> (( parse_exception_clause_aux2 <$> parse_labelidx) <*> parse_labelidx)) <|>
+    (exact_byte xd4 &> (extract_labelidx HE_catch_all <$> parse_labelidx)) <|>
+      (exact_byte xd5 &> (extract_labelidx HE_catch_all <$> parse_labelidx))
+.
+
+Definition parse_exception_clauses {n} : byte_parser (list exception_clause) n :=
+  parse_vec parse_exception_clause.
+
+Definition parse_throw_ref {n} : byte_parser basic_instruction n :=
+  exact_byte xd7 $> BI_throw_ref.
+
 
 Definition parse_br_if {n} : byte_parser basic_instruction n :=
   exact_byte x0d &> (extract_labelidx BI_br_if <$> parse_labelidx).
@@ -168,7 +283,7 @@ Definition parse_call {n} : byte_parser basic_instruction n :=
   exact_byte x10 &> (extract_funcidx BI_call <$> parse_funcidx).
 
 Definition parse_call_indirect {n} : byte_parser basic_instruction n :=
-  exact_byte x11 &> (extract_typeidx BI_call_indirect <$> parse_typeidx <& exact_byte x00).
+  exact_byte x11 &> (BI_call_indirect <$> parse_type_identifier <& exact_byte x00).
 
 Definition parse_drop {n} : byte_parser basic_instruction n :=
   exact_byte x1a $> BI_drop.
@@ -488,7 +603,21 @@ Definition language : [ Language ] := Fix Language (fun k rec =>
     (((fun x y => (x, y)) <$> parse_block_type_as_function_type) <*> bes_end_with_x0b_or_x05_ctd_aux) in
   let parse_if :=
     (fun '(x, (y, z)) => BI_if x y z) <$> (exact_byte x04 &> parse_if_body) in
+  let parse_try_table := 
+    exact_byte xd6 &> (((BI_try_table <$> parse_type_identifier) <*> parse_exception_clauses) <*> bes_end_with_x0b_aux) in 
   let parse_be :=
+    parse_ref_null <|>
+      parse_ref_is_null <|>
+      parse_ref_func <|>
+      parse_call_reference <|>
+      parse_throw <|>
+      parse_contnew <|>
+      parse_resume <|>
+      parse_suspend <|>
+      parse_contbind <|>
+      parse_resume_throw <|>
+       parse_try_table <|> 
+      parse_throw_ref <|>
     parse_unreachable <|>
     parse_nop <|>
     parse_block <|>

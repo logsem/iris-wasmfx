@@ -30,7 +30,7 @@ Section fundamental.
     { take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [$]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
 
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
@@ -52,9 +52,9 @@ Section fundamental.
     iIntros (v) "[-> Hf]".
     iSplitR;[|iExists _;iFrame].
     { iLeft. iRight. iExists _. iSplit;eauto. }
-    iExists _. rewrite Heq //. iSplit =>//. 
+    iExists _. rewrite Heq //. iSplit => //. 
     iRight. subst locs. rewrite -fmap_insert_set_nth;[|auto].
-    iSimpl. iExists _. iSplit =>//.
+    iSimpl. iExists _. iSplit => //.
     rewrite -(list_insert_id (tc_local C) i t);[|auto].
     iApply big_sepL2_insert;iFrame "#".
     rewrite list_insert_id;auto.

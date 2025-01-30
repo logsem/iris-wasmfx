@@ -5,7 +5,8 @@ Set Implicit Arguments.
 
 From Coq Require Import List.
 
-Section extra_ssreflect.
+
+(* Section extra_ssreflect.
 From mathcomp Require Import seq ssreflect.
 
 Lemma nth_error_set_nth {A} k l d (x:A) :
@@ -24,8 +25,10 @@ Proof.
   intros H; by apply IHl.
 Qed.
 
-End extra_ssreflect.
+End extra_ssreflect. *)
 
+Lemma length_repeat {A} (x: A) n: length (repeat x n) = n.
+Proof. apply repeat_length. Qed. 
 
 (** Given list of option types, check that all options are [Some]
    and return the corresponding list of values. **)

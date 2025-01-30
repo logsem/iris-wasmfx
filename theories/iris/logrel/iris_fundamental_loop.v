@@ -22,7 +22,7 @@ Section fundamental.
 
   Lemma interp_ctx_continuations_push_label_loop lh C i tm tn es tr hl :
     base_is_empty lh ->
-    lholed_lengths (rev (tc_label C)) lh ->
+    length_lholeds (rev (tc_label C)) lh ->
     □ (∀ (a : leibnizO frame) (a0 : seq.seq (leibnizO value)),
            ⌜length a0 = length tn⌝
            →  ↪[frame]a -∗
@@ -56,7 +56,7 @@ Section fundamental.
       take_drop_app_rewrite_twice 0 1.
       iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
       { iApply (wp_trap with "[] [Hf]");auto. }
-      iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+      iIntros (v0) "[? ?]". iFrame. }
 
     iDestruct "Hv" as (ws' ->) "Hv". iExists tm.
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
@@ -86,7 +86,7 @@ Section fundamental.
     iIntros "#HIH [%Hlh_base [%Hlh_len [%Hlh_valid #Hc]]]".
     iSplit;[|iSplit;[|iSplit]].
     { iPureIntro. apply base_is_empty_push_base. }
-    { iPureIntro. apply lholed_lengths_push_base. auto. }
+    { iPureIntro. apply length_lholeds_push_base. auto. }
     { iPureIntro. apply lholed_valid_push_base. auto. }
     { iSplitR.
       { iSimpl. iSplitR;[|done].
@@ -151,11 +151,11 @@ Section fundamental.
     iDestruct "Hvalvs" as "[%|Hvalvs]";[done|].
     iDestruct "Hvalvs" as (ws' Heq') "Hvalvs". inversion Heq';subst ws'.
     iDestruct (big_sepL2_length with "Hvalvs") as %Hlen2.
-    rewrite app_length in Hlen2.
+    rewrite length_app in Hlen2.
         
     iApply (wp_br with "Hf");[..|eauto|].
     { apply const_list_of_val. }
-    { rewrite fmap_length. eapply length_pull_base_l_take_len in Hpb;[|eauto]. rewrite Hpb.
+    { rewrite length_fmap. eapply length_pull_base_l_take_len in Hpb;[|eauto]. rewrite Hpb.
       rewrite Hlen.
       assert (length vs >= length tn);[|lia]. rewrite Hlen2. lia. }
     iNext. iIntros "Hf".
@@ -263,7 +263,7 @@ Section fundamental.
         { iRight. iRight. iLeft. iFrame. }
         { repeat iRight. iNext. iFrame. } }
         
-      { iAssert (⌜lholed_lengths (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
+      { iAssert (⌜length_lholeds (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
         { iDestruct "Hc" as "[% [% [% _]]]". auto. }
         iApply (wp_wand with "[-]").
         { iApply (interp_br_stuck_push_later with "Hbr Hf Hfv");eauto. }
@@ -313,7 +313,7 @@ Section fundamental.
     {  take_drop_app_rewrite_twice 0 1.
        iApply (wp_wand _ _ _ (λ vs, ⌜vs = trapV⌝ ∗  ↪[frame]f)%I with "[Hf]").
        { iApply (wp_trap with "[] [Hf]");auto. }
-       iIntros (v0) "[? ?]". iFrame. iExists _. iFrame "∗ #". }
+       iIntros (v0) "[? ?]". iFrame. }
     iDestruct "Hv" as (ws ->) "Hv".
     iDestruct (big_sepL2_length with "Hv") as %Hlen.
 
@@ -322,7 +322,7 @@ Section fundamental.
     iIntros "Hlocs #Hv".
     iApply (wp_loop with "Hf");eauto.
     { apply v_to_e_is_const_list. }
-    { rewrite fmap_length //. }
+    { rewrite length_fmap //. }
     iNext. iIntros "Hf".
     iApply wp_wasm_empty_ctx.
     iApply wp_label_push_nil.
@@ -358,7 +358,7 @@ Section fundamental.
     iDestruct "Hred" as "[#Hval | [Hbr | [Hret | Hch]]]".
     
     { iDestruct "Hval" as (vs ->) "Hval".
-      rewrite fmap_length Hlen. iDestruct (big_sepL2_length with "Hval") as %Hlen'.
+      rewrite length_fmap Hlen. iDestruct (big_sepL2_length with "Hval") as %Hlen'.
       iApply (wp_wand_ctx _ _ _ (λ vs, ⌜vs = immV _⌝ ∗ ↪[frame] _)%I with "[Hf]").
       { iApply (wp_val_return with "Hf");[apply const_list_of_val|].
         iIntros "Hf". rewrite app_nil_l app_nil_r.
@@ -371,7 +371,7 @@ Section fundamental.
       iDestruct "Hbr" as (j vh vs p -> Hbase Hsize) "Hbr".
       simpl of_val.
 
-      rewrite fmap_length.
+      rewrite length_fmap.
       assert (LH_rec [] (length ws) [AI_basic (BI_loop (Tf tn tm) es)] (LH_base [] []) [] =
                 push_base (LH_base [] []) (length ws) [AI_basic (BI_loop (Tf tn tm) es)] [] []) as Heq;[auto|].
       rewrite Heq.
@@ -382,13 +382,13 @@ Section fundamental.
         iIntros "!>" (???) "???". iApply ("IH" with "[] [$] [$] [$]") => //. 
       }
 
-      { iAssert (⌜lholed_lengths (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
+      { iAssert (⌜length_lholeds (rev (tc_label C)) lh⌝ ∧ ⌜lholed_valid lh⌝ ∧ ⌜base_is_empty lh⌝)%I as %[Hlh_length [Hlh_valid Hlh_empty]].
         { iDestruct "Hc" as "[% [% [% _]]]". auto. }
         iApply (interp_br_stuck_push with "Hbr Hf Hfv");eauto. }
     }
 
     { iApply (interp_return_label  with "Hret Hf Hfv"). }
-    { rewrite fmap_length Hlen. iApply (interp_call_host_label with "[IH] Hc Hch Hf Hfv").
+    { rewrite length_fmap Hlen. iApply (interp_call_host_label with "[IH] Hc Hch Hf Hfv").
       iIntros "!>" (???) "???". iApply ("IH" with "[] [$] [$] [$]") => //. 
     }
   Qed.

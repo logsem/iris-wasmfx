@@ -81,46 +81,46 @@ Section Client.
     mod_start := Some {| modstart_func := Mk_funcidx 7 |} ;
     mod_imports := [
                     {|
-                      imp_module := list_byte_of_string "Stack" ;
-                      imp_name := list_byte_of_string "new_stack" ;
+                      imp_module := String.list_byte_of_string "Stack" ;
+                      imp_name := String.list_byte_of_string "new_stack" ;
                       imp_desc := ID_func 1
                     |} ;
                   {|
-                    imp_module := list_byte_of_string "Stack" ;
-                    imp_name := list_byte_of_string "is_empty" ;
+                    imp_module := String.list_byte_of_string "Stack" ;
+                    imp_name := String.list_byte_of_string "is_empty" ;
                     imp_desc := ID_func 2
                   |} ;
                   {|
-                    imp_module := list_byte_of_string "Stack" ;
-                    imp_name := list_byte_of_string "is_full" ;
+                    imp_module := String.list_byte_of_string "Stack" ;
+                    imp_name := String.list_byte_of_string "is_full" ;
                     imp_desc := ID_func 2
                   |} ;
                   {|
-                    imp_module := list_byte_of_string "Stack" ;
-                    imp_name := list_byte_of_string "pop" ;
+                    imp_module := String.list_byte_of_string "Stack" ;
+                    imp_name := String.list_byte_of_string "pop" ;
                     imp_desc := ID_func 2
                   |} ;
                   {|
-                    imp_module := list_byte_of_string "Stack" ;
-                    imp_name := list_byte_of_string "push" ;
+                    imp_module := String.list_byte_of_string "Stack" ;
+                    imp_name := String.list_byte_of_string "push" ;
                     imp_desc := ID_func 3
                   |} ;
-                  {| imp_module := list_byte_of_string "Stack" ;
-                     imp_name := list_byte_of_string "stack_map" ;
+                  {| imp_module := String.list_byte_of_string "Stack" ;
+                     imp_name := String.list_byte_of_string "stack_map" ;
                      imp_desc := ID_func 3
                   |} ;
-                  {| imp_module := list_byte_of_string "Stack" ;
-                     imp_name := list_byte_of_string "stack_length" ;
+                  {| imp_module := String.list_byte_of_string "Stack" ;
+                     imp_name := String.list_byte_of_string "stack_length" ;
                      imp_desc := ID_func 2
                   |} ;
-                  {| imp_module := list_byte_of_string "Stack" ;
-                     imp_name := list_byte_of_string "table" ;
+                  {| imp_module := String.list_byte_of_string "Stack" ;
+                     imp_name := String.list_byte_of_string "table" ;
                      imp_desc := ID_table {| tt_limits := {| lim_min := 1%N ; lim_max := None |} ;
                                              tt_elem_type := ELT_funcref |} |}
                   ] ;
     mod_exports := [
                     {|
-                      modexp_name := list_byte_of_string "answer" ;
+                      modexp_name := String.list_byte_of_string "answer" ;
                       modexp_desc := MED_global (Mk_globalidx 0)
                     |}
                   ]
@@ -337,7 +337,7 @@ Proof.
       iDestruct "Htab" as "[Htab _]".
       simpl.
       replace (length (table_data tab)) with (length (Some f14 :: drop 1 (table_data tab))) ; last first => /=.
-      rewrite drop_length.
+      rewrite length_drop.
       destruct (table_data tab) ; first by simpl in Htab ; clear - Htab ; lia.
       simpl.
       by rewrite Nat.sub_0_r.
@@ -966,9 +966,6 @@ Proof.
 
       iSplit => //.
       iFrame.
-
-      iExists ga, _.
-      by iFrame.
   Qed.
       
 End Client.

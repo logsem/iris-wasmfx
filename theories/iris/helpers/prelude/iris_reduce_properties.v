@@ -420,7 +420,7 @@ Ltac not_enough_arguments s f vs obj t1s s' f' es' :=
               apply IHreduce; [assumption | trivial]  |] ;
             apply (IHn es' l') ;
             [ rewrite <- Hll in Hvs ;
-              rewrite app_length in Hvs ; simpl in Hvs ;
+              rewrite length_app in Hvs ; simpl in Hvs ;
               apply Nat.succ_lt_mono in Hvs ; lia 
             | rewrite Htail in Hred ; rewrite Hb in Hred ;
               exact Hred 
@@ -429,7 +429,7 @@ Ltac not_enough_arguments s f vs obj t1s s' f' es' :=
               apply andb_true_iff in Hconst ;
               destruct Hconst as [_ Hgoal] ; exact Hgoal 
             | rewrite <- Hll in Hlen ;
-              rewrite app_length in Hlen ; lia
+              rewrite length_app in Hlen ; lia
             ]
           | get_tail a l l' b Htail;
             rewrite Htail in H0 ;
@@ -553,12 +553,12 @@ Section reduce_properties_lemmas.
       destruct bef. { simpl in Hb. rewrite Hb in Hred. rewrite Hb in Htail.
                       rewrite Hl' in Htail. apply IHreduce ; assumption. }
       apply (IHn es' b).
-      + rewrite <- Hb in Hvs. rewrite app_length in Hvs. simpl in Hvs. lia.
+      + rewrite <- Hb in Hvs. rewrite length_app in Hvs. simpl in Hvs. lia.
       + exact Hred.
       + rewrite <- Hb in Hconst. unfold const_list in Hconst.
         rewrite forallb_app in Hconst. apply andb_true_iff in Hconst.
         destruct Hconst as [_ Hconst] ; exact Hconst.
-      + rewrite <- Hb in Hlen. rewrite app_length in Hlen. lia.
+      + rewrite <- Hb in Hlen. rewrite length_app in Hlen. lia.
     } get_tail a aft b l' Htail.
     rewrite Htail in H0. rewrite H0 in Heqes. do 2 rewrite app_assoc in Heqes.
     apply app_inj_tail in Heqes. destruct Heqes as [Heqes _].
@@ -611,12 +611,12 @@ Section reduce_properties_lemmas.
         destruct bef. { simpl in Hb. rewrite Hb in Hred. rewrite Hb in Htail.
                         rewrite Hl' in Htail. apply IHreduce ; assumption. }
         apply (IHn es' b).
-        + rewrite <- Hb in Hvs. rewrite app_length in Hvs. simpl in Hvs. lia.
+        + rewrite <- Hb in Hvs. rewrite length_app in Hvs. simpl in Hvs. lia.
         + exact Hred.
         + rewrite <- Hb in Hconst. unfold const_list in Hconst.
           rewrite forallb_app in Hconst. apply andb_true_iff in Hconst.
           destruct Hconst as [_ Hconst] ; exact Hconst.
-        + rewrite <- Hb in Hlen. rewrite app_length in Hlen. lia.
+        + rewrite <- Hb in Hlen. rewrite length_app in Hlen. lia.
       } get_tail a aft b l' Htail.
       rewrite Htail in H0. rewrite H0 in Heqes. do 2 rewrite app_assoc in Heqes.
       apply app_inj_tail in Heqes. destruct Heqes as [Heqes _].
@@ -846,9 +846,9 @@ Section reduce_properties_lemmas.
       apply lfilled_Ind_Equivalent in Hlh'.
       inversion Hlh';simplify_eq.
       exists (length vs + n1),n2.
-      split. { rewrite !app_length. lia. }
+      split. { rewrite !length_app. lia. }
       split;auto.
-      rewrite take_add_app//.
+      rewrite take_app_add//.
       rewrite drop_app_le;[|lia].
       apply lfilled_Ind_Equivalent.
       repeat erewrite app_assoc.
@@ -1083,10 +1083,13 @@ Section reduce_properties_lemmas.
         apply app_inj_tail in Hes as [Hes Hy]. left.
         unfold lfilled, lfill in Hes'. rewrite <- Hbef in Hes'. move/eqP in Hes'.
         rewrite Htail in Hes'. rewrite Hes'. repeat rewrite app_assoc.
-        rewrite app_length. simpl. rewrite Nat.add_sub.
-        rewrite take_app. repeat split => //=. by subst. subst.
+        rewrite length_app. simpl. rewrite Nat.add_sub.
+        rewrite take_app. repeat split => //=. repeat rewrite firstn_all.
+        subst. rewrite Nat.sub_diag. simpl. rewrite app_nil_r. done. subst.
         apply (r_label (k:=0) (lh:=LH_base bef ys) (es:=vs++[e0]) (es':=es'')) ; (try done) ;
-          unfold lfilled, lfill ; rewrite <- Hbef ; repeat rewrite <- app_assoc => //=. }
+          unfold lfilled, lfill ; rewrite <- Hbef ; repeat rewrite <- app_assoc => //=.
+        repeat rewrite firstn_all. rewrite Nat.sub_diag. rewrite app_nil_r. done.
+      }
       unfold lfilled, lfill in Hes ; fold lfill in Hes.
       destruct lh ; first by false_assumption.
       remember (const_list l2) as b eqn:Hl2 ; destruct b ; last by false_assumption.
@@ -1102,13 +1105,15 @@ Section reduce_properties_lemmas.
       remember (lfill _ _ es'') as fill' ; destruct fill' ; last by false_assumption.
       move/eqP in Hes'.
       rewrite Htail in Hes'. rewrite Hes'. rewrite app_comm_cons. repeat rewrite app_assoc.
-      rewrite app_length. simpl. rewrite Nat.add_sub.
-      rewrite take_app. repeat split => //=. by subst. subst.
+      rewrite length_app. simpl. rewrite Nat.add_sub.
+      rewrite take_app. repeat split => //=. subst.
+      rewrite firstn_all Nat.sub_diag app_nil_r. done.
+      subst.
       apply (r_label (k:=S k) (lh:=LH_rec l2 n l3 lh ys) (es:=vs++[e0]) (es':=es'')) ;
         (try done) ;
         unfold lfilled, lfill ; fold lfill ; rewrite <- Hl2.
       by rewrite <- Heqfill.
-      by rewrite <- Heqfill'. }
+      rewrite <- Heqfill'. rewrite firstn_all Nat.sub_diag app_nil_r. done. }
     destruct k. { unfold lfilled, lfill in Hfill.
                   destruct lh as [bef0 aft0 |]; last by false_assumption.
                   remember (const_list bef0) as b eqn:Hbef0 ; destruct b ;
@@ -1163,8 +1168,10 @@ Section reduce_properties_lemmas.
     remember (lfill _ _ [AI_trap]) as fill' ; destruct fill' ; last by false_assumption.
     move/eqP in Hfill'.
     rewrite Htail in Hfill'. rewrite Hfill'. rewrite app_comm_cons. repeat rewrite app_assoc.
-    rewrite app_length. simpl. rewrite Nat.add_sub.
-    rewrite take_app. repeat split => //=. by subst. subst.
+    rewrite length_app. simpl. rewrite Nat.add_sub.
+    rewrite take_app. repeat split => //=. subst.
+    rewrite firstn_all Nat.sub_diag app_nil_r => //. 
+    subst.
     apply (r_label (k:=S k) (lh:=LH_rec l2 n l3 lh ys) (es:=bef ++ [AI_trap] ++ aft)
                    (es':=[AI_trap])) ;
       unfold lfilled, lfill ; fold lfill.
@@ -1175,7 +1182,8 @@ Section reduce_properties_lemmas.
     by apply Hba.
     by rewrite Hbef.
     rewrite <- Hl2. by rewrite <- Heqfill.
-    rewrite <- Hl2. by rewrite <- Heqfill'.
+    rewrite <- Hl2. rewrite <- Heqfill'.
+    rewrite firstn_all Nat.sub_diag app_nil_r => //. 
   Qed.
 
   
@@ -1231,7 +1239,7 @@ Section reduce_properties_lemmas.
                                   apply first_values in H as (_ & He0' & _) ;
                                     (try done) ; (try by intros Hconst ; apply const_list_singleton, const_list_to_val in Hconst as [??] ; unfold to_val in He0 ; destruct He0 as [?|?] ; [congruence | subst]).
                                   apply (IHn es' (LH_base vs0 es0) es) => //=.
-                                  simpl in Hlen. rewrite app_length in Hlen. simpl in Hlen.
+                                  simpl in Hlen. rewrite length_app in Hlen. simpl in Hlen.
                                   lia. unfold lfilled, lfill ; rewrite Hvs0 ; by subst. destruct He0 as [? | ->] => //.
                                   destruct (is_const e0) eqn:Habs => //. assert (const_list [e0]). unfold const_list => /= ; by rewrite Habs. apply const_list_to_val in H2 as [? Habs'] => //.
                                   unfold to_val in H1. rewrite Habs' in H1 => //. }
@@ -1243,7 +1251,7 @@ Section reduce_properties_lemmas.
                     apply first_values in H as (_ & He0' & _) ;
                       (try done) ; (try by (intros [? ?])).
                     apply (IHn es' (LH_base vs0 es0) es) => //=.
-                    do 2 rewrite app_length in Hlen. simpl in Hlen.
+                    do 2 rewrite length_app in Hlen. simpl in Hlen.
                     lia. unfold lfilled, lfill ; rewrite Hvs0 ; by subst.
                     destruct e0 => // ; destruct b => //.
                     unfold to_val, iris.to_val in He0 ; simpl in He0.
