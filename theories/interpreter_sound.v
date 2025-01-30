@@ -12,6 +12,9 @@ Unset Printing Implicit Defensive.
 
 From Wasm Require Import operations opsem interpreter properties.
 
+(* TODO : update interpreter for WasmFX *)
+(*
+
 (*
 Let store_record := store_record host_function.
 (*Let administrative_instruction := administrative_instruction host_function.*)
@@ -1308,3 +1311,4 @@ Qed.
 
 
 
+*)

@@ -1593,20 +1593,22 @@ Proof.
     by repeat split => //=.
 Qed.
 
-Lemma Try_table_typing: forall C t1s t2s cs es tn tm,
-    be_typing C [:: BI_try_table (Tf t1s t2s) cs es] (Tf tn tm) ->
-    exists ts, tn = ts ++ t1s /\ tm = ts ++ t2s /\
+Lemma Try_table_typing: forall C i cs es tn tm,
+    be_typing C [:: BI_try_table i cs es] (Tf tn tm) ->
+    exists ts t1s t2s,
+      get_type C i = Some (Tf t1s t2s) /\
+      tn = ts ++ t1s /\ tm = ts ++ t2s /\
               List.Forall (fun c => exception_clause_typing C c) cs /\
             be_typing (upd_label C ([::t2s] ++ tc_label C)) es (Tf t1s t2s).
 Proof.
-  move => C t1s t2s cs es tn tm HType.
+  move => C i cs es tn tm HType.
   dependent induction HType => //=.
-  - by exists [::].
+  - by exists [::], tn, tm .
   - invert_be_typing. 
     eapply IHHType2 => //=.
   - edestruct IHHType => //=.
-    destruct H as [H1 [H2 H3]]. subst.
-    exists (ts ++ x).
+    destruct H as (tn & tm & H0 & [H1 [H2 H3]]). subst.
+    exists (ts ++ x), tn, tm.
     repeat rewrite -catA.
     by repeat split => //=.
 Qed.
@@ -2056,7 +2058,7 @@ Proof.
     destruct i => //.  *)
   - by eapply List.Forall_impl; last exact H1;
     intros hc Hhc; eapply continuation_clause_typing_leq; eauto; eauto.
-  - eapply List.Forall_impl; last exact H.
+  - eapply List.Forall_impl; last exact H0.
     intros hc Hhc; eapply exception_clause_typing_leq; eauto; eauto.
   - subst C'; eapply IHHType. apply leq_upd_label. done.
   - rewrite Hlab List.length_app. lias. 
@@ -7773,20 +7775,23 @@ Proof.
     done.
   - (* Try_table *)
     apply e_composition_typing in HType as (ts0 & t1s' & t2s' & t3s & -> & -> & Hvs & Htrytable).
-    apply const_es_exists in H0 as [vs' ->].
+    apply const_es_exists in H1 as [vs' ->].
     apply Const_list_typing in Hvs as (tsv & Htsv & -> & Hvs').
     convert_et_to_bet.
-    apply Try_table_typing in Htrytable as (ts' & Htypes & -> & Hclauses & Hes).
+    apply Try_table_typing in Htrytable as (ts' & tn & tm & Htnm & Htypes & -> & Hclauses & Hes).
+    destruct i; first by destruct C, i; inversion HC; subst.
+    simpl in H.  inversion H; subst.
+    simpl in Htnm. inversion Htnm; subst.
     apply concat_cancel_last_n in Htypes.
-    2:{ do 2 rewrite length_is_size in H1.
-        rewrite - H1. rewrite size_map.
+    2:{ do 2 rewrite length_is_size in H2.
+        rewrite - H2. rewrite size_map.
         rewrite - (size_map (typeof s) vs'). rewrite Htsv.
         rewrite size_map. done. }
     remove_bools_options. subst.
     apply ety_weakening. apply et_weakening_empty_1.
     apply ety_handler. done.
     eapply ety_label.
-    instantiate (1 := t2s). 3: done.
+    instantiate (1 := tm). 3: done.
     apply et_weakening_empty_both.
     apply ety_a' ; first by constructor.
     apply bet_empty.
@@ -7797,15 +7802,19 @@ Proof.
     apply to_e_list_basic.
     rewrite to_b_to_e_list.
     exact Hes.
-      - (* Try_table *)
+  - (* Try_table *)
     apply e_composition_typing in HType as (ts0 & t1s' & t2s' & t3s & -> & -> & Hvs & Htrytable).
-    apply const_es_exists in H0 as [vs' ->].
+    apply const_es_exists in H1 as [vs' ->].
     apply Const_list_typing in Hvs as (tsv & Htsv & -> & Hvs').
     convert_et_to_bet.
-    apply Try_table_typing in Htrytable as (ts' & Htypes & -> & Hclauses & Hes).
+    apply Try_table_typing in Htrytable as (ts' & tn & tm & Htnm & Htypes & -> & Hclauses & Hes).
+    unfold stypes in H.
+    apply inst_typing_types in HIT1.
+    rewrite - HIT1 in H. unfold get_type in Htnm. rewrite Htnm in H. 
+    inversion H; subst.
     apply concat_cancel_last_n in Htypes.
-    2:{ do 2 rewrite length_is_size in H1.
-        rewrite - H1. rewrite size_map.
+    2:{ do 2 rewrite length_is_size in H2.
+        rewrite - H2. rewrite size_map.
         rewrite - (size_map (typeof s) vs'). rewrite Htsv.
         rewrite size_map. done. }
     remove_bools_options. subst.

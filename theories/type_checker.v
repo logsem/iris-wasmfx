@@ -234,6 +234,43 @@ Definition check_clause C x l t2s :=
   | _ => false
   end.
 
+Definition check_exception_clause C h :=
+  match h with
+  | HE_catch x y =>
+      match List.nth_error (tc_tags_t C) x with
+      | Some (Tf ts [::]) =>
+          match List.nth_error (tc_label C) y with
+          | Some ts' =>
+              ts == ts'
+          | None => false
+          end
+      | _ => false
+      end
+  | HE_catch_ref x y =>
+      match List.nth_error (tc_tags_t C) x with
+      | Some (Tf ts [::]) =>
+          match List.nth_error (tc_label C) y with
+          | Some ts' =>
+              ts ++ [:: T_ref T_exnref]  == ts'
+          | None => false
+          end
+      | _ => false
+      end 
+  | HE_catch_all y =>
+      match List.nth_error (tc_label C) y with
+      | Some [::] => true
+      | _ => false
+      end
+  | HE_catch_all_ref y =>
+      match List.nth_error (tc_label C) y with
+      | Some [:: T_ref T_exnref] => true
+      | _ => false
+      end
+  end .
+  
+
+              
+
 Definition isolate_prefix (full: list value_type) suffix :=
   if length full >= length suffix then
     if drop (length full - length suffix) full == suffix then
@@ -253,13 +290,13 @@ in
   match be with
   | BI_const v => type_update ts [::] (CT_type [::T_num (typeof_num v)])
   | BI_contnew i =>
-      match List.nth_error (tc_types_t C) i with
+      match get_type C i with
       | None => CT_bot (* Isa mismatch *)
       | Some (Tf tn tm) =>
         type_update ts (to_ct_list [::T_ref (T_funcref (Tf tn tm))]) (CT_type [:: T_ref (T_contref (Tf tn tm))])
       end
   | BI_resume_throw i x hs =>
-      match List.nth_error (tc_types_t C) i with
+      match get_type C i with
       | Some (Tf t1s t2s) =>
           match List.nth_error (tc_tags_t C) x with
           | Some (Tf ts' [::]) =>
@@ -271,9 +308,9 @@ in
       | _ => CT_bot
       end 
   | BI_contbind i i' =>
-      match List.nth_error (tc_types_t C) i with
+      match get_type C i with
       | Some (Tf t1s' t2s') =>
-          match List.nth_error (tc_types_t C) i' with
+          match get_type C i' with
           | Some (Tf t1s t2s) =>
               match isolate_prefix t1s' t1s with
               | Some ts' =>
@@ -292,7 +329,7 @@ in
       | _ => CT_bot
       end
   | BI_resume i hs =>
-      match List.nth_error (tc_types_t C) i with
+      match get_type C i with
       | Some (Tf t1s t2s) =>
           if List.forallb (fun '(HC_catch x l) => check_clause C x l t2s) hs
           then type_update ts (to_ct_list (t1s ++ [:: T_ref (T_contref (Tf t1s t2s))])) (CT_type t2s)
@@ -310,7 +347,7 @@ in
         type_update ts [::] (CT_type [:: T_ref (T_funcref t)])
       end
   | BI_call_reference i =>
-      match List.nth_error (tc_types_t C) i with
+      match get_type C i with
       | None => CT_bot (* Isa mismatch *)
       | Some (Tf tn tm) =>
         type_update ts (to_ct_list (tn ++ [::T_ref (T_funcref (Tf tn tm))])) (CT_type tm)
@@ -320,6 +357,8 @@ in
       | Some (Tf ts' [::]) => type_update ts (to_ct_list ts') (CT_top_type [::])
       | _ => CT_bot (* Isa mismatch *)
       end
+  | BI_throw_ref =>
+      type_update ts (to_ct_list [:: T_ref T_exnref]) (CT_top_type [::])
   | BI_unop t op =>
     match op with
     | Unop_i _ => if is_int t
@@ -417,9 +456,9 @@ in
       end
     else CT_bot
   | BI_call_indirect i =>
-    if (1 <= length C.(tc_table)) && (i < length C.(tc_types_t))
+    if (1 <= length C.(tc_table)) 
     then
-      match List.nth_error (tc_types_t C) i with
+      match get_type C i with
       | None => CT_bot (* Isa mismatch *)
       | Some (Tf tn tm) =>
         type_update ts (to_ct_list (tn ++ [::T_num T_i32])) (CT_type tm)
@@ -484,6 +523,17 @@ in
     if C.(tc_memory) != nil
     then type_update ts [::CTA_some (T_num T_i32)] (CT_type [::T_num T_i32])
     else CT_bot
+  | BI_try_table i cs es =>
+      match get_type C i with
+      | None => CT_bot
+      | Some (Tf t1s t2s) =>
+          if List.forallb (check_exception_clause C) cs
+          then
+            if b_e_type_checker (upd_label C ([::t2s] ++ tc_label C)) es (Tf t1s t2s)
+            then type_update ts (to_ct_list t1s) (CT_type t2s)
+            else CT_bot
+          else CT_bot
+      end 
   end.
 
 Fixpoint collect_at_inds A (l : seq A) (ns : seq nat) : seq A :=
