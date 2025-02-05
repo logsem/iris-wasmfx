@@ -152,7 +152,11 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
   | AI_trap => Val trapV
   | AI_basic (BI_br i) => Val (brV (VH_base i [] []))
   | AI_basic BI_return => Val (retV (SH_base [] []))
-  | AI_basic (BI_const v) => Val (immV [v])
+  | AI_basic (BI_const v) => Val (immV [VAL_num v])
+  | AI_basic (BI_ref_null r) => Val (immV [VAL_ref (VAL_ref_null r)])
+  | AI_ref f => Val (immV [VAL_ref (VAL_ref_func f)])
+  | AI_ref_cont f => Val (immV [VAL_ref (VAL_ref_cont f)])
+  | AI_ref_exn e => Val (immV [VAL_ref (VAL_ref_exn e)])
   | AI_label n labe es =>
       match merge_values_list (map to_val_instr es) with
       | Val (brV i vh) => 

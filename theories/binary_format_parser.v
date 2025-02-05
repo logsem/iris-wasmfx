@@ -92,6 +92,9 @@ Definition parse_tableidx {n} : byte_parser tableidx n :=
 Definition parse_memidx {n} : byte_parser memidx n :=
   (fun x => Mk_memidx (Wasm_int.nat_of_uint i32m x)) <$> parse_u32_as_int32.
 
+Definition parse_tagidx {n} : byte_parser tagidx n :=
+  (fun x => Mk_tagidx (Wasm_int.nat_of_uint i32m x)) <$> parse_u32_as_int32.
+
 Definition parse_typeidx {n} : byte_parser typeidx n :=
   (fun x => Mk_typeidx (Wasm_int.nat_of_uint i32m x)) <$> parse_u32_as_int32.
 
@@ -678,6 +681,7 @@ Definition parse_import_desc {n} : byte_parser import_desc n :=
   exact_byte x00 &> (extract_typeidx ID_func <$> parse_typeidx) <|>
   exact_byte x01 &> (ID_table <$> parse_table_type) <|>
   exact_byte x02 &> (ID_mem <$> parse_memory_type) <|>
+  exact_byte xd8 &> (extract_typeidx ID_tag <$> parse_typeidx) <|>
   exact_byte x03 &> (ID_global <$> parse_global_type).
 
 Definition parse_module_import {n} : byte_parser module_import n :=
@@ -691,6 +695,7 @@ Definition parse_module_export_desc {n} : byte_parser module_export_desc n :=
   (exact_byte x00 &> (MED_func <$> parse_funcidx)) <|>
   (exact_byte x01 &> (MED_table <$> parse_tableidx)) <|>
   (exact_byte x02 &> (MED_mem <$> parse_memidx)) <|>
+  (exact_byte xd9 &> (MED_tag <$> parse_tagidx)) <|>
   (exact_byte x03 &> (MED_global <$> parse_globalidx)).
 
 Definition parse_module_export {n} : byte_parser module_export n :=
@@ -734,6 +739,9 @@ Definition parse_customsec {n} : byte_parser (list byte) n :=
 
 Definition parse_typesec {n} : byte_parser (list function_type) n :=
   exact_byte x01 &> parse_u32_as_int32 &> parse_vec parse_function_type.
+
+Definition parse_tagsec {n} : byte_parser (list function_type) n :=
+  exact_byte xda &> parse_u32_as_int32 &> parse_vec parse_function_type.
 
 Definition parse_importsec {n} : byte_parser (list module_import) n :=
   exact_byte x02 &> parse_u32_as_int32 &> parse_vec parse_module_import.
@@ -793,7 +801,8 @@ Record parsing_module : Type := {
   pmod_start : option module_start;
   pmod_imports : list module_import;
   pmod_exports : list module_export;
-  pmod_code : list code_func;
+    pmod_code : list code_func;
+    pmod_tags : list function_type;
 }.
 
 Definition merge_parsing_modules (m1 m2 : parsing_module) : parsing_module := {|
@@ -812,7 +821,8 @@ Definition merge_parsing_modules (m1 m2 : parsing_module) : parsing_module := {|
     end;
   pmod_imports := List.app m1.(pmod_imports) m2.(pmod_imports);
   pmod_exports := List.app m1.(pmod_exports) m2.(pmod_exports);
-  pmod_code := List.app m1.(pmod_code) m2.(pmod_code);
+                                                                               pmod_code := List.app m1.(pmod_code) m2.(pmod_code);
+                                                                               pmod_tags := List.app m1.(pmod_tags) m2.(pmod_tags);
 |}.
 
 Definition parse_typesec_wrapper {n} : byte_parser parsing_module n :=
@@ -827,7 +837,8 @@ Definition parse_typesec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+               pmod_code := nil;
+               pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_typesec).
 
@@ -843,7 +854,8 @@ Definition parse_importsec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := imports;
     pmod_exports := nil;
-    pmod_code := nil;
+                 pmod_code := nil;
+                 pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_importsec).
 
@@ -859,7 +871,8 @@ Definition parse_funcsec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+               pmod_code := nil;
+                                pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_funcsec).
 
@@ -875,7 +888,8 @@ Definition parse_tablesec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+                pmod_code := nil;
+                                 pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_tablesec).
 
@@ -891,7 +905,8 @@ Definition parse_memsec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+              pmod_code := nil;
+                               pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_memsec).
 
@@ -907,7 +922,8 @@ Definition parse_globalsec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+                 pmod_code := nil;
+                                  pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_globalsec).
 
@@ -923,7 +939,8 @@ Definition parse_exportsec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := exports;
-    pmod_code := nil;
+                 pmod_code := nil;
+                                  pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_exportsec).
 
@@ -939,7 +956,8 @@ Definition parse_startsec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := Some start;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+               pmod_code := nil;
+                                pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_startsec).
 
@@ -955,7 +973,8 @@ Definition parse_elemsec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+              pmod_code := nil;
+                               pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_elemsec).
 
@@ -971,9 +990,27 @@ Definition parse_codesec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := code;
+              pmod_code := code;
+                               pmod_tags := nil;
   |}) <$>
-  (parse_with_customsec_star_before parse_codesec).
+    (parse_with_customsec_star_before parse_codesec).
+
+Definition parse_tagsec_wrapper {n} : byte_parser parsing_module n :=
+  (fun tags => {|
+    pmod_types := nil;
+    pmod_funcs := nil;
+    pmod_tables := nil;
+    pmod_mems := nil;
+    pmod_globals := nil;
+    pmod_elem := nil;
+    pmod_data := nil;
+    pmod_start := None;
+    pmod_imports := nil;
+    pmod_exports := nil;
+              pmod_code := nil;
+              pmod_tags := tags;
+  |}) <$>
+  (parse_with_customsec_star_before parse_tagsec).
 
 Definition parse_datasec_wrapper {n} : byte_parser parsing_module n :=
   (fun data => {|
@@ -987,7 +1024,8 @@ Definition parse_datasec_wrapper {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+              pmod_code := nil;
+              pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before parse_datasec).
 
@@ -1007,7 +1045,8 @@ Definition parse_module_end {n} : byte_parser parsing_module n :=
     pmod_start := None;
     pmod_imports := nil;
     pmod_exports := nil;
-    pmod_code := nil;
+           pmod_code := nil;
+                                       pmod_tags := nil;
   |}) <$>
   (parse_with_customsec_star_before (exact_byte end_marker)).
 
@@ -1049,11 +1088,15 @@ Definition parse_funcsec_onwards {n} : byte_parser parsing_module n :=
 
 Definition parse_importsec_onwards {n} : byte_parser parsing_module n :=
   ((merge_parsing_modules <$> parse_importsec_wrapper) <*> parse_funcsec_onwards) <|>
-  parse_funcsec_onwards.
+    parse_funcsec_onwards.
+
+Definition parse_tagsec_onwards {n} : byte_parser parsing_module n :=
+  ((merge_parsing_modules <$> parse_tagsec_wrapper) <*> parse_importsec_onwards) <|>
+  parse_importsec_onwards.
 
 Definition parse_typesec_onwards {n} : byte_parser parsing_module n :=
-  ((merge_parsing_modules <$> parse_typesec_wrapper) <*> parse_importsec_onwards) <|>
-  parse_importsec_onwards.
+  ((merge_parsing_modules <$> parse_typesec_wrapper) <*> parse_tagsec_onwards) <|>
+  parse_tagsec_onwards.
 
 Definition module_of_parsing_module (m : parsing_module) : module := {|
   mod_types := m.(pmod_types);
@@ -1070,7 +1113,8 @@ Definition module_of_parsing_module (m : parsing_module) : module := {|
   mod_data := m.(pmod_data);
   mod_start := m.(pmod_start);
   mod_imports := m.(pmod_imports);
-  mod_exports := m.(pmod_exports);
+                                                                      mod_exports := m.(pmod_exports);
+                                                                      mod_tags := m.(pmod_tags);
 |}.
 
 Definition parse_module {n} : byte_parser module n :=

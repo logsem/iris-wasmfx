@@ -370,6 +370,9 @@ Definition with_length (bs : list byte) : list byte :=
 Definition binary_of_typesec (ts : list function_type) : list byte :=
   x01 :: with_length (binary_of_vec binary_of_functype ts).
 
+Definition binary_of_tagsec (ts : list function_type) : list byte :=
+  xda :: with_length (binary_of_vec binary_of_functype ts).
+
 Definition binary_of_typeidx (t : typeidx) : list byte :=
   let 'Mk_typeidx i := t in
   leb128.encode_unsigned (bin_of_nat i).
@@ -388,6 +391,9 @@ Definition binary_of_memidx (t : memidx) : list byte :=
 
 Definition binary_of_globalidx (t : globalidx) : list byte :=
   let 'Mk_globalidx i := t in
+  leb128.encode_unsigned (bin_of_nat i).
+Definition binary_of_tagidx (t : tagidx) : list byte :=
+  let 'Mk_tagidx i := t in
   leb128.encode_unsigned (bin_of_nat i).
 
 Definition binary_of_name (n : name) : list byte :=
@@ -430,6 +436,7 @@ Definition binary_of_import_desc (imp_desc : import_desc) : list byte :=
   | ID_table t_ty => x01 :: binary_of_table_type t_ty
   | ID_mem m_ty => x02 :: binary_of_memory_type m_ty
   | ID_global g_ty => x03 :: binary_of_global_type g_ty
+  | ID_tag tidx => xd8 :: binary_of_typeidx (Mk_typeidx tidx)
   end.
 
 Definition binary_of_module_import (imp : module_import) : list byte :=
@@ -465,6 +472,7 @@ Definition binary_of_export_desc (ed : module_export_desc) : list byte :=
   | MED_table n => x01 :: binary_of_tableidx n
   | MED_mem n => x02 :: binary_of_memidx n
   | MED_global n => x03 :: binary_of_globalidx n
+  | MED_tag n => xd9 :: binary_of_tagidx n
   end.
 
 Definition binary_of_module_export (e : module_export) : list byte :=
@@ -543,7 +551,8 @@ Definition only_if_non_none {A} (f : A -> list byte) (xo : option A) : list byte
 
 Definition binary_of_module (m : module) : list byte :=
   magic ++ version ++
-  only_if_non_nil binary_of_typesec m.(mod_types) ++
+    only_if_non_nil binary_of_typesec m.(mod_types) ++
+                                                    only_if_non_nil binary_of_tagsec m.(mod_tags) ++
   only_if_non_nil binary_of_importsec m.(mod_imports) ++
   only_if_non_nil binary_of_funcsec m.(mod_funcs) ++
   only_if_non_nil binary_of_tablesec m.(mod_tables) ++

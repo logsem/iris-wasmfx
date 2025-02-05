@@ -140,6 +140,7 @@ Definition export_get_v_ext (inst : instance) (exp : module_export_desc) : v_ext
   | MED_table (Mk_tableidx i) => MED_table (Mk_tableidx (List.nth i inst.(inst_tab) 0))
   | MED_mem (Mk_memidx i) => MED_mem (Mk_memidx (List.nth i inst.(inst_memory) 0))
   | MED_global (Mk_globalidx i) => MED_global (Mk_globalidx (List.nth i inst.(inst_globs) 0))
+  | MED_tag (Mk_tagidx i) => MED_tag (Mk_tagidx (List.nth i inst.(inst_tags) 0))
   end.
 
 Definition ext_funcs :=
@@ -404,6 +405,8 @@ Definition module_export_typing (c : t_context) (d : module_export_desc) (e : ex
     | None => false
     | Some gt' => gt == gt'
     end
+  | (MED_tag (Mk_tagidx i), ET_tag tf) =>
+      List.nth_error c.(tc_tags_t) i == Some tf
   | (_, _) => false
   end.
 

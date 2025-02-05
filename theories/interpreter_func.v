@@ -3,9 +3,10 @@
 
 From Wasm Require Import common.
 From Coq Require Import ZArith.BinInt.
+Require Import BinNat.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 From Wasm Require Export operations (* host *) type_checker.
-Require Import BinNat.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -21,8 +22,8 @@ Definition res_crash_eqb c1 c2 := is_left (res_crash_eq_dec c1 c2).
 Definition eqres_crashP : Equality.axiom res_crash_eqb :=
   eq_dec_Equality_axiom res_crash_eq_dec.
 
-Canonical Structure res_crash_eqMixin := EqMixin eqres_crashP.
-Canonical Structure res_crash_eqType := Eval hnf in EqType res_crash res_crash_eqMixin.
+Canonical Structure res_crash_eqMixin := Equality.Mixin eqres_crashP.
+Canonical Structure res_crash_eqType := Eval hnf in Equality.Pack (sort := res_crash) (Equality.Class res_crash_eqMixin).
 
 Inductive res : Type :=
 | R_crash : res_crash -> res
@@ -37,8 +38,8 @@ Definition res_eqb (r1 r2 : res) : bool := res_eq_dec r1 r2.
 Definition eqresP : Equality.axiom res_eqb :=
   eq_dec_Equality_axiom res_eq_dec.
 
-Canonical Structure res_eqMixin := EqMixin eqresP.
-Canonical Structure res_eqType := Eval hnf in EqType res res_eqMixin.
+Canonical Structure res_eqMixin := Equality.Mixin eqresP.
+Canonical Structure res_eqType := Eval hnf in Equality.Pack (sort := res) (Equality.Class res_eqMixin).
 
 (* Section Host_func.
 
@@ -70,8 +71,8 @@ Definition res_step_eqb (r1 r2 : res_step) : bool := res_step_eq_dec r1 r2.
 Definition eqres_stepP : Equality.axiom res_step_eqb :=
   eq_dec_Equality_axiom res_step_eq_dec.
 
-Canonical Structure res_step_eqMixin := EqMixin eqres_stepP.
-Canonical Structure res_step_eqType := Eval hnf in EqType res_step res_step_eqMixin.
+Canonical Structure res_step_eqMixin := Equality.Mixin eqres_stepP.
+Canonical Structure res_step_eqType := Eval hnf in Equality.Pack (sort := res_step) (Equality.Class res_step_eqMixin).
 
 Definition crash_error := RS_crash C_error.
 
@@ -150,6 +151,9 @@ Proof.
   - move=> >. by apply: ReflectF.
 Qed.*)
 
+(** TODO: adapt the interpreter to WasmFX *)
+(*
+
 Fixpoint run_step_with_fuel (fuel : fuel) (d : depth) (cfg : config_tuple) : res_tuple :=
   let: (s, f, es) := cfg in
   match fuel with
@@ -180,45 +184,45 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
     match e with
     (* unop *)
     | AI_basic (BI_unop t op) =>
-      if ves is v :: ves' then
-        (s, f, RS_normal (vs_to_es (app_unop op v :: ves')))
+      if ves is VAL_num v :: ves' then
+        (s, f, RS_normal (vs_to_es (VAL_num (app_unop op v) :: ves')))
       else (s, f, crash_error)
     (* binop *)
     | AI_basic (BI_binop t op) =>
-      if ves is v2 :: v1 :: ves' then
+      if ves is VAL_num v2 :: VAL_num v1 :: ves' then
         expect (app_binop op v1 v2)
-               (fun v => (s, f, RS_normal (vs_to_es (v :: ves'))))
+               (fun v => (s, f, RS_normal (vs_to_es (VAL_num v :: ves'))))
                (s, f, RS_normal ((vs_to_es ves') ++ [::AI_trap]))
       else (s, f, crash_error)
     (* testops *)
     | AI_basic (BI_testop T_i32 testop) =>
-      if ves is (VAL_int32 c) :: ves' then
-        (s, f, RS_normal (vs_to_es ((VAL_int32 (wasm_bool (@app_testop_i i32t testop c))) :: ves')))
+      if ves is VAL_num (VAL_int32 c) :: ves' then
+        (s, f, RS_normal (vs_to_es (VAL_num (VAL_int32 (wasm_bool (@app_testop_i i32t testop c))) :: ves')))
       else (s, f, crash_error)
     | AI_basic (BI_testop T_i64 testop) =>
-      if ves is (VAL_int64 c) :: ves' then
-        (s, f, RS_normal (vs_to_es ((VAL_int32 (wasm_bool (@app_testop_i i64t testop c))) :: ves')))
+      if ves is VAL_num (VAL_int64 c) :: ves' then
+        (s, f, RS_normal (vs_to_es (VAL_num (VAL_int32 (wasm_bool (@app_testop_i i64t testop c))) :: ves')))
       else (s, f, crash_error)
     | AI_basic (BI_testop _ _) => (s, f, crash_error)
     (* relops *)
     | AI_basic (BI_relop t op) =>
-      if ves is v2 :: v1 :: ves' then
-        (s, f, RS_normal (vs_to_es (VAL_int32 (wasm_bool (app_relop op v1 v2)) :: ves')))
+      if ves is VAL_num v2 :: VAL_num v1 :: ves' then
+        (s, f, RS_normal (vs_to_es (VAL_num (VAL_int32 (wasm_bool (app_relop op v1 v2))) :: ves')))
       else (s, f, crash_error)
     (* convert & reinterpret *)
     | AI_basic (BI_cvtop t2 CVO_convert t1 sx) =>
-      if ves is v :: ves' then
-        if types_agree t1 v
+      if ves is VAL_num v :: ves' then
+        if types_num_agree t1 v
         then
           expect (cvt t2 sx v) (fun v' =>
-               (s, f, RS_normal (vs_to_es (v' :: ves'))))
+               (s, f, RS_normal (vs_to_es (VAL_num v' :: ves'))))
             (s, f, RS_normal ((vs_to_es ves') ++ [::AI_trap]))
         else (s, f, crash_error)
       else (s, f, crash_error)
     | AI_basic (BI_cvtop t2 CVO_reinterpret t1 sx) =>
-      if ves is v :: ves' then
-        if types_agree t1 v && (sx == None)
-        then (s, f, RS_normal (vs_to_es (wasm_deserialise (bits v) t2 :: ves')))
+      if ves is VAL_num v :: ves' then
+        if types_num_agree t1 v && (sx == None)
+        then (s, f, RS_normal (vs_to_es (VAL_num (wasm_deserialise (bits v) t2) :: ves')))
         else (s, f, crash_error)
       else (s, f, crash_error)
     (**)
@@ -229,7 +233,7 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
         (s, f, RS_normal (vs_to_es ves'))
       else (s, f, crash_error)
     | AI_basic BI_select =>
-      if ves is (VAL_int32 c) :: v2 :: v1 :: ves' then
+      if ves is (VAL_num (VAL_int32 c)) :: v2 :: v1 :: ves' then
         if c == Wasm_int.int_zero i32m
         then (s, f, RS_normal (vs_to_es (v2 :: ves')))
         else (s, f, RS_normal (vs_to_es (v1 :: ves')))
@@ -250,20 +254,20 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
                         (vs_to_es ves' ++ to_e_list es)]))
       else (s, f, crash_error)
     | AI_basic (BI_if tf es1 es2) =>
-      if ves is VAL_int32 c :: ves' then
+      if ves is VAL_num (VAL_int32 c) :: ves' then
         if c == Wasm_int.int_zero i32m
         then (s, f, RS_normal (vs_to_es ves' ++ [::AI_basic (BI_block tf es2)]))
         else (s, f, RS_normal (vs_to_es ves' ++ [::AI_basic (BI_block tf es1)]))
       else (s, f, crash_error)
     | AI_basic (BI_br j) => (s, f, RS_break j ves)
     | AI_basic (BI_br_if j) =>
-      if ves is VAL_int32 c :: ves' then
+      if ves is VAL_num (VAL_int32 c) :: ves' then
         if c == Wasm_int.int_zero i32m
         then (s, f, RS_normal (vs_to_es ves'))
         else (s, f, RS_normal (vs_to_es ves' ++ [::AI_basic (BI_br j)]))
       else (s, f, crash_error)
     | AI_basic (BI_br_table js j) =>
-      if ves is VAL_int32 c :: ves' then
+      if ves is VAL_num (VAL_int32 c) :: ves' then
         let: k := Wasm_int.nat_of_uint i32m c in
         if k < length js
         then
@@ -277,7 +281,7 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
         (s, f, RS_normal (vs_to_es ves ++ [::AI_invoke a]))
       else (s, f, crash_error)
     | AI_basic (BI_call_indirect j) =>
-      if ves is VAL_int32 c :: ves' then
+      if ves is VAL_num (VAL_int32 c) :: ves' then
         match stab_addr s f (Wasm_int.nat_of_uint i32m c) with
         | Some a =>
           match List.nth_error s.(s_funcs) a with
@@ -319,41 +323,41 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
         else (s, f, crash_error)
       else (s, f, crash_error)
     | AI_basic (BI_load t None a off) =>
-      if ves is VAL_int32 k :: ves' then
+      if ves is VAL_num (VAL_int32 k) :: ves' then
         expect
           (smem_ind s f.(f_inst))
           (fun j =>
              if List.nth_error s.(s_mems) j is Some mem_s_j then
                expect
-                 (load (mem_s_j) (Wasm_int.N_of_uint i32m k) off (length_t t))
-                 (fun bs => (s, f, RS_normal (vs_to_es (wasm_deserialise bs t :: ves'))))
+                 (load (mem_s_j) (Wasm_int.N_of_uint i32m k) off (length_tnum t))
+                 (fun bs => (s, f, RS_normal (vs_to_es (VAL_num (wasm_deserialise bs t) :: ves'))))
                  (s, f, RS_normal (vs_to_es ves' ++ [::AI_trap]))
              else (s, f, crash_error))
           (s, f, crash_error)
       else (s, f, crash_error)
     | AI_basic (BI_load t (Some (tp, sx)) a off) =>
-      if ves is VAL_int32 k :: ves' then
+      if ves is VAL_num (VAL_int32 k) :: ves' then
         expect
           (smem_ind s f.(f_inst))
           (fun j =>
              if List.nth_error s.(s_mems) j is Some mem_s_j then
                expect
-                 (load_packed sx (mem_s_j) (Wasm_int.N_of_uint i32m k) off (length_tp tp) (length_t t))
-                 (fun bs => (s, f, RS_normal (vs_to_es (wasm_deserialise bs t :: ves'))))
+                 (load_packed sx (mem_s_j) (Wasm_int.N_of_uint i32m k) off (length_tp tp) (length_tnum t))
+                 (fun bs => (s, f, RS_normal (vs_to_es (VAL_num (wasm_deserialise bs t) :: ves'))))
                  (s, f, RS_normal (vs_to_es ves' ++ [::AI_trap]))
              else (s, f, crash_error))
           (s, f, crash_error)
       else (s, f, crash_error)
     | AI_basic (BI_store t None a off) =>
-      if ves is v :: VAL_int32 k :: ves' then
-        if types_agree t v
+      if ves is VAL_num v :: VAL_num (VAL_int32 k) :: ves' then
+        if types_num_agree t v
         then
           expect
             (smem_ind s f.(f_inst))
             (fun j =>
                if List.nth_error s.(s_mems) j is Some mem_s_j then
                  expect
-                   (store mem_s_j (Wasm_int.N_of_uint i32m k) off (bits v) (length_t t))
+                   (store mem_s_j (Wasm_int.N_of_uint i32m k) off (bits v) (length_tnum t))
                    (fun mem' =>
                       (upd_s_mem s (update_list_at s.(s_mems) j mem'), f, RS_normal (vs_to_es ves')))
                    (s, f, RS_normal (vs_to_es ves' ++ [::AI_trap]))
@@ -362,8 +366,8 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
         else (s, f, crash_error)
       else (s, f, crash_error)
     | AI_basic (BI_store t (Some tp) a off) =>
-      if ves is v :: VAL_int32 k :: ves' then
-        if types_agree t v
+      if ves is VAL_num v :: VAL_num (VAL_int32 k) :: ves' then
+        if types_num_agree t v
         then
           expect
             (smem_ind s f.(f_inst))
@@ -383,11 +387,11 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
         (smem_ind s f.(f_inst))
         (fun j =>
            if List.nth_error s.(s_mems) j is Some s_mem_s_j then
-             (s, f, RS_normal (vs_to_es (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat (mem_size s_mem_s_j))) :: ves)))
+             (s, f, RS_normal (vs_to_es (VAL_num (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat (mem_size s_mem_s_j)))) :: ves)))
            else (s, f, crash_error))
         (s, f, crash_error)
     | AI_basic BI_grow_memory =>
-      if ves is VAL_int32 c :: ves' then
+      if ves is VAL_num (VAL_int32 c) :: ves' then
         expect
           (smem_ind s f.(f_inst))
           (fun j =>
@@ -396,7 +400,7 @@ with run_one_step (fuel : fuel) (d : depth) (cfg : config_one_tuple_without_e) (
               let: mem' := mem_grow s_mem_s_j (Wasm_int.N_of_uint i32m c) in
               if mem' is Some mem'' then
                 (upd_s_mem s (update_list_at s.(s_mems) j mem''), f,
-                 RS_normal (vs_to_es (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat l)) :: ves')))
+                 RS_normal (vs_to_es (VAL_num (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat l))) :: ves')))
               else (s, f, crash_error)
             else (s, f, crash_error))
           (s, f, crash_error)
@@ -525,3 +529,4 @@ Fixpoint run_v (fuel : fuel) (d : depth) (cfg : config_tuple) : ((store_record *
   end.
 
 
+*)

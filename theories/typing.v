@@ -65,28 +65,28 @@ Inductive relop_type_agree: number_type -> relop -> Prop :=
 
 
   
-Inductive exception_clause_typing : t_context -> exception_clause -> Prop :=
+Inductive exception_clause_identifier_typing : t_context -> exception_clause_identifier -> Prop :=
 | ect_catch : forall C x l (ts: list value_type),
     List.nth_error (tc_tags_t C) x = Some (Tf ts [::]) ->
     List.nth_error (tc_label C) l = Some ts ->
-    exception_clause_typing C (HE_catch x l) 
+    exception_clause_identifier_typing C (HE_catch (Mk_tagident x) l) 
 | ect_catch_ref : forall C x l ts,
     List.nth_error (tc_tags_t C) x = Some (Tf ts [::]) ->
     List.nth_error (tc_label C) l = Some (ts ++ [:: T_ref T_exnref]) ->
-    exception_clause_typing C (HE_catch_ref x l)
+    exception_clause_identifier_typing C (HE_catch_ref (Mk_tagident x) l)
 | ect_catch_all : forall C l,
     List.nth_error (tc_label C) l = Some [::] ->
-    exception_clause_typing C (HE_catch_all l)
+    exception_clause_identifier_typing C (HE_catch_all l)
 | ect_catch_all_ref: forall C l,
     List.nth_error (tc_label C) l = Some [:: T_ref T_exnref] ->
-    exception_clause_typing C (HE_catch_all_ref l)
+    exception_clause_identifier_typing C (HE_catch_all_ref l)
   .
 
-  Inductive continuation_clause_typing : t_context -> continuation_clause -> list value_type -> Prop :=
+  Inductive continuation_clause_identifier_typing : t_context -> continuation_clause_identifier -> list value_type -> Prop :=
   | cct_clause : forall C x l t1s' t2s' t2s,
       List.nth_error (tc_tags_t C) x = Some (Tf t1s' t2s') ->
       List.nth_error (tc_label C) l = Some (t1s' ++ [::T_ref (T_contref (Tf t2s' t2s))]) ->
-      continuation_clause_typing C (HC_catch x l) t2s
+      continuation_clause_identifier_typing C (HC_catch (Mk_tagident x) l) t2s
   .
 
   (*
@@ -107,10 +107,11 @@ Definition get_type C i :=
   end. 
 
 Definition get_tag C i :=
-(*  match i with
-  | Tag_lookup i => *) List.nth_error (tc_tags_t C) i
+  match i with
+  | Mk_tagident i => List.nth_error (tc_tags_t C) i
+  end. 
 (*  | Tag_explicit _ tf => Some tf
-  end *) . 
+  end *)  
 
 
 
@@ -157,7 +158,7 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
                                    [:: T_ref (T_contref (Tf t1 t2))])
  | bet_resume : forall C i t1s t2s hs,
     get_type C i = Some (Tf t1s t2s) ->
-    List.Forall (fun h => continuation_clause_typing C h t2s) hs ->
+    List.Forall (fun h => continuation_clause_identifier_typing C h t2s) hs ->
     be_typing C [:: BI_resume i hs] (Tf (t1s ++ [:: T_ref (T_contref (Tf t1s t2s))]) t2s)
 | bet_suspend : forall C x t1s t2s,
     get_tag C x = Some (Tf t1s t2s) ->
@@ -171,13 +172,13 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
 | bet_resume_throw : forall C i x hs ts t1s t2s,
     get_type C i = Some (Tf t1s t2s) ->
     List.nth_error (tc_tags_t C) x = Some (Tf ts [::]) ->
-    List.Forall (fun h => continuation_clause_typing C h t2s) hs ->
+    List.Forall (fun h => continuation_clause_identifier_typing C h t2s) hs ->
     be_typing C [:: BI_resume_throw i x hs] (Tf (ts ++ [:: T_ref (T_contref (Tf t1s t2s))]) t2s)
               
 
 | bet_try_table: forall C C' t1s t2s cs es i,
     get_type C i = Some (Tf t1s t2s) ->
-    List.Forall (fun c => exception_clause_typing C c) cs ->
+    List.Forall (fun c => exception_clause_identifier_typing C c) cs ->
     C' = upd_label C ([::t2s] ++ tc_label C) ->
     be_typing C' es (Tf t1s t2s) ->
     be_typing C [:: BI_try_table i cs es] (Tf t1s t2s)
@@ -480,6 +481,32 @@ Definition strip C :=
 Definition empty_context :=
   Build_t_context [::] [::] [::] [::] [::] [::] [::] None [::] [::].
 
+
+Inductive exception_clause_typing : store_record -> t_context -> exception_clause -> Prop :=
+| edt_catch : forall s C x l (ts: list value_type),
+    List.nth_error (s_tags s) x = Some (Tf ts [::]) ->
+    List.nth_error (tc_label C) l = Some ts ->
+    exception_clause_typing s C (DE_catch (Mk_tagidx x) l) 
+| edt_catch_ref : forall s C x l ts,
+    List.nth_error (s_tags s) x = Some (Tf ts [::]) ->
+    List.nth_error (tc_label C) l = Some (ts ++ [:: T_ref T_exnref]) ->
+    exception_clause_typing s C (DE_catch_ref (Mk_tagidx x) l)
+| edt_catch_all : forall s C l,
+    List.nth_error (tc_label C) l = Some [::] ->
+    exception_clause_typing s C (DE_catch_all l)
+| edt_catch_all_ref: forall s C l,
+    List.nth_error (tc_label C) l = Some [:: T_ref T_exnref] ->
+    exception_clause_typing s C (DE_catch_all_ref l)
+  .
+
+  Inductive continuation_clause_typing : store_record -> t_context -> continuation_clause -> list value_type -> Prop :=
+  | cdt_clause : forall s C x l t1s' t2s' t2s,
+      List.nth_error (s_tags s) x = Some (Tf t1s' t2s') ->
+      List.nth_error (tc_label C) l = Some (t1s' ++ [::T_ref (T_contref (Tf t2s' t2s))]) ->
+      continuation_clause_typing s C (DC_catch (Mk_tagidx x) l) t2s
+  .
+
+
 Inductive frame_typing: store_record -> frame -> t_context -> Prop :=
 | mk_frame_typing: forall s i tvs C f,
     inst_typing s i C ->
@@ -522,13 +549,13 @@ with e_typing : store_record -> t_context -> seq administrative_instruction -> f
     e_typing s C [:: AI_ref_exn k] (Tf [::] [::T_ref T_exnref])
 | ety_suspend_desugared : forall s C x tf,
     List.nth_error (s_tags s) x = Some tf ->
-    e_typing s C [::AI_suspend_desugared x] tf
+    e_typing s C [::AI_suspend_desugared (Mk_tagidx x)] tf
 | ety_prompt : forall s C hs es ts,
-    List.Forall (fun h => continuation_clause_typing C h ts) hs ->
+    List.Forall (fun h => continuation_clause_typing s C h ts) hs ->
     e_typing s empty_context es (Tf [::] ts) -> 
     e_typing s C [:: AI_prompt ts hs es] (Tf [::] ts) (* enforcing the type to be same as annotation *)
 | ety_handler : forall s C hs es ts,
-    List.Forall (fun h => exception_clause_typing C h) hs ->
+    List.Forall (fun h => exception_clause_typing s C h) hs ->
     e_typing s C es (Tf [::] ts) -> 
     e_typing s C [:: AI_handler hs es] (Tf [::] ts) 
              
@@ -614,7 +641,12 @@ Definition glob_sound s g :=
 (*  typeof s (g_val g) <> None.   *)
 
 Definition exn_sound s e :=
-  exists ts, e_typing s empty_context (v_to_e_list (e_fields e)) (Tf [::] ts) /\ List.nth_error (s_tags s) (e_tag e) = Some (Tf ts [::]). 
+  exists ts,
+    e_typing s empty_context (v_to_e_list (e_fields e)) (Tf [::] ts) /\
+      match (e_tag e) with 
+        Mk_tagidx x => List.nth_error (s_tags s) x = Some (Tf ts [::])
+      end .
+        
 
 
 Definition store_typing (s : store_record) : Prop :=

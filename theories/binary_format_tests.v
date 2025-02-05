@@ -89,7 +89,8 @@ Definition empty_module := {|
   mod_data := nil;
   mod_start := None;
   mod_imports := nil;
-  mod_exports := nil;
+                            mod_exports := nil;
+                            mod_tags := nil;
 |}.
 
 Lemma empty_module_round_trip : run_parse_module (binary_of_module empty_module) = Some empty_module.
@@ -105,7 +106,8 @@ Definition module_type := {|
   mod_data := nil;
   mod_start := None;
   mod_imports := nil;
-  mod_exports := nil;
+                           mod_exports := nil;
+                           mod_tags := nil;
 |}.
 
 Lemma module_type_round_trip :
@@ -123,7 +125,8 @@ Definition module_type_fun := {|
   mod_data := nil;
   mod_start := None;
   mod_imports := nil;
-  mod_exports := nil;
+                               mod_exports := nil;
+                                                          mod_tags := nil;
 |}.
 
 Lemma module_type_fun_round_trip :
@@ -142,7 +145,8 @@ Definition module_42 := {|
   mod_data := nil;
   mod_start := None;
   mod_imports := nil;
-  mod_exports := nil;
+                         mod_exports := nil;
+                                                    mod_tags := nil;
 |}.
 
 Lemma module_42_round_trip :
@@ -161,7 +165,8 @@ Definition module_42_exported := {|
   mod_data := nil;
   mod_start := None;
   mod_imports := nil;
-  mod_exports := cons {| modexp_name := String.list_byte_of_string "hello"; modexp_desc := MED_func (Mk_funcidx 0); |} nil;
+                                  mod_exports := cons {| modexp_name := String.list_byte_of_string "hello"; modexp_desc := MED_func (Mk_funcidx 0); |} nil;
+                                                             mod_tags := nil;
 |}.
 
 Lemma module_42_exported_round_trip :

@@ -10,14 +10,14 @@ Unset Printing Implicit Defensive.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Definition terminal_form s i (es: seq administrative_instruction) :=
+Definition terminal_form s (es: seq administrative_instruction) :=
   const_list es \/ es = [::AI_trap] \/
     (exists hh a exn,
         List.nth_error (s_exns s) a = Some exn /\
-          hfilled (Var_handler (e_tag exn) i) hh [:: AI_ref_exn a; AI_basic BI_throw_ref] es) \/
+          hfilled (Var_handler (e_tag exn)) hh [:: AI_ref_exn a; AI_basic BI_throw_ref] es) \/
     (exists x hh,
 (*        List.nth_error (s_tags s) x = Some tf /\ *)
-        hfilled (Var_prompt x i) hh [:: AI_suspend_desugared x] es)
+        hfilled (Var_prompt x) hh [:: AI_suspend_desugared x] es)
 .
 
 
@@ -175,7 +175,7 @@ Proof.
 
 Qed. *)
 
-Lemma terminal_trap s i : terminal_form s i [::AI_trap].
+Lemma terminal_trap s : terminal_form s [::AI_trap].
 Proof.
   unfold terminal_form. by right; left.
 Qed.
@@ -1034,12 +1034,17 @@ Proof.
         exact Hf0.
     + simpl in Hv. destruct (List.nth_error _ e) => //.
   - (* Try_table *)
+    subst.
     right.
     repeat eexists.
-    apply r_try_table. done. apply v_to_e_is_const_list.
+    eapply r_try_table.
+    erewrite stypes_get_type.
+    exact H. apply inst_typing_types in HIT => //.
+    done.
+    apply v_to_e_is_const_list.
     do 2 rewrite length_is_size.
-    rewrite size_map - (size_map Some ts1) - H7 size_map => //.
-    eapply List.Forall_impl; last exact H.
+    rewrite size_map - (size_map Some ts1) - H8 size_map => //.
+    eapply List.Forall_impl; last exact H0.
     intros cl Hcl.
     simpl in Hcl. unfold clause_addr_defined.
 
@@ -1047,9 +1052,9 @@ Proof.
     apply all2_Forall2 in HIT.
     apply List.Forall2_flip in HIT.
     inversion Hcl; subst => //.
-    eapply Forall2_nth_error in HIT as (tag & Htag & _); last exact H4.
+    eapply Forall2_nth_error in HIT as (tag & Htag & _); last exact H1.
     by rewrite Htag.
-    eapply Forall2_nth_error in HIT as (tag & Htag & _); last exact H4.
+    eapply Forall2_nth_error in HIT as (tag & Htag & _); last exact H1.
     by rewrite Htag. 
                              
   - (* Block *)
@@ -1341,7 +1346,7 @@ Proof.
       edestruct IHHType2; eauto.
       { by eapply nlfbr_left; try apply v_to_e_is_const_list; eauto. }
       { by eapply nlfret_left; try apply v_to_e_is_const_list; eauto. }
-      { by eapply nlfthr_left; try apply v_to_e_is_const_list; eauto.}
+      { by eapply nlfthr_left; try apply v_to_e_is_const_list; eauto. }
 (*      { by eapply nlfsus_left; try apply v_to_e_is_const_list; eauto. }  *)
       { instantiate (1 := vcs ++ cs).
         do 2 rewrite map_cat. rewrite H5 Hcs. done.
@@ -1594,14 +1599,18 @@ Proof.
     + simpl in Hv. destruct (List.nth_error _ e) => //. 
   - (* Try_table *)
     right.
+    destruct i as [i | [t1s t2s]]; first by destruct i.
+    inversion H; subst.
     repeat eexists.
-    apply r_try_table. done. apply v_to_e_is_const_list.
+    eapply r_try_table.
+    done.
+    done. apply v_to_e_is_const_list.
     do 2 rewrite length_is_size.
-    rewrite size_map - (size_map Some ts1) - H15 size_map => //.
+    rewrite size_map - (size_map Some ts1) - H16 size_map => //.
 (*    destruct cs => //.
     inversion H; subst.
     inversion H3; subst; try by destruct x => //.  *)
-    eapply List.Forall_impl; last exact H.
+    eapply List.Forall_impl; last exact H0.
     intros cl Hcl.
     simpl in Hcl.
     
@@ -1735,7 +1744,7 @@ Proof.
       edestruct IHHType2; eauto.
       { by eapply nlfbr_left; try apply v_to_e_is_const_list; eauto. }
       { by eapply nlfret_left; try apply v_to_e_is_const_list; eauto. }
-      { by eapply nlfthr_left; try apply v_to_e_is_const_list; eauto.}
+      { by eapply nlfthr_left; try apply v_to_e_is_const_list; eauto. }
 (*      { by eapply nlfsus_left; try apply v_to_e_is_const_list; eauto. }  *)
       { instantiate (1 := vcs ++ cs).
         do 2 rewrite map_cat. rewrite H13 Hcs. done.

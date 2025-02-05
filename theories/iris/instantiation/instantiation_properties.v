@@ -6,6 +6,7 @@ From stdpp Require Import list fin_maps gmap.
 From Wasm Require Export stdpp_aux.
 From Wasm Require Export type_preservation type_progress.
 
+Set Bullet Behavior "Strict Subproofs".
 
 Section module_typing_det.
   
@@ -129,7 +130,7 @@ Proof.
     inversion H2; subst; clear H2.
     destruct x; simpl in *.
     unfold module_export_typing in *.
-    destruct modexp_desc; [destruct f | destruct t | destruct m | destruct g]; simpl in *; destruct e; destruct e0 => //=.
+    destruct modexp_desc. 5:{  ; [destruct f | destruct t | destruct m | destruct g | destruct t]; simpl in *; destruct e; destruct e0 => //=.
     { (* func *)
       move/andP in H1; destruct H1.
       move/andP in H4; destruct H4.
@@ -538,20 +539,20 @@ Proof.
     destruct IHmodglobs as [? [? [? [? ?]]]] => //.
     + by lias.
     + by rewrite Heqfold_res.
-    repeat split => //.
-    + rewrite H.
-      rewrite H0.
-      rewrite length_app length_fmap length_combine.
-      repeat f_equal.
-      by lias.
-    + rewrite H0.
-      rewrite - app_assoc.
-      f_equal.
-      rewrite combine_app => /=.
-      rewrite -> list_fmap_app => /=.
-      repeat f_equal.
-      destruct x => //.
-      by lias.
+    + repeat split => //.
+      * rewrite H.
+        rewrite H0.
+        rewrite length_app length_fmap length_combine.
+        repeat f_equal.
+        by lias.
+      * rewrite H0.
+        rewrite - app_assoc.
+        f_equal.
+        rewrite combine_app => /=.
+        rewrite -> list_fmap_app => /=.
+        repeat f_equal.
+        destruct x => //.
+        by lias.
 Qed.
 
 Lemma init_tabs_preserve ws inst e_inits melem ws':
@@ -638,9 +639,9 @@ Lemma bet_const_exprs_len tc es t1 t2:
 Proof.
   move: t1 t2.
   induction es; move => t1 t2 Hconst Hbet; destruct t2 => //=.
-  { apply empty_typing in Hbet. by subst. }
-  { apply empty_typing in Hbet. by subst. }
-  { rewrite <- cat1s in Hbet.
+  - apply empty_btyping in Hbet. by subst.
+  - apply empty_btyping in Hbet. by subst. 
+  - rewrite <- cat1s in Hbet.
     apply composition_typing in Hbet.
     destruct Hbet as [ts [t1s [t2s [t3s [-> [Heqt2 [Hbet1 Hbet2]]]]]]].
     destruct ts, t2s => //=.
@@ -651,15 +652,12 @@ Proof.
     destruct es, t3s => //=.
     unfold const_expr in Hconst.
     destruct a => //.
-    { apply Get_global_typing in Hbet1.
+    + apply Get_global_typing in Hbet1.
       destruct Hbet1 as [t [? [HContra ?]]].
       by destruct t1s.
-    }
-    { apply BI_const_typing in Hbet1.
+    + apply BI_const_typing in Hbet1.
       by destruct t1s.
-    }
-  }
-  { rewrite <- cat1s in Hbet.
+  - rewrite <- cat1s in Hbet.
     apply composition_typing in Hbet.
     destruct Hbet as [ts [t1s [t2s [t3s [-> [Heqt2 [Hbet1 Hbet2]]]]]]].
     simpl in Hconst.
@@ -675,20 +673,17 @@ Proof.
     }
     unfold const_expr in Hconst.
     destruct a => //.
-    { apply Get_global_typing in Hbet1.
+    + apply Get_global_typing in Hbet1.
       destruct Hbet1 as [t [? [HContra ?]]].
       subst.
       rewrite -> length_app in *.
       simpl in *.
       by lias.
-    }
-    { apply BI_const_typing in Hbet1.
+    + apply BI_const_typing in Hbet1.
       subst.
       rewrite -> length_app in *.
       simpl in *.
       by lias.
-    }
-  }
 Qed.
   
 Lemma const_exprs_impl tc es t:
@@ -707,36 +702,43 @@ Proof.
 Qed.
 
 Lemma const_no_reduce s f v s' f' e':
-  reduce s f [AI_basic (BI_const v)] s' f' e' ->
+  reduce s f [AI_const v] s' f' e' ->
   False.
 Proof.
   move => Hred.
-  dependent induction Hred; subst; try by repeat destruct vcs => //.
-  { inversion H; subst; clear H; try by repeat destruct vs => //.
-    by apply lfilled_implies_starts in H1 => //.
-  }
-  { move/lfilledP in H.
-    inversion H; subst; clear H; last by repeat destruct vs => //.
+  dependent induction Hred; subst;
+    (try by do 2 destruct v => //);
+    (try by do 2 (destruct vs; first by do 2 destruct v => //));
+    try by do 3 (destruct vcs; first by do 2 destruct v => //).
+  - inversion H; subst; clear H;
+      (try by do 2 destruct v => //);
+      try by do 3 (destruct vs; first by do 2 destruct v => //)
+    .
+    apply lfilled_implies_starts in H1 => //.
+    destruct v => //. destruct v => //. 
+  - move/lfilledP in H.
+    inversion H; subst; clear H;
+      (try by do 3 (destruct bef; first by do 2 destruct v => //));
+      try by do 3 (destruct vs; first by do 2 destruct v => //).
     destruct vs => //=; last first.
-    { destruct vs, es, es'0 => //=.
+    * destruct vs, es, es'0 => //=.
       by apply reduce_not_nil in Hred.
-    }
-    destruct es => //=; first by apply reduce_not_nil in Hred.
-    destruct es, es'0 => //=.
-    simpl in H1.
-    inversion H1; subst; clear H1.
-    by eapply IHHred.
-  }
+    * destruct es => //=; first by apply reduce_not_nil in Hred.
+      destruct es, es'0 => //=.
+      simpl in H1.
+      inversion H1; subst; clear H1.
+      by eapply IHHred.
 Qed.
   
 Lemma reduce_trans_const s1 f1 v1 s2 f2 v2:
-  reduce_trans (s1, f1, [AI_basic (BI_const v1)]) (s2, f2, [AI_basic (BI_const v2)]) ->
+  reduce_trans (s1, f1, [AI_const v1]) (s2, f2, [AI_const v2]) ->
   v1 = v2.
 Proof.
   move => Hred.
   unfold reduce_trans in Hred.
   apply Operators_Properties.clos_rt_rt1n_iff in Hred.
   inversion Hred => //.
+  { apply const_inj in H2 as ->. done. } 
   unfold reduce_tuple in H.
   destruct y as [[??]?].
   by apply const_no_reduce in H.
@@ -744,16 +746,15 @@ Qed.
 
 Lemma reduce_get_global s f s' f' i e:
   reduce s f [AI_basic (BI_get_global i)] s' f' e ->
-  exists v, sglob_val s (f_inst f) i = Some v /\ e = [AI_basic (BI_const v)].
+  exists v, sglob_val s (f_inst f) i = Some v /\ e = [AI_const v].
 Proof.
   move => Hred.
-  dependent induction Hred; subst; try by repeat destruct vcs => //.
-  { inversion H; subst; clear H; try by repeat destruct vs => //.
+  dependent induction Hred; subst; (try by do 2 destruct vs => //); try by repeat destruct vcs => //.
+  - inversion H; subst; clear H; try by repeat destruct vs => //.
     by apply lfilled_implies_starts in H1 => //.
-  }
-  { by exists v. }
-  { move/lfilledP in H.
-    inversion H; subst; clear H; last by repeat destruct vs => //.
+  - by eexists v. 
+  - move/lfilledP in H.
+    inversion H; subst; clear H; (try by repeat destruct bef => //); try by repeat destruct vs => //.
     destruct vs => //=; last first.
     { inversion H1; subst.
       by destruct vs => //=.
@@ -768,22 +769,24 @@ Proof.
     inversion H0; subst; clear H0.
     simpl; rewrite cats0.
     by apply IHHred.
-  }
+
 Qed.
     
 Lemma reduce_trans_get_global s f s' f' i v:
-  reduce_trans (s, f, [AI_basic (BI_get_global i)]) (s', f', [AI_basic (BI_const v)]) ->
+  reduce_trans (s, f, [AI_basic (BI_get_global i)]) (s', f', [AI_const v]) ->
   sglob_val s (f_inst f) i = Some v.
 Proof.
   move => Hred.
   unfold reduce_trans in *.
   apply Operators_Properties.clos_rt_rt1n_iff in Hred.
   inversion Hred; subst; clear Hred.
+  { destruct v => //. destruct v => //. } 
   destruct y as [[??]?].
   unfold reduce_tuple in H.
   apply reduce_get_global in H.
   destruct H as [v' [Hsgv ->]].
   inversion H0; subst; clear H0 => //.
+  { apply const_inj in H3 as ->. done. } 
   unfold reduce_tuple in H.
   destruct y as [[??]?].
   by apply const_no_reduce in H.
@@ -805,8 +808,8 @@ Proof.
   apply list_eq.
   move => i.
   destruct (gi1 !! i) as [v1 | ] eqn:Hg1; last first.
-  { destruct (gi2 !! i) eqn:Hg2 => //; by apply lookup_lt_Some in Hg2; apply lookup_ge_None in Hg1; lias. }
-  { destruct (gi2 !! i) as [v2 | ] eqn:Hg2 => //; last by apply lookup_lt_Some in Hg1; apply lookup_ge_None in Hg2; lias.
+  - destruct (gi2 !! i) eqn:Hg2 => //; by apply lookup_lt_Some in Hg2; apply lookup_ge_None in Hg1; lias. 
+  - destruct (gi2 !! i) as [v2 | ] eqn:Hg2 => //; last by apply lookup_lt_Some in Hg1; apply lookup_ge_None in Hg2; lias.
     rewrite -> Forall2_lookup in Hgi1.
     rewrite -> Forall2_lookup in Hgi2.
     rewrite -> Forall2_lookup in Hmgt.
@@ -828,7 +831,7 @@ Proof.
     destruct Hbet as [e [-> Hconste]].
     unfold const_exprs, const_expr in Hconste.
     destruct e => //; simpl in *.
-    { apply reduce_trans_get_global in H1.
+    + apply reduce_trans_get_global in H1.
       apply reduce_trans_get_global in H3.
       specialize (Hsgveq i0).
       simpl in H1, H3.
@@ -839,12 +842,11 @@ Proof.
       move/ssrnat.ltP in Hilen.
       rewrite <- Hsgveq in H3 => //.
       by rewrite H3 in H1.
-    }
-    { apply reduce_trans_const in H1.
+    + fold (AI_const (VAL_num v)) in H1.
+      apply reduce_trans_const in H1.
+      fold (AI_const (VAL_num v)) in H3.
       apply reduce_trans_const in H3.
       by subst.
-    }
-  }
 Qed.
 
 Lemma module_elem_init_det m v_imps t_imps inst s eo1 eo2:
@@ -884,14 +886,19 @@ Proof.
     destruct Hbet as [e [-> Hconste]].
     unfold const_exprs, const_expr in Hconste.
     destruct e => //; simpl in *.
-    { apply reduce_trans_get_global in H1.
+    { fold (AI_const (VAL_num (VAL_int32 v2))) in H3.
+      fold (AI_const (VAL_num (VAL_int32 v1))) in H1.
+      apply reduce_trans_get_global in H1.
       apply reduce_trans_get_global in H3.
       rewrite H1 in H3.
       by inversion H3.
     }
-    { apply reduce_trans_const in H1.
+    { fold (AI_const (VAL_num (VAL_int32 v2))) in H3.
+      fold (AI_const (VAL_num (VAL_int32 v1))) in H1.
+      fold (AI_const (VAL_num v)) in H1, H3.
+      apply reduce_trans_const in H1.
       apply reduce_trans_const in H3.
-      subst; by inversion H1.
+      rewrite H1 in H3; inversion H3. done.
     }
   }
 Qed.
@@ -933,14 +940,20 @@ Proof.
     destruct Hbet as [e [-> Hconste]].
     unfold const_exprs, const_expr in Hconste.
     destruct e => //; simpl in *.
-    { apply reduce_trans_get_global in H1.
+    { fold_const_in (VAL_int32 v1) H1.
+      apply reduce_trans_get_global in H1.
+      fold_const_in (VAL_int32 v2) H3.
       apply reduce_trans_get_global in H3.
       rewrite H1 in H3.
       by inversion H3.
     }
-    { apply reduce_trans_const in H1.
+    { fold_const_in v H1.
+      fold_const_in (VAL_int32 v1) H1.
+      apply reduce_trans_const in H1.
+      fold_const_in v H3.
+      fold_const_in (VAL_int32 v2) H3.
       apply reduce_trans_const in H3.
-      subst; by inversion H1.
+      rewrite H3 in H1; by inversion H1.
     }
   }
 Qed.
@@ -1124,7 +1137,9 @@ Proof.
   move/eqP in Ham1; move/eqP in Ham2.
   assert (g_inits = g_inits') as Heqgi.
   {
-    eapply module_glob_init_det => //.
+    eapply module_glob_init_det.
+    2: exact Hinitg1.
+    2: exact Hinitg2.
     move => i Hilen.
     unfold sglob_val, sglob, sglob_ind => /=.
     repeat rewrite nth_error_lookup.

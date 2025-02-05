@@ -1733,6 +1733,7 @@ Definition instantiation_resources_post_wasm m v_imps t_imps wfs wts wms wgs (id
   ∃ (g_inits: list value) tab_allocs mem_allocs glob_allocs wts' wms',  
   import_resources_wasm_typecheck v_imps t_imps wfs wts' wms' wgs ∗ (* locations in the wasm store and type-checks; this described the new contents of tables and memories that have been modified by the initialisers *)
     ⌜ inst.(inst_types) = m.(mod_types) /\
+    (* something about tags? *)
    (* We know what the imported part of the instance must be. *)
   let v_imp_descs := map (fun mexp => mexp.(modexp_desc)) v_imps in
     prefix (ext_func_addrs v_imp_descs) inst.(inst_funcs) /\

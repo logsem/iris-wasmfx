@@ -288,7 +288,18 @@ Definition eqvalue_typeP : Equality.axiom value_type_eqb :=
   eq_dec_Equality_axiom value_type_eq_dec.
 
 Canonical Structure value_type_eqMixin := Equality.Mixin eqvalue_typeP.
-Canonical Structure value_type_eqType := Eval hnf in Equality.Pack (sort := value_type) (Equality.Class value_type_eqMixin). 
+Canonical Structure value_type_eqType := Eval hnf in Equality.Pack (sort := value_type) (Equality.Class value_type_eqMixin).
+(*
+Definition list_value_type_eq_dec : forall t1 t2: list value_type,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof. decidable_equality. Qed.
+
+Definition list_value_type_eqb v1 v2 : bool := list_value_type_eq_dec v1 v2.
+Definition eqlist_value_typeP : Equality.axiom list_value_type_eqb :=
+  eq_dec_Equality_axiom list_value_type_eq_dec.
+
+Canonical Structure list_value_type_eqMixin := Equality.Mixin eqlist_value_typeP.
+ Canonical Structure list_value_type_eqType := Eval hnf in Equality.Pack (sort := list value_type) (Equality.Class list_value_type_eqMixin).  *)
 
 Scheme Equality for packed_type.
 Definition packed_type_eqb v1 v2 : bool := packed_type_eq_dec v1 v2.
@@ -714,6 +725,39 @@ Definition eqcontinuationP : Equality.axiom continuation_eqb :=
 
 Canonical Structure continuation_eqMixin := Equality.Mixin eqcontinuationP.
 Canonical Structure continuation_eqType := Eval hnf in Equality.Pack (sort := continuation) (Equality.Class continuation_eqMixin).
+
+Definition continuation_clause_eq_dec: forall r1 r2: continuation_clause, { r1 = r2 } + { r1 <> r2 }.
+Proof.
+  decidable_equality.
+Defined.
+Definition continuation_clause_eqb c1 c2 := is_left (continuation_clause_eq_dec c1 c2).
+Definition eqcontinuation_clauseP : Equality.axiom continuation_clause_eqb :=
+  eq_dec_Equality_axiom continuation_clause_eq_dec.
+
+Canonical Structure continuation_clause_eqMixin := Equality.Mixin eqcontinuation_clauseP.
+Canonical Structure continuation_clause_eqType := Eval hnf in Equality.Pack (sort := continuation_clause) (Equality.Class continuation_clause_eqMixin).
+
+Definition exception_clause_eq_dec: forall r1 r2: exception_clause, { r1 = r2 } + { r1 <> r2 }.
+Proof.
+  decidable_equality.
+Defined.
+Definition exception_clause_eqb c1 c2 := is_left (exception_clause_eq_dec c1 c2).
+Definition eqexception_clauseP : Equality.axiom exception_clause_eqb :=
+  eq_dec_Equality_axiom exception_clause_eq_dec.
+
+Canonical Structure exception_clause_eqMixin := Equality.Mixin eqexception_clauseP.
+Canonical Structure exception_clause_eqType := Eval hnf in Equality.Pack (sort := exception_clause) (Equality.Class exception_clause_eqMixin).
+
+Definition tagidx_eq_dec: forall r1 r2: tagidx, { r1 = r2 } + { r1 <> r2 }.
+Proof.
+  decidable_equality.
+Defined.
+Definition tagidx_eqb c1 c2 := is_left (tagidx_eq_dec c1 c2).
+Definition eqtagidxP : Equality.axiom tagidx_eqb :=
+  eq_dec_Equality_axiom tagidx_eq_dec.
+
+Canonical Structure tagidx_eqMixin := Equality.Mixin eqtagidxP.
+Canonical Structure tagidx_eqType := Eval hnf in Equality.Pack (sort := tagidx) (Equality.Class tagidx_eqMixin).
 
 Definition res_step_eq_dec : forall r1 r2 : res_step, {r1 = r2} + {r1 <> r2}.
 Proof.

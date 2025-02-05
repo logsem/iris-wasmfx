@@ -92,39 +92,62 @@ Definition new_cont s cont :=
     s_tags := s.(s_tags);
   |}.
 
+Definition desugar_tag_identifier inst x :=
+  match x with
+  | Mk_tagident x =>
+      match List.nth_error (inst_tags inst) x with
+      | Some a => Some (Mk_tagidx a)
+      | None => None
+      end
+  end.
 
+Definition desugar_continuation_clause inst h :=
+  match h with
+  | HC_catch x y =>
+      match desugar_tag_identifier inst x with
+      | Some x => Some (DC_catch x y)
+      | None => None
+      end
+  end.
+
+Definition desugar_exception_clause inst h :=
+  match h with
+  | HE_catch x y =>
+      match desugar_tag_identifier inst x with
+      | Some x => Some (DE_catch x y)
+      | None => None
+      end
+  | HE_catch_ref x y =>
+      match desugar_tag_identifier inst x with
+      | Some x => Some (DE_catch_ref x y)
+      | None => None
+      end
+  | HE_catch_all y => Some (DE_catch_all y)
+  | HE_catch_all_ref y => Some (DE_catch_all_ref y)
+  end.
                                    
 
-Fixpoint firstx_exception hs inst x :=
+Fixpoint firstx_exception hs (x : tagidx) :=
   match hs with
-  | HE_catch y l :: q =>
-      match List.nth_error (inst_tags inst) y with
-      | Some a => 
-          if Nat.eqb x a then Clause_label l else firstx_exception q inst x
-      | None =>
-          No_label
-      end
-  | HE_catch_ref y l :: q =>
-      match List.nth_error (inst_tags inst) y with
-      | Some a => 
-          if Nat.eqb x a then Clause_label_ref l else firstx_exception q inst x
-      | None =>
-          No_label
-      end
-  | HE_catch_all l :: _ => Clause_label l
-  | HE_catch_all_ref l :: _ => Clause_label_ref l
+  | DE_catch y l :: q =>
+      if x == y
+      then Clause_label l
+      else firstx_exception q x
+  | DE_catch_ref y l :: q =>
+      if x == y
+      then Clause_label_ref l
+      else firstx_exception q x
+  | DE_catch_all l :: _ => Clause_label l
+  | DE_catch_all_ref l :: _ => Clause_label_ref l
   | [::] => No_label
   end.
 
-Fixpoint firstx_continuation hs inst x :=
+Fixpoint firstx_continuation hs x :=
   match hs with
-  | HC_catch y l :: q =>
-      match List.nth_error (inst_tags inst) y with
-      | Some a => 
-          if Nat.eqb x a then Some l else firstx_continuation q inst x
-      | None =>
-          None
-      end
+  | DC_catch y l :: q =>
+      if x == y
+      then Some l
+      else firstx_continuation q x
   | [::] => None
   end.
 
@@ -997,27 +1020,30 @@ Fixpoint lh_depth lh :=
   end.
 
 
-Definition update_avoiding x f :=
+(* Definition update_avoiding x f :=
   match x with
   | Var_prompt x _ => Var_prompt x (f_inst f)
   | Var_handler x _ => Var_handler x (f_inst f)
   | No_var => No_var
-  end.
+  end. *)
 
 Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction) : option (seq administrative_instruction) :=
   match hh with
   | HH_base bef aft =>
-      if const_list bef then Some (bef ++ es ++ aft) else None
+      if const_list bef
+      then Some (bef ++ es ++ aft)
+      else None
   | HH_label bef n cont hh aft =>
       if const_list bef then
       match hfill x hh es with
-      | Some LI => Some (bef ++ [:: AI_label n cont LI] ++ aft)
+      | Some LI =>
+          Some (bef ++ [:: AI_label n cont LI] ++ aft)
       | None => None
       end
       else None
   | HH_local bef n f hh aft =>
       if const_list bef then
-      match hfill (update_avoiding x f) hh es with
+      match hfill x hh es with
       | Some LI => Some (bef ++ [:: AI_local n f LI] ++ aft)
       | None => None
       end
@@ -1025,7 +1051,8 @@ Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction
   | HH_prompt bef ts hs hh aft =>
       if const_list bef then
         if match x with
-             Var_prompt x inst => firstx_continuation hs inst x == None
+             Var_prompt x =>
+               firstx_continuation hs x == None
            | _ => true
            end
         then match hfill x hh es with
@@ -1037,7 +1064,7 @@ Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction
   | HH_handler bef hs hh aft =>
       if const_list bef then
         if match x with
-             Var_handler x inst => firstx_exception hs inst x == No_label
+             Var_handler x => firstx_exception hs x == No_label
            | _ => true
            end
         then match hfill x hh es with
@@ -1060,16 +1087,15 @@ Inductive hfilledInd : avoiding -> hholed -> seq administrative_instruction -> s
     const_list vs ->
     hfilledInd x hh' es LI ->
     hfilledInd x (HH_label vs n es' hh' es'') es (vs ++ [ :: (AI_label n es' LI) ] ++ es'')
-| HfilledLocal: forall x x' vs n f hh' es'' es LI,
+| HfilledLocal: forall x vs n f hh' es'' es LI,
     const_list vs ->
-    x' = update_avoiding x f ->
-    hfilledInd x' hh' es LI ->
+    hfilledInd x hh' es LI ->
     hfilledInd x (HH_local vs n f hh' es'') es (vs ++ [:: (AI_local n f LI) ] ++ es'')
 | HfilledPrompt: forall bef ts hs hh' aft x es LI,
     const_list bef ->
     match x with
-      Var_prompt x inst => 
-        firstx_continuation hs inst x = None
+      Var_prompt x => 
+        firstx_continuation hs x = None
     | _ => True
     end ->
     hfilledInd x hh' es LI ->
@@ -1077,8 +1103,8 @@ Inductive hfilledInd : avoiding -> hholed -> seq administrative_instruction -> s
 | HfilledHandler: forall bef hs hh' aft x es LI,
     const_list bef ->
     match x with
-      Var_handler x inst => 
-        firstx_exception hs inst x = No_label
+      Var_handler x => 
+        firstx_exception hs x = No_label
     | _ => True
     end ->
     hfilledInd x hh' es LI ->
@@ -1109,8 +1135,8 @@ Proof.
       rewrite Hfill => //.
     + unfold hfilled in Hfix. simpl in Hfix.
       destruct (const_list l) eqn:Hl => //.
-      destruct x as [x inst| |] => //.
-      destruct (firstx_exception _ _ _ == _) eqn:Hclauses => //.
+      destruct x as [x | |] => //.
+      destruct (firstx_exception _ _ == _) eqn:Hclauses => //.
       move/eqP in Hclauses.
       all: destruct (hfill _ _ _) eqn:Hfill => //.
       all: move/eqP in Hfix.
@@ -1121,8 +1147,8 @@ Proof.
       all: rewrite Hfill => //. 
     + unfold hfilled in Hfix. simpl in Hfix.
       destruct (const_list l) eqn:Hl => //.
-      destruct x as [|x inst|] => //.
-      2: destruct (firstx_continuation _ _ _ == _) eqn:Hclauses => //.
+      destruct x as [|x |] => //.
+      2: destruct (firstx_continuation _ _ == _) eqn:Hclauses => //.
       2: move/eqP in Hclauses.
       all: destruct (hfill _ _ _) eqn:Hfill => //.
       all: move/eqP in Hfix.
@@ -1137,12 +1163,11 @@ Proof.
       destruct (hfill _ _ _) => //.
       move/eqP in IHHLF. subst LI. done.
     + rewrite H. unfold hfilled in IHHLF.
-      subst x'.
       destruct (hfill _ _ _) => //.
       move/eqP in IHHLF. subst LI. done.
     + rewrite H.
-      destruct x as [|x inst|] => //.
-      2: destruct (firstx_continuation _ _ _ == _) eqn:Hclauses => //. 
+      destruct x as [|x |] => //.
+      2: destruct (firstx_continuation _ _ == _) eqn:Hclauses => //. 
       all: unfold hfilled in IHHLF.
       all: destruct (hfill _ _ _) => //.
       all: move/eqP in IHHLF.
@@ -1150,8 +1175,8 @@ Proof.
       all: try done.
       rewrite H0 in Hclauses. done.
     + rewrite H.
-      destruct x as [x inst| |] => //.
-      destruct (firstx_exception _ _ _ == _) eqn:Hclauses => //. 
+      destruct x as [x | |] => //.
+      destruct (firstx_exception _ _ == _) eqn:Hclauses => //. 
       all: unfold hfilled in IHHLF.
       all: destruct (hfill _ _ _) => //.
       all: move/eqP in IHHLF.
@@ -1347,6 +1372,8 @@ Proof.
   - by apply Bool.andb_true_iff in Hvs2 as [ _ Hvs2 ].  
 Qed.
 
+
+(*
 Definition clause_addr_defined inst clause :=
   match clause with
   | HE_catch x _ | HE_catch_ref x _ =>
@@ -1357,3 +1384,4 @@ Definition clause_addr_defined inst clause :=
   | _ => True
   end
 .
+*)

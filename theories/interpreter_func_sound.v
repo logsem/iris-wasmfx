@@ -11,7 +11,8 @@ Unset Printing Implicit Defensive.
 
 Require Import operations opsem interpreter_func properties.
 
-
+(** TODO: adapt the interpreter to WasmFX *)
+(*
   
 Global Hint Constructors reduce_simple : core.
 Global Hint Constructors reduce : core.
@@ -1834,3 +1835,4 @@ Proof.
 Qed.
 
 
+*)

@@ -322,16 +322,19 @@ Inductive cvtop : Type :=
   | Tag_lookup : immediate -> tag_identifier
   | Tag_explicit : immediate -> function_type -> tag_identifier
   . *)
-
-  Inductive continuation_clause : Type :=
-  | HC_catch : immediate -> immediate -> continuation_clause  
+  Inductive tag_identifier : Type :=
+| Mk_tagident : immediate -> tag_identifier
 .
 
-Inductive exception_clause : Type :=
-  | HE_catch : immediate -> immediate -> exception_clause
-  | HE_catch_ref : immediate -> immediate -> exception_clause
-  | HE_catch_all : immediate -> exception_clause
-  | HE_catch_all_ref : immediate -> exception_clause
+  Inductive continuation_clause_identifier : Type :=
+  | HC_catch : tag_identifier -> immediate -> continuation_clause_identifier  
+.
+
+Inductive exception_clause_identifier : Type :=
+  | HE_catch : tag_identifier -> immediate -> exception_clause_identifier
+  | HE_catch_ref : tag_identifier -> immediate -> exception_clause_identifier
+  | HE_catch_all : immediate -> exception_clause_identifier
+  | HE_catch_all_ref : immediate -> exception_clause_identifier
 .
 
 (* Inductive handler_clauses : Type :=
@@ -345,6 +348,9 @@ Inductive clause_result : Type :=
 | Clause_label_ref : immediate -> clause_result
 | No_label
 .
+
+
+
   
 Inductive basic_instruction : Type := (* be *)
   | BI_unreachable
@@ -382,16 +388,16 @@ Inductive basic_instruction : Type := (* be *)
 | BI_call_reference : type_identifier -> basic_instruction
 
 (* Wasm exception handling instructions necessary to accomodate WasmFX *)
-| BI_try_table: type_identifier -> list exception_clause -> list basic_instruction -> basic_instruction
+| BI_try_table: type_identifier -> list exception_clause_identifier -> list basic_instruction -> basic_instruction
 | BI_throw : immediate -> basic_instruction
 | BI_throw_ref : basic_instruction
 
   (* New wasmFX instructions: *)
 | BI_contnew : type_identifier -> basic_instruction
-| BI_resume : type_identifier -> list continuation_clause -> basic_instruction
-| BI_suspend : immediate (* tag_identifier *) -> basic_instruction
+| BI_resume : type_identifier -> list continuation_clause_identifier -> basic_instruction
+| BI_suspend : tag_identifier -> basic_instruction
 | BI_contbind : type_identifier -> type_identifier -> basic_instruction
-| BI_resume_throw : type_identifier -> immediate -> list continuation_clause -> basic_instruction
+| BI_resume_throw : type_identifier -> immediate -> list continuation_clause_identifier -> basic_instruction
   .
 
 (** * Functions and Store **)
@@ -515,14 +521,29 @@ Some instructions are structured in that they bracket nested sequences of instru
 In order to express the reduction of traps, calls, and control instructions,
 the syntax of instructions is extended to include the following administrative
 instructions:
-*)
+ *)
+
+Inductive tagidx : Type :=
+| Mk_tagidx : nat -> tagidx.
+
+Inductive continuation_clause : Type :=
+  | DC_catch : tagidx -> immediate -> continuation_clause 
+.
+
+Inductive exception_clause : Type :=
+  | DE_catch : tagidx -> immediate -> exception_clause
+  | DE_catch_ref : tagidx -> immediate -> exception_clause
+  | DE_catch_all : immediate -> exception_clause
+  | DE_catch_all_ref : immediate -> exception_clause
+.
+
 Inductive administrative_instruction : Type := (* e *)
 | AI_basic : basic_instruction -> administrative_instruction
 | AI_trap
 | AI_ref : funcaddr -> administrative_instruction
 | AI_ref_exn : exnaddr -> administrative_instruction
 | AI_ref_cont : funcaddr -> administrative_instruction
-| AI_suspend_desugared : immediate -> administrative_instruction
+| AI_suspend_desugared : tagidx -> administrative_instruction
 | AI_handler : list exception_clause -> list administrative_instruction -> administrative_instruction
 | AI_prompt : list value_type -> list continuation_clause -> list administrative_instruction -> administrative_instruction
 | AI_invoke : funcaddr -> administrative_instruction
@@ -565,8 +586,8 @@ Inductive hholed : Type := (* Handler context *)
 .
 
 Inductive avoiding : Type := (* The variable not to be captured by a handler/prompt *)
-| Var_handler : immediate -> instance -> avoiding
-| Var_prompt : immediate -> instance -> avoiding
+| Var_handler : tagidx -> avoiding
+| Var_prompt : tagidx -> avoiding
 | No_var : avoiding
 .
 
@@ -576,7 +597,7 @@ Inductive continuation : Type :=
 .
 
 Record exception : Type := {
-    e_tag : immediate ;
+    e_tag : tagidx ;
     e_fields : list value
   } .
 
@@ -624,11 +645,15 @@ Inductive localidx : Type :=
 Inductive globalidx : Type :=
 | Mk_globalidx : nat -> globalidx.
 
+
+
 Inductive import_desc : Type :=
 | ID_func : nat -> import_desc
 | ID_table : table_type -> import_desc
 | ID_mem : memory_type -> import_desc
-| ID_global : global_type -> import_desc.
+| ID_global : global_type -> import_desc
+| ID_tag : nat -> import_desc
+.
 
 Definition name := list Byte.byte.
 
@@ -672,7 +697,9 @@ Inductive module_export_desc : Type :=
 | MED_func : funcidx -> module_export_desc
 | MED_table : tableidx -> module_export_desc
 | MED_mem : memidx -> module_export_desc
-| MED_global : globalidx -> module_export_desc.
+| MED_global : globalidx -> module_export_desc
+| MED_tag : tagidx -> module_export_desc
+.
 
 Record module_export : Type := {
   modexp_name : name;
@@ -696,7 +723,8 @@ Record module : Type := {
   mod_mems : list memory_type;
   mod_globals : list module_glob;
   mod_elem : list module_element;
-  mod_data : list module_data;
+    mod_data : list module_data;
+    mod_tags : list function_type;
   mod_start : option module_start;
   mod_imports : list module_import;
   mod_exports : list module_export;
@@ -707,6 +735,7 @@ Inductive extern_t : Type :=
 | ET_tab : table_type -> extern_t
 | ET_mem : memory_type -> extern_t
 | ET_glob : global_type -> extern_t
+| ET_tag : function_type -> extern_t
 .
 
 

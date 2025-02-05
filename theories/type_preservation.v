@@ -54,8 +54,8 @@ Proof.
   done.
 Qed.
 
-Lemma strip_upd_local: forall C l,
-    strip (upd_local C l) = strip C.
+Lemma strip_upd_local_return: forall C l l0,
+    strip (upd_local_return C l l0) = strip C.
 Proof.
   done.
 Qed.
@@ -141,9 +141,10 @@ Proof.
 Qed.
 
 Lemma AI_suspend_desugared_typing: forall s C x t1s t2s,
-    e_typing s C [::AI_suspend_desugared x] (Tf t1s t2s) ->
-    exists ts t1s' t2s', t1s = ts ++ t1s' /\ t2s = ts ++ t2s' /\
-                      List.nth_error (s_tags s) x = Some (Tf t1s' t2s').
+    e_typing s C [::AI_suspend_desugared (Mk_tagidx x)] (Tf t1s t2s) ->
+    exists ts t1s' t2s',
+      t1s = ts ++ t1s' /\ t2s = ts ++ t2s' /\
+        List.nth_error (s_tags s) x = Some (Tf t1s' t2s').
   move => s C x t1s t2s HType.
   gen_ind_subst HType => //.
   - destruct bes => //.
@@ -483,7 +484,7 @@ Qed.
 Lemma Resume_typing: forall C i hs t1s t2s,
     be_typing C [:: BI_resume i hs] (Tf t1s t2s) ->
     exists ts t1s' t2s', get_type C i = Some (Tf t1s' t2s') /\
-                      List.Forall (fun h => continuation_clause_typing C h t2s') hs /\
+                      List.Forall (fun h => continuation_clause_identifier_typing C h t2s') hs /\
                       t1s = ts ++ t1s' ++ [:: T_ref (T_contref (Tf t1s' t2s'))] /\
                       t2s = ts ++ t2s'.
 Proof.
@@ -539,7 +540,7 @@ Lemma Resume_throw_typing: forall C i x hs t1s t2s,
     exists ts t1s' t2s' t0s,
       get_type C i = Some (Tf t1s' t2s') /\
         List.nth_error (tc_tags_t C) x = Some (Tf t0s [::]) /\
-        List.Forall (fun h => continuation_clause_typing C h t2s') hs /\
+        List.Forall (fun h => continuation_clause_identifier_typing C h t2s') hs /\
         t1s = ts ++ t0s ++ [::T_ref (T_contref (Tf t1s' t2s'))] /\
         t2s = ts ++ t2s'.
 Proof.
@@ -1598,7 +1599,7 @@ Lemma Try_table_typing: forall C i cs es tn tm,
     exists ts t1s t2s,
       get_type C i = Some (Tf t1s t2s) /\
       tn = ts ++ t1s /\ tm = ts ++ t2s /\
-              List.Forall (fun c => exception_clause_typing C c) cs /\
+              List.Forall (fun c => exception_clause_identifier_typing C c) cs /\
             be_typing (upd_label C ([::t2s] ++ tc_label C)) es (Tf t1s t2s).
 Proof.
   move => C i cs es tn tm HType.
@@ -1694,7 +1695,7 @@ Qed.
 Lemma Handler_typing: forall s C hs es ts1 ts2,
     e_typing s C [::AI_handler hs es] (Tf ts1 ts2) ->
     exists ts2', ts2 = ts1 ++ ts2' /\
-              List.Forall (exception_clause_typing C) hs /\
+              List.Forall (exception_clause_typing s C) hs /\
       e_typing s C es (Tf [::] ts2').
 Proof.
   move => s C hs es ts1 ts2 HType.
@@ -1721,7 +1722,7 @@ Qed.
 Lemma Prompt_typing: forall s C ts hs es ts1 ts2,
     e_typing s C [::AI_prompt ts hs es] (Tf ts1 ts2) ->
     (*    exists ts2', *) ts2 = ts1 ++ ts(* 2'*) /\
-      List.Forall (fun h => continuation_clause_typing C h ts) hs /\
+      List.Forall (fun h => continuation_clause_typing s C h ts) hs /\
       e_typing s empty_context (* (strip C) *) es (Tf [::] ts(*2'*)).
 Proof.
   move => s C ts hs es ts1 ts2 HType.
@@ -1920,10 +1921,10 @@ Proof.
   intros H; by apply IHl.
 Qed.
 
-Lemma exception_clause_typing_leq: forall C C' h,
-    exception_clause_typing C h ->
+Lemma exception_clause_identifier_typing_leq: forall C C' h,
+    exception_clause_identifier_typing C h ->
     leq_t_context C C' ->
-    exception_clause_typing C' h.
+    exception_clause_identifier_typing C' h.
 Proof.
   intros C C' h Htype HC.
   inversion Htype; subst.
@@ -1951,10 +1952,35 @@ Proof.
     apply nth_error_prefix => //.
 Qed.
 
-Lemma continuation_clause_typing_leq: forall C C' h ts,
-    continuation_clause_typing C h ts ->
+ Lemma exception_clause_typing_leq: forall s C C' h,
+    exception_clause_typing s C h ->
     leq_t_context C C' ->
-    continuation_clause_typing C' h ts.
+    exception_clause_typing s C' h.
+Proof.
+  intros s C C' h Htype HC.
+  inversion Htype; subst.
+  - econstructor; eauto.
+    destruct HC as (HC & [lloc Hloc] & [llab Hlab] & Hret).
+    rewrite Hlab.
+    apply nth_error_prefix => //.
+      - econstructor; eauto.
+    destruct HC as (HC & [lloc Hloc] & [llab Hlab] & Hret).
+    rewrite Hlab.
+    apply nth_error_prefix => //.
+      - econstructor; eauto.
+    destruct HC as (HC & [lloc Hloc] & [llab Hlab] & Hret).
+    rewrite Hlab.
+    apply nth_error_prefix => //.
+      - econstructor; eauto.
+    destruct HC as (HC & [lloc Hloc] & [llab Hlab] & Hret).
+    rewrite Hlab.
+    apply nth_error_prefix => //. 
+Qed. 
+
+Lemma continuation_clause_identifier_typing_leq: forall C C' h ts,
+    continuation_clause_identifier_typing C h ts ->
+    leq_t_context C C' ->
+    continuation_clause_identifier_typing C' h ts.
 Proof.
   intros C C' h ts Htype HC.
   inversion Htype; subst.
@@ -1966,6 +1992,20 @@ Proof.
   rewrite Hlab.
   apply nth_error_prefix => //.
 Qed.
+
+ Lemma continuation_clause_typing_leq: forall s C C' h ts,
+    continuation_clause_typing s C h ts ->
+    leq_t_context C C' ->
+    continuation_clause_typing s C' h ts.
+ Proof.
+   
+  intros s C C' h ts Htype HC.
+  inversion Htype; subst.
+  econstructor; eauto.
+    destruct HC as (HC & [lloc Hloc] & [llab Hlab] & Hret).
+    rewrite Hlab.
+    apply nth_error_prefix => //. 
+Qed. 
 
 (*
 Lemma clause_typing_leq: forall C C' h ts,
@@ -2051,15 +2091,19 @@ Proof.
   all: try by rewrite Hloc; apply nth_error_prefix.
   all: try by rewrite Hloc List.length_app; lias.
   - by eapply List.Forall_impl; last exact H0;
-    intros hc Hhc; eapply continuation_clause_typing_leq; eauto; eauto.
+    intros hc Hhc; eapply continuation_clause_identifier_typing_leq; eauto; eauto.
 (*  - destruct HC as [HC | HC].
     destruct C, C'; inversion HC; subst; destruct x => //.
     destruct C; inversion HC; subst; destruct x => //.
     destruct i => //.  *)
+  - unfold get_tag in H. destruct x.
+    destruct HC as [HC | HC].
+    destruct C, C'; inversion HC; subst; destruct i => //.
+    destruct C; inversion HC; subst; destruct i => //. 
   - by eapply List.Forall_impl; last exact H1;
-    intros hc Hhc; eapply continuation_clause_typing_leq; eauto; eauto.
+    intros hc Hhc; eapply continuation_clause_identifier_typing_leq; eauto; eauto.
   - eapply List.Forall_impl; last exact H0.
-    intros hc Hhc; eapply exception_clause_typing_leq; eauto; eauto.
+    intros hc Hhc; eapply exception_clause_identifier_typing_leq; eauto; eauto.
   - subst C'; eapply IHHType. apply leq_upd_label. done.
   - rewrite Hlab List.length_app. lias. 
   - rewrite Hlab List.length_app. lias.
@@ -3992,6 +4036,31 @@ Proof.
     + simpl in Hx. apply IHl1 => //.
 Qed. 
 
+Lemma store_extension_continuation_clause_typing s s' C h ts:
+  store_extension s s' ->
+  continuation_clause_typing s C h ts ->
+  continuation_clause_typing s' C h ts.
+Proof.
+  intros Hsext Htyp.
+  inversion Htyp; subst.
+  econstructor; eauto.
+  unfold store_extension in Hsext.
+  remove_bools_options.
+  by rewrite - H7.
+Qed.
+
+Lemma store_extension_exception_clause_typing s s' C h:
+  store_extension s s' ->
+  exception_clause_typing s C h ->
+  exception_clause_typing s' C h.
+Proof.
+  intros Hsext Htyp.
+  inversion Htyp; subst.
+  all: econstructor; eauto.
+  all: unfold store_extension in Hsext.
+  all: remove_bools_options.
+  all: by rewrite - H7.
+Qed. 
 
 
 Lemma store_extension_e_typing: forall s s' C es tf,
@@ -4052,9 +4121,17 @@ Proof.
     remove_bools_options.
     rewrite - H5. done.
   - move => s C (* ts0 *) hs es ts Hclauses Hes IHHType s' HST1 (* HST2 *) Hext.
-    econstructor. exact Hclauses. apply IHHType => //. 
+    econstructor.
+    eapply List.Forall_impl; last exact Hclauses.
+    intros h Hh.
+    eapply store_extension_continuation_clause_typing; eauto.
+    apply IHHType => //. 
   - move => s C (* ts0 *) hs es ts Hclauses Hes IHHType s' HST1 (* HST2 *) Hext.
-    econstructor. exact Hclauses. apply IHHType => //. 
+    econstructor.
+    eapply List.Forall_impl; last exact Hclauses.
+    intros h Hh.
+    eapply store_extension_exception_clause_typing; eauto.
+    apply IHHType => //. 
   - move => s a C cl tf HNth HCLType s' HST1 (* HST2 *) Hext.
     replace (s_funcs s) with (s_funcs s') in HNth.
     eapply ety_invoke; eauto => //.
@@ -4732,41 +4809,41 @@ Proof.
     destruct (const_list l) => //. unfold hfilled in IHh.
     split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (update_avoiding x f) l1) as [IHh' _].
+      destruct (IHh x l1) as [IHh' _].
       rewrite Hfill in IHh'.
       specialize (IHh' (eq_refl l1)).
       destruct (hfill _ _ es) => //.
       move/eqP in IHh'; subst l2; done.
     + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
-      destruct (IHh (update_avoiding x f) l1) as [_ IHh'].
+      destruct (IHh x l1) as [_ IHh'].
       rewrite Hfill in IHh'.
       specialize (IHh' (eq_refl l1)).
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l2; done.
   - simpl. unfold hfilled, hfill. fold hfill.
     destruct (const_list l) => //.
-    destruct x as [x inst | |] => //.
-    destruct (firstx_exception _ _ _ == _) eqn:Hclauses => //. 
+    destruct x as [x  | |] => //.
+    destruct (firstx_exception _ _ == _) eqn:Hclauses => //. 
     all: unfold hfilled in IHh.
     all: split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_handler x inst) l2) as [IHh' _].
+      destruct (IHh (Var_handler x) l2) as [IHh' _].
       rewrite Hfill in IHh'.
       specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ es) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
-      destruct (IHh (Var_handler x inst) l2) as [_ IHh'].
+      destruct (IHh (Var_handler x) l2) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt i i0) l2) as [IHh' _].
+      destruct (IHh (Var_prompt t) l2) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ es) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt i i0) l2) as [_ IHh'].
+      destruct (IHh (Var_prompt t) l2) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
@@ -4782,27 +4859,27 @@ Proof.
       move/eqP in IHh'; subst l3; done.
   - simpl. unfold hfilled, hfill. fold hfill.
     destruct (const_list l) => //.
-    destruct x as [|x inst |] => //.
-    2:destruct (firstx_continuation _ _ _ == _) eqn:Hclauses => //. 
+    destruct x as [|x  |] => //.
+    2:destruct (firstx_continuation _ _ == _) eqn:Hclauses => //. 
     all: unfold hfilled in IHh.
     all: split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_handler i i0) l3) as [IHh' _].
+      destruct (IHh (Var_handler t) l3) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ es) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
-      destruct (IHh (Var_handler i i0) l3) as [_ IHh'].
+      destruct (IHh (Var_handler t) l3) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x inst) l3) as [IHh' _].
+      destruct (IHh (Var_prompt x) l3) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ es) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x inst) l3) as [_ IHh'].
+      destruct (IHh (Var_prompt x) l3) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
@@ -4851,36 +4928,36 @@ Proof.
   - unfold hfilled in IHh.
     split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (update_avoiding x f) l1) as [IHh' _].
+      destruct (IHh x l1) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l1)).
       destruct (hfill _ _ es1) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ es1) eqn:Hfill => //.
-      destruct (IHh (update_avoiding x f) l1) as [_ IHh'].
+      destruct (IHh x l1) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l1)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
-  - destruct x as [x inst| |] => //.
-    destruct (firstx_exception _ _ _ == _) => //.
+  - destruct x as [x | |] => //.
+    destruct (firstx_exception _ _ == _) => //.
     all: unfold hfilled in IHh.
     all: split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_handler x inst) l2) as [IHh' _].
+      destruct (IHh (Var_handler x) l2) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ es1) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ es1) eqn:Hfill => //.
-      destruct (IHh (Var_handler x inst) l2) as [_ IHh'].
+      destruct (IHh (Var_handler x) l2) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt i i0) l2) as [IHh' _].
+      destruct (IHh (Var_prompt t) l2) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ es1) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ es1) eqn:Hfill => //.
-      destruct (IHh (Var_prompt i i0) l2) as [_ IHh'].
+      destruct (IHh (Var_prompt t) l2) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
@@ -4894,27 +4971,27 @@ Proof.
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
-  - destruct x as [|x inst |] => //.
-    2:destruct (firstx_continuation _ _ _ == _) => //.
+  - destruct x as [|x  |] => //.
+    2:destruct (firstx_continuation _ _ == _) => //.
     all: unfold hfilled in IHh.
     all: split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_handler i i0) l3) as [IHh' _].
+      destruct (IHh (Var_handler t) l3) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ es1) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ es1) eqn:Hfill => //.
-      destruct (IHh (Var_handler i i0) l3) as [_ IHh'].
+      destruct (IHh (Var_handler t) l3) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x inst) l3) as [IHh' _].
+      destruct (IHh (Var_prompt x) l3) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ es1) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ es1) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x inst) l3) as [_ IHh'].
+      destruct (IHh (Var_prompt x) l3) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
@@ -5227,11 +5304,11 @@ Proof.
     eapply IHh. done. done.
     eapply t_const_ignores_context; last exact Hes1. done.
     eapply t_const_ignores_context; last exact Hes2.  done.
-    unfold hfilled. instantiate (2 := update_avoiding x f).
+    unfold hfilled. instantiate (2 := x).
     rewrite Hfill1. done.
     unfold hfilled. rewrite Hfill2. done. done.
-  - destruct x as [x inst | |] => //.
-    destruct (firstx_exception _ _ _ == _) => //.
+  - destruct x as [x  | |] => //.
+    destruct (firstx_exception _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ es2) eqn:Hfill2 => //.
     all: move/eqP in HLI1; move/eqP in HLI2; subst.
@@ -5246,13 +5323,13 @@ Proof.
     all: eapply IHh => //. 
     all: try by eapply t_const_ignores_context; last exact Hes1. 
     all: try by eapply t_const_ignores_context; last exact Hes2.
-    all: try by instantiate (2 := Var_handler x inst); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt i i0); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_handler x); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt t); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
     done. done. done.
-  - destruct x as [|x inst | ] => //.
-    2:destruct (firstx_continuation _ _ _ == _) => //.
+  - destruct x as [|x  | ] => //.
+    2:destruct (firstx_continuation _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ es2) eqn:Hfill2 => //.
     all: move/eqP in HLI1; move/eqP in HLI2; subst.
@@ -5267,8 +5344,8 @@ Proof.
     all: eapply IHh => //. 
     all: try by eapply t_const_ignores_context; last exact Hes1. 
     all: try by eapply t_const_ignores_context; last exact Hes2.
-    all: try by instantiate (2 := Var_handler i i0); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt x inst); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_handler t); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt x); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
     done. done. done.
@@ -5379,11 +5456,11 @@ Proof.
     rewrite - (cat0s [:: T_ref _]).
     constructor. 
     unfold hfilled.
-    instantiate (2 := update_avoiding x f).
+    instantiate (2 := x).
     rewrite Hfill1. done.
     unfold hfilled. rewrite Hfill2. done. done.
-  - destruct x as [x inst| |] => //.
-    destruct (firstx_exception _ _ _ == _) => //.
+  - destruct x as [x | |] => //.
+    destruct (firstx_exception _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ [::_;_]) eqn:Hfill2 => //.
     all: move/eqP in HLI1; move/eqP in HLI2; subst.
@@ -5396,14 +5473,14 @@ Proof.
     all: eapply ety_handler.
     all: try exact Hl0. 
     all: eapply IHh => //.
-    all: try by instantiate (2 := Var_handler x inst); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt i i0); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_handler x); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt t); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
     all: try by eapply t_const_ignores_context; last exact Hes1.
     all: try done.
-  - destruct x as [|x inst |] => //.
-    2:destruct (firstx_continuation _ _ _ == _) => //.
+  - destruct x as [|x  |] => //.
+    2:destruct (firstx_continuation _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ [::_;_]) eqn:Hfill2 => //.
     all: move/eqP in HLI1; move/eqP in HLI2; subst.
@@ -5416,19 +5493,12 @@ Proof.
     all: eapply ety_prompt.
     all: try exact Hl0. 
     all: eapply IHh => //.
-    all: try by instantiate (2 := Var_prompt x inst); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_handler i i0); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt x); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_handler t); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
     all: try by eapply t_const_ignores_context; last exact Hes1.
     all: try done.
-
-
-
-    
-(*    all: apply e_composition_typing in Hes2 as (ts0 & tx & ty & t3s & ? & -> & Hes2 & Hexnthrow).
-    all: destruct ts0 => //.
-    all: destruct tx => //. *)
     all: rewrite separate1 in Hes2 (* Hexnthrow *).
     all: apply e_composition_typing in Hes2 (* Hexnthrow *) as (ts0' & tx' & ty' & t3s' & ? & -> & Hexn & Hthrow).
     all: destruct ts0' => //.
@@ -5524,17 +5594,17 @@ Proof.
     destruct (IHh l2 (eq_refl l2)) as [LI2 Hfill2]. done.
     destruct (hfill _ _ es2) => //. eexists; done.
   - unfold hfilled in IHh.
-    specialize (IHh (update_avoiding y f) (update_avoiding x f)).
+    specialize (IHh y x).
     destruct (hfill _ _ _) => //.
     intros Hfill Hy.
     destruct (IHh l1 (eq_refl l1)) as [LI2 Hfill2].
     destruct Hy as [-> | ->]; (by left + right). 
     destruct (hfill _ _ es2) => //. eexists; done.
-  - intros Hfill Hy. destruct x as [x inst| |] => //.
-    destruct (firstx_exception _ _ _ == _) eqn:Hx => //.
+  - intros Hfill Hy. destruct x as [x | |] => //.
+    destruct (firstx_exception _ _ == _) eqn:Hx => //.
     all: unfold hfilled in IHh.
-    specialize (IHh y (Var_handler x inst)).
-    2: specialize (IHh y (Var_prompt i i0)).
+    specialize (IHh y (Var_handler x)).
+    2: specialize (IHh y (Var_prompt t)).
     3: specialize (IHh y No_var).
     all: destruct (hfill _ _ _) => //.
     all: destruct (IHh l2 (eq_refl l2)) as [LI2 Hfill2].
@@ -5543,11 +5613,11 @@ Proof.
     2: rewrite Hx. 
     all: destruct (hfill _ _ es2) => //.
     all: by eexists.
-  - intros Hfill Hy. destruct x as [|x inst |] => //.
-    2:destruct (firstx_continuation _ _ _ == _) eqn:Hx => //.
+  - intros Hfill Hy. destruct x as [|x  |] => //.
+    2:destruct (firstx_continuation _ _ == _) eqn:Hx => //.
     all: unfold hfilled in IHh.
-    specialize (IHh y (Var_handler i i0)).
-    2: specialize (IHh y (Var_prompt x inst)).
+    specialize (IHh y (Var_handler t)).
+    2: specialize (IHh y (Var_prompt x)).
     3: specialize (IHh y No_var).
     all: destruct (hfill _ _ _) => //.
     all: destruct (IHh l3 (eq_refl l3)) as [LI2 Hfill2].
@@ -5846,7 +5916,7 @@ Ltac inst_typing_equal i C H :=
 
 Lemma inst_typing_strip s i C:
   inst_typing s i C ->
-  inst_typing s i (upd_return (strip C) None).
+  inst_typing s i (strip C).
 Proof.
   intros H.
   inst_typing_equal i C H. 
@@ -5996,7 +6066,7 @@ Proof.
     apply e_composition_typing in Hmidaft as (ts' & t1s'' & t2s'' & t3s' & -> & -> & Hmid & Haft).
     apply Local_typing in Hmid as (ts'' & -> & Hmid & <-).
     unfold hfilled in IHh.
-    specialize (IHh (update_avoiding x f)).
+    specialize (IHh x).
     rewrite Hfill in IHh.
     inversion Hmid; subst.
     inversion H; subst. 
@@ -6013,10 +6083,10 @@ Proof.
     apply ety_weakening. eapply et_composition'; last exact Haft.
     apply et_weakening_empty_1. eapply ety_local => //. econstructor. exact H.
     done.
-    eapply Hfillback. exact Hes'. instantiate (1 := update_avoiding x' f).
+    eapply Hfillback. exact Hes'. instantiate (1 := x').
     rewrite Hfill'. done. by left.
-  - destruct x as [x inst| |] => //.
-    destruct (firstx_exception _ _ _ == _) eqn:Hclauses => //.
+  - destruct x as [x | |] => //.
+    destruct (firstx_exception _ _ == _) eqn:Hclauses => //.
     all: destruct (hfill _ _ _) eqn:Hfill => //.
     all: intros tf C (* i *) LI HLI (* HC *) Htype.
     all: move/eqP in HLI; subst LI.
@@ -6025,8 +6095,8 @@ Proof.
     all: apply e_composition_typing in Hmidaft as (ts' & t1s'' & t2s'' & t3s' & -> & -> & Hmid & Haft).
     all: apply Handler_typing in Hmid as (ts'' & -> & Hclausest & Hmid).
     all: unfold hfilled in IHh.
-    specialize (IHh (Var_handler x inst)).
-    2: specialize (IHh (Var_prompt i i0)).
+    specialize (IHh (Var_handler x)).
+    2: specialize (IHh (Var_prompt t)).
     3: specialize (IHh No_var).
     all: rewrite Hfill in IHh.
     all: edestruct IHh as (tf' & (* i' & *) C' & Hes & (* HC' & *) Hfillback).
@@ -6039,8 +6109,8 @@ Proof.
     all: split; first exact Hes.
 (*    all: split; first exact HC'. *)
     all: intros es' LI' x' Hes' HLI'.
-    all: destruct x' as [x' inst'| x' inst'|] => //.
-    1,4,7: destruct (firstx_exception _ _ x' == _) => //.
+    all: destruct x' as [x' | x' |] => //.
+    1,4,7: destruct (firstx_exception _ x' == _) => //.
     all: destruct (hfill _ _ es') eqn:Hfill' => //.
     all: move/eqP in HLI'; subst LI'.
     all: apply ety_weakening.
@@ -6050,11 +6120,11 @@ Proof.
     all: apply et_weakening_empty_1.
     all: eapply ety_handler => //. 
     all: eapply Hfillback; try exact Hes'.
-    all: try by instantiate (1 := Var_handler x' inst'); rewrite Hfill' => //.
-    all: try by instantiate (1 := Var_prompt x' inst'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_handler x'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_prompt x'); rewrite Hfill' => //.
     all: try by instantiate (1 := No_var); rewrite Hfill' => //.
-  - destruct x as [|x inst |] => //.
-    2:destruct (firstx_continuation _ _ _ == _) eqn:Hclauses => //.
+  - destruct x as [|x  |] => //.
+    2:destruct (firstx_continuation _ _ == _) eqn:Hclauses => //.
     all: destruct (hfill _ _ _) eqn:Hfill => //.
     all: intros tf C (* i *) LI HLI (* HC *) Htype.
     all: move/eqP in HLI; subst LI.
@@ -6063,8 +6133,8 @@ Proof.
     all: apply e_composition_typing in Hmidaft as (ts' & t1s'' & t2s'' & t3s' & -> & -> & Hmid & Haft).
     all: apply Prompt_typing in Hmid as ( -> & Hclausest & Hmid).
     all: unfold hfilled in IHh.
-    specialize (IHh (Var_handler i i0)).
-    2: specialize (IHh (Var_prompt x inst)).
+    specialize (IHh (Var_handler t)).
+    2: specialize (IHh (Var_prompt x)).
     3: specialize (IHh No_var).
     all: rewrite Hfill in IHh.
     all: edestruct IHh as (tf' & (* i' & *) C' & Hes & (* HC' & *) Hfillback).
@@ -6077,8 +6147,8 @@ Proof.
     all: split; first exact Hes.
 (*    all: split; first exact HC'. *)
     all: intros es' LI' x' Hes' HLI'.
-    all: destruct x' as [x' inst'| x' inst'|] => //.
-    2,5,8: destruct (firstx_continuation _ _ x' == _) => //.
+    all: destruct x' as [x' | x' |] => //.
+    2,5,8: destruct (firstx_continuation _ x' == _) => //.
     all: destruct (hfill _ _ es') eqn:Hfill' => //.
     all: move/eqP in HLI'; subst LI'.
     all: apply ety_weakening.
@@ -6088,8 +6158,8 @@ Proof.
     all: apply et_weakening_empty_1.
     all: eapply ety_prompt => //. 
     all: eapply Hfillback; try exact Hes'.
-    all: try by instantiate (1 := Var_handler x' inst'); rewrite Hfill' => //.
-    all: try by instantiate (1 := Var_prompt x' inst'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_handler x'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_prompt x'); rewrite Hfill' => //.
     all: try by instantiate (1 := No_var); rewrite Hfill' => //.
 Qed.    
 
@@ -6126,7 +6196,7 @@ Proof.
   - unfold hfilled => /=.
     destruct (const_list l); last by rewrite Bool.andb_false_r.
     unfold hfilled in IHhh.
-    specialize (IHhh (update_avoiding x f)).
+    specialize (IHhh x).
     destruct (hfill _ _ es) => //.
     + destruct (IHhh l1) as [H _].
       specialize (H (eq_refl l1)).
@@ -6144,11 +6214,11 @@ Proof.
       rewrite (eq_refl l1). done.
   - unfold hfilled => /=.
     destruct (const_list l); last by rewrite Bool.andb_false_r.
-    destruct x as [x inst| |] => /=.
-    destruct (firstx_exception _ _ _ == _); last by rewrite Bool.andb_false_r.
+    destruct x as [x | |] => /=.
+    destruct (firstx_exception _ _ == _); last by rewrite Bool.andb_false_r.
     all: unfold hfilled in IHhh.
-    specialize (IHhh (Var_handler x inst)).
-    2: specialize (IHhh (Var_prompt i i0)).
+    specialize (IHhh (Var_handler x)).
+    2: specialize (IHhh (Var_prompt t)).
     3: specialize (IHhh No_var).
     all: destruct (hfill _ _ es) => //.
     + destruct (IHhh l2) as [H _].
@@ -6195,11 +6265,11 @@ Proof.
       rewrite (eq_refl l2). done.
   - unfold hfilled => /=.
     destruct (const_list l); last by rewrite Bool.andb_false_r.
-    destruct x as [|x inst |] => /=.
-    2:destruct (firstx_continuation _ _ _ == _); last by rewrite Bool.andb_false_r.
+    destruct x as [|x  |] => /=.
+    2:destruct (firstx_continuation _ _ == _); last by rewrite Bool.andb_false_r.
     all: unfold hfilled in IHhh.
-    specialize (IHhh (Var_handler i i0)).
-    2: specialize (IHhh (Var_prompt x inst)).
+    specialize (IHhh (Var_handler t)).
+    2: specialize (IHhh (Var_prompt x)).
     3: specialize (IHhh No_var).
     all: destruct (hfill _ _ es) => //.
     + destruct (IHhh l3) as [H _].
@@ -6524,15 +6594,16 @@ Proof.
     split; [apply store_extension_new_cont| apply store_typing_new_cont] => //.
     apply Prompt_typing in HType as ((*ts2' &*) -> & Hclauses & HType).
     eapply hfilled_typing in HType as (tf' & (* i' & *) C' & HType & (* HC' & *) Hfillback).
-    2: exact H3.
+    2: exact H4.
 (*    2:{ instantiate (1 := f_inst f).
         inst_typing_equal (f_inst f) C HIT. }  *)
     destruct tf' as [t1s' t2s'].
     apply e_composition_typing in HType as (ts0 & t1s'' & t2s'' & t3s & -> & -> & Hvs & Hsuspend).
     apply const_es_exists in H as (vs' & ->).
     apply Const_list_typing in Hvs as (ts' & Hvst & -> & Hvs).
+    subst x.
     apply AI_suspend_desugared_typing in Hsuspend as (ts'' & t1s' & t2s' & Htypes & -> & Htags).
-    rewrite H0 in Htags.
+    rewrite H1 in Htags.
     inversion Htags. subst.
 (*    
     eapply tc_reference_tag in HC' as Htags'.
@@ -6542,11 +6613,12 @@ Proof.
        not the top-level one. Fix opsem *) 
     inversion Htags'; subst.  *)
     apply concat_cancel_last_n in Htypes.
-    2:{ do 2 rewrite length_is_size in H1. rewrite - H1.
+    2:{ do 2 rewrite length_is_size in H2. rewrite - H2.
         rewrite size_map. rewrite - (size_map (typeof s) vs').
         rewrite Hvst. rewrite size_map. done.  } 
     remove_bools_options. (* subst.  *)
-    edestruct (hfilled_change (* (v_to_e_list vs') *) (v_to_e_list (default_vals t2s'))) as [LI' HLI']; first exact H3. by left.
+    edestruct (hfilled_change (* (v_to_e_list vs') *) (v_to_e_list (default_vals t2s'))) as [LI' HLI']; first exact H4.
+    by left.
     econstructor.
     3: exact HLI'. apply v_to_e_is_const_list.
     apply default_vals_typing.
@@ -6907,20 +6979,22 @@ Proof.
     split; [apply store_extension_new_cont| apply store_typing_new_cont] => //.
     apply Prompt_typing in HType as ((*ts2' &*) -> & Hclauses & HType).
     eapply hfilled_typing in HType as (tf' & (* i' & *) C' & HType & (* HC' & *) Hfillback).
-    2: exact H3.
+    2: exact H4.
     destruct tf' as [t1s' t2s'].
     apply e_composition_typing in HType as (ts0 & t1s'' & t2s'' & t3s & -> & -> & Hvs & Hsuspend).
     apply const_es_exists in H as (vs' & ->).
     apply Const_list_typing in Hvs as (ts' & Hvst & -> & Hvs).
+    subst x.
     apply AI_suspend_desugared_typing in Hsuspend as (ts'' & t1s' & t2s' & Hts & -> & Htags).
 
-    rewrite H0 in Htags. inversion Htags. subst.
+    rewrite H1 in Htags. inversion Htags. subst.
     apply concat_cancel_last_n in Hts.
-    2:{ do 2 rewrite length_is_size in H1. rewrite - H1.
+    2:{ do 2 rewrite length_is_size in H2. rewrite - H2.
         rewrite size_map. rewrite - (size_map (typeof s) vs').
         rewrite Hvst. rewrite size_map. done.  } 
     remove_bools_options. 
-    edestruct (hfilled_change (* (v_to_e_list vs') *) (v_to_e_list (default_vals t2s'))) as [LI' HLI']; first exact H3. by left.
+    edestruct (hfilled_change (* (v_to_e_list vs') *) (v_to_e_list (default_vals t2s'))) as [LI' HLI']; first exact H4.
+    by left.
     econstructor.
     3: exact HLI'. apply v_to_e_is_const_list.
     apply default_vals_typing.
@@ -7415,89 +7489,84 @@ Proof.
         apply IHvs => //.
 Qed. 
 
-Lemma firstx_clause_typing hs inst i l C:
-  firstx_exception hs inst i = Clause_label l ->
-  List.Forall (exception_clause_typing C) hs ->
-  (exists i0 ts0, List.nth_error (inst_tags inst) i0 = Some i /\
-              List.nth_error (tc_tags_t C) i0 = Some (Tf ts0 [::]) /\
+Lemma firstx_clause_typing hs s i l C:
+  firstx_exception hs (Mk_tagidx i) = Clause_label l ->
+  List.Forall (exception_clause_typing s C) hs ->
+  (exists (* i0 *) ts0, (* List.nth_error (inst_tags inst) i0 = Some i /\ *)
+              List.nth_error (s_tags s) i = Some (Tf ts0 [::]) /\
                List.nth_error (tc_label C) l = Some ts0) \/
     List.nth_error (tc_label C) l = Some [::] .
 Proof.
   induction hs => //=. 
   destruct a => //=.
-  + destruct (List.nth_error _ i0) eqn:Hi0 => //=.
-    destruct (i =? t) eqn:Hit => //.
-      * apply Nat.eqb_eq in Hit as <-. 
+  + (* destruct (List.nth_error _ i0) eqn:Hi0 => //=. *)
+    destruct (_ == t) eqn:Hit => //.
+      * move/eqP in Hit. subst t. 
         intros Hl Hclauses.
-        inversion Hl; subst i1.
+        inversion Hl; subst i0.
         inversion Hclauses; subst.
         inversion H1; subst.
-        left. exists i0, ts. repeat split => //.
+        left. exists ts. repeat split => //.
       * intros Hl Hclauses.
         apply IHhs => //. inversion Hclauses; subst.
         done.
-    + destruct (List.nth_error _ i0) eqn:Hi0 => //=.
-      destruct (i =? t) eqn:Hit => //.
-      intros Hl Hclauses.
-      apply IHhs => //. inversion Hclauses; subst.
-      done.
-    + intros Hl Hclauses.
-      inversion Hl; subst i0.
-      inversion Hclauses; subst.
-      inversion H1; subst.
-      right. done.
+  + destruct (_ == t) eqn:Hit => //.
+    intros Hl Hclauses.
+    apply IHhs => //. inversion Hclauses; subst.
+    done.
+  + intros Hl Hclauses.
+    inversion Hl; subst i0.
+    inversion Hclauses; subst.
+    inversion H1; subst.
+    right. done.
 Qed. 
 
-Lemma firstx_clause_typing_ref hs inst i l C:
-  firstx_exception hs inst i = Clause_label_ref l ->
-  List.Forall (exception_clause_typing C) hs ->
-  (exists i0 ts0, List.nth_error (inst_tags inst) i0 = Some i /\
-              List.nth_error (tc_tags_t C) i0 = Some (Tf ts0 [::]) /\
-               List.nth_error (tc_label C) l = Some (ts0 ++ [:: T_ref T_exnref])) \/
+Lemma firstx_clause_typing_ref hs s i l C:
+  firstx_exception hs (Mk_tagidx i) = Clause_label_ref l ->
+  List.Forall (exception_clause_typing s C) hs ->
+  (exists ts0, 
+      List.nth_error (s_tags s) i = Some (Tf ts0 [::]) /\
+        List.nth_error (tc_label C) l = Some (ts0 ++ [:: T_ref T_exnref])) \/
     List.nth_error (tc_label C) l = Some [:: T_ref T_exnref] .
 Proof.
   induction hs => //=.
-    destruct a => //=.
-    + destruct (List.nth_error _ i0) eqn:Hi0 => //=.
-      destruct (i =? t) eqn:Hit => //.
+  destruct a => //=.
+  + destruct (_ == t) eqn:Hit => //.
+    intros Hl Hclauses.
+    apply IHhs => //. inversion Hclauses; subst.
+    done.
+  + destruct (_ == t) eqn:Hit => //.
+    * move/eqP in Hit. subst t.
       intros Hl Hclauses.
-      apply IHhs => //. inversion Hclauses; subst.
-      done.
-    + destruct (List.nth_error _ i0) eqn:Hi0 => //=.
-      destruct (i =? t) eqn:Hit => //.
-      * apply Nat.eqb_eq in Hit as <-. 
-        intros Hl Hclauses.
-        inversion Hl; subst i1.
-        inversion Hclauses; subst.
-        inversion H1; subst.
-        left. exists i0, ts. repeat split => //.
-      * intros Hl Hclauses.
-        apply IHhs => //. inversion Hclauses; subst.
-        done. 
-    + intros Hl Hclauses.
       inversion Hl; subst i0.
       inversion Hclauses; subst.
       inversion H1; subst.
-      right. done.
+      left. exists ts. repeat split => //.
+    * intros Hl Hclauses.
+      apply IHhs => //. inversion Hclauses; subst.
+      done. 
+  + intros Hl Hclauses.
+    inversion Hl; subst i0.
+    inversion Hclauses; subst.
+    inversion H1; subst.
+    right. done.
 Qed.
 
-Lemma firstx_clause_typing_cont hs inst i l C ts:
-  firstx_continuation hs inst i = Some l ->
-  List.Forall (fun h => continuation_clause_typing C h ts) hs ->
-  exists i0 ts1 ts2,
-    List.nth_error (inst_tags inst) i0 = Some i /\
-      List.nth_error (tc_tags_t C) i0 = Some (Tf ts1 ts2) /\
+Lemma firstx_clause_typing_cont hs s i l C ts:
+  firstx_continuation hs (Mk_tagidx i) = Some l ->
+  List.Forall (fun h => continuation_clause_typing s C h ts) hs ->
+  exists ts1 ts2,
+      List.nth_error (s_tags s) i = Some (Tf ts1 ts2) /\
       List.nth_error (tc_label C) l = Some (ts1 ++ [::T_ref (T_contref (Tf ts2 ts))]).
 Proof.
   induction hs => //=.
     destruct a => //=.
-    destruct (List.nth_error _ i0) eqn:Hi => //. 
-    destruct (i =? t) eqn:Hit.
-    + apply Nat.eqb_eq in Hit as <-.
+    destruct (_ == t) eqn:Hit.
+    + move/eqP in Hit. subst t. 
       intros Hl Htyp.
-      inversion Hl; subst i1.
+      inversion Hl; subst i0.
       inversion Htyp; subst. inversion H1; subst.
-      exists i0, t1s', t2s'.
+      exists t1s', t2s'.
       repeat split => //.
     + intros Hl Htyp.
       apply IHhs => //.
@@ -7564,22 +7633,85 @@ Proof.
     unfold lfilled. rewrite Hfill'. done.
     exact Hl2.
 A dmitted. *)
-    
+
+Lemma exception_clause_desugar_typing s inst C cs csd:
+  (inst_typing s inst (strip C) \/ upd_label C [::] = empty_context) ->
+  List.Forall (exception_clause_identifier_typing C) cs ->
+  map (desugar_exception_clause inst) cs = map Some csd ->
+  List.Forall (exception_clause_typing s C) csd.
+Proof.
+  move:csd.
+  induction cs; destruct csd => //=.
+  intros HC Htyp Hcsd.
+  inversion Hcsd.
+  inversion Htyp; subst.
+  constructor; last by apply IHcs.
+  inversion H3; subst.
+  all: simpl in H0.
+  1-2: destruct (List.nth_error _ x) eqn:Hx => //.
+  all: inversion H0; subst e.
+  all: econstructor; eauto.
+  all: destruct HC as [HC | HC];
+    last by destruct C; inversion HC; subst; destruct x.
+  all: apply inst_typing_tags in HC as Htags.
+  all: apply all2_Forall2 in Htags.
+  all: eapply Forall2_nth_error in Htags as (v & Hv & Hvag).
+  all: try exact Hx.
+  all: rewrite H in Hv.
+  all: inversion Hv; subst v.
+  all: unfold tag_agree in Hvag.
+  all: destruct (List.nth_error _ t) => //.
+  all: move/eqP in Hvag.
+  all: by subst f. 
+Qed. 
+
+Lemma continuation_clause_desugar_typing s inst C cs csd ts:
+  (inst_typing s inst (strip C) \/ upd_label C [::] = empty_context) ->
+  List.Forall (fun h => continuation_clause_identifier_typing C h ts) cs ->
+  map (desugar_continuation_clause inst) cs = map Some csd ->
+  List.Forall (fun h => continuation_clause_typing s C h ts) csd.
+Proof.
+  move:csd.
+  induction cs; destruct csd => //=.
+  intros HC Htyp Hcsd.
+  inversion Hcsd.
+  inversion Htyp; subst.
+  constructor; last by apply IHcs.
+  inversion H3; subst.
+  simpl in H0.
+  destruct (List.nth_error _ x) eqn:Hx => //.
+  inversion H0; subst c.
+  econstructor; eauto.
+  destruct HC as [HC | HC];
+    last by destruct C; inversion HC; subst; destruct x.
+  apply inst_typing_tags in HC as Htags.
+  apply all2_Forall2 in Htags.
+  eapply Forall2_nth_error in Htags as (v & Hv & Hvag).
+  2: exact Hx.
+  rewrite H in Hv.
+  inversion Hv; subst v.
+  unfold tag_agree in Hvag.
+  destruct (List.nth_error _ t) => //.
+  move/eqP in Hvag.
+  by subst f. 
+Qed. 
 
 
 
-Lemma t_preservation_strip_empty_context:
+  Lemma t_preservation_strip_empty_context:
   forall s f es s' f' es', 
   reduce s f es s' f' es' ->
   (forall C t1s t2s,
     upd_label C [::] = empty_context ->
     store_typing s ->
     store_typing s' ->
+    store_extension s s' ->
     e_typing s C es (Tf t1s t2s) ->
     e_typing s' C es' (Tf t1s t2s)) /\ 
       forall C t1s t2s lab ret ts,
     store_typing s ->
     store_typing s' ->
+    store_extension s s' ->
     inst_typing s f.(f_inst) C ->
     inst_typing s' f.(f_inst) C ->
     List.Forall2 (fun v tv => e_typing s empty_context [:: AI_const v] (Tf [::] [::tv]))
@@ -7589,10 +7721,11 @@ Lemma t_preservation_strip_empty_context:
 Proof.
   move => s f es s' f' es' HReduce.
   induction HReduce.
+  
   1-37,39: split;
-    [ intros C ty tx HC HST1 HST2 HType
+    [ intros C ty tx HC HST1 HST2 Hsext HType
     |
-      intros C ty tx lab ret tslocs HST1 HST2 HIT1 HIT2 Hts HType
+      intros C ty tx lab ret tslocs HST1 HST2 Hsext HIT1 HIT2 Hts HType
     ]; subst; try eauto; try by apply ety_trap
   .
   
@@ -7789,7 +7922,8 @@ Proof.
         rewrite size_map. done. }
     remove_bools_options. subst.
     apply ety_weakening. apply et_weakening_empty_1.
-    apply ety_handler. done.
+    apply ety_handler.
+    eapply exception_clause_desugar_typing; eauto.
     eapply ety_label.
     instantiate (1 := tm). 3: done.
     apply et_weakening_empty_both.
@@ -7819,7 +7953,11 @@ Proof.
         rewrite size_map. done. }
     remove_bools_options. subst.
     apply ety_weakening. apply et_weakening_empty_1.
-    apply ety_handler. done.
+    apply ety_handler.
+    eapply exception_clause_desugar_typing; eauto.
+    left. rewrite strip_upd_label.
+    rewrite strip_upd_local_return.
+    apply inst_typing_strip => //. 
     eapply ety_label.
     instantiate (1 := t2s). 3: done.
     apply et_weakening_empty_both.
@@ -7887,19 +8025,24 @@ Proof.
     eapply t_const_ignores_context. apply v_to_e_is_const_list.
     exact Hexn.
     apply ety_a'; first by constructor.
-    
+    destruct (e_tag _) eqn:Htag.
     eapply firstx_clause_typing in Hhs; last exact H1.
-    destruct Hhs as [(i0 & ts0' & Htags' & Htagst & Hlab) | Hlab].
-    destruct C; inversion HC; subst.
-    destruct i0 => //.
-    rewrite - (cats0 tse).
-    apply bet_br.
-    simpl.
-    apply nth_error_lt_Some in Hlab => //.
-    simpl in *.
-    unfold plop2. simpl.
-    rewrite Hlab => //.
-      - (* Throw_ref *)
+    destruct Hhs as [(ts0' & Htagst & Hlab) | Hlab].
+    + rewrite - (cat0s tse).
+      apply bet_br.
+      apply nth_error_lt_Some in Hlab => //.
+      simpl in *.
+      unfold plop2.
+      rewrite Hlab => //.
+      rewrite Htags in Htagst.
+      inversion Htagst. done.
+    + rewrite - (cats0 tse).
+      apply bet_br.
+      apply nth_error_lt_Some in Hlab => //.
+      simpl in *.
+      unfold plop2. simpl.
+      rewrite Hlab => //. 
+  - (* Throw_ref *)
     apply Handler_typing in HType as (ts2' & -> & Hhs & HLI).
     eapply hfilled_typing in HLI as ([t1s t2s] & (* i' & *) C' & HType & (* HC' & *) Hreconstruct).
     2: exact H0.
@@ -7922,9 +8065,9 @@ Proof.
     eapply t_const_ignores_context. apply v_to_e_is_const_list.
     exact Hexn.
     apply ety_a'; first by constructor.
-    
+    destruct (e_tag _) eqn:He.
     eapply firstx_clause_typing in Hhs; last exact H1.
-    destruct Hhs as [(i0 & ts0' & Htags' & Htagst & Hlab) | Hlab].
+    destruct Hhs as [(ts0' & Htagst & Hlab) | Hlab].
     + rewrite - (cat0s tse).
       apply bet_br.
       simpl.
@@ -7932,9 +8075,8 @@ Proof.
       simpl in *.
       unfold plop2. simpl.
       rewrite Hlab => //.
-      eapply tc_reference_tag in Htagst.
-      2: exact HIT1. 2: exact Htags'. 2: exact Htags.
-      inversion Htagst; subst. done.
+      rewrite Htags in Htagst.
+      inversion Htagst. done.
     + rewrite - (cats0 tse).
       apply bet_br.
       simpl.
@@ -7972,17 +8114,23 @@ Proof.
     exact Hexn'. 
     
     apply ety_a'; first by constructor.
-    
+    destruct (e_tag _) eqn:He.
     eapply firstx_clause_typing_ref in Hhs; last exact H1.
-    destruct Hhs as [(i0 & ts0' & Htags' & Htagst & Hlab) | Hlab].
-    destruct C; inversion HC; subst.
-    destruct i0 => //.
-    apply bet_br.
-      simpl.
+    destruct Hhs as [(ts0' & Htagst & Hlab) | Hlab].
+    + rewrite - (cat0s (tse ++ _)).
+      apply bet_br.
       apply nth_error_lt_Some in Hlab => //.
       simpl in *.
-      unfold plop2. simpl.
+      unfold plop2. 
       rewrite Hlab => //.
+      rewrite Htags in Htagst.
+      inversion Htagst. done.
+    + apply bet_br.
+      apply nth_error_lt_Some in Hlab => //.
+
+      unfold plop2. 
+      rewrite Hlab => //.       
+
   - (* Throw_ref_ref *) 
     apply Handler_typing in HType as (ts2' & -> & Hhs & HLI).
     eapply hfilled_typing in HLI as ([t1s t2s] & (* i' & *) C' & HType & (* HC' & *) Hreconstruct).
@@ -8014,9 +8162,9 @@ Proof.
     exact Hexn'. 
     
     apply ety_a'; first by constructor.
-    
+    destruct (e_tag _) eqn:He.
     eapply firstx_clause_typing_ref in Hhs; last exact H1.
-    destruct Hhs as [(i0 & ts0' & Htags' & Htagst & Hlab) | Hlab].
+    destruct Hhs as [(ts0' & Htagst & Hlab) | Hlab].
     + rewrite - (cat0s (tse ++ _)).
       apply bet_br.
       simpl.
@@ -8024,9 +8172,8 @@ Proof.
       simpl in *.
       unfold plop2. simpl.
       rewrite Hlab => //.
-      eapply tc_reference_tag in Htagst.
-      2: exact HIT1. 2: exact Htags'. 2: exact Htags.
-      inversion Htagst; subst. done.
+      rewrite Htags in Htagst. inversion Htagst; subst.
+      done.
     + apply bet_br.
       simpl.
       apply nth_error_lt_Some in Hlab => //.
@@ -8101,20 +8248,20 @@ Proof.
     do 2 apply ety_weakening.
     apply et_weakening_empty_1.
     apply ety_prompt.
-    done.
+    eapply continuation_clause_desugar_typing; eauto.
     eapply e_typing_plug_value.
     7:{ eapply store_extension_e_typing.
-        3:{ exact H11. }
+        3:{ exact H12. }
         done.
         eapply store_extension_upd_cont.
         done. eauto. done.
     }
-    5: exact H10.
-    exact H7.
+    5: exact H11.
+    exact H8.
     4: exact H3.
     done.
     { eapply store_extension_e_typing.
-      3:{ exact H9. } 
+      3:{ exact H10. } 
       done. eapply store_extension_upd_cont; eauto.
     }
     { eapply store_extension_e_typing; last first.
@@ -8122,7 +8269,7 @@ Proof.
         apply v_to_e_is_const_list. exact Hconst. }
       eapply store_extension_upd_cont; eauto.
       done. }
-      - (* Resume *)
+  - (* Resume *)
     rewrite separate1 in HType.
     apply e_composition_typing in HType as (ts0 & t1s' & t2s' & t3s' & -> & -> & Hvs & Hrefres). 
     destruct (const_es_exists H) as [es ->].
@@ -8149,19 +8296,21 @@ Proof.
     do 2 apply ety_weakening.
     apply et_weakening_empty_1.
     apply ety_prompt.
-    done.
+    eapply continuation_clause_desugar_typing; eauto.
+    left. rewrite strip_upd_label strip_upd_local_return.
+    apply inst_typing_strip => //. 
     eapply e_typing_plug_value.
     7:{ eapply store_extension_e_typing.
-        3:{ apply typing_empty_context. exact H11. }
+        3:{ apply typing_empty_context. exact H12. }
         done.
         eapply store_extension_upd_cont; eauto.
     }
-    5: exact H10.
-    exact H7.
+    5: exact H11.
+    exact H8.
     4: exact H3.
     done.
     { eapply store_extension_e_typing.
-      3:{ apply typing_empty_context. exact H9. } 
+      3:{ apply typing_empty_context. exact H10. } 
       done.
       eapply store_extension_upd_cont; eauto.
     }
@@ -8188,15 +8337,15 @@ Proof.
   - (* Suspend *)
     apply Prompt_typing in HType as ((* ts2 & *) -> & Hclauses & HLI).
     eapply hfilled_typing in HLI as (ts1 & (* i' & *) C' & Hsuspend & (* HC' & *) Hrebuild).
-    2: exact H3.
+    2: exact H4.
     destruct ts1 as [ts1 ts3].
     apply e_composition_typing in Hsuspend as (ts' & ts1' & ts2' & ts3' & -> & -> & Hvs & Hsuspend).
     apply const_es_exists in H as [vs' ->].
     apply Const_list_typing in Hvs as (tvs & Htvs & -> & Hconst).
     apply AI_suspend_desugared_typing in Hsuspend as (ts'' & ts1'' & ts2'' & Htypes & -> & Htags ).
-    rewrite H0 in Htags. inversion Htags; subst.
+    rewrite H1 in Htags. inversion Htags; subst.
     apply concat_cancel_last_n in Htypes.
-    2:{ do 2 rewrite length_is_size in H1. rewrite - H1 size_map.
+    2:{ do 2 rewrite length_is_size in H2. rewrite - H2 size_map.
         rewrite - (size_map (typeof s) vs') Htvs size_map. done. }
     remove_bools_options. subst.
     apply et_weakening_empty_1.
@@ -8211,30 +8360,31 @@ Proof.
         rewrite - (cats0 [:: Cont_hh _ _]).
         apply list_nth_prefix. done.
       * apply ety_a'; first by constructor.
-        eapply firstx_clause_typing_cont in H2 as (i0 & ts1 & ts2 & Hi0 & Htagsi0 & Hlabel); last exact Hclauses.
-            destruct C; inversion HC; subst.
-            destruct i0 => //.
+        eapply firstx_clause_typing_cont in H3 as (ts1 & ts2 & Htagsi0 & Hlabel); last exact Hclauses.
+        rewrite - (cat0s (ts1'' ++ _)).
+        constructor. simpl.
+        apply nth_error_lt_Some in Hlabel. done.
+        unfold plop2. simpl.
+        simpl in Htagsi0.
+        rewrite H1 in Htagsi0. inversion Htagsi0; subst.
+        
+        by rewrite Hlabel.
+
   - (* Suspend *)
     apply Prompt_typing in HType as ((* ts2 & *) -> & Hclauses & HLI).
     eapply hfilled_typing in HLI as (ts1 & (* i' & *) C' & Hsuspend & (* HC' & *) Hrebuild).
-    2: exact H3.
-    (* 2:{ instantiate (1 := f_inst f).
-        inst_typing_equal (f_inst f) C HIT1. }  *)
+    2: exact H4.
     destruct ts1 as [ts1 ts3].
     apply e_composition_typing in Hsuspend as (ts' & ts1' & ts2' & ts3' & -> & -> & Hvs & Hsuspend).
     apply const_es_exists in H as [vs' ->].
     apply Const_list_typing in Hvs as (tvs & Htvs & -> & Hconst).
     apply AI_suspend_desugared_typing in Hsuspend as (ts'' & ts1'' & ts2'' & Htypes & -> & Htags ).
-    rewrite H0 in Htags. inversion Htags; subst.
-
-    (*
-    eapply tc_reference_tag in HC' as Htagseq.
-    2: a dmit. (* same as suspend in other lemma: indirection using wrong instance, fix opsem *)
-    2: exact H1. 2: exact Htags. 
-    inversion Htagseq; subst. *)
+    rewrite H1 in Htags. inversion Htags; subst.
     apply concat_cancel_last_n in Htypes.
-    2:{ do 2 rewrite length_is_size in H1. rewrite - H1 size_map.
-        rewrite - (size_map (typeof s) vs') Htvs size_map. done. }
+    2:{ do 2 rewrite length_is_size in H2.
+        rewrite - H2 size_map.
+        rewrite - (size_map (typeof s) vs') Htvs size_map.
+        done. }
     remove_bools_options. subst.
     apply et_weakening_empty_1.
     eapply et_composition'.
@@ -8248,15 +8398,14 @@ Proof.
         rewrite - (cats0 [:: Cont_hh _ _]).
         apply list_nth_prefix. done.
       * apply ety_a'; first by constructor.
-        eapply firstx_clause_typing_cont in H2 as (i0 & ts1 & ts2 & Hi0 & Htagsi0 & Hlabel); last exact Hclauses.
+        eapply firstx_clause_typing_cont in H3 as (ts1 & ts2 & Htagsi0 & Hlabel); last exact Hclauses.
         simpl in Hlabel.
         rewrite - (cat0s (ts1'' ++ _)).
         constructor. simpl.
         apply nth_error_lt_Some in Hlabel. done.
         unfold plop2. simpl.
         simpl in Htagsi0.
-        eapply tc_reference_tag in Htagsi0.
-        2: exact HIT1. 2: exact Hi0. 2: exact H0.
+        rewrite H1 in Htagsi0.
         inversion Htagsi0; subst ts1'' ts2''.
         by rewrite Hlabel.
 
@@ -8379,7 +8528,10 @@ Proof.
         rewrite size_map. done. }
     remove_bools_options. 
     do 2 apply ety_weakening. apply et_weakening_empty_1.
-    constructor. done.
+    constructor.
+    eapply continuation_clause_desugar_typing; eauto.
+    left. rewrite strip_upd_label strip_upd_local_return.
+    apply inst_typing_strip => //. 
     remember HST1 as HST1'; clear HeqHST1'.
     destruct s; destruct HST1 as (_ & _ & _ & _ & Hconts & _).
     remember H5 as H2'; clear HeqH2'.
@@ -8422,15 +8574,15 @@ Proof.
           eapply store_extension_e_typing.
           exact HST1'. apply store_extension_add_exn.
           exact HST1'.
-          exact H12. } 
-      3: exact H11.
+          exact H13. } 
+      3: exact H12.
       done.
-      2: exact H7.
+      2: exact H8.
       apply typing_empty_context.
       eapply store_extension_e_typing.
       exact HST1'. apply store_extension_add_exn.
       exact HST1'.
-      exact H10.
+      exact H11.
     + eapply store_extension_upd_cont => //.
       apply store_typing_add_exn.
       exact HST1'.
@@ -8712,7 +8864,7 @@ Proof.
     eapply mk_s_typing; eauto.
     + eapply mk_frame_typing => //. 
       * eapply inst_typing_extension; eauto.
-        eapply store_extension_reduce; eauto.
+(*        eapply store_extension_reduce; eauto. *)
         replace (f_inst f') with (f_inst f); eauto; first by eapply reduce_inst_unchanged; eauto.
       * eapply t_preservation_locals.
         exact HReduce. done. done.
@@ -8725,7 +8877,7 @@ Proof.
       eapply IHHReduce; eauto.
 
       eapply inst_typing_extension; eauto.
-      eapply store_extension_reduce; eauto.
+      (* eapply store_extension_reduce; eauto. *)
   - (* r_local *)
     apply Local_typing in HType as (ts' & -> & Hstyp & <-).
     apply et_weakening_empty_1.
@@ -8735,7 +8887,7 @@ Proof.
     eapply mk_s_typing; eauto.
     + eapply mk_frame_typing => //. 
       * eapply inst_typing_extension; eauto.
-        eapply store_extension_reduce; eauto.
+(*        eapply store_extension_reduce; eauto. *)
         replace (f_inst f') with (f_inst f); eauto; first by eapply reduce_inst_unchanged; eauto.
       * eapply t_preservation_locals.
         exact HReduce. done. done.
@@ -8747,7 +8899,7 @@ Proof.
     + fold_upd_context.
       eapply IHHReduce; eauto.
       eapply inst_typing_extension; eauto.
-      eapply store_extension_reduce; eauto.
+      (* eapply store_extension_reduce; eauto. *)
 
   - (* r_label *)
     
@@ -8755,9 +8907,9 @@ Proof.
     induction lh; move => les' les k HLF1 HLF2; move/lfilledP in HLF1; move/lfilledP in HLF2.
     all: split;
       [
-        intros C tx ty HC HST1 HST2 HType
+        intros C tx ty HC HST1 HST2 Hsext HType
       |
-        intros C tx ty lab ret ts HST1 HST2 HIT1 HIT2 Hts HType
+        intros C tx ty lab ret ts HST1 HST2 Hsext HIT1 HIT2 Hts HType
       ].
                          
     + inversion HLF1.
@@ -8776,7 +8928,7 @@ Proof.
             by eapply IHHReduce; eauto => //.
          ++ repeat apply ety_weakening.
             eapply store_extension_e_typing; try apply HST1 => //; try by [].
-            eapply store_extension_reduce_strip_empty_context; eauto.
+            (* eapply store_extension_reduce_strip_empty_context; eauto. *)
     + inversion HLF1.
       inversion HLF2. subst. clear HLF2. clear HLF1. clear H6.
       apply e_composition_typing in HType as (ts0 & t1s0 & t2s0 & t3s0 & -> & -> & Hvs & Haft).
@@ -8793,7 +8945,7 @@ Proof.
             by eapply IHHReduce; eauto => //.
          ++ repeat apply ety_weakening.
             eapply store_extension_e_typing; try apply HST1 => //; try by [].
-            eapply store_extension_reduce; eauto.
+            (* eapply store_extension_reduce; eauto. *)
 
     + inversion HLF1. inversion HLF2. subst.
       inversion H11. subst. clear H11.
@@ -8825,8 +8977,8 @@ Proof.
                destruct H16 as [lab' [t1s' [t2s' H16]]].
                rewrite upd_label_overwrite in H16.
                eapply store_extension_e_typing; try apply HST1 => //; try by [].
-               eapply store_extension_reduce_strip_empty_context.
-               3: exact H16. done. exact HReduce. done.
+               (* eapply store_extension_reduce_strip_empty_context. 
+               3: exact H16. done. exact HReduce. done. *)
             ** eapply IHlh; eauto.
          ++ repeat apply ety_weakening.
             simpl in H16. 
@@ -8834,8 +8986,8 @@ Proof.
             destruct H16 as [lab' [t1s' [t2s' H16]]].
             rewrite upd_label_overwrite in H16. 
             eapply store_extension_e_typing; try apply HST1 => //; try by [].
-            eapply store_extension_reduce_strip_empty_context.
-            3: exact H16. done. exact HReduce. done.
+            (* eapply store_extension_reduce_strip_empty_context.
+            3: exact H16. done. exact HReduce. done. *)
     + inversion HLF1. inversion HLF2. subst.
       inversion H11. subst. clear H11.
       move/lfilledP in H8. move/lfilledP in H18.
@@ -8865,8 +9017,8 @@ Proof.
                destruct H16 as [lab' [t1s' [t2s' H16]]].
                rewrite upd_label_overwrite in H16.
                eapply store_extension_e_typing; try apply HST1 => //; try by [].
-               eapply store_extension_reduce; eauto.
-               exact H16. 
+               (* eapply store_extension_reduce; eauto.
+               exact H16.  *)
             ** eapply IHlh; eauto.
          ++ repeat apply ety_weakening.
             simpl in H16. 
@@ -8874,8 +9026,8 @@ Proof.
             destruct H16 as [lab' [t1s' [t2s' H16]]].
             rewrite upd_label_overwrite in H16. 
             eapply store_extension_e_typing; try apply HST1 => //; try by [].
-            eapply store_extension_reduce; eauto.
-            exact H16. 
+            (* eapply store_extension_reduce; eauto.
+            exact H16.  *)
     + inversion HLF1. inversion HLF2; subst.
       apply e_composition_typing in HType as (ts0 & t1s0 & t2s0 & t3s0 & -> & -> & Hvs & Haft).
       apply e_composition_typing in Haft as (ts1 & t1s1 & t2s1 & t3s1 & -> & -> & Hes & Hes'0).
@@ -8894,6 +9046,9 @@ Proof.
          ++ instantiate (1 := ts0 ++ ts1 ++ t1s1 ++ _).
             do 2 apply ety_weakening. apply et_weakening_empty_1.
             apply ety_handler; eauto.
+            eapply List.Forall_impl; last exact Hclauses.
+            intros h Hh.
+            eapply store_extension_exception_clause_typing; eauto.
             eapply IHlh; eauto.
             apply/lfilledP. exact H7.
             apply/lfilledP. exact H16.
@@ -8922,6 +9077,9 @@ Proof.
          ++ instantiate (1 := ts0 ++ ts1 ++ t1s1 ++ _).
             do 2 apply ety_weakening. apply et_weakening_empty_1.
             apply ety_handler; eauto.
+            eapply List.Forall_impl; last exact Hclauses.
+            intros h Hh.
+            eapply store_extension_exception_clause_typing; eauto.
             eapply IHlh; eauto.
             apply/lfilledP. exact H7.
             apply/lfilledP. exact H16.
@@ -8950,6 +9108,9 @@ Proof.
          ++ instantiate (1 := ts0 ++ ts1 ++ t1s1 ++ _).
             do 2 apply ety_weakening. apply et_weakening_empty_1.
             apply ety_prompt; eauto.
+            eapply List.Forall_impl; last exact Hclauses.
+            intros h Hh.
+            eapply store_extension_continuation_clause_typing; eauto.
             eapply IHlh; eauto.
             apply/lfilledP. exact H8.
             apply/lfilledP. exact H18. 
@@ -8978,6 +9139,9 @@ Proof.
          ++ instantiate (1 := ts0 ++ ts1 ++ t1s1 ++ _).
             do 2 apply ety_weakening. apply et_weakening_empty_1.
             apply ety_prompt; eauto.
+            eapply List.Forall_impl; last exact Hclauses.
+            intros h Hh.
+            eapply store_extension_continuation_clause_typing; eauto.
             eapply IHlh; eauto.
             apply/lfilledP. exact H8.
             apply/lfilledP. exact H18. 
