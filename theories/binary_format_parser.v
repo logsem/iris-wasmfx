@@ -227,19 +227,19 @@ Definition parse_contnew {n} : byte_parser basic_instruction n :=
   exact_byte xcb &> (BI_contnew <$> parse_type_identifier).
 
 Definition parse_handler_clause_aux (x : labelidx) (y : labelidx) :=
-  HC_catch (extract_labelidx (fun x => x) x) (extract_labelidx (fun y => y) y).
+  HC_catch (extract_labelidx (fun x => Mk_tagident x) x) (extract_labelidx (fun y => y) y).
 
-Definition parse_handler_clause {n} : byte_parser continuation_clause n :=
+Definition parse_handler_clause {n} : byte_parser continuation_clause_identifier n :=
   exact_byte xd0 &> (( parse_handler_clause_aux <$> parse_labelidx) <*> parse_labelidx).
 
-Definition parse_handler_clauses {n} : byte_parser (list continuation_clause) n :=
+Definition parse_handler_clauses {n} : byte_parser (list continuation_clause_identifier) n :=
   parse_vec parse_handler_clause.
 
 Definition parse_resume {n} : byte_parser basic_instruction n :=
   exact_byte xcc &> ((BI_resume <$> parse_type_identifier) <*> parse_handler_clauses).
 
 Definition parse_suspend {n} : byte_parser basic_instruction n :=
-  exact_byte xcd &> (extract_labelidx BI_suspend <$> parse_labelidx).
+  exact_byte xcd &> (extract_labelidx (fun x => BI_suspend (Mk_tagident x)) <$> parse_labelidx).
 
 Definition parse_contbind {n} : byte_parser basic_instruction n :=
   exact_byte xce &> ((BI_contbind <$> parse_type_identifier) <*> parse_type_identifier).
@@ -251,18 +251,18 @@ Definition parse_resume_throw {n} : byte_parser basic_instruction n :=
   exact_byte xcf &> (((parse_resume_throw_aux <$> parse_type_identifier) <*> parse_labelidx) <*> parse_handler_clauses).
 
 Definition parse_exception_clause_aux (x : labelidx) (y : labelidx) :=
-  HE_catch (extract_labelidx (fun x => x) x) (extract_labelidx (fun y => y) y).
+  HE_catch (extract_labelidx (fun x => Mk_tagident x) x) (extract_labelidx (fun y => y) y).
 Definition parse_exception_clause_aux2 (x : labelidx) (y : labelidx) :=
-  HE_catch_ref (extract_labelidx (fun x => x) x) (extract_labelidx (fun y => y) y).
+  HE_catch_ref (extract_labelidx (fun x => Mk_tagident x) x) (extract_labelidx (fun y => y) y).
 
-Definition parse_exception_clause {n} : byte_parser exception_clause n :=
+Definition parse_exception_clause {n} : byte_parser exception_clause_identifier n :=
   (exact_byte xd2 &> (( parse_exception_clause_aux <$> parse_labelidx) <*> parse_labelidx)) <|>
     (exact_byte xd3 &> (( parse_exception_clause_aux2 <$> parse_labelidx) <*> parse_labelidx)) <|>
     (exact_byte xd4 &> (extract_labelidx HE_catch_all <$> parse_labelidx)) <|>
       (exact_byte xd5 &> (extract_labelidx HE_catch_all <$> parse_labelidx))
 .
 
-Definition parse_exception_clauses {n} : byte_parser (list exception_clause) n :=
+Definition parse_exception_clauses {n} : byte_parser (list exception_clause_identifier) n :=
   parse_vec parse_exception_clause.
 
 Definition parse_throw_ref {n} : byte_parser basic_instruction n :=

@@ -85,7 +85,7 @@ Proof. exact (x00 :: x00 :: x00 :: nil). Qed.
 
 Definition binary_of_handler_clause h : list byte :=
   match h with
-  | HC_catch x y => xd0 :: binary_of_idx x ++ binary_of_idx y
+  | HC_catch (Mk_tagident x) y => xd0 :: binary_of_idx x ++ binary_of_idx y
   end.
 
 Definition binary_of_handler_clauses hs : list byte :=
@@ -93,8 +93,8 @@ Definition binary_of_handler_clauses hs : list byte :=
 
 Definition binary_of_exception_clause h : list byte :=
   match h with
-  | HE_catch x y => xd2 :: binary_of_idx x ++ binary_of_idx y
-  | HE_catch_ref x y => xd3 :: binary_of_idx x ++ binary_of_idx y
+  | HE_catch (Mk_tagident x) y => xd2 :: binary_of_idx x ++ binary_of_idx y
+  | HE_catch_ref (Mk_tagident x) y => xd3 :: binary_of_idx x ++ binary_of_idx y
   | HE_catch_all x => xd4 :: binary_of_idx x
   | HE_catch_all_ref x => xd5 :: binary_of_idx x
   end.
@@ -344,7 +344,7 @@ Fixpoint binary_of_be (be : basic_instruction) : list byte :=
   | BI_throw x => xca :: binary_of_idx x
   | BI_contnew x => xcb :: binary_of_type_identifier x
   | BI_resume x hs => xcc :: binary_of_type_identifier x ++ binary_of_handler_clauses hs
-  | BI_suspend x => xcd :: binary_of_idx x
+  | BI_suspend (Mk_tagident x) => xcd :: binary_of_idx x
   | BI_contbind x y => xce :: binary_of_type_identifier x ++ binary_of_type_identifier y
   | BI_resume_throw x y hs => xcf :: binary_of_type_identifier x ++ binary_of_idx y ++ binary_of_handler_clauses hs
   | BI_try_table tf hs bes => xd6 :: binary_of_type_identifier tf ++ binary_of_exception_clauses hs ++ binary_of_instrs bes ++ x0b :: nil

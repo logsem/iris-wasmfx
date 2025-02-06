@@ -276,9 +276,28 @@ Definition pp_type_identifier x :=
   | Type_explicit tf => pp_function_type tf
   end.
 
+Definition pp_continuation_clause_identifier h : string :=
+  match h with
+  | HC_catch (Mk_tagident x) y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  end.
+
+Definition pp_continuation_clauses_identifier hs : string :=
+  "(" ++ String.concat ", " (List.map pp_continuation_clause_identifier hs) ++ ")" .
+
+Definition pp_exception_clause_identifier h : string :=
+  match h with
+  | HE_catch (Mk_tagident x) y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | HE_catch_ref (Mk_tagident x) y => "On ref " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | HE_catch_all x => "Else do " ++ pp_immediate x
+  | HE_catch_all_ref x => "Else ref do " ++ pp_immediate x
+  end .
+
+Definition pp_exception_clauses_identifier hs : string :=
+  "(" ++ String.concat ", " (List.map pp_exception_clause_identifier hs) ++ ")" .
+
 Definition pp_continuation_clause h : string :=
   match h with
-  | HC_catch x y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | DC_catch (Mk_tagidx x) y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
   end.
 
 Definition pp_continuation_clauses hs : string :=
@@ -286,14 +305,15 @@ Definition pp_continuation_clauses hs : string :=
 
 Definition pp_exception_clause h : string :=
   match h with
-  | HE_catch x y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
-  | HE_catch_ref x y => "On ref " ++ pp_immediate x ++ " do " ++ pp_immediate y
-  | HE_catch_all x => "Else do " ++ pp_immediate x
-  | HE_catch_all_ref x => "Else ref do " ++ pp_immediate x
+  | DE_catch (Mk_tagidx x) y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | DE_catch_ref (Mk_tagidx x) y => "On ref " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | DE_catch_all x => "Else do " ++ pp_immediate x
+  | DE_catch_all_ref x => "Else ref do " ++ pp_immediate x
   end .
 
 Definition pp_exception_clauses hs : string :=
   "(" ++ String.concat ", " (List.map pp_exception_clause hs) ++ ")" .
+
 
 Fixpoint pp_basic_instruction (i : indentation) (be : basic_instruction) : string :=
   let pp_basic_instructions bes i :=
@@ -378,17 +398,17 @@ Fixpoint pp_basic_instruction (i : indentation) (be : basic_instruction) : strin
 | BI_ref_func f => indent i (with_fg be_style "ref.func " ++ pp_immediate f ++ newline) 
 | BI_call_reference x => indent i (with_fg be_style "call_reference " ++ pp_type_identifier x ++ newline) 
   | BI_try_table x hs bes =>
-      indent i (with_fg be_style "try_table " ++ pp_type_identifier x ++ pp_exception_clauses hs ++ newline) ++
+      indent i (with_fg be_style "try_table " ++ pp_type_identifier x ++ pp_exception_clauses_identifier hs ++ newline) ++
         pp_basic_instructions bes (S i) ++
         indent i (with_fg be_style "end" ++ newline)
 | BI_throw k => indent i (with_fg be_style "throw " ++ pp_immediate k ++ newline)
 | BI_throw_ref => indent i (with_fg be_style "throw_ref" ++ newline)
 
 | BI_contnew x => indent i (with_fg be_style "cont.new " ++ pp_type_identifier x ++ newline)
-| BI_resume x hs => indent i (with_fg be_style "resume " ++ pp_type_identifier x ++ pp_continuation_clauses hs ++ newline)
-| BI_suspend k => indent i (with_fg be_style "suspend " ++ pp_immediate k ++ newline) 
+| BI_resume x hs => indent i (with_fg be_style "resume " ++ pp_type_identifier x ++ pp_continuation_clauses_identifier hs ++ newline)
+| BI_suspend (Mk_tagident k) => indent i (with_fg be_style "suspend " ++ pp_immediate k ++ newline) 
 | BI_contbind x y => indent i (with_fg be_style "cont.bind " ++ pp_type_identifier x ++ ", " ++ pp_type_identifier y ++ newline) 
-| BI_resume_throw x k hs => indent i (with_fg be_style "resume_throw " ++ pp_type_identifier x ++ ", " ++ pp_immediate k ++ pp_continuation_clauses hs ++ newline)
+| BI_resume_throw x k hs => indent i (with_fg be_style "resume_throw " ++ pp_type_identifier x ++ ", " ++ pp_immediate k ++ pp_continuation_clauses_identifier hs ++ newline)
                                      
   end.
 
@@ -448,7 +468,7 @@ Fixpoint pp_administrative_instruction (n : indentation) (e : administrative_ins
   | AI_ref f => indent n (with_fg ae_style "ref " ++ pp_immediate f ++ newline) 
 | AI_ref_exn e => indent n (with_fg ae_style "ref.exn " ++ pp_immediate e ++ newline)
 | AI_ref_cont f => indent n (with_fg ae_style "ref.cont " ++ pp_immediate f ++ newline) 
-| AI_suspend_desugared i => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i) 
+| AI_suspend_desugared (Mk_tagidx i) => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i) 
   | AI_handler hs es =>
       indent n (with_fg ae_style "handler " ++ pp_exception_clauses hs) ++
         String.concat "" (List.map (pp_administrative_instruction (n.+1)) es) ++

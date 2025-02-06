@@ -223,7 +223,7 @@ Definition is_float (t: number_type) :=
   | T_f64 => true
   end.
 
-Definition check_clause C x l t2s :=
+Definition check_clause C '(Mk_tagident x) l t2s :=
   match List.nth_error (tc_tags_t C) x with
   | Some (Tf t1s' t2s') =>
       match List.nth_error (tc_label C) l with
@@ -236,7 +236,7 @@ Definition check_clause C x l t2s :=
 
 Definition check_exception_clause C h :=
   match h with
-  | HE_catch x y =>
+  | HE_catch (Mk_tagident x) y =>
       match List.nth_error (tc_tags_t C) x with
       | Some (Tf ts [::]) =>
           match List.nth_error (tc_label C) y with
@@ -246,7 +246,7 @@ Definition check_exception_clause C h :=
           end
       | _ => false
       end
-  | HE_catch_ref x y =>
+  | HE_catch_ref (Mk_tagident x) y =>
       match List.nth_error (tc_tags_t C) x with
       | Some (Tf ts [::]) =>
           match List.nth_error (tc_label C) y with
@@ -323,7 +323,7 @@ in
           end
       | _ => CT_bot
       end
-  | BI_suspend x =>
+  | BI_suspend (Mk_tagident x) =>
       match List.nth_error (tc_tags_t C) x with
       | Some (Tf t1s t2s) => type_update ts (to_ct_list t1s) (CT_type t2s)
       | _ => CT_bot

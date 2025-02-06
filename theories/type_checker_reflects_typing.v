@@ -1329,8 +1329,11 @@ Proof with auto_rewrite_cond.
     by eapply type_update_agree_suffix; eauto.
   - simplify_goal.
     by eapply type_update_agree_suffix; eauto. *)
-  - destruct l0 => //. eapply type_update_agree_suffix; eauto. 
-  (*  - simplify_goal.
+  - destruct l0 => //. eapply type_update_agree_suffix; eauto.
+  - destruct t. destruct (List.nth_error _ _) => //.
+    destruct f.
+    eapply type_update_agree_suffix; eauto.
+(*  - simplify_goal.
     by eapply type_update_agree_suffix; eauto.
   - destruct f0 => //. destruct (isolate_prefix _ _) => //. destruct (l2 == l0) => //.
     by eapply type_update_agree_suffix; eauto. *)
@@ -2450,14 +2453,15 @@ Proof with auto_rewrite_cond.
       2: exact Hh.
       unfold check_exception_clause in if_expr0.
       destruct h => //=.
-      all: destruct (List.nth_error _ _) eqn: Hi => //.
+      1,2: destruct t0 => //.
+      1,2: destruct (List.nth_error _ i0) eqn:Hi0 => //.
       1,2: destruct f => //.
-      1,2: destruct l3 => //.
+      1,2: destruct l3 => //. 
+      all: destruct (List.nth_error _ i) eqn: Hi => //.
       3,4: destruct l1 => //.
       4: destruct v => //.
       4: destruct r => //.
-      4: destruct l1 => //. 
-      1,2: destruct (List.nth_error _ i0) eqn:Hi0 => //.
+      4: destruct l1 => //.  
       all: move/eqP in if_expr0.
       all: subst.
       all: econstructor; eauto. 
@@ -2498,13 +2502,16 @@ Proof with auto_rewrite_cond.
       simpl in Hclauses. move/andP in Hclauses. destruct Hclauses as [Ha ?].
       constructor; last by apply IHl.
       destruct a. unfold check_clause in Ha.
+      destruct t. 
       destruct (List.nth_error _ _) eqn:Htags => //.
       destruct f => //.
-      destruct (List.nth_error _ i0) eqn:Hlabs => //.
+      destruct (List.nth_error _ i) eqn:Hlabs => //.
       move/eqP in Ha.
       econstructor; eauto.
       rewrite Hlabs Ha. done.
     + (* Suspend *)
+      destruct t.
+      destruct (List.nth_error _ i) eqn:Hi => //. 
       destruct f => //.
       apply type_update_type_agree in Hct2 as (tn' & Hct & ->).
       exists (tn' ++ l); split => //.
@@ -2537,9 +2544,10 @@ Proof with auto_rewrite_cond.
       simpl in Hclauses. move/andP in Hclauses. destruct Hclauses as [Ha ?].
       constructor; last by apply IHl.
       destruct a. unfold check_clause in Ha.
+      destruct t.
       destruct (List.nth_error _ _) eqn:Htags => //.
       destruct f => //.
-      destruct (List.nth_error _ i0) eqn:Hlabs => //.
+      destruct (List.nth_error _ i) eqn:Hlabs => //.
       move/eqP in Ha.
       econstructor; eauto.
       rewrite Hlabs Ha. done.
@@ -2607,7 +2615,7 @@ Proof with auto_rewrite_cond.
       rewrite eq_refl in Hclauses.
       simpl in Hclauses.
       apply IHhs => //.
-    + unfold get_tag in H. rewrite H.
+    + unfold get_tag in H. destruct x. rewrite H.
       rewrite ct_suffix_self. simpl.
       rewrite size_map.
       replace (size t1s - size t1s) with 0; last lias.
