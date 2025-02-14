@@ -1339,6 +1339,17 @@ Proof with auto_rewrite_cond.
     by eapply type_update_agree_suffix; eauto. *)
   - (* destruct f0 => //. *) destruct l3 => //.
     by eapply type_update_agree_suffix; eauto.
+  - destruct t0 => //.
+    destruct (List.nth_error _ i) eqn:Hi => //.
+    destruct f => //.
+    destruct l1 => //.
+    destruct (l0 == l2) eqn:Hl02 => //.
+    destruct p.
+    destruct v => //.
+    destruct r => //.
+    destruct f => //.
+    destruct (l0 == l4) eqn:Hl04 => //.
+    eapply type_update_agree_suffix; eauto.
 Qed.
 
 Lemma c_types_agree_weakening: forall C es ts ts' ts2,
@@ -1899,6 +1910,31 @@ Qed.
 Lemma le_le a b: a <= b <-> (a <= b)%coq_nat.
 Proof. lias. Qed.
 
+Lemma separate_last_spec {A} l l' (x: A):
+  separate_last l = Some (l', x) ->
+  l = l' ++ [:: x].
+Proof.
+  generalize dependent l'.
+  induction l => //=.
+  destruct l => //=.
+  { intros l' H; inversion H; subst => //. }
+  destruct l => //.
+  { intros l' H; inversion H; subst => //. }
+  intros l' Hlast.
+  simpl in IHl.
+  simpl in Hlast.
+  destruct (match match l with
+                  | [::] => _
+                  | _ :: _ => _
+                  end
+            with
+            | Some (l, x) => _
+            | None => None
+            end) => //.
+  destruct p.
+  inversion Hlast; subst.
+  simpl. rewrite -IHl => //.
+Qed. 
 
 
 (*
@@ -2501,14 +2537,18 @@ Proof with auto_rewrite_cond.
       induction l => //=.
       simpl in Hclauses. move/andP in Hclauses. destruct Hclauses as [Ha ?].
       constructor; last by apply IHl.
-      destruct a. unfold check_clause in Ha.
-      destruct t. 
-      destruct (List.nth_error _ _) eqn:Htags => //.
-      destruct f => //.
+      destruct a. 
+      all: unfold check_clause in Ha. 
+      all: destruct t. 
+      all: destruct (List.nth_error _ _) eqn:Htags => //.
+      all: destruct f => //. 
       destruct (List.nth_error _ i) eqn:Hlabs => //.
-      move/eqP in Ha.
-      econstructor; eauto.
-      rewrite Hlabs Ha. done.
+      2: destruct l0 => //.  
+      all: move/eqP in Ha.
+      all: econstructor; eauto.
+      rewrite Hlabs Ha.
+      done. rewrite -Ha. done.
+
     + (* Suspend *)
       destruct t.
       destruct (List.nth_error _ i) eqn:Hi => //. 
@@ -2543,15 +2583,42 @@ Proof with auto_rewrite_cond.
       induction l => //=.
       simpl in Hclauses. move/andP in Hclauses. destruct Hclauses as [Ha ?].
       constructor; last by apply IHl.
-      destruct a. unfold check_clause in Ha.
-      destruct t.
-      destruct (List.nth_error _ _) eqn:Htags => //.
-      destruct f => //.
+      destruct a.
+      all: unfold check_clause in Ha.
+      all: destruct t.
+      all: destruct (List.nth_error _ _) eqn:Htags => //.
+      all: destruct f => //.
       destruct (List.nth_error _ i) eqn:Hlabs => //.
-      move/eqP in Ha.
-      econstructor; eauto.
-      rewrite Hlabs Ha. done.
-    + (* Resume_throw *) destruct f => //. 
+      2: destruct l0 => //.
+      all: move/eqP in Ha.
+      all: subst; econstructor; eauto.
+    + (* Resume_throw *) destruct f => //.
+    + (* Switch *)
+      destruct t0 => //.
+      destruct f => //.
+      destruct (List.nth_error _ i) eqn:Htags => //.
+      destruct f => //.
+      destruct l1 => //.
+      destruct (l0 == l2) eqn:Hl02 => //.
+      move/eqP in Hl02. subst.
+      destruct (separate_last l) eqn:Hl => //.
+      destruct p.
+      apply separate_last_spec in Hl as ->.
+      destruct v => //.
+      destruct r => //.
+      destruct f.
+      destruct (l2 == l1) eqn:Hl04 => //.
+      move/eqP in Hl04. subst.
+      apply type_update_type_agree in Hct2 as (tn' & Hct & ->).
+      eexists (tn' ++ l0 ++ [:: T_ref (T_contref _)]); split => //.
+      exact Hct.
+      apply bet_weakening.
+      eapply bet_switch.
+      exact Htags.
+      exact match_expr.
+      done.
+      done.
+    + destruct t0 => //.
 Qed.
 
 Lemma tc_to_bet_list: forall C cts bes tm cts',
@@ -2568,6 +2635,14 @@ Qed.
 
 Lemma add_0_r n : n + 0 = n.
 Proof. lias. Qed.
+
+Lemma separate_last_trivial {A} l (x : A) :
+  separate_last (l ++ [:: x]) = Some (l, x).
+Proof.
+  induction l => //=.
+  rewrite IHl.
+  destruct l => //.
+Qed. 
 
 Lemma b_e_type_checker_reflects_typing:
   forall C bes tf,
@@ -2609,25 +2684,41 @@ Proof with auto_rewrite_cond.
       induction hs => //=.
       inversion H0; subst.
       inversion H2; subst.
-      simpl in Hclauses.
-      unfold check_clause in Hclauses.
-      rewrite H H1 in Hclauses.
-      rewrite eq_refl in Hclauses.
-      simpl in Hclauses.
-      apply IHhs => //.
-    + unfold get_tag in H. destruct x. rewrite H.
-      rewrite ct_suffix_self. simpl.
+      all: simpl in Hclauses.
+      all: unfold check_clause in Hclauses.
+      all: rewrite H in Hclauses.
+      rewrite H1 in Hclauses.
+      all: rewrite eq_refl in Hclauses.
+      all: simpl in Hclauses.
+      all: apply IHhs => //.
+    + unfold get_tag in H. destruct x.
+      unfold b_e_type_checker. destruct tf. simpl. rewrite H.
+      unfold c_types_agree. unfold type_update. unfold produce. unfold consume.
+      rewrite ct_suffix_self. 
       rewrite size_map.
-      replace (size t1s - size t1s) with 0; last lias.
+      replace (size l - size l) with 0; last lias.
       rewrite take0 => //. 
-      
+    + destruct x.
+      unfold get_tag in H.
+      rewrite H eq_refl.
+      rewrite separate_last_trivial eq_refl.
+      rewrite ct_suffix_self.
+      rewrite size_map.
+      rewrite size_cat.
+      simpl.
+      replace (size t1s + 1 - (size t1s + 1)) with 0; last lias.
+      rewrite take0. done.
     + rewrite isolate_prefix_trivial => /=...
     + destruct (List.forallb _ _) eqn:Hclauses => //...
       clear - H1 Hclauses.
       induction hs => //=.
       inversion H1; subst. inversion H2; subst.
-      simpl in Hclauses. unfold check_clause in Hclauses.
-      rewrite H H0 eq_refl in Hclauses. simpl in Hclauses. apply IHhs => //.
+      all: simpl in Hclauses.
+      all: unfold check_clause in Hclauses.
+      rewrite H0 in Hclauses.
+      all: rewrite H eq_refl in Hclauses.
+      all: simpl in Hclauses.
+      all: apply IHhs => //.
     + destruct (List.forallb _ _ ) eqn:Hclauses => //...
       rewrite - Hclauses.
       apply List.forallb_forall.

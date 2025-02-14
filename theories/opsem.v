@@ -343,30 +343,30 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     x = Mk_tagidx a ->
     List.nth_error (s_tags s) a = Some (Tf t1s t2s) ->
     length vs = length t1s ->
-    firstx_continuation hs x = Clause_suspend l ->
-    hfilled (Var_prompt x) hh (vs ++ [:: AI_suspend_desugared x]) LI ->
+    firstx_continuation_suspend hs x = Some l ->
+    hfilled (Var_prompt_suspend x) hh (vs ++ [:: AI_suspend_desugared x]) LI ->
     reduce s f [:: AI_prompt ts hs LI ] (new_cont s (Cont_hh (Tf t2s ts) hh)) f (vs ++ [:: AI_ref_cont (length (s_conts s)); AI_basic (BI_br l)])
-| r_suspend_failure :
+(* | r_suspend_failure :
   forall s f ts hs LI x hh,
     firstx_continuation hs x = Clause_switch ->
     hfilled (Var_prompt x) hh [:: AI_suspend_desugared x] LI ->
-    reduce s f [::AI_prompt ts hs LI ] s f [:: AI_trap]
+    reduce s f [::AI_prompt ts hs LI ] s f [:: AI_trap] *)
 | r_switch :
   forall s f ts hs LI t1s' t2s' tf' hh LI' x tf t1s t2s k vs hh',
     const_list vs ->
-    firstx_continuation hs x = Clause_switch ->
+    firstx_continuation_switch hs x = true ->
     tf = Tf (t1s ++ [:: T_ref (T_contref tf')]) t2s ->
     List.nth_error (s_conts s) k = Some (Cont_hh (Tf t1s' t2s') hh') ->
     length t1s' = S (length vs) ->
-    hfilled (Var_prompt x) hh (vs ++ [::AI_ref_cont k; AI_switch_desugared tf x]) LI ->
+    hfilled (Var_prompt_switch x) hh (vs ++ [::AI_ref_cont k; AI_switch_desugared tf x]) LI ->
     hfilled No_var hh' (vs ++ [:: AI_ref_cont (length (s_conts s))]) LI' ->
     reduce s f [:: AI_prompt ts hs LI ] (new_cont (upd_s_cont s k (Cont_dagger (Tf t1s' t2s'))) (Cont_hh tf' hh)) f [:: AI_prompt t2s' hs LI']
-| r_switch_failure_clause :
+(* | r_switch_failure_clause :
   forall s f ts hs LI tf x hh l,
     firstx_continuation hs x = Clause_suspend l ->
     hfilled (Var_prompt x) hh [:: AI_switch_desugared tf x] LI ->
-    reduce s f [::AI_prompt ts hs LI ] s f [:: AI_trap]
-| r_switch_failure_dagger :
+    reduce s f [::AI_prompt ts hs LI ] s f [:: AI_trap] *)
+| r_switch_failure(* _dagger *) :
   forall s f k tf x tf',
     List.nth_error (s_conts s) k = Some (Cont_dagger tf') ->
     reduce s f [:: AI_ref_cont k; AI_switch_desugared tf x] s f [:: AI_trap]

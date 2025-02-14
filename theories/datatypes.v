@@ -350,11 +350,11 @@ Inductive exception_clause_result : Type :=
 | No_label
 .
 
-Inductive continuation_clause_result : Type :=
+(* Inductive continuation_clause_result : Type :=
 | Clause_suspend : immediate -> continuation_clause_result
 | Clause_switch : continuation_clause_result
 | No_result
-.
+.*)
 
 
   
@@ -596,7 +596,8 @@ Inductive hholed : Type := (* Handler context *)
 
 Inductive avoiding : Type := (* The variable not to be captured by a handler/prompt *)
 | Var_handler : tagidx -> avoiding
-| Var_prompt : tagidx -> avoiding
+| Var_prompt_suspend : tagidx -> avoiding
+| Var_prompt_switch : tagidx -> avoiding
 | No_var : avoiding
 .
 

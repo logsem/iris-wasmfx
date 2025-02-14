@@ -4900,7 +4900,7 @@ Proof.
       move/eqP in IHh'; subst l2; done.
   - simpl. unfold hfilled, hfill. fold hfill.
     destruct (const_list l) => //.
-    destruct x as [x  | |] => //.
+    destruct x as [x|  | |] => //.
     destruct (firstx_exception _ _ == _) eqn:Hclauses => //. 
     all: unfold hfilled in IHh.
     all: split.
@@ -4916,12 +4916,22 @@ Proof.
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt t) l2) as [IHh' _].
+      destruct (IHh (Var_prompt_suspend t) l2) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ es) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt t) l2) as [_ IHh'].
+      destruct (IHh (Var_prompt_suspend t) l2) as [_ IHh'].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
+      destruct (hfill _ _ (_ :: es)) => //.
+      move/eqP in IHh'; subst l3; done.
+    + destruct (hfill _ _ _) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch t) l2) as [IHh' _].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
+      destruct (hfill _ _ es) => //.
+      move/eqP in IHh'; subst l3; done.
+    + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch t) l2) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
@@ -4937,8 +4947,9 @@ Proof.
       move/eqP in IHh'; subst l3; done.
   - simpl. unfold hfilled, hfill. fold hfill.
     destruct (const_list l) => //.
-    destruct x as [|x  |] => //.
-    2:destruct (firstx_continuation _ _ == _) eqn:Hclauses => //. 
+    destruct x as [|x |x |] => //.
+    2:destruct (firstx_continuation_suspend _ _ == _) eqn:Hclauses => //.
+    3:destruct (firstx_continuation_switch _ _ == _) eqn:Hclauses => //. 
     all: unfold hfilled in IHh.
     all: split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
@@ -4952,12 +4963,22 @@ Proof.
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x) l3) as [IHh' _].
+      destruct (IHh (Var_prompt_suspend x) l3) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ es) => //.
       move/eqP in IHh'; subst l3; done.
     + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x) l3) as [_ IHh'].
+      destruct (IHh (Var_prompt_suspend x) l3) as [_ IHh'].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
+      destruct (hfill _ _ (_ :: es)) => //.
+      move/eqP in IHh'; subst l3; done.
+    + destruct (hfill _ _ _) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch x) l3) as [IHh' _].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
+      destruct (hfill _ _ es) => //.
+      move/eqP in IHh'; subst l3; done.
+    + destruct (hfill _ (hholed_plug_value _ _) _) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch x) l3) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ (_ :: es)) => //.
       move/eqP in IHh'; subst l3; done.
@@ -5015,7 +5036,7 @@ Proof.
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l1)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
-  - destruct x as [x | |] => //.
+  - destruct x as [x | | |] => //.
     destruct (firstx_exception _ _ == _) => //.
     all: unfold hfilled in IHh.
     all: split.
@@ -5030,12 +5051,22 @@ Proof.
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt t) l2) as [IHh' _].
+      destruct (IHh (Var_prompt_suspend t) l2) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ es1) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ es1) eqn:Hfill => //.
-      destruct (IHh (Var_prompt t) l2) as [_ IHh'].
+      destruct (IHh (Var_prompt_suspend t) l2) as [_ IHh'].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
+      destruct (hfill _ _ (_ ++ _)) => //.
+      move/eqP in IHh'. subst. done.
+    + destruct (hfill _ _ _) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch t) l2) as [IHh' _].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
+      destruct (hfill _ _ es1) => //.
+      move/eqP in IHh'. subst. done.
+    + destruct (hfill _ _ es1) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch t) l2) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
@@ -5049,8 +5080,9 @@ Proof.
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l2)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
-  - destruct x as [|x  |] => //.
-    2:destruct (firstx_continuation _ _ == _) => //.
+  - destruct x as [|x |x |] => //.
+    2:destruct (firstx_continuation_suspend _ _ == _) => //.
+    3:destruct (firstx_continuation_switch _ _ == _) => //.
     all: unfold hfilled in IHh.
     all: split.
     + destruct (hfill _ _ _) eqn:Hfill => //.
@@ -5064,12 +5096,22 @@ Proof.
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ _) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x) l3) as [IHh' _].
+      destruct (IHh (Var_prompt_suspend x) l3) as [IHh' _].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ es1) => //.
       move/eqP in IHh'. subst. done.
     + destruct (hfill _ _ es1) eqn:Hfill => //.
-      destruct (IHh (Var_prompt x) l3) as [_ IHh'].
+      destruct (IHh (Var_prompt_suspend x) l3) as [_ IHh'].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
+      destruct (hfill _ _ (_ ++ _)) => //.
+      move/eqP in IHh'. subst. done.
+    + destruct (hfill _ _ _) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch x) l3) as [IHh' _].
+      rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
+      destruct (hfill _ _ es1) => //.
+      move/eqP in IHh'. subst. done.
+    + destruct (hfill _ _ es1) eqn:Hfill => //.
+      destruct (IHh (Var_prompt_switch x) l3) as [_ IHh'].
       rewrite Hfill in IHh'. specialize (IHh' (eq_refl l3)).
       destruct (hfill _ _ (_ ++ _)) => //.
       move/eqP in IHh'. subst. done.
@@ -5385,7 +5427,7 @@ Proof.
     unfold hfilled. instantiate (2 := x).
     rewrite Hfill1. done.
     unfold hfilled. rewrite Hfill2. done. done.
-  - destruct x as [x  | |] => //.
+  - destruct x as [x | | |] => //.
     destruct (firstx_exception _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ es2) eqn:Hfill2 => //.
@@ -5402,12 +5444,15 @@ Proof.
     all: try by eapply t_const_ignores_context; last exact Hes1. 
     all: try by eapply t_const_ignores_context; last exact Hes2.
     all: try by instantiate (2 := Var_handler x); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt t); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_switch t); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_suspend t); unfold hfilled; rewrite Hfill1.
+
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
-    done. done. done.
-  - destruct x as [|x  | ] => //.
-    2:destruct (firstx_continuation _ _ == _) => //.
+    done. done. done. done.
+  - destruct x as [|x |x | ] => //.
+    2:destruct (firstx_continuation_suspend _ _ == _) => //.
+    3:destruct (firstx_continuation_switch _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ es2) eqn:Hfill2 => //.
     all: move/eqP in HLI1; move/eqP in HLI2; subst.
@@ -5423,10 +5468,11 @@ Proof.
     all: try by eapply t_const_ignores_context; last exact Hes1. 
     all: try by eapply t_const_ignores_context; last exact Hes2.
     all: try by instantiate (2 := Var_handler t); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt x); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_suspend x); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_switch x); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
-    done. done. done.
+    done. done. done. done.
 Qed.
 
 
@@ -5537,7 +5583,7 @@ Proof.
     instantiate (2 := x).
     rewrite Hfill1. done.
     unfold hfilled. rewrite Hfill2. done. done.
-  - destruct x as [x | |] => //.
+  - destruct x as [x| | |] => //.
     destruct (firstx_exception _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ [::_;_]) eqn:Hfill2 => //.
@@ -5552,13 +5598,15 @@ Proof.
     all: try exact Hl0. 
     all: eapply IHh => //.
     all: try by instantiate (2 := Var_handler x); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt t); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_switch t); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_suspend t); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
     all: try by eapply t_const_ignores_context; last exact Hes1.
     all: try done.
-  - destruct x as [|x  |] => //.
-    2:destruct (firstx_continuation _ _ == _) => //.
+  - destruct x as [|x|x  |] => //.
+    2:destruct (firstx_continuation_suspend _ _ == _) => //.
+    3:destruct (firstx_continuation_switch _ _ == _) => //.
     all: destruct (hfill _ _ _) eqn:Hfill1 => //.
     all: destruct (hfill _ _ [::_;_]) eqn:Hfill2 => //.
     all: move/eqP in HLI1; move/eqP in HLI2; subst.
@@ -5571,7 +5619,8 @@ Proof.
     all: eapply ety_prompt.
     all: try exact Hl0. 
     all: eapply IHh => //.
-    all: try by instantiate (2 := Var_prompt x); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_suspend x); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_switch x); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := Var_handler t); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
@@ -5678,12 +5727,13 @@ Proof.
     destruct (IHh l1 (eq_refl l1)) as [LI2 Hfill2].
     destruct Hy as [-> | ->]; (by left + right). 
     destruct (hfill _ _ es2) => //. eexists; done.
-  - intros Hfill Hy. destruct x as [x | |] => //.
+  - intros Hfill Hy. destruct x as [x | | |] => //.
     destruct (firstx_exception _ _ == _) eqn:Hx => //.
     all: unfold hfilled in IHh.
     specialize (IHh y (Var_handler x)).
-    2: specialize (IHh y (Var_prompt t)).
-    3: specialize (IHh y No_var).
+    2: specialize (IHh y (Var_prompt_suspend t)).
+    3: specialize (IHh y (Var_prompt_switch t)).
+    4: specialize (IHh y No_var).
     all: destruct (hfill _ _ _) => //.
     all: destruct (IHh l2 (eq_refl l2)) as [LI2 Hfill2].
     all: try done.
@@ -5691,17 +5741,19 @@ Proof.
     2: rewrite Hx. 
     all: destruct (hfill _ _ es2) => //.
     all: by eexists.
-  - intros Hfill Hy. destruct x as [|x  |] => //.
-    2:destruct (firstx_continuation _ _ == _) eqn:Hx => //.
+  - intros Hfill Hy. destruct x as [|x |x |] => //.
+    2:destruct (firstx_continuation_suspend _ _ == _) eqn:Hx => //.
+    3:destruct (firstx_continuation_switch _ _ == _) eqn:Hx => //.
     all: unfold hfilled in IHh.
     specialize (IHh y (Var_handler t)).
-    2: specialize (IHh y (Var_prompt x)).
-    3: specialize (IHh y No_var).
+    2: specialize (IHh y (Var_prompt_suspend x)).
+    3: specialize (IHh y (Var_prompt_switch x)).
+    4: specialize (IHh y No_var).
     all: destruct (hfill _ _ _) => //.
     all: destruct (IHh l3 (eq_refl l3)) as [LI2 Hfill2].
     all: try done.
     all: destruct Hy as [-> | ->].
-    4: rewrite Hx.
+    all: try rewrite Hx.
     all: destruct (hfill _ _ es2) => //.
     all: by eexists.
 Qed. 
@@ -6228,7 +6280,7 @@ Proof.
     done.
     eapply Hfillback. exact Hes'. instantiate (1 := x').
     rewrite Hfill'. done. by left.
-  - destruct x as [x | |] => //.
+  - destruct x as [x| | |] => //.
     destruct (firstx_exception _ _ == _) eqn:Hclauses => //.
     all: destruct (hfill _ _ _) eqn:Hfill => //.
     all: intros tf C LI HLI Htype.
@@ -6239,16 +6291,17 @@ Proof.
     all: apply Handler_typing in Hmid as (ts'' & -> & Hclausest & Hmid).
     all: unfold hfilled in IHh.
     specialize (IHh (Var_handler x)).
-    2: specialize (IHh (Var_prompt t)).
-    3: specialize (IHh No_var).
+    2: specialize (IHh (Var_prompt_suspend t)).
+    3: specialize (IHh (Var_prompt_switch t)).
+    4: specialize (IHh No_var).
     all: rewrite Hfill in IHh.
     all: edestruct IHh as (tf' & C' & Hes & Hfillback).
     all: try exact Hmid. all: try done.
     all: eexists _,_.
     all: split; first exact Hes.
     all: intros es' LI' x' Hes' HLI'.
-    all: destruct x' as [x' | x' |] => //.
-    1,4,7: destruct (firstx_exception _ x' == _) => //.
+    all: destruct x' as [x' | x' |x' |] => //.
+    1,5,9,13: destruct (firstx_exception _ x' == _) => //.
     all: destruct (hfill _ _ es') eqn:Hfill' => //.
     all: move/eqP in HLI'; subst LI'.
     all: apply ety_weakening.
@@ -6259,10 +6312,12 @@ Proof.
     all: eapply ety_handler => //. 
     all: eapply Hfillback; try exact Hes'.
     all: try by instantiate (1 := Var_handler x'); rewrite Hfill' => //.
-    all: try by instantiate (1 := Var_prompt x'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_prompt_suspend x'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_prompt_switch x'); rewrite Hfill' => //.
     all: try by instantiate (1 := No_var); rewrite Hfill' => //.
-  - destruct x as [|x  |] => //.
-    2:destruct (firstx_continuation _ _ == _) eqn:Hclauses => //.
+  - destruct x as [|x|x  |] => //.
+    2:destruct (firstx_continuation_suspend _ _ == _) eqn:Hclauses => //.
+    3:destruct (firstx_continuation_switch _ _ == _) eqn:Hclauses => //.
     all: destruct (hfill _ _ _) eqn:Hfill => //.
     all: intros tf C LI HLI Htype.
     all: move/eqP in HLI; subst LI.
@@ -6272,16 +6327,18 @@ Proof.
     all: apply Prompt_typing in Hmid as ( -> & Hclausest & Hmid).
     all: unfold hfilled in IHh.
     specialize (IHh (Var_handler t)).
-    2: specialize (IHh (Var_prompt x)).
-    3: specialize (IHh No_var).
+    2: specialize (IHh (Var_prompt_suspend x)).
+    3: specialize (IHh (Var_prompt_switch x)).
+    4: specialize (IHh No_var).
     all: rewrite Hfill in IHh.
     all: edestruct IHh as (tf' & C' & Hes & Hfillback).
     all: try exact Hmid. all: try done.
     all: eexists _,_.
     all: split; first exact Hes.
     all: intros es' LI' x' Hes' HLI'.
-    all: destruct x' as [x' | x' |] => //.
-    2,5,8: destruct (firstx_continuation _ x' == _) => //.
+    all: destruct x' as [x' | x' |x' |] => //.
+    2,6,10,14: destruct (firstx_continuation_suspend _ x' == _) => //.
+    6,9,12,15: destruct (firstx_continuation_switch _ x' == _) => //.
     all: destruct (hfill _ _ es') eqn:Hfill' => //.
     all: move/eqP in HLI'; subst LI'.
     all: apply ety_weakening.
@@ -6292,7 +6349,8 @@ Proof.
     all: eapply ety_prompt => //. 
     all: eapply Hfillback; try exact Hes'.
     all: try by instantiate (1 := Var_handler x'); rewrite Hfill' => //.
-    all: try by instantiate (1 := Var_prompt x'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_prompt_switch x'); rewrite Hfill' => //.
+    all: try by instantiate (1 := Var_prompt_suspend x'); rewrite Hfill' => //.
     all: try by instantiate (1 := No_var); rewrite Hfill' => //.
 Qed.
 
@@ -6348,12 +6406,13 @@ Proof.
       rewrite (eq_refl l1). done.
   - unfold hfilled => /=.
     destruct (const_list l); last by rewrite Bool.andb_false_r.
-    destruct x as [x | |] => /=.
+    destruct x as [x | | |] => /=.
     destruct (firstx_exception _ _ == _); last by rewrite Bool.andb_false_r.
     all: unfold hfilled in IHhh.
     specialize (IHhh (Var_handler x)).
-    2: specialize (IHhh (Var_prompt t)).
-    3: specialize (IHhh No_var).
+    2: specialize (IHhh (Var_prompt_suspend t)).
+    3: specialize (IHhh (Var_prompt_switch t)).
+    4: specialize (IHhh No_var).
     all: destruct (hfill _ _ es) => //.
     + destruct (IHhh l2) as [H _].
       specialize (H (eq_refl l2)).
@@ -6383,7 +6442,21 @@ Proof.
       remove_bools_options.
       destruct (IHhh l2) as [_ Habs]. apply Habs => //. rewrite H.
       rewrite (eq_refl l2). done.
-         + destruct (IHhh l2) as [H _].
+    + destruct (IHhh l2) as [H _].
+      specialize (H (eq_refl l2)).
+      split.
+      * move/eqP. intros ->. destruct (hfill _ _ _) => //.
+        remove_bools_options. 
+        rewrite H. simpl. subst; done.
+      * destruct (hfill _ _ _); last by rewrite Bool.andb_false_r in H.
+        remove_bools_options.
+        rewrite H H0. done.
+    + split; first done.
+      intros H. destruct (hfill _ _ _); last by rewrite Bool.andb_false_r in H.
+      remove_bools_options.
+      destruct (IHhh l2) as [_ Habs]. apply Habs => //. rewrite H.
+      rewrite (eq_refl l2). done.
+    + destruct (IHhh l2) as [H _].
       specialize (H (eq_refl l2)).
       split.
       * move/eqP. intros ->. destruct (hfill _ _ _) => //.
@@ -6399,12 +6472,14 @@ Proof.
       rewrite (eq_refl l2). done.
   - unfold hfilled => /=.
     destruct (const_list l); last by rewrite Bool.andb_false_r.
-    destruct x as [|x  |] => /=.
-    2:destruct (firstx_continuation _ _ == _); last by rewrite Bool.andb_false_r.
+    destruct x as [|x|x  |] => /=.
+    2:destruct (firstx_continuation_suspend _ _ == _); last by rewrite Bool.andb_false_r.
+    3:destruct (firstx_continuation_switch _ _ == _); last by rewrite Bool.andb_false_r.
     all: unfold hfilled in IHhh.
     specialize (IHhh (Var_handler t)).
-    2: specialize (IHhh (Var_prompt x)).
-    3: specialize (IHhh No_var).
+    2: specialize (IHhh (Var_prompt_suspend x)).
+    3: specialize (IHhh (Var_prompt_switch x)).
+    4: specialize (IHhh No_var).
     all: destruct (hfill _ _ es) => //.
     + destruct (IHhh l3) as [H _].
       specialize (H (eq_refl l3)).
@@ -6435,6 +6510,20 @@ Proof.
       destruct (IHhh l3) as [_ Habs]. apply Habs => //. rewrite H.
       rewrite (eq_refl l3). done.
        + destruct (IHhh l3) as [H _].
+      specialize (H (eq_refl l3)).
+      split.
+      * move/eqP. intros ->. destruct (hfill _ _ _) => //.
+        remove_bools_options. 
+        rewrite H. simpl. subst; done.
+      * destruct (hfill _ _ _); last by rewrite Bool.andb_false_r in H.
+        remove_bools_options.
+        rewrite H H0. done.
+    + split; first done.
+      intros H. destruct (hfill _ _ _); last by rewrite Bool.andb_false_r in H.
+      remove_bools_options.
+      destruct (IHhh l3) as [_ Habs]. apply Habs => //. rewrite H.
+      rewrite (eq_refl l3). done.
+         + destruct (IHhh l3) as [H _].
       specialize (H (eq_refl l3)).
       split.
       * move/eqP. intros ->. destruct (hfill _ _ _) => //.
@@ -6656,13 +6745,12 @@ Qed.
 
 
 Lemma firstx_continuation_switch_In hs x :
-  firstx_continuation hs x = Clause_switch ->
+  firstx_continuation_switch hs x ->
   List.In (DC_switch x) hs.
 Proof.
   induction hs => //=.
   destruct a => //=.
-  - destruct (x == t) eqn:Hxt => //.
-    intros H. right. by apply IHhs.
+  - intros H. right. by apply IHhs.
   - destruct (x == t) eqn:Hxt => //.
     + move/eqP in Hxt. subst x. by left.
     + intros H. right. by apply IHhs.
@@ -7833,7 +7921,7 @@ Proof.
 Qed.
 
 Lemma firstx_clause_typing_cont hs s i l C ts:
-  firstx_continuation hs (Mk_tagidx i) = Clause_suspend l ->
+  firstx_continuation_suspend hs (Mk_tagidx i) = Some l ->
   List.Forall (fun h => continuation_clause_typing s C h ts) hs ->
   exists ts1 ts2,
       List.nth_error (s_tags s) i = Some (Tf ts1 ts2) /\
@@ -7852,8 +7940,7 @@ Proof.
       apply IHhs => //.
       inversion Htyp; subst.
       done.
-  - destruct (_ == t) eqn:Hit => //.
-    intros Hl Htyp. apply IHhs => //.
+  - intros Hl Htyp. apply IHhs => //.
     inversion Htyp; subst. done.
 Qed. 
 
@@ -8004,7 +8091,7 @@ Proof.
   move => s f es s' f' es' HReduce.
   induction HReduce.
   
-  1-42,44: split;
+  1-40,42: split;
     [ intros C ty tx HC HST1 HST2 Hsext HType
     |
       intros C ty tx lab ret tslocs HST1 HST2 Hsext HIT1 HIT2 Hts HType

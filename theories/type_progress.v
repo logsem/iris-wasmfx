@@ -16,9 +16,9 @@ Definition terminal_form s (es: seq administrative_instruction) :=
         List.nth_error (s_exns s) a = Some exn /\
           hfilled (Var_handler (e_tag exn)) hh [:: AI_ref_exn a; AI_basic BI_throw_ref] es) \/
     (exists x hh,
-        hfilled (Var_prompt x) hh [:: AI_suspend_desugared x] es) \/
+        hfilled (Var_prompt_suspend x) hh [:: AI_suspend_desugared x] es) \/
     (exists tf x hh,
-        hfilled (Var_prompt x) hh [:: AI_switch_desugared tf x] es)
+        hfilled (Var_prompt_switch x) hh [:: AI_switch_desugared tf x] es)
 .
 
 
@@ -4730,7 +4730,7 @@ Proof.
         apply/hfilledP. exact Hfill. 
       * (* Suspend *)
         destruct H as (i & hh & Hfill).
-        destruct (firstx_continuation hs i) eqn:Hfirst.
+        destruct (firstx_continuation_suspend hs i) eqn:Hfirst.
         -- right.
            destruct i.
            eapply hfilled_suspend_values in Hes as (vs & hh' & t1s & t2s & Htags & Hconst & Hvs & Hfill');
@@ -4743,9 +4743,9 @@ Proof.
            exact Hvs.
            exact Hfirst.
            exact Hfill'.
-        -- right. repeat eexists.
+(*        -- right. repeat eexists.
            eapply r_suspend_failure.
-           exact Hfirst. exact Hfill.
+           exact Hfirst. exact Hfill. *)
         -- left. right. right. right. left.
            exists i, (HH_prompt [::] ts2 hs hh [::]).
            apply/hfilledP.
@@ -4754,10 +4754,10 @@ Proof.
            apply/hfilledP. exact Hfill.
       * (* Switch *)
         destruct H as (tf & i & hh & Hfill).
-        destruct (firstx_continuation hs i) eqn:Hfirst.
-        -- right. repeat eexists.
+        destruct (firstx_continuation_switch hs i) eqn:Hfirst.
+(*        -- right. repeat eexists.
            eapply r_switch_failure_clause.
-           exact Hfirst. exact Hfill.
+           exact Hfirst. exact Hfill. *)
 
         -- right.
            destruct i.
@@ -4805,7 +4805,7 @@ Proof.
                  2: unfold hfilled in HLI'; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
                  2: move/eqP in HLI'; subst => //.
                  intros f1.
-                 eapply r_switch_failure_dagger.
+                 eapply r_switch_failure.
                  exact Hconts.
            ++ apply hfilled_no_var in Hfills.
               apply (hfilled_change [::AI_trap] (y := No_var)) in Hfills as HLI'; last by left.
@@ -4894,7 +4894,7 @@ Proof.
         apply/hfilledP. exact Hfill. 
       * (* Suspend *)
         destruct H as (i & hh & Hfill).
-        destruct (firstx_continuation hs i) eqn:Hfirst.
+        destruct (firstx_continuation_suspend hs i) eqn:Hfirst.
         -- right.
            destruct i.
            eapply hfilled_suspend_values in Hes as (vs & hh' & t1s & t2s & Htags & Hconst & Hvs & Hfill');
@@ -4907,9 +4907,9 @@ Proof.
            exact Hvs.
            exact Hfirst.
            exact Hfill'.
-        -- right. repeat eexists.
-           eapply r_suspend_failure.
-           exact Hfirst. exact Hfill.
+(*        -- right. repeat eexists.
+           eapply r_suspend_failure. 
+           exact Hfirst. exact Hfill.*)
         -- left. right. right. right. left.
            exists i, (HH_prompt [::] ts2 hs hh [::]).
            apply/hfilledP.
@@ -4918,10 +4918,10 @@ Proof.
            apply/hfilledP. exact Hfill.
       * (* Switch *)
         destruct H as (tf & i & hh & Hfill).
-        destruct (firstx_continuation hs i) eqn:Hfirst.
-        -- right. repeat eexists.
+        destruct (firstx_continuation_switch hs i) eqn:Hfirst.
+(*        -- right. repeat eexists.
            eapply r_switch_failure_clause.
-           exact Hfirst. exact Hfill.
+           exact Hfirst. exact Hfill. *)
 
         -- right.
            destruct i.
@@ -4969,7 +4969,7 @@ Proof.
                  2: unfold hfilled in HLI'; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
                  2: move/eqP in HLI'; subst => //.
                  intros f1.
-                 eapply r_switch_failure_dagger.
+                 eapply r_switch_failure.
                  exact Hconts.
            ++ apply hfilled_no_var in Hfills.
               apply (hfilled_change [::AI_trap] (y := No_var)) in Hfills as HLI'; last by left.

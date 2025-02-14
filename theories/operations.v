@@ -147,17 +147,31 @@ Fixpoint firstx_exception hs (x : tagidx) :=
   | [::] => No_label
   end.
 
-Fixpoint firstx_continuation hs x :=
+Fixpoint firstx_continuation_suspend hs x :=
   match hs with
   | DC_catch y l :: q =>
       if x == y
+      then Some l
+      else firstx_continuation_suspend q x
+  | DC_switch _ :: q =>
+(*      if x == y
+      then Clause_switch
+      else *) firstx_continuation_suspend q x
+  | [::] => None
+  end.
+
+
+Fixpoint firstx_continuation_switch hs x :=
+  match hs with
+  | DC_catch _ l :: q =>
+(*      if x == y
       then Clause_suspend l
-      else firstx_continuation q x
+      else *) firstx_continuation_switch q x
   | DC_switch y :: q =>
       if x == y
-      then Clause_switch
-      else firstx_continuation q x
-  | [::] => No_result
+      then true
+      else firstx_continuation_switch q x
+  | [::] => false
   end.
 
 (*
@@ -1060,8 +1074,10 @@ Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction
   | HH_prompt bef ts hs hh aft =>
       if const_list bef then
         if match x with
-             Var_prompt x =>
-               firstx_continuation hs x == No_result
+             Var_prompt_suspend x =>
+               firstx_continuation_suspend hs x == None
+           | Var_prompt_switch x =>
+               firstx_continuation_switch hs x == false
            | _ => true
            end
         then match hfill x hh es with
@@ -1103,8 +1119,10 @@ Inductive hfilledInd : avoiding -> hholed -> seq administrative_instruction -> s
 | HfilledPrompt: forall bef ts hs hh' aft x es LI,
     const_list bef ->
     match x with
-      Var_prompt x => 
-        firstx_continuation hs x = No_result
+      Var_prompt_suspend x => 
+        firstx_continuation_suspend hs x = None
+    | Var_prompt_switch x =>
+        firstx_continuation_switch hs x = false
     | _ => True
     end ->
     hfilledInd x hh' es LI ->
@@ -1144,7 +1162,7 @@ Proof.
       rewrite Hfill => //.
     + unfold hfilled in Hfix. simpl in Hfix.
       destruct (const_list l) eqn:Hl => //.
-      destruct x as [x | |] => //.
+      destruct x as [x | | |] => //.
       destruct (firstx_exception _ _ == _) eqn:Hclauses => //.
       move/eqP in Hclauses.
       all: destruct (hfill _ _ _) eqn:Hfill => //.
@@ -1156,9 +1174,10 @@ Proof.
       all: rewrite Hfill => //. 
     + unfold hfilled in Hfix. simpl in Hfix.
       destruct (const_list l) eqn:Hl => //.
-      destruct x as [|x |] => //.
-      2: destruct (firstx_continuation _ _ == _) eqn:Hclauses => //.
-      2: move/eqP in Hclauses.
+      destruct x as [|x |x |] => //.
+      2: destruct (firstx_continuation_suspend _ _ == _) eqn:Hclauses => //.
+      3: destruct (firstx_continuation_switch _ _ == _) eqn:Hclauses => //. 
+      2,3: move/eqP in Hclauses.
       all: destruct (hfill _ _ _) eqn:Hfill => //.
       all: move/eqP in Hfix.
       all: subst LI.
@@ -1175,16 +1194,15 @@ Proof.
       destruct (hfill _ _ _) => //.
       move/eqP in IHHLF. subst LI. done.
     + rewrite H.
-      destruct x as [|x |] => //.
-      2: destruct (firstx_continuation _ _ == _) eqn:Hclauses => //. 
+      destruct x as [|x |x|] => //.
+      2,3: rewrite H0 eq_refl.
       all: unfold hfilled in IHHLF.
       all: destruct (hfill _ _ _) => //.
       all: move/eqP in IHHLF.
       all: subst LI.
       all: try done.
-      rewrite H0 in Hclauses. done.
     + rewrite H.
-      destruct x as [x | |] => //.
+      destruct x as [x | | |] => //.
       destruct (firstx_exception _ _ == _) eqn:Hclauses => //. 
       all: unfold hfilled in IHHLF.
       all: destruct (hfill _ _ _) => //.

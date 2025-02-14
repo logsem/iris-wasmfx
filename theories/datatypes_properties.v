@@ -631,7 +631,7 @@ Definition eqexception_clause_resultP : Equality.axiom exception_clause_result_e
 
 Canonical Structure exception_clause_result_eqMixin := Equality.Mixin eqexception_clause_resultP.
 Canonical Structure exception_clause_result_eqType := Eval hnf in Equality.Pack (sort := exception_clause_result) (Equality.Class exception_clause_result_eqMixin).
-
+(*
 Definition continuation_clause_result_eq_dec : forall v1 v2 : continuation_clause_result, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
 
@@ -641,7 +641,7 @@ Definition eqcontinuation_clause_resultP : Equality.axiom continuation_clause_re
 
 Canonical Structure continuation_clause_result_eqMixin := Equality.Mixin eqcontinuation_clause_resultP.
 Canonical Structure continuation_clause_result_eqType := Eval hnf in Equality.Pack (sort := continuation_clause_result) (Equality.Class continuation_clause_result_eqMixin). 
-
+*)
 
 
  Definition hholed_eq_dec : forall v1 v2 : hholed, {v1 = v2} + {v1 <> v2}.
