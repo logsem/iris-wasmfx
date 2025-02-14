@@ -108,6 +108,11 @@ Definition desugar_continuation_clause inst h :=
       | Some x => Some (DC_catch x y)
       | None => None
       end
+  | HC_switch x =>
+      match desugar_tag_identifier inst x with
+      | Some x => Some (DC_switch x)
+      | None => None
+      end
   end.
 
 Definition desugar_exception_clause inst h :=
@@ -146,9 +151,13 @@ Fixpoint firstx_continuation hs x :=
   match hs with
   | DC_catch y l :: q =>
       if x == y
-      then Some l
+      then Clause_suspend l
       else firstx_continuation q x
-  | [::] => None
+  | DC_switch y :: q =>
+      if x == y
+      then Clause_switch
+      else firstx_continuation q x
+  | [::] => No_result
   end.
 
 (*
@@ -1052,7 +1061,7 @@ Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction
       if const_list bef then
         if match x with
              Var_prompt x =>
-               firstx_continuation hs x == None
+               firstx_continuation hs x == No_result
            | _ => true
            end
         then match hfill x hh es with
@@ -1095,7 +1104,7 @@ Inductive hfilledInd : avoiding -> hholed -> seq administrative_instruction -> s
     const_list bef ->
     match x with
       Var_prompt x => 
-        firstx_continuation hs x = None
+        firstx_continuation hs x = No_result
     | _ => True
     end ->
     hfilledInd x hh' es LI ->

@@ -16,8 +16,9 @@ Definition terminal_form s (es: seq administrative_instruction) :=
         List.nth_error (s_exns s) a = Some exn /\
           hfilled (Var_handler (e_tag exn)) hh [:: AI_ref_exn a; AI_basic BI_throw_ref] es) \/
     (exists x hh,
-(*        List.nth_error (s_tags s) x = Some tf /\ *)
-        hfilled (Var_prompt x) hh [:: AI_suspend_desugared x] es)
+        hfilled (Var_prompt x) hh [:: AI_suspend_desugared x] es) \/
+    (exists tf x hh,
+        hfilled (Var_prompt x) hh [:: AI_switch_desugared tf x] es)
 .
 
 
@@ -380,9 +381,11 @@ Definition not_lf_throw_ref (es: seq administrative_instruction) := (* (n: nat) 
   forall lh, ~ lfilled n lh [::AI_basic BI_throw_ref] es. *)
   forall bef aft, ~ (const_list bef /\ bef ++ [::AI_basic BI_throw_ref] ++ aft = es).
 
+(*
 Definition not_lf_suspend es := (* n :=
   forall i tf lh, ~ lfilled n lh [::AI_basic (BI_suspend (Tag_explicit i tf))] es. *)
   forall i bef aft, ~ (const_list bef /\ bef ++ [::AI_suspend_desugared i] ++ aft = es).
+*)
 
 Lemma lf_composition: forall es es2 e0 lh n,
     lfilled n lh e0 es ->
@@ -463,6 +466,7 @@ Proof.
   by eapply HNLF; eauto.
 Qed.
 
+(*
 Lemma nlfsus_right: forall es es',
     not_lf_suspend (es ++ es') ->
     not_lf_suspend es.
@@ -479,6 +483,7 @@ Proof.
   destruct HContra.
   by eapply HNLF; eauto. *)
 Qed.
+*)
 
 Lemma nlfthr_right: forall es es',
     not_lf_throw_ref (es ++ es') ->
@@ -529,6 +534,7 @@ Proof.
   by [].
 Qed.
 
+(*
 Lemma nlfsus_left: forall es cs,
     const_list cs ->
     not_lf_suspend (cs ++ es) ->
@@ -547,6 +553,7 @@ Proof.
   }
   by []. *)
 Qed.
+*)
 
 Lemma nlfthr_left: forall es cs,
     const_list cs ->
@@ -742,16 +749,16 @@ Proof.
   inversion H; subst.
   apply IHcs in H3 as (csd & Hcsd) => //.
   inversion H2; subst.
-  destruct HIT as [HIT | Habs]; last by destruct C; inversion Habs; subst; destruct x.
-  apply inst_typing_tags in HIT as Htags.
-  apply all2_Forall2 in Htags.
-  apply List.Forall2_flip in Htags.
-  eapply Forall2_nth_error in Htags as (v & Hv & Hvag).
-  2: try exact H0.
-  eexists (_ :: csd).
-  simpl.
-  rewrite Hcsd Hv.
-  done.
+  all: destruct HIT as [HIT | Habs]; last by destruct C; inversion Habs; subst; destruct x.
+  all: apply inst_typing_tags in HIT as Htags.
+  all: apply all2_Forall2 in Htags.
+  all: apply List.Forall2_flip in Htags.
+  all: eapply Forall2_nth_error in Htags as (v & Hv & Hvag);
+    try exact H0.
+  all: eexists (_ :: csd).
+  all: simpl.
+  all: rewrite Hcsd Hv.
+  all: done.
 Qed. 
 
 
@@ -973,29 +980,46 @@ Proof.
     + simpl in Hv. destruct (List.nth_error _ e) => //. 
   - (* Suspend *)
     subst.
-(*    destruct x.
-    + *)
     right.
-      simpl in H.
-      apply inst_typing_tags in HIT.
-      apply all2_Forall2 in HIT.
-      apply List.Forall2_flip in HIT.
-      unfold get_tag in H. destruct x.
-      eapply Forall2_nth_error in HIT.
-      2: exact H.
-      destruct HIT as (tag & Htag & Htagt).
-      repeat eexists.
-      ignore_first_values.
-      eapply r_suspend_desugar.
-      exact Htag.
-      unfold tag_agree in Htagt.
+    simpl in H.
+    apply inst_typing_tags in HIT.
+    apply all2_Forall2 in HIT.
+    apply List.Forall2_flip in HIT.
+    unfold get_tag in H. destruct x.
+    eapply Forall2_nth_error in HIT.
+    2: exact H.
+    destruct HIT as (tag & Htag & Htagt).
+    repeat eexists.
+    ignore_first_values.
+    eapply r_suspend_desugar.
+    exact Htag.
+    unfold tag_agree in Htagt.
+    destruct (List.nth_error _ tag) => //.
+    move/eqP in Htagt. by subst.
+  - (* Switch *)
+    right.
+    destruct x.
+    apply inst_typing_tags in HIT as Htags.
+    apply all2_Forall2 in Htags.
+    apply List.Forall2_flip in Htags.
+    unfold get_tag in H. 
+    eapply Forall2_nth_error in Htags.
+    2: subst C; exact H.
+    destruct Htags as (tag & Htag & Htagt).
+    repeat eexists. simpl.
+    ignore_first_values.
+
+    eapply r_switch_desugar.
+    + apply inst_typing_types in HIT.
+      eapply stypes_get_type in HIT.
+      erewrite HIT.
+      subst C. exact H0.
+    + exact Htag.
+    + unfold tag_agree in Htagt.
       destruct (List.nth_error _ tag) => //.
-      move/eqP in Htagt. by subst.
-(*    + exfalso.
-      unfold not_lf_suspend in HNSus.
-      apply (HNSus i f0 [::] [::]).
-      done. *)
-(*      by apply lfilled0_empty.  *)
+      move/eqP in Htagt. subst f0.
+      done.
+
   - (* Contbind *)
     right. rewrite map_cat in H9.
     apply typeof_append in H9 as (v & Hvcs & Hts & Hv).
@@ -2942,6 +2966,139 @@ Proof.
     repeat split => //.
     apply/hfilledP. constructor => //.
     apply/hfilledP. exact Hfills.
+Qed.
+
+
+Lemma hfilled_switch_values x tf hh i LI s C ts:
+  e_typing s C LI (Tf [::] ts) ->
+  hfilled x hh [:: AI_switch_desugared tf (Mk_tagidx i)] LI ->
+  (exists vs hh' k cont t1s t2s tf',
+    List.nth_error (s_conts s) k = Some cont /\
+      typeof_cont cont = tf /\
+      tf = Tf (t1s ++ [:: T_ref (T_contref tf')]) t2s /\
+      const_list vs /\
+      length vs = length t1s /\
+      hfilled x hh' (vs ++ [:: AI_ref_cont k; AI_switch_desugared tf (Mk_tagidx i)]) LI)
+  \/ exists rt hh', hfilled x hh' [:: AI_basic (BI_ref_null rt) ; AI_switch_desugared tf (Mk_tagidx i)] LI.
+Proof.
+  intros Htype Hfill.
+  move/hfilledP in Hfill.
+  remember [:: _] as es.
+  generalize dependent C. generalize dependent ts.
+  induction Hfill; subst es.
+  all: intros tse C Htype.
+  all: apply e_composition_typing in Htype as (t0s & t1s & t2s & t3s & Hempty & -> & Hbef & Hmidaft).
+  all: destruct t0s => //.
+  all: destruct t1s => //. 
+  all: apply e_composition_typing in Hmidaft as (t0s' & t1s' & t2s' & t3s' & -> & -> & Hmid & Haft).
+  - apply const_es_exists in H as [vvs ->].
+    apply Const_list_typing in Hbef as (tsv & Htsv & Htypes & Hconst).
+    apply AI_switch_desugared_typing in Hmid as (ts & t1s'' & t2s'' & tpref & Htags & Htf & -> & ->).
+    simpl in Htypes. remember Htsv as Htsv'; clear HeqHtsv'.
+    rewrite - Htypes in Htsv.
+    repeat rewrite catA in Htsv.
+    rewrite map_cat in Htsv.
+    apply typeof_append in Htsv as (v & Hvvs & Htsv & Hv).
+    destruct v => //.
+    destruct v => //.
+    + right.
+      exists r, (HH_base (v_to_e_list (take (size [seq Some i | i <- (t0s' ++ tpref) ++ t1s'']) vvs)) es').
+      unfold hfilled, hfill. rewrite v_to_e_is_const_list.
+      rewrite -> Hvvs at 1.
+      rewrite -v_to_e_cat.
+      simpl. repeat rewrite - catA. done.
+    + simpl in Hv. destruct (List.nth_error _ f) => //. 
+    + simpl in Hv. destruct (List.nth_error _ f) eqn:Hf => //.
+      simpl in Hv. inversion Hv. 
+      left.
+      eexists (drop (size tsv - size t1s'' - 1) (take (size vvs - 1) (v_to_e_list vvs))),
+        (HH_base (take (size tsv - size t1s'' - 1) (v_to_e_list vvs)) es'), f, c, _,_,_.
+      repeat split => //.
+      * rewrite H0. exact Htf.
+      * rewrite - map_take. rewrite - map_drop.
+        apply v_to_e_is_const_list.
+      * do 2 rewrite length_is_size.
+        rewrite size_drop.
+        rewrite size_takel; last by rewrite size_map; lias.
+        rewrite -(size_map (typeof s) vvs) Htsv' size_map.
+        assert (size t1s'' < size tsv).
+        { rewrite -Htypes. repeat rewrite size_cat.
+          simpl. lias. }
+        clear - H. lias.
+      * unfold hfilled, hfill.
+        assert (size vvs = size tsv) as Hvvstsv.
+        { rewrite - (size_map (typeof s) vvs) Htsv' size_map.
+          done. } 
+        assert (S (size ((t0s' ++ tpref) ++ t1s'')) = size vvs) as Hsizevvs.
+        { rewrite Hvvstsv.
+          rewrite -Htypes.
+          repeat rewrite catA.
+          rewrite (size_cat _ [:: _]).
+          simpl. lias. } 
+        rewrite - map_take. rewrite v_to_e_is_const_list.
+        rewrite map_take.
+        erewrite <- take_takel.
+        repeat rewrite catA.
+        erewrite cat_take_drop.
+        2:{ rewrite Hvvstsv. lias. } 
+        rewrite (separate1 (AI_ref_cont f)).
+        rewrite -cat_app.
+        repeat rewrite catA.
+        replace [:: AI_ref_cont f] with (drop (size vvs - 1) (v_to_e_list vvs)).
+        rewrite cat_take_drop.
+        done.
+        rewrite -> Hvvs at 2.
+        rewrite -v_to_e_cat.
+        rewrite drop_size_cat. done.
+        repeat rewrite size_map.
+        rewrite size_takel; last lias.
+        lias.
+    + simpl in Hv. destruct (List.nth_error _ e) => //. 
+  - apply Label_typing in Hmid as (ts & t2s & -> & Hes' & HLI & Hn).
+    apply IHHfill in HLI as [(vss & hhs & k & cont & t1s & t2ss & tf' & Hconts & Htcont & Hft & Hconst & Hvss & Hfills) | (rt & hhs & Hfills)] => //.
+    + left.
+      exists vss, (HH_label vs n es' hhs es''), k, cont, t1s, t2ss, tf'.
+      repeat split => //.
+      apply/hfilledP. constructor => //.
+      apply/hfilledP. exact Hfills.
+    + right.
+      exists rt, (HH_label vs n es' hhs es'').
+      apply/hfilledP. constructor => //.
+      apply/hfilledP. exact Hfills.
+  - apply Local_typing in Hmid as (ts & -> & HLI & Hn).
+    inversion HLI; subst.
+    apply IHHfill in H2 as [(vss & hhs & k & cont & t1s & t2ss & tf' & Hconts & Htcont & Hft & Hconst & Hvss & Hfills) | (rt & hhs & Hfills)] => //.
+    + left.
+      exists vss, (HH_local vs (length ts) f hhs es''), k, cont, t1s, t2ss, tf'.
+      repeat split => //.
+      apply/hfilledP. econstructor => //.
+      apply/hfilledP. exact Hfills.
+    + right.
+      exists rt, (HH_local vs (length ts) f hhs es'').
+      apply/hfilledP. constructor => //.
+      apply/hfilledP. exact Hfills.
+  - apply Prompt_typing in Hmid as (-> & Hhs & HLI).
+    apply IHHfill in HLI as [(vss & hhs & k & cont & t1s & t2ss & tf' & Hconts & Htcont & Hft & Hconst & Hvss & Hfills) | (rt & hhs & Hfills)] => //.
+    + left.
+      exists vss, (HH_prompt bef ts hs hhs aft), k, cont, t1s, t2ss, tf'.
+      repeat split => //.
+      apply/hfilledP. constructor => //.
+      apply/hfilledP. exact Hfills.
+    + right.
+      exists rt, (HH_prompt bef ts hs hhs aft).
+      apply/hfilledP. constructor => //.
+      apply/hfilledP. exact Hfills.
+  - apply Handler_typing in Hmid as (ts & -> & Hhs & HLI).
+    apply IHHfill in HLI as [(vss & hhs & k & cont & t1s & t2ss & tf' & Hconts & Htcont & Hft & Hconst &  Hvss & Hfills) | (rt & hhs & Hfills)] => //.
+    + left.
+      exists vss, (HH_handler bef hs hhs aft), k, cont, t1s, t2ss, tf'.
+      repeat split => //.
+      apply/hfilledP. constructor => //.
+      apply/hfilledP. exact Hfills.
+    + right.
+      exists rt, (HH_handler bef hs hhs aft).
+      apply/hfilledP. constructor => //.
+      apply/hfilledP. exact Hfills.
 Qed. 
 
 (*
@@ -3667,6 +3824,58 @@ Proof.
 Admitted.
 *)
 
+Lemma hfilled_reduce x hh es LI es' LI' s f s':
+  (forall f, reduce s f es s' f es') ->
+  hfilled x hh es LI ->
+  hfilled x hh es' LI' ->
+  reduce s f LI s' f LI'.
+Proof.
+  intros Hred HLI HLI'.
+  move/hfilledP in HLI.
+  move/hfilledP in HLI'.
+  generalize dependent LI. generalize dependent LI'.
+  generalize dependent f.
+  induction hh; intros f0 LI' HLI' LI HLI.
+  all: inversion HLI; inversion HLI'; subst.
+  1,2,4,5: eapply r_label.
+  (* all: try apply/lfilledP. *)
+  apply Hred.
+  instantiate (1 := LH_base l l0).
+  instantiate (1 := 0).
+  1-2: apply/lfilledP.
+  1-2: constructor => //.
+  1,4,7: instantiate (1 := LI1).
+  1-3: instantiate (1 := LI0).
+  1-3: by apply IHhh.
+  instantiate (1 := LH_rec l n l0 (LH_base [::] [::]) l1).
+  instantiate (1 := 1).
+  3: instantiate (1 := LH_handler l l0 (LH_base [::] [::]) l1).
+  3: instantiate (1 := 0).
+  5: instantiate (1 := LH_prompt l l0 l1 (LH_base [::] [::]) l2).
+  5: instantiate (1 := 0).
+  1-6: unfold lfilled, lfill => //=.
+  1-6: assert (const_list l) as H; [done | rewrite H].
+  1-6: by rewrite List.app_nil_r.
+  eapply r_label.
+  instantiate (1 := [::AI_local n f LI1]).
+  instantiate (1 := [::AI_local n f LI0]).
+  2: instantiate (1 := LH_base l l0).
+  2: instantiate (1 := 0).
+  2-3: apply/lfilledP.
+  2-3: constructor => //.
+  apply r_local.
+  apply IHhh => //.
+Qed. 
+  
+Lemma hfilled_no_var x hh es LI:
+  hfilled x hh es LI ->
+  hfilled No_var hh es LI.
+Proof.
+  intros H.
+  apply/hfilledP.
+  move/hfilledP in H.
+  induction H; constructor => //.
+Qed. 
   
 
 Lemma t_progress_e: forall s C es tf,
@@ -3965,7 +4174,7 @@ Proof.
       eapply first_instr_app.
       exact HLF. 
     + (* Terminal *)
-      unfold terminal_form in H. destruct H as [H | [H | [H | H]]].
+      unfold terminal_form in H. destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         apply const_list_split in H. destruct H as [HC1 HC2].
         apply const_es_exists in HC2.
@@ -4022,8 +4231,12 @@ Proof.
         rewrite catA.
         apply hfilled_append. done.
       * destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         exists i, (hholed_append hh [:: e]).
+        rewrite catA. apply hfilled_append => //.
+      * destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        exists tf, i, (hholed_append hh [:: e]).
         rewrite catA. apply hfilled_append => //. 
         
     + (* reduce *)
@@ -4052,7 +4265,7 @@ Proof.
       eapply first_instr_app.
       exact HLF. 
     + (* Terminal *)
-      unfold terminal_form in H. destruct H as [H | [H | [H | H]]].
+      unfold terminal_form in H. destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         apply const_list_split in H. destruct H as [HC1 HC2].
         apply const_es_exists in HC2.
@@ -4109,8 +4322,12 @@ Proof.
         rewrite catA.
         apply hfilled_append. exact Hfill. 
       * destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         exists i, (hholed_append hh [:: e]).
+        rewrite catA. apply hfilled_append => //.
+      * destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        exists tf, i, (hholed_append hh [:: e]).
         rewrite catA. apply hfilled_append => //. 
         
     + (* reduce *)
@@ -4139,7 +4356,7 @@ Proof.
     edestruct IH; eauto.
     + (* Terminal *)
       unfold terminal_form in H.
-      destruct H as [H | [H | [H | H]]] => //=.
+      destruct H as [H | [H | [H | [H | H]]]] => //=.
       * (* Const *)
         left. rewrite size_map in H. unfold terminal_form. left.
         rewrite -catA. apply const_list_concat => //.
@@ -4167,8 +4384,15 @@ Proof.
         split; first by apply v_to_e_is_const_list.
         rewrite size_map in Hfill. done.
       * destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         eexists i, (hholed_prepend hh _).
+        rewrite -catA.
+        apply hfilled_prepend.
+        split; first by apply v_to_e_is_const_list.
+        rewrite size_map in Hfill. done.
+      * destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        eexists tf, i, (hholed_prepend hh _).
         rewrite -catA.
         apply hfilled_prepend.
         split; first by apply v_to_e_is_const_list.
@@ -4192,7 +4416,7 @@ Proof.
     edestruct IH; eauto.
     + (* Terminal *)
       unfold terminal_form in H.
-      destruct H as [H | [H | [H | H]]] => //=.
+      destruct H as [H | [H | [H | [H | H]]]] => //=.
       * (* Const *)
         left. rewrite size_map in H. unfold terminal_form. left.
         rewrite -catA. apply const_list_concat => //.
@@ -4220,8 +4444,15 @@ Proof.
         split; first by apply v_to_e_is_const_list.
         rewrite size_map in Hfill. exact Hfill.
       * destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         eexists i, (hholed_prepend hh _).
+        rewrite -catA.
+        apply hfilled_prepend.
+        split; first by apply v_to_e_is_const_list.
+        rewrite size_map in Hfill. done.
+      * destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        eexists tf, i, (hholed_prepend hh _).
         rewrite -catA.
         apply hfilled_prepend.
         split; first by apply v_to_e_is_const_list.
@@ -4269,7 +4500,7 @@ Proof.
       eapply rs_return; eauto.
     }
 
-    edestruct IHHType as [[[ Hconst | [ Htrap | [ Hthr | Hsus]]] Htypconst ]| Hreduce ]; eauto. 
+    edestruct IHHType as [[[ Hconst | [ Htrap | [ Hthr | [Hsus | Hswitch]]]] Htypconst ]| Hreduce ]; eauto. 
     {
       move => n lh k HLF.
       by eapply s_typing_lf_br in HLF; eauto.
@@ -4307,9 +4538,17 @@ Proof.
       destruct (hfill _ _ _) => //.
       move/eqP in Hfill. subst. done.
     + (* Suspend *)
-      left. right. right. right.
+      left. right. right. right. left.
       destruct Hsus as (i & hh & Hfill).
       exists i, (HH_local [::] (length ts2) f0 hh [::]).
+      unfold hfilled, hfill; fold hfill. simpl.
+      unfold hfilled in Hfill.
+      destruct (hfill _ _ _) => //.
+      move/eqP in Hfill. subst. done.
+    + (* Switch *)
+      left. right. right. right. right.
+      destruct Hswitch as (tf & i & hh & Hfill).
+      exists tf, i, (HH_local [::] (length ts2) f0 hh [::]).
       unfold hfilled, hfill; fold hfill. simpl.
       unfold hfilled in Hfill.
       destruct (hfill _ _ _) => //.
@@ -4334,7 +4573,7 @@ Proof.
       eapply rs_return; eauto.
     }
 
-    edestruct IHHType as [[[ Hconst | [ Htrap | [ Hthr | Hsus]]] Htypconst ]| Hreduce ]; eauto. 
+    edestruct IHHType as [[[ Hconst | [ Htrap | [ Hthr | [Hsus | Hswitch]]]] Htypconst ]| Hreduce ]; eauto. 
     {
       move => n lh k HLF.
       by eapply s_typing_lf_br in HLF; eauto.
@@ -4372,9 +4611,17 @@ Proof.
       destruct (hfill _ _ _) => //.
       move/eqP in Hfill. subst. done.
     + (* Suspend *)
-      left. right. right. right.
+      left. right. right. right. left.
       destruct Hsus as (i & hh & Hfill).
       exists i, (HH_local [::] (length ts2) f0 hh [::]).
+      unfold hfilled, hfill; fold hfill. simpl.
+      unfold hfilled in Hfill.
+      destruct (hfill _ _ _) => //.
+      move/eqP in Hfill. subst. done.
+    + (* Switch *)
+      left. right. right. right. right.
+      destruct Hswitch as (tf & i & hh & Hfill).
+      exists tf, i, (HH_local [::] (length ts2) f0 hh [::]).
       unfold hfilled, hfill; fold hfill. simpl.
       unfold hfilled in Hfill.
       destruct (hfill _ _ _) => //.
@@ -4405,25 +4652,37 @@ Proof.
     intros s C x tf Htags.
     split.
     { intros C' f vcs ts1 ts2 lab ret ts -> Hlocs HC HIT Hvcs HST HBI_brDepth HNRet HCallHost.
-      left. right. right. right.
+      left. right. right. right. left.
       exists (Mk_tagidx x), (HH_base (v_to_e_list vcs) [::]).
       apply/hfilledP. constructor.
       apply v_to_e_is_const_list. }
     intros f vcs ts1 ts2  -> HC Hvcs HST HBI_brDepth HNRet HCallHost.
-      left. right. right. right.
+      left. right. right. right. left.
       exists (Mk_tagidx x), (HH_base (v_to_e_list vcs) [::]).
       apply/hfilledP. constructor.
-      apply v_to_e_is_const_list. 
+      apply v_to_e_is_const_list.
+  - (* Switch_desugared *)
+    intros s C tf tf' x ts t1s t2s Htags Htf Htf'.
+    split.
+    + intros C' f vcs ts1 ts2 lab ret ts' -> Hlocs HC HIT Hvcs HST HBI_brDepth HNRet HCallHost.
+      left. right. right. right. right.
+      exists tf, (Mk_tagidx x), (HH_base (v_to_e_list vcs) [::]).
+      apply/hfilledP. constructor. apply v_to_e_is_const_list.
+    + intros f vcs ts1 ts2 -> HC Hvcs HST HBI_brDepth HNRet HCallHost.
+      left. right. right. right. right.
+      exists tf, (Mk_tagidx x), (HH_base (v_to_e_list vcs) [::]).
+      apply/hfilledP. constructor.
+      apply v_to_e_is_const_list.
     
   - (* Prompt *)
     move => s C hs es ts Hclauses Hes IH.
     split.
     { move => C' f vcs ts1 ts2 lab ret ts0 HTF Hts0 HContext HInst HConstType HST HBI_brDepth HNRet HCallHost.
-    inversion HTF; subst.
-    destruct vcs => //.
-    edestruct IH as [_ IH']; eauto.
-    edestruct IH'; eauto.
-    { 
+      inversion HTF; subst.
+      destruct vcs => //.
+      edestruct IH as [_ IH']; eauto.
+      edestruct IH'; eauto.
+      { 
       move => n lh k HLF.
       eapply HBI_brDepth.
       move/lfilledP in HLF.
@@ -4449,7 +4708,7 @@ Proof.
       rewrite HLF.
       done. } 
     + (* Terminal *)
-      simpl. simpl in H. destruct H as [H | [H | [H | H]]].
+      simpl. simpl in H. destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         right.
         exists s, f, es.
@@ -4484,8 +4743,88 @@ Proof.
            exact Hvs.
            exact Hfirst.
            exact Hfill'.
-        -- left. right. right. right.
+        -- right. repeat eexists.
+           eapply r_suspend_failure.
+           exact Hfirst. exact Hfill.
+        -- left. right. right. right. left.
            exists i, (HH_prompt [::] ts2 hs hh [::]).
+           apply/hfilledP.
+           rewrite -(cat0s [::AI_prompt _ _ _]) - (cats0 [:: AI_prompt _ _ _]).
+           constructor => //.
+           apply/hfilledP. exact Hfill.
+      * (* Switch *)
+        destruct H as (tf & i & hh & Hfill).
+        destruct (firstx_continuation hs i) eqn:Hfirst.
+        -- right. repeat eexists.
+           eapply r_switch_failure_clause.
+           exact Hfirst. exact Hfill.
+
+        -- right.
+           destruct i.
+           eapply hfilled_switch_values in Hes as [(vs & hh' & k & cont & t1s & t2s & tf' & Hconts & Htcont & Htf & Hconst & Hvs & Hfill') | (rt & hhs & Hfills)];
+             last exact Hfill.
+           ++ destruct cont.
+              ** simpl in Htcont; subst f0 tf. destruct s.
+                 destruct HST as (_ & _ & _ & _ & Hcontt & _).
+                 rewrite List.Forall_forall in Hcontt.
+                 apply List.nth_error_In in Hconts as Hin.
+                 apply Hcontt in Hin.
+                 inversion Hin; subst.
+                 apply (hfilled_change (vs ++ [:: AI_ref_cont (length s_conts)]) (y := No_var)) in H5 as [LI' HLI'].
+                 2: by left.
+
+                 repeat eexists.
+                 eapply r_switch.
+                 6: exact Hfill'.
+                 exact Hconst.
+                 exact Hfirst.
+                 done.
+                 exact Hconts.
+                 do 2 rewrite length_is_size.
+                 rewrite size_cat.
+                 do 2 rewrite length_is_size in Hvs.
+                 rewrite Hvs.
+                 simpl. lias.
+                 simpl.
+                 exact HLI'.
+              ** assert (hfilled No_var (hhplug vs hh') [::AI_ref_cont k; AI_switch_desugared tf (Mk_tagidx n)] es) as Hfillnew.
+                 { apply hfilled_hhplug.
+                   rewrite Hconst. simpl.
+                   eapply hfilled_no_var.
+                   exact Hfill'. }
+                 apply (hfilled_change [::AI_trap] (y := No_var)) in Hfillnew as HLI'; last by left.
+                 destruct HLI' as [LI' HLI'].
+                 repeat eexists.
+                 eapply hfilled_reduce.
+                 2: instantiate (2 := HH_prompt [::] ts2 hs (hhplug vs hh') [::]).
+                 2: instantiate (2 := No_var).
+                 2-3: unfold hfilled, hfill; fold hfill.
+                 2-3: simpl.
+                 2: unfold hfilled in Hfillnew; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+                 2: move/eqP in Hfillnew; subst => //.
+                 2: unfold hfilled in HLI'; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+                 2: move/eqP in HLI'; subst => //.
+                 intros f1.
+                 eapply r_switch_failure_dagger.
+                 exact Hconts.
+           ++ apply hfilled_no_var in Hfills.
+              apply (hfilled_change [::AI_trap] (y := No_var)) in Hfills as HLI'; last by left.
+              destruct HLI' as [LI' HLI'].
+              repeat eexists.
+              eapply hfilled_reduce.
+              2: instantiate (2 := HH_prompt [::] ts2 hs hhs [::]).
+              2: instantiate (2 := No_var).
+              2-3: unfold hfilled, hfill; fold hfill.
+              2-3: simpl.
+              2: unfold hfilled in Hfills; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+              2: move/eqP in Hfills; subst => //.
+              2: unfold hfilled in HLI'; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+              2: move/eqP in HLI'; subst => //.
+              intros f1.
+              constructor.
+              constructor.
+        -- left. right. right. right. right.
+           exists tf, i, (HH_prompt [::] ts2 hs hh [::]).
            apply/hfilledP.
            rewrite -(cat0s [::AI_prompt _ _ _]) - (cats0 [:: AI_prompt _ _ _]).
            constructor => //.
@@ -4533,7 +4872,7 @@ Proof.
       rewrite HLF.
       done. } 
     + (* Terminal *)
-      simpl. simpl in H. destruct H as [H | [H | [H | H]]].
+      simpl. simpl in H. destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         right.
         exists s, f, es.
@@ -4568,8 +4907,88 @@ Proof.
            exact Hvs.
            exact Hfirst.
            exact Hfill'.
-        -- left. right. right. right.
+        -- right. repeat eexists.
+           eapply r_suspend_failure.
+           exact Hfirst. exact Hfill.
+        -- left. right. right. right. left.
            exists i, (HH_prompt [::] ts2 hs hh [::]).
+           apply/hfilledP.
+           rewrite -(cat0s [::AI_prompt _ _ _]) - (cats0 [:: AI_prompt _ _ _]).
+           constructor => //.
+           apply/hfilledP. exact Hfill.
+      * (* Switch *)
+        destruct H as (tf & i & hh & Hfill).
+        destruct (firstx_continuation hs i) eqn:Hfirst.
+        -- right. repeat eexists.
+           eapply r_switch_failure_clause.
+           exact Hfirst. exact Hfill.
+
+        -- right.
+           destruct i.
+           eapply hfilled_switch_values in Hes as [(vs & hh' & k & cont & t1s & t2s & tf' & Hconts & Htcont & Htf & Hconst & Hvs & Hfill') | (rt & hhs & Hfills)];
+             last exact Hfill.
+           ++ destruct cont.
+              ** simpl in Htcont; subst f0 tf. destruct s.
+                 destruct HST as (_ & _ & _ & _ & Hcontt & _).
+                 rewrite List.Forall_forall in Hcontt.
+                 apply List.nth_error_In in Hconts as Hin.
+                 apply Hcontt in Hin.
+                 inversion Hin; subst.
+                 apply (hfilled_change (vs ++ [:: AI_ref_cont (length s_conts)]) (y := No_var)) in H5 as [LI' HLI'].
+                 2: by left.
+
+                 repeat eexists.
+                 eapply r_switch.
+                 6: exact Hfill'.
+                 exact Hconst.
+                 exact Hfirst.
+                 done.
+                 exact Hconts.
+                 do 2 rewrite length_is_size.
+                 rewrite size_cat.
+                 do 2 rewrite length_is_size in Hvs.
+                 rewrite Hvs.
+                 simpl. lias.
+                 simpl.
+                 exact HLI'.
+              ** assert (hfilled No_var (hhplug vs hh') [::AI_ref_cont k; AI_switch_desugared tf (Mk_tagidx n)] es) as Hfillnew.
+                 { apply hfilled_hhplug.
+                   rewrite Hconst. simpl.
+                   eapply hfilled_no_var.
+                   exact Hfill'. }
+                 apply (hfilled_change [::AI_trap] (y := No_var)) in Hfillnew as HLI'; last by left.
+                 destruct HLI' as [LI' HLI'].
+                 repeat eexists.
+                 eapply hfilled_reduce.
+                 2: instantiate (2 := HH_prompt [::] ts2 hs (hhplug vs hh') [::]).
+                 2: instantiate (2 := No_var).
+                 2-3: unfold hfilled, hfill; fold hfill.
+                 2-3: simpl.
+                 2: unfold hfilled in Hfillnew; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+                 2: move/eqP in Hfillnew; subst => //.
+                 2: unfold hfilled in HLI'; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+                 2: move/eqP in HLI'; subst => //.
+                 intros f1.
+                 eapply r_switch_failure_dagger.
+                 exact Hconts.
+           ++ apply hfilled_no_var in Hfills.
+              apply (hfilled_change [::AI_trap] (y := No_var)) in Hfills as HLI'; last by left.
+              destruct HLI' as [LI' HLI'].
+              repeat eexists.
+              eapply hfilled_reduce.
+              2: instantiate (2 := HH_prompt [::] ts2 hs hhs [::]).
+              2: instantiate (2 := No_var).
+              2-3: unfold hfilled, hfill; fold hfill.
+              2-3: simpl.
+              2: unfold hfilled in Hfills; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+              2: move/eqP in Hfills; subst => //.
+              2: unfold hfilled in HLI'; destruct (hfill _ _ _) eqn:Hfilll => //; erewrite Hfilll.
+              2: move/eqP in HLI'; subst => //.
+              intros f1.
+              constructor.
+              constructor.
+        -- left. right. right. right. right.
+           exists tf, i, (HH_prompt [::] ts2 hs hh [::]).
            apply/hfilledP.
            rewrite -(cat0s [::AI_prompt _ _ _]) - (cats0 [:: AI_prompt _ _ _]).
            constructor => //.
@@ -4627,7 +5046,7 @@ Proof.
       simpl in H.
 (*      apply terminal_form_v_e in H.
       unfold terminal_form in H. *)
-      destruct H as [H | [H | [H | H]]].
+      destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         right.
         exists s, f, es.
@@ -4658,13 +5077,20 @@ Proof.
            apply/hfilledP. done.
       * (* Suspend *)
         destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         exists i, (HH_handler [::] hs hh [::]).
         apply/hfilledP.
         rewrite - (cat0s [:: AI_handler _ _]) - (cats0 [:: AI_handler _ _]).
         constructor. done. done.
         apply/hfilledP. done.
-
+      * (* Switch *)
+        destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        exists tf, i, (HH_handler [::] hs hh [::]).
+        apply/hfilledP.
+        rewrite - (cat0s [:: AI_handler _ _]) - (cats0 [:: AI_handler _ _]).
+        constructor. done. done.
+        apply/hfilledP. done.
 
     + (* reduce *)
       destruct H as [s' [f' [es' HReduce]]].
@@ -4715,7 +5141,7 @@ Proof.
       simpl in H.
 (*      apply terminal_form_v_e in H.
       unfold terminal_form in H. *)
-      destruct H as [H | [H | [H | H]]].
+      destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         right.
         exists s, f, es.
@@ -4746,13 +5172,20 @@ Proof.
            apply/hfilledP. done.
       * (* Suspend *)
         destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         exists i, (HH_handler [::] hs hh [::]).
         apply/hfilledP.
         rewrite - (cat0s [:: AI_handler _ _]) - (cats0 [:: AI_handler _ _]).
         constructor. done. done.
         apply/hfilledP. done.
-
+      * (* Switch *)
+        destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        exists tf, i, (HH_handler [::] hs hh [::]).
+        apply/hfilledP.
+        rewrite - (cat0s [:: AI_handler _ _]) - (cats0 [:: AI_handler _ _]).
+        constructor. done. done.
+        apply/hfilledP. done.
 
     + (* reduce *)
       destruct H as [s' [f' [es' HReduce]]].
@@ -4862,7 +5295,7 @@ Proof.
       rewrite HLF.
       done. } 
     + (* Terminal *)
-      destruct H as [H | [H | [H | H]]].
+      destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         right.
         exists s, f, es.
@@ -4883,8 +5316,15 @@ Proof.
         destruct (hfill _ _ _) => //.
         move/eqP in Hfill. subst. done.
       * destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         exists i, (HH_label [::] (length ts) e0s hh [::]).
+        unfold hfilled, hfill; fold hfill.
+        simpl. unfold hfilled in Hfill.
+        destruct (hfill _ _ _) => //.
+        move/eqP in Hfill. by subst.
+      * destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        exists tf, i, (HH_label [::] (length ts) e0s hh [::]).
         unfold hfilled, hfill; fold hfill.
         simpl. unfold hfilled in Hfill.
         destruct (hfill _ _ _) => //.
@@ -4949,7 +5389,7 @@ Proof.
       rewrite HLF.
       done. } 
     + (* Terminal *)
-      destruct H as [H | [H | [H | H]]].
+      destruct H as [H | [H | [H | [H | H]]]].
       * (* Const *)
         right.
         exists s, f, es.
@@ -4970,8 +5410,15 @@ Proof.
         destruct (hfill _ _ _) => //.
         move/eqP in Hfill. subst. done.
       * destruct H as (i & hh & Hfill).
-        left. right. right. right.
+        left. right. right. right. left.
         exists i, (HH_label [::] (length ts) e0s hh [::]).
+        unfold hfilled, hfill; fold hfill.
+        simpl. unfold hfilled in Hfill.
+        destruct (hfill _ _ _) => //.
+        move/eqP in Hfill. by subst.
+      * destruct H as (tf & i & hh & Hfill).
+        left. right. right. right. right.
+        exists tf, i, (HH_label [::] (length ts) e0s hh [::]).
         unfold hfilled, hfill; fold hfill.
         simpl. unfold hfilled in Hfill.
         destruct (hfill _ _ _) => //.

@@ -86,6 +86,7 @@ Proof. exact (x00 :: x00 :: x00 :: nil). Qed.
 Definition binary_of_handler_clause h : list byte :=
   match h with
   | HC_catch (Mk_tagident x) y => xd0 :: binary_of_idx x ++ binary_of_idx y
+  | HC_switch (Mk_tagident x) => xdb :: binary_of_idx x
   end.
 
 Definition binary_of_handler_clauses hs : list byte :=
@@ -347,6 +348,7 @@ Fixpoint binary_of_be (be : basic_instruction) : list byte :=
   | BI_suspend (Mk_tagident x) => xcd :: binary_of_idx x
   | BI_contbind x y => xce :: binary_of_type_identifier x ++ binary_of_type_identifier y
   | BI_resume_throw x y hs => xcf :: binary_of_type_identifier x ++ binary_of_idx y ++ binary_of_handler_clauses hs
+  | BI_switch i (Mk_tagident x)  => xdc :: binary_of_type_identifier i ++ binary_of_idx x
   | BI_try_table tf hs bes => xd6 :: binary_of_type_identifier tf ++ binary_of_exception_clauses hs ++ binary_of_instrs bes ++ x0b :: nil
   | BI_throw_ref => xd7 :: nil
   end.

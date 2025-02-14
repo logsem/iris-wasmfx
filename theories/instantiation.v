@@ -215,7 +215,8 @@ Definition alloc_module (s : store_record) (m : module) (imps : list v_ext) (gvs
   let '(s3, i_ms) := alloc_mems s2 m.(mod_mems) in
   let '(s', i_gs) := alloc_globs s3 m.(mod_globals) gvs in
   (s'_goal == s') &&
-  (inst.(inst_types) == m.(mod_types)) &&
+    (inst.(inst_types) == m.(mod_types)) &&
+    (List.map (List.nth_error (inst.(inst_types))) inst.(inst_tags) == List.map Some m.(mod_tags)) &&
   (inst.(inst_funcs) == List.map (fun '(Mk_funcidx i) => i) (List.app (ext_funcs imps) i_fs)) &&
   (inst.(inst_tab) == List.map (fun '(Mk_tableidx i) => i) (List.app (ext_tabs imps) i_ts)) &&
   (inst.(inst_memory) == List.map (fun '(Mk_memidx i) => i) (List.app (ext_mems imps) i_ms)) &&

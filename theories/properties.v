@@ -963,7 +963,7 @@ Proof.
           -- convert_pickable Pparse.
         * case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse es)) es').
           -- move=> [[vs es''] [E1 [C Ex]]].
-             destruct es'' as [| [| | | | | | | | | n es1 LI | |] es2];
+             destruct es'' as [| [| | | | | | | | | | n es1 LI | |] es2];
                try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
              clear Ex. rewrite E1.
              exfalso. subst es'.
@@ -982,7 +982,7 @@ Proof.
                 ** convert_pickable Pparse.
              ++ case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse' es)) es').
                 ** move => [[vs es''] [E1 [C Ex]]].
-                   destruct es'' as [| [| | | | | | hs LI| | | | |] es2];
+                   destruct es'' as [| [| | | | | | | hs LI| | | | |] es2];
                      try solve [ exfalso; move: Ex => [? [? [? E']]]; inversion E' ].
                    clear Ex. rewrite E1.
                    exfalso. subst es'.
@@ -1001,7 +1001,7 @@ Proof.
                        +++ convert_pickable Pparse.
                    --- case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse'' es)) es').
                        +++ move => [[vs es''] [E1 [C Ex]]].
-                           destruct es'' as [| [| | | | | | | ts hs LI | | | |] es2];
+                           destruct es'' as [| [| | | | | | | | ts hs LI | | | |] es2];
                              try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
                            clear Ex. rewrite E1.
                            exfalso. subst es'.
@@ -1061,7 +1061,7 @@ Proof.
   }
   case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse es)) es').
   - move=> [[vs es''] [E1 [C Ex]]].
-    destruct es'' as [| [| | | | | | | | | n es1 LI | |] es2];
+    destruct es'' as [| [| | | | | | | | | | n es1 LI | |] es2];
       try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
     clear Ex. rewrite E1.
     destruct m.
@@ -1105,7 +1105,7 @@ Proof.
       * convert_pickable Pparse.
     + case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse' es)) es').
       * move => [[vs es''] [E1 [C Ex]]].
-        destruct es'' as [| [| | | | | | hs LI| | | | |] es2];
+        destruct es'' as [| [| | | | | | | hs LI| | | | |] es2];
           try solve [ exfalso; move: Ex => [? [? [? E']]]; inversion E' ].
         clear Ex. rewrite E1.
         destruct m.
@@ -1150,7 +1150,7 @@ Proof.
             ++ convert_pickable Pparse.
         -- case: (list_split_pickable2 (fun vs es => decidable_and (Dcl vs) (Dparse'' es)) es').
            ++ move => [[vs es''] [E1 [C Ex]]].
-              destruct es'' as [| [| | | | | | |ts hs LI | | | |] es2];
+              destruct es'' as [| [| | | | | | | |ts hs LI | | | |] es2];
           try solve [ exfalso; move: Ex => [? [? [? [? E']]]]; inversion E' ].
         clear Ex. rewrite E1.
         destruct m.
@@ -2221,6 +2221,12 @@ Proof.
     + apply et_weakening_empty_both.
       apply ety_a' => //.
     + constructor. done.
+  - (* Switch_desugared *)
+    exists [::], t1s0, t2s0, t1s0.
+    repeat split => //.
+    + apply et_weakening_empty_both.
+      apply ety_a' => //.
+    + econstructor; done.
   - (* Prompt *)
     exists [::], [::], t2s, [::]. repeat split => //=.
     + apply ety_a' => //.

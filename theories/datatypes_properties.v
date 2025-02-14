@@ -622,15 +622,26 @@ Canonical Structure handler_clauses_eqMixin := Equality.Mixin eqhandler_clausesP
 Canonical Structure handler_clauses_eqType := Eval hnf in Equality.Pack (sort := handler_clauses) (Equality.Class handler_clauses_eqMixin). 
 *)
 
-Definition clause_result_eq_dec : forall v1 v2 : clause_result, {v1 = v2} + {v1 <> v2}.
+Definition exception_clause_result_eq_dec : forall v1 v2 : exception_clause_result, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
 
-Definition clause_result_eqb v1 v2 : bool := clause_result_eq_dec v1 v2.
-Definition eqclause_resultP : Equality.axiom clause_result_eqb :=
-  eq_dec_Equality_axiom clause_result_eq_dec.
+Definition exception_clause_result_eqb v1 v2 : bool := exception_clause_result_eq_dec v1 v2.
+Definition eqexception_clause_resultP : Equality.axiom exception_clause_result_eqb :=
+  eq_dec_Equality_axiom exception_clause_result_eq_dec.
 
-Canonical Structure clause_result_eqMixin := Equality.Mixin eqclause_resultP.
-Canonical Structure clause_result_eqType := Eval hnf in Equality.Pack (sort := clause_result) (Equality.Class clause_result_eqMixin). 
+Canonical Structure exception_clause_result_eqMixin := Equality.Mixin eqexception_clause_resultP.
+Canonical Structure exception_clause_result_eqType := Eval hnf in Equality.Pack (sort := exception_clause_result) (Equality.Class exception_clause_result_eqMixin).
+
+Definition continuation_clause_result_eq_dec : forall v1 v2 : continuation_clause_result, {v1 = v2} + {v1 <> v2}.
+Proof. decidable_equality. Defined.
+
+Definition continuation_clause_result_eqb v1 v2 : bool := continuation_clause_result_eq_dec v1 v2.
+Definition eqcontinuation_clause_resultP : Equality.axiom continuation_clause_result_eqb :=
+  eq_dec_Equality_axiom continuation_clause_result_eq_dec.
+
+Canonical Structure continuation_clause_result_eqMixin := Equality.Mixin eqcontinuation_clause_resultP.
+Canonical Structure continuation_clause_result_eqType := Eval hnf in Equality.Pack (sort := continuation_clause_result) (Equality.Class continuation_clause_result_eqMixin). 
+
 
 
  Definition hholed_eq_dec : forall v1 v2 : hholed, {v1 = v2} + {v1 <> v2}.

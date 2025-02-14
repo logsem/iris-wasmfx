@@ -87,6 +87,9 @@ Inductive exception_clause_identifier_typing : t_context -> exception_clause_ide
       List.nth_error (tc_tags_t C) x = Some (Tf t1s' t2s') ->
       List.nth_error (tc_label C) l = Some (t1s' ++ [::T_ref (T_contref (Tf t2s' t2s))]) ->
       continuation_clause_identifier_typing C (HC_catch (Mk_tagident x) l) t2s
+  | cct_switch : forall C x t2s,
+      List.nth_error (tc_tags_t C) x = Some (Tf [::] t2s) ->
+      continuation_clause_identifier_typing C (HC_switch (Mk_tagident x)) t2s
   .
 
   (*
@@ -152,17 +155,23 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
     be_typing C [::BI_throw_ref] (Tf (t1s ++ [:: T_ref T_exnref]) t2s)
 
 
-| bet_contnew : forall C i t1 t2,
-    get_type C i = Some (Tf t1 t2) ->
-    be_typing C [::BI_contnew i] (Tf [::T_ref (T_funcref (Tf t1 t2))]
-                                   [:: T_ref (T_contref (Tf t1 t2))])
+| bet_contnew : forall C i tf,
+    get_type C i = Some tf ->
+    be_typing C [::BI_contnew i] (Tf [::T_ref (T_funcref tf)]
+                                   [:: T_ref (T_contref tf)])
  | bet_resume : forall C i t1s t2s hs,
     get_type C i = Some (Tf t1s t2s) ->
     List.Forall (fun h => continuation_clause_identifier_typing C h t2s) hs ->
     be_typing C [:: BI_resume i hs] (Tf (t1s ++ [:: T_ref (T_contref (Tf t1s t2s))]) t2s)
-| bet_suspend : forall C x t1s t2s,
-    get_tag C x = Some (Tf t1s t2s) ->
-    be_typing C [::BI_suspend x] (Tf t1s t2s)
+| bet_suspend : forall C x tf,
+    get_tag C x = Some tf ->
+    be_typing C [::BI_suspend x] tf
+| bet_switch : forall C i x ts tf tf' t1s t2s,
+    get_tag C x = Some (Tf [::] ts) ->
+    get_type C i = Some tf ->
+    tf = Tf (t1s ++ [::T_ref (T_contref (Tf t2s ts))]) ts ->
+    tf' = Tf (t1s ++ [:: T_ref (T_contref tf)]) t2s ->
+    be_typing C [::BI_switch i x] tf' 
 | bet_contbind : forall C i i' ft ft' ts t1s t2s,
     get_type C i = Some ft ->
     get_type C i' = Some ft' ->
@@ -504,6 +513,9 @@ Inductive exception_clause_typing : store_record -> t_context -> exception_claus
       List.nth_error (s_tags s) x = Some (Tf t1s' t2s') ->
       List.nth_error (tc_label C) l = Some (t1s' ++ [::T_ref (T_contref (Tf t2s' t2s))]) ->
       continuation_clause_typing s C (DC_catch (Mk_tagidx x) l) t2s
+  | cdt_switch : forall s C x t2s,
+      List.nth_error (s_tags s) x = Some (Tf [::] t2s) ->
+      continuation_clause_typing s C (DC_switch (Mk_tagidx x)) t2s
   .
 
 
@@ -550,6 +562,12 @@ with e_typing : store_record -> t_context -> seq administrative_instruction -> f
 | ety_suspend_desugared : forall s C x tf,
     List.nth_error (s_tags s) x = Some tf ->
     e_typing s C [::AI_suspend_desugared (Mk_tagidx x)] tf
+| ety_switch_desugared : forall s C tf tf' x ts t1s t2s,
+    List.nth_error (s_tags s) x = Some (Tf [::] ts) ->
+    tf = Tf (t1s ++ [::T_ref (T_contref (Tf t2s ts))]) ts ->
+    tf' = Tf (t1s ++ [:: T_ref (T_contref tf)]) t2s ->
+    e_typing s C [::AI_switch_desugared tf (Mk_tagidx x)] tf' 
+             
 | ety_prompt : forall s C hs es ts,
     List.Forall (fun h => continuation_clause_typing s C h ts) hs ->
     e_typing s empty_context es (Tf [::] ts) -> 

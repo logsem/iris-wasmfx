@@ -85,6 +85,9 @@ Inductive reduce_simple : seq administrative_instruction -> seq administrative_i
 | rs_resume_throw_failure:
   forall rt i j hs,
     reduce_simple [::AI_basic (BI_ref_null rt); AI_basic (BI_resume_throw i j hs)] [::AI_trap]
+| rs_switch_failure :
+  forall rt tf x,
+    reduce_simple [:: AI_basic (BI_ref_null rt); AI_switch_desugared tf x] [::AI_trap]
 | rs_prompt_const :
   forall ts hs vs,
     const_list vs ->
@@ -324,19 +327,49 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     List.nth_error (s_conts s) k = Some (Cont_dagger tf) ->
     reduce s f [:: AI_ref_cont k; AI_basic (BI_resume i hs)] s f [::AI_trap]
 | r_suspend_desugar :
-  forall s f x a tf,
+  forall s f x a tf ,
     List.nth_error f.(f_inst).(inst_tags) x = Some a ->
-    List.nth_error s.(s_tags) a = Some tf ->
+    List.nth_error s.(s_tags) a = Some tf -> 
     reduce s f [:: AI_basic (BI_suspend (Mk_tagident x))] s f [:: AI_suspend_desugared (Mk_tagidx a)]
+| r_switch_desugar :
+  forall s f i x a tf tf',
+    stypes s (f_inst f) i = Some tf ->
+    List.nth_error f.(f_inst).(inst_tags) x = Some a ->
+    List.nth_error s.(s_tags) a = Some tf' -> 
+    reduce s f [:: AI_basic (BI_switch i (Mk_tagident x))] s f [:: AI_switch_desugared tf (Mk_tagidx a)]
 | r_suspend :
   forall s f hs ts hh vs x a l t1s t2s LI,
     const_list vs ->
     x = Mk_tagidx a ->
     List.nth_error (s_tags s) a = Some (Tf t1s t2s) ->
     length vs = length t1s ->
-    firstx_continuation hs x = Some l ->
+    firstx_continuation hs x = Clause_suspend l ->
     hfilled (Var_prompt x) hh (vs ++ [:: AI_suspend_desugared x]) LI ->
-    reduce s f [:: AI_prompt ts hs LI ] (new_cont s (Cont_hh (Tf t2s ts (* was probably wrong − fixed now? *))hh)) f (vs ++ [:: AI_ref_cont (length (s_conts s)); AI_basic (BI_br l)])
+    reduce s f [:: AI_prompt ts hs LI ] (new_cont s (Cont_hh (Tf t2s ts) hh)) f (vs ++ [:: AI_ref_cont (length (s_conts s)); AI_basic (BI_br l)])
+| r_suspend_failure :
+  forall s f ts hs LI x hh,
+    firstx_continuation hs x = Clause_switch ->
+    hfilled (Var_prompt x) hh [:: AI_suspend_desugared x] LI ->
+    reduce s f [::AI_prompt ts hs LI ] s f [:: AI_trap]
+| r_switch :
+  forall s f ts hs LI t1s' t2s' tf' hh LI' x tf t1s t2s k vs hh',
+    const_list vs ->
+    firstx_continuation hs x = Clause_switch ->
+    tf = Tf (t1s ++ [:: T_ref (T_contref tf')]) t2s ->
+    List.nth_error (s_conts s) k = Some (Cont_hh (Tf t1s' t2s') hh') ->
+    length t1s' = S (length vs) ->
+    hfilled (Var_prompt x) hh (vs ++ [::AI_ref_cont k; AI_switch_desugared tf x]) LI ->
+    hfilled No_var hh' (vs ++ [:: AI_ref_cont (length (s_conts s))]) LI' ->
+    reduce s f [:: AI_prompt ts hs LI ] (new_cont (upd_s_cont s k (Cont_dagger (Tf t1s' t2s'))) (Cont_hh tf' hh)) f [:: AI_prompt t2s' hs LI']
+| r_switch_failure_clause :
+  forall s f ts hs LI tf x hh l,
+    firstx_continuation hs x = Clause_suspend l ->
+    hfilled (Var_prompt x) hh [:: AI_switch_desugared tf x] LI ->
+    reduce s f [::AI_prompt ts hs LI ] s f [:: AI_trap]
+| r_switch_failure_dagger :
+  forall s f k tf x tf',
+    List.nth_error (s_conts s) k = Some (Cont_dagger tf') ->
+    reduce s f [:: AI_ref_cont k; AI_switch_desugared tf x] s f [:: AI_trap]
 | r_contbind :
   forall s f k hh vs i i' ts t1s t2s,
     const_list vs ->

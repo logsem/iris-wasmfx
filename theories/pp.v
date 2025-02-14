@@ -279,6 +279,7 @@ Definition pp_type_identifier x :=
 Definition pp_continuation_clause_identifier h : string :=
   match h with
   | HC_catch (Mk_tagident x) y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | HC_switch (Mk_tagident x) => "On " ++ pp_immediate x ++ " switch"
   end.
 
 Definition pp_continuation_clauses_identifier hs : string :=
@@ -298,6 +299,7 @@ Definition pp_exception_clauses_identifier hs : string :=
 Definition pp_continuation_clause h : string :=
   match h with
   | DC_catch (Mk_tagidx x) y => "On " ++ pp_immediate x ++ " do " ++ pp_immediate y
+  | DC_switch (Mk_tagidx x) => "On " ++ pp_immediate x ++ " switch"
   end.
 
 Definition pp_continuation_clauses hs : string :=
@@ -406,7 +408,8 @@ Fixpoint pp_basic_instruction (i : indentation) (be : basic_instruction) : strin
 
 | BI_contnew x => indent i (with_fg be_style "cont.new " ++ pp_type_identifier x ++ newline)
 | BI_resume x hs => indent i (with_fg be_style "resume " ++ pp_type_identifier x ++ pp_continuation_clauses_identifier hs ++ newline)
-| BI_suspend (Mk_tagident k) => indent i (with_fg be_style "suspend " ++ pp_immediate k ++ newline) 
+  | BI_suspend (Mk_tagident k) => indent i (with_fg be_style "suspend " ++ pp_immediate k ++ newline)
+  | BI_switch j (Mk_tagident k) => indent i (with_fg be_style "switch " ++ pp_type_identifier j ++ pp_immediate k ++ newline)
 | BI_contbind x y => indent i (with_fg be_style "cont.bind " ++ pp_type_identifier x ++ ", " ++ pp_type_identifier y ++ newline) 
 | BI_resume_throw x k hs => indent i (with_fg be_style "resume_throw " ++ pp_type_identifier x ++ ", " ++ pp_immediate k ++ pp_continuation_clauses_identifier hs ++ newline)
                                      
@@ -468,7 +471,8 @@ Fixpoint pp_administrative_instruction (n : indentation) (e : administrative_ins
   | AI_ref f => indent n (with_fg ae_style "ref " ++ pp_immediate f ++ newline) 
 | AI_ref_exn e => indent n (with_fg ae_style "ref.exn " ++ pp_immediate e ++ newline)
 | AI_ref_cont f => indent n (with_fg ae_style "ref.cont " ++ pp_immediate f ++ newline) 
-| AI_suspend_desugared (Mk_tagidx i) => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i) 
+  | AI_suspend_desugared (Mk_tagidx i) => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i)
+  | AI_switch_desugared tf (Mk_tagidx i) => indent n (with_fg ae_style "switch.desugared " ++ pp_function_type tf ++ pp_immediate i)
   | AI_handler hs es =>
       indent n (with_fg ae_style "handler " ++ pp_exception_clauses hs) ++
         String.concat "" (List.map (pp_administrative_instruction (n.+1)) es) ++

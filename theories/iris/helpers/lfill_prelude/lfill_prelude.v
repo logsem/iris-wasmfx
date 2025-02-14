@@ -1459,7 +1459,7 @@ Proof.
     apply const_es_exists in H8 as [vs ->].
     exists (LL_label vs n l0 lh l1).
     done.
-  - apply IHhh in H10 as [lh <-]. 
+  - apply IHhh in H9 as [lh <-]. 
     apply const_es_exists in H8 as [vs ->].
     exists (LL_local vs n f lh l0).
     done.
@@ -1563,7 +1563,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H4 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -1672,7 +1672,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H4 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -1934,7 +1934,7 @@ Proof.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_llfill in H4 as [lh' Hlh].
+    apply hfilled_to_llfill in H5 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list. 
     specialize (llfill_first_values H1 Hfill') as [Habs _] => //. 
@@ -2053,7 +2053,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H4 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 

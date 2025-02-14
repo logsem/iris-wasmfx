@@ -327,7 +327,8 @@ Inductive cvtop : Type :=
 .
 
   Inductive continuation_clause_identifier : Type :=
-  | HC_catch : tag_identifier -> immediate -> continuation_clause_identifier  
+  | HC_catch : tag_identifier -> immediate -> continuation_clause_identifier
+  | HC_switch : tag_identifier -> continuation_clause_identifier
 .
 
 Inductive exception_clause_identifier : Type :=
@@ -343,12 +344,17 @@ Inductive exception_clause_identifier : Type :=
 .
 *) 
 
-Inductive clause_result : Type :=
-| Clause_label : immediate -> clause_result
-| Clause_label_ref : immediate -> clause_result
+Inductive exception_clause_result : Type :=
+| Clause_label : immediate -> exception_clause_result
+| Clause_label_ref : immediate -> exception_clause_result
 | No_label
 .
 
+Inductive continuation_clause_result : Type :=
+| Clause_suspend : immediate -> continuation_clause_result
+| Clause_switch : continuation_clause_result
+| No_result
+.
 
 
   
@@ -398,6 +404,7 @@ Inductive basic_instruction : Type := (* be *)
 | BI_suspend : tag_identifier -> basic_instruction
 | BI_contbind : type_identifier -> type_identifier -> basic_instruction
 | BI_resume_throw : type_identifier -> immediate -> list continuation_clause_identifier -> basic_instruction
+| BI_switch : type_identifier -> tag_identifier -> basic_instruction
   .
 
 (** * Functions and Store **)
@@ -527,7 +534,8 @@ Inductive tagidx : Type :=
 | Mk_tagidx : nat -> tagidx.
 
 Inductive continuation_clause : Type :=
-  | DC_catch : tagidx -> immediate -> continuation_clause 
+| DC_catch : tagidx -> immediate -> continuation_clause
+| DC_switch : tagidx -> continuation_clause
 .
 
 Inductive exception_clause : Type :=
@@ -544,6 +552,7 @@ Inductive administrative_instruction : Type := (* e *)
 | AI_ref_exn : exnaddr -> administrative_instruction
 | AI_ref_cont : funcaddr -> administrative_instruction
 | AI_suspend_desugared : tagidx -> administrative_instruction
+| AI_switch_desugared : function_type -> tagidx -> administrative_instruction
 | AI_handler : list exception_clause -> list administrative_instruction -> administrative_instruction
 | AI_prompt : list value_type -> list continuation_clause -> list administrative_instruction -> administrative_instruction
 | AI_invoke : funcaddr -> administrative_instruction

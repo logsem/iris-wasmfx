@@ -130,7 +130,7 @@ Proof.
     inversion H2; subst; clear H2.
     destruct x; simpl in *.
     unfold module_export_typing in *.
-    destruct modexp_desc. 5:{  ; [destruct f | destruct t | destruct m | destruct g | destruct t]; simpl in *; destruct e; destruct e0 => //=.
+    destruct modexp_desc ; [destruct f | destruct t | destruct m | destruct g | destruct t]; simpl in *; destruct e; destruct e0 => //=.
     { (* func *)
       move/andP in H1; destruct H1.
       move/andP in H4; destruct H4.
@@ -163,6 +163,9 @@ Proof.
       move/eqP in H3.
       by subst.
     }
+    { (* tag *)
+      destruct n => //.
+    } 
   - by rewrite <- H in H3.
   - by rewrite <- H in H0.
 Qed.    
@@ -1120,6 +1123,9 @@ Proof.
   move/eqP in Hif1.
   move/eqP in Hif2.
   move/andP in Ham1; move/andP in Ham2.
+  destruct Ham1 as [Ham1 Hitags1].
+  destruct Ham2 as [Ham2 Hitags2].
+  move/andP in Ham1; move/andP in Ham2.
   destruct Ham1 as [Ham1 Hitype1].
   destruct Ham2 as [Ham2 Hitype2].
   move/eqP in Hitype1.
@@ -1129,6 +1135,8 @@ Proof.
   rewrite <- Him2 in Him1.
   rewrite <- Hig2 in Hig1.
   rewrite <- Hitype2 in Hitype1.
+  move/eqP in Hitags1. move/eqP in Hitags2.
+  rewrite - Hitags2 in Hitags1.
   destruct inst, inst'.
   simpl in *.
   subst.

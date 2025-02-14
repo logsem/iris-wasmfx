@@ -230,7 +230,9 @@ Definition parse_handler_clause_aux (x : labelidx) (y : labelidx) :=
   HC_catch (extract_labelidx (fun x => Mk_tagident x) x) (extract_labelidx (fun y => y) y).
 
 Definition parse_handler_clause {n} : byte_parser continuation_clause_identifier n :=
-  exact_byte xd0 &> (( parse_handler_clause_aux <$> parse_labelidx) <*> parse_labelidx).
+  exact_byte xd0 &> (( parse_handler_clause_aux <$> parse_labelidx) <*> parse_labelidx) <|>
+    exact_byte xdb &> (extract_labelidx (fun x => HC_switch (Mk_tagident x)) <$> parse_labelidx)
+. 
 
 Definition parse_handler_clauses {n} : byte_parser (list continuation_clause_identifier) n :=
   parse_vec parse_handler_clause.
@@ -249,6 +251,13 @@ Definition parse_resume_throw_aux x y z :=
 
 Definition parse_resume_throw {n} : byte_parser basic_instruction n :=
   exact_byte xcf &> (((parse_resume_throw_aux <$> parse_type_identifier) <*> parse_labelidx) <*> parse_handler_clauses).
+
+Definition parse_switch_aux x (y : labelidx) :=
+  BI_switch x (extract_labelidx (fun k => Mk_tagident k) y).
+
+Definition parse_switch {n} : byte_parser basic_instruction n :=
+  exact_byte xdc &> (( parse_switch_aux <$> parse_type_identifier) <*> parse_labelidx)
+.
 
 Definition parse_exception_clause_aux (x : labelidx) (y : labelidx) :=
   HE_catch (extract_labelidx (fun x => Mk_tagident x) x) (extract_labelidx (fun y => y) y).

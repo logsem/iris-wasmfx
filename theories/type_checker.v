@@ -223,15 +223,24 @@ Definition is_float (t: number_type) :=
   | T_f64 => true
   end.
 
-Definition check_clause C '(Mk_tagident x) l t2s :=
-  match List.nth_error (tc_tags_t C) x with
-  | Some (Tf t1s' t2s') =>
-      match List.nth_error (tc_label C) l with
-      | Some ts =>
-          ts == t1s' ++ [:: T_ref (T_contref (Tf t2s' t2s))]
-      | None => false
+Definition check_clause C cl t2s :=
+  match cl with
+  | HC_catch (Mk_tagident x) l =>
+      match List.nth_error (tc_tags_t C) x with
+      | Some (Tf t1s' t2s') =>
+          match List.nth_error (tc_label C) l with
+          | Some ts =>
+              ts == t1s' ++ [:: T_ref (T_contref (Tf t2s' t2s))]
+          | None => false
+          end
+      | _ => false
       end
-  | _ => false
+  | HC_switch (Mk_tagident x) =>
+      match List.nth_error (tc_tags_t C) x with
+      | Some (Tf [::] ts) =>
+          ts == t2s
+      | _ => false
+      end
   end.
 
 Definition check_exception_clause C h :=
@@ -278,6 +287,16 @@ Definition isolate_prefix (full: list value_type) suffix :=
     else None
   else None.
 
+Fixpoint separate_last {A} (l : list A) :=
+  match l with
+  | [::] => None
+  | [:: x] => Some ([::], x)
+  | t :: q => match separate_last q with
+            | None => None
+            | Some (l, x) => Some (t :: l, x)
+            end 
+  end.
+
 Fixpoint check_single (C : t_context) (ts : checker_type) (be : basic_instruction) : checker_type :=
   let b_e_type_checker (C : t_context) (es : list basic_instruction) (tf : function_type) : bool :=
     match tf with
@@ -300,7 +319,7 @@ in
       | Some (Tf t1s t2s) =>
           match List.nth_error (tc_tags_t C) x with
           | Some (Tf ts' [::]) =>
-              if List.forallb (fun '(HC_catch x l) => check_clause C x l t2s) hs
+              if List.forallb (fun cl => check_clause C cl t2s) hs
               then type_update ts (to_ct_list (ts' ++ [:: T_ref (T_contref (Tf t1s t2s))])) (CT_type t2s)
               else CT_bot
           | _ => CT_bot
@@ -328,10 +347,28 @@ in
       | Some (Tf t1s t2s) => type_update ts (to_ct_list t1s) (CT_type t2s)
       | _ => CT_bot
       end
+  | BI_switch i (Mk_tagident x) =>
+      match get_type C i with
+      | Some (Tf t1s t2s) =>
+          match List.nth_error (tc_tags_t C) x with
+          | Some (Tf [::] tmatch) =>
+              if t2s == tmatch 
+              then match separate_last t1s with
+                   | Some (t1s', T_ref (T_contref (Tf t2s' tmatch))) =>
+                       if t2s == tmatch
+                       then type_update ts (to_ct_list (t1s' ++ [:: T_ref (T_contref (Tf t1s t2s))])) (CT_type t2s')
+                       else CT_bot
+                   | _ => CT_bot
+                   end
+              else CT_bot
+          | _ => CT_bot
+          end
+      | None => CT_bot
+      end
   | BI_resume i hs =>
       match get_type C i with
       | Some (Tf t1s t2s) =>
-          if List.forallb (fun '(HC_catch x l) => check_clause C x l t2s) hs
+          if List.forallb (fun cl => check_clause C cl t2s) hs
           then type_update ts (to_ct_list (t1s ++ [:: T_ref (T_contref (Tf t1s t2s))])) (CT_type t2s)
           else CT_bot
       | _ => CT_bot
