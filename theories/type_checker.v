@@ -287,15 +287,6 @@ Definition isolate_prefix (full: list value_type) suffix :=
     else None
   else None.
 
-Fixpoint separate_last {A} (l : list A) :=
-  match l with
-  | [::] => None
-  | [:: x] => Some ([::], x)
-  | t :: q => match separate_last q with
-            | None => None
-            | Some (l, x) => Some (t :: l, x)
-            end 
-  end.
 
 Fixpoint check_single (C : t_context) (ts : checker_type) (be : basic_instruction) : checker_type :=
   let b_e_type_checker (C : t_context) (es : list basic_instruction) (tf : function_type) : bool :=

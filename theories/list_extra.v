@@ -27,6 +27,86 @@ Qed.
 
 End extra_ssreflect. *)
 
+Fixpoint separate_last {A} (l : list A) :=
+  match l with
+  | nil => None
+  | x :: nil => Some (nil, x)
+  | t :: q => match separate_last q with
+            | None => None
+            | Some (l, x) => Some (t :: l, x)
+            end 
+  end.
+
+Lemma separate_last_spec {A} l l' (x: A):
+  separate_last l = Some (l', x) ->
+  l = l' ++ x :: nil.
+Proof.
+  generalize dependent l'.
+  induction l.
+  { simpl. intros. congruence. } 
+  destruct l.
+  { intros l' H; inversion H; subst. reflexivity. }
+  destruct l.
+  { intros l' H; inversion H; subst. reflexivity. }
+  intros l' Hlast.
+  simpl in IHl.
+  simpl in Hlast.
+  destruct (match match l with
+                  | nil => _
+                  | _ :: _ => _
+                  end
+            with
+            | Some (l, x) => _
+            | None => None
+            end).
+  2: congruence.
+  destruct p.
+  inversion Hlast; subst.
+  simpl. rewrite <- IHl.
+  reflexivity. reflexivity.
+Qed. 
+
+Lemma separate_last_trivial {A} l (x:A):
+  separate_last (l ++ x :: nil) = Some (l, x).
+Proof.
+  induction l.
+  { reflexivity. }
+  simpl. rewrite IHl.
+  destruct l; simpl.
+  reflexivity.
+  reflexivity.
+Qed. 
+
+Lemma separate_last_None {A} (l : list A):
+  separate_last l = None -> l = nil.
+Proof.
+  induction l.
+  { intros H. reflexivity. }
+  simpl.
+  destruct (separate_last l) as [[l' x]|] eqn:Hl.
+  - destruct l.
+    + congruence.
+    + congruence.
+  - rewrite IHl.
+    + congruence.
+    + reflexivity.
+Qed.
+
+Lemma separate_last_app {A} (l1 l2 : list A) l x :
+  separate_last l2 = Some (l, x) ->
+  separate_last (l1 ++ l2) = Some (l1 ++ l, x).
+Proof.
+  induction l1.
+  { intros H. simpl. exact H. }
+  simpl. intros H.
+  rewrite IHl1; [|exact H].
+  destruct l1.
+  { destruct l2.
+    { simpl in H. congruence. }
+    simpl. reflexivity. }
+  simpl. reflexivity.
+Qed. 
+
 Lemma length_repeat {A} (x: A) n: length (repeat x n) = n.
 Proof. apply repeat_length. Qed. 
 

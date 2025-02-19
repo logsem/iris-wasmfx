@@ -556,9 +556,10 @@ with e_typing : store_record -> t_context -> seq administrative_instruction -> f
 (*    c_typing s (* C *) cont -> *)
     typeof_cont cont = tf ->
     e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref (T_contref tf)])
-| ety_ref_exn : forall s C k exn , (* Guessing the rule here *) 
-    List.nth_error (s_exns s) k = Some exn -> 
-    e_typing s C [:: AI_ref_exn k] (Tf [::] [::T_ref T_exnref])
+| ety_ref_exn : forall s C k i exn , (* Guessing the rule here *) 
+    List.nth_error (s_exns s) k = Some exn ->
+    e_tag exn = i ->
+    e_typing s C [:: AI_ref_exn k i] (Tf [::] [::T_ref T_exnref])
 | ety_suspend_desugared : forall s C x tf,
     List.nth_error (s_tags s) x = Some tf ->
     e_typing s C [::AI_suspend_desugared (Mk_tagidx x)] tf

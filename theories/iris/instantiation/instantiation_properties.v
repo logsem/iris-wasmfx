@@ -221,23 +221,35 @@ Proof.
 Qed.
 
 (* Getting the count of each type of imports from a module. This is to calculate the correct shift for indices of the exports in the Wasm store later. *)
-Definition get_import_func_count (m: module) := length (pmap (fun x => match x.(imp_desc) with
-                                                                   | ID_func id => Some id
-                                                                   | _ => None
-                                                                    end) m.(mod_imports)).
+Definition get_import_func_count (m: module) :=
+  length (pmap (fun x =>
+                  match x.(imp_desc) with
+                  | ID_func id => Some id
+                  | _ => None
+                  end) m.(mod_imports)).
 
-Definition get_import_table_count (m: module) := length (pmap (fun x => match x.(imp_desc) with
-                                                                   | ID_table id => Some id
-                                                                   | _ => None
-                                                                    end) m.(mod_imports)).
-Definition get_import_mem_count (m: module) := length (pmap (fun x => match x.(imp_desc) with
-                                                                   | ID_mem id => Some id
-                                                                   | _ => None
-                                                                    end) m.(mod_imports)).
-Definition get_import_global_count (m: module) := length (pmap (fun x => match x.(imp_desc) with
-                                                                   | ID_global id => Some id
-                                                                   | _ => None
-                                                                      end) m.(mod_imports)).
+Definition get_import_tag_count (m: module) :=
+  length (pmap (fun x =>
+                  match x.(imp_desc) with
+                  | ID_tag id => Some id
+                  | _ => None
+                  end) m.(mod_imports)).
+
+Definition get_import_table_count (m: module) :=
+  length (pmap (fun x => match x.(imp_desc) with
+                      | ID_table id => Some id
+                      | _ => None
+                      end) m.(mod_imports)).
+Definition get_import_mem_count (m: module) :=
+  length (pmap (fun x => match x.(imp_desc) with
+                      | ID_mem id => Some id
+                      | _ => None
+                      end) m.(mod_imports)).
+Definition get_import_global_count (m: module) :=
+  length (pmap (fun x => match x.(imp_desc) with
+                      | ID_global id => Some id
+                      | _ => None
+                      end) m.(mod_imports)).
 
 
 Lemma ext_funcs_lookup_exist (modexps: list module_export_desc) n fn:
@@ -389,7 +401,10 @@ Lemma alloc_func_gen_index modfuncs ws inst ws' l:
   ws'.(s_funcs) = ws.(s_funcs) ++ fmap (fun mf => gen_func_instance mf inst) modfuncs /\
   ws.(s_tables) = ws'.(s_tables) /\
   ws.(s_mems) = ws'.(s_mems) /\
-  ws.(s_globals) = ws'.(s_globals).
+    ws.(s_globals) = ws'.(s_globals) /\
+    ws.(s_tags) = ws'.(s_tags) /\
+    ws.(s_exns) = ws'.(s_exns) /\ ws.(s_conts) = ws'.(s_conts)
+.
 Proof.
   unfold alloc_funcs, alloc_Xs.
   generalize dependent l.
@@ -421,13 +436,57 @@ Proof.
       by rewrite -> list_fmap_app.
 Qed.
 
+Lemma alloc_tag_gen_index modtagtypes ws ws' l:
+  alloc_tags ws modtagtypes = (ws', l) ->
+  map (fun x => match x with | Mk_tagidx i => i end) l = gen_index (length (s_tags ws)) (length modtagtypes) /\
+ws.(s_tables) = ws'.(s_tables) /\
+  ws.(s_funcs) = ws'.(s_funcs) /\
+  ws.(s_mems) = ws'.(s_mems) /\
+    ws.(s_globals) = ws'.(s_globals) /\
+  ws'.(s_tags) = ws.(s_tags) ++ modtagtypes /\
+    ws.(s_exns) = ws'.(s_exns) /\ ws.(s_conts) = ws'.(s_conts).
+Proof.
+  unfold alloc_tags, alloc_Xs.
+  generalize dependent l.
+  generalize dependent ws'.
+  generalize dependent ws.
+  induction modtagtypes using List.rev_ind; move => ws ws' l Halloc.
+  - inversion Halloc; subst; clear Halloc.
+    repeat split => //.
+    simpl.
+    by rewrite app_nil_r.
+  - rewrite fold_left_app in Halloc.
+    remember (fold_left _ modtagtypes (ws,[])) as fold_res.
+    simpl in Halloc.
+    destruct fold_res as [ws0 l0].
+    symmetry in Heqfold_res.
+    unfold alloc_tag, add_tag in Halloc.
+    destruct x => /=.
+    specialize (IHmodtagtypes ws ws0 (rev l0)).
+    rewrite Heqfold_res in IHmodtagtypes.
+    inversion Halloc; subst; clear Halloc.
+    simpl in *.
+    rewrite map_app length_app /=.
+    rewrite gen_index_extend.
+    destruct IHmodtagtypes as (? & ? & ? & ? & ? & ? & ? & ?) => //.
+    repeat split => //.
+    + rewrite H. 
+      rewrite H4.
+      by rewrite length_app.
+    + rewrite H4.
+      rewrite - app_assoc.
+      f_equal.
+Qed.
+
 Lemma alloc_tab_gen_index modtabtypes ws ws' l:
   alloc_tabs ws modtabtypes = (ws', l) ->
   map (fun x => match x with | Mk_tableidx i => i end) l = gen_index (length (s_tables ws)) (length modtabtypes) /\
   ws'.(s_tables) = ws.(s_tables) ++ fmap (fun '{| tt_limits := {| lim_min := min; lim_max := maxo |} |} => {| table_data := repeat None (ssrnat.nat_of_bin min); table_max_opt := maxo |}) modtabtypes /\
   ws.(s_funcs) = ws'.(s_funcs) /\
   ws.(s_mems) = ws'.(s_mems) /\
-  ws.(s_globals) = ws'.(s_globals).
+    ws.(s_globals) = ws'.(s_globals) /\
+ws.(s_tags) = ws'.(s_tags)/\
+    ws.(s_exns) = ws'.(s_exns) /\ ws.(s_conts) = ws'.(s_conts).
 Proof.
   unfold alloc_tabs, alloc_Xs.
   generalize dependent l.
@@ -469,7 +528,9 @@ Lemma alloc_mem_gen_index modmemtypes ws ws' l:
   ws'.(s_mems) = ws.(s_mems) ++ fmap (fun '{| lim_min := min; lim_max := maxo |} => {| mem_data := memory_list.mem_make #00%byte (page_size * min)%N; mem_max_opt := maxo |}) modmemtypes /\
   ws.(s_funcs) = ws'.(s_funcs) /\
   ws.(s_tables) = ws'.(s_tables) /\
-  ws.(s_globals) = ws'.(s_globals).
+    ws.(s_globals) = ws'.(s_globals) /\
+ws.(s_tags) = ws'.(s_tags)/\
+    ws.(s_exns) = ws'.(s_exns) /\ ws.(s_conts) = ws'.(s_conts).
 Proof.
   unfold alloc_mems, alloc_Xs.
   generalize dependent l.
@@ -510,7 +571,9 @@ Lemma alloc_glob_gen_index modglobs ws g_inits ws' l:
   ws'.(s_globals) = ws.(s_globals) ++ fmap (fun '({| modglob_type := gt; modglob_init := ge |}, v) => {| g_mut := gt.(tg_mut); g_val := v |} ) (combine modglobs g_inits) /\
   ws.(s_funcs) = ws'.(s_funcs) /\
   ws.(s_tables) = ws'.(s_tables) /\
-  ws.(s_mems) = ws'.(s_mems).
+    ws.(s_mems) = ws'.(s_mems) /\
+ws.(s_tags) = ws'.(s_tags) /\
+    ws.(s_exns) = ws'.(s_exns) /\ ws.(s_conts) = ws'.(s_conts).
 Proof.
   unfold alloc_globs, alloc_Xs.
   generalize dependent l.
@@ -562,7 +625,10 @@ Lemma init_tabs_preserve ws inst e_inits melem ws':
   init_tabs ws inst e_inits melem = ws' ->
   ws.(s_funcs) = ws'.(s_funcs) /\
   ws.(s_mems) = ws'.(s_mems) /\
-  ws.(s_globals) = ws'.(s_globals).
+    ws.(s_globals) = ws'.(s_globals) /\
+    ws.(s_tags) = ws'.(s_tags)/\
+    ws.(s_exns) = ws'.(s_exns) /\ ws.(s_conts) = ws'.(s_conts)
+.
 Proof.
   move => Hinit.
   unfold init_tabs in Hinit.
@@ -571,7 +637,7 @@ Proof.
   move => x [n me] Heq.
   destruct ws, x.
   simpl in *.
-  destruct Heq as [-> [-> ->]].
+  destruct Heq as (-> & -> & -> & -> & -> & ->).
   unfold init_tab => /=.
   by destruct (nth _ _) eqn:Hl => /=.
 Qed.
@@ -580,7 +646,10 @@ Lemma init_mems_preserve ws inst d_inits mdata ws':
   init_mems ws inst d_inits mdata = ws' ->
   ws.(s_funcs) = ws'.(s_funcs) /\
   ws.(s_tables) = ws'.(s_tables) /\
-  ws.(s_globals) = ws'.(s_globals).
+    ws.(s_globals) = ws'.(s_globals) /\
+    ws.(s_tags) = ws'.(s_tags)/\
+    ws.(s_exns) = ws'.(s_exns) /\ ws.(s_conts) = ws'.(s_conts)
+.
 Proof.
   move => Hinit.
   unfold init_mems in Hinit.
@@ -589,7 +658,7 @@ Proof.
   move => x [n md] Heq.
   destruct ws, x.
   simpl in *.
-  destruct Heq as [-> [-> ->]].
+  destruct Heq as (-> & -> & -> & -> & -> & ->).
   by unfold init_mem => /=.
 Qed.
 
@@ -598,7 +667,9 @@ Lemma mod_imps_len_t m t_imps t_exps:
   get_import_func_count m = length (ext_t_funcs t_imps) /\
   get_import_table_count m = length (ext_t_tabs t_imps) /\
   get_import_mem_count m = length (ext_t_mems t_imps) /\
-  get_import_global_count m = length (ext_t_globs t_imps).
+    get_import_global_count m = length (ext_t_globs t_imps) /\
+    get_import_tag_count m = length (ext_t_tags t_imps)
+.
 Proof.
   unfold get_import_func_count, get_import_table_count, get_import_mem_count, get_import_global_count.
   unfold module_typing.
@@ -627,7 +698,7 @@ Proof.
       f_equal).
     move/eqP in H2; subst.
     simpl.
-    apply IHmod_imports in H4 as [? [? [? ?]]] => //.
+    apply IHmod_imports in H4 as (? & ? & ? & ? & ?) => //.
     repeat split => //.
     by f_equal.
 Qed.
@@ -966,7 +1037,9 @@ Lemma vt_imps_comp_len s (v_imps: list v_ext) t_imps:
   (length (ext_funcs v_imps) = length (ext_t_funcs t_imps) /\
     length (ext_tabs v_imps) = length (ext_t_tabs t_imps) /\
     length (ext_mems v_imps) = length (ext_t_mems t_imps) /\
-    length (ext_globs v_imps) = length (ext_t_globs t_imps)).
+     length (ext_globs v_imps) = length (ext_t_globs t_imps) /\
+     length (ext_tags v_imps) = length (ext_t_tags t_imps)
+  ).
 Proof.
   move: t_imps.
   induction v_imps; move => t_imps Hexttype; destruct t_imps; try by apply Forall2_length in Hexttype.
@@ -999,19 +1072,24 @@ Proof.
   destruct res_m as [s2 idm].
   remember (alloc_globs s2 (mod_globals m) g_inits) as res_g.
   destruct res_g as [s3 idg].
+  remember (alloc_tags s3 (mod_tags m)) as res_tg.
+  destruct res_tg as [s4 idtg].
   symmetry in Heqres_f.
   symmetry in Heqres_t.
   symmetry in Heqres_m.
   symmetry in Heqres_g.
+  symmetry in Heqres_tg.
   apply alloc_func_gen_index in Heqres_f.
   apply alloc_tab_gen_index in Heqres_t.
   apply alloc_mem_gen_index in Heqres_m.
   apply alloc_glob_gen_index in Heqres_g => //.
-  destruct s0, s1, s2, s3; simpl in *.
-  destruct Heqres_f as [Hidf [-> [<- [<- <-]]]].
-  destruct Heqres_t as [Hidt [-> [<- [<- <-]]]].
-  destruct Heqres_m as [Hidm [-> [<- [<- <-]]]].
-  destruct Heqres_g as [Hidg [-> [<- [<- <-]]]].
+  apply alloc_tag_gen_index in Heqres_tg.
+  destruct s0, s1, s2, s3, s4; simpl in *.
+  destruct Heqres_f as (Hidf & -> & <- & <- & <- & <- & <- & <-).
+  destruct Heqres_t as (Hidt & -> & <- & <- & <- & <- & <- & <-). 
+  destruct Heqres_m as (Hidm & -> & <- & <- & <- & <- & <- & <-).
+  destruct Heqres_g as (Hidg & -> & <- & <- & <- & <- & <- & <-).
+  destruct Heqres_tg as (Hidtg & <- & <- & <- & <- & -> & <- & <-).
   
   remember (alloc_funcs s (mod_funcs m) inst') as res_f'.
   destruct res_f' as [s0' idf'].
@@ -1021,19 +1099,24 @@ Proof.
   destruct res_m' as [s2' idm'].
   remember (alloc_globs s2' (mod_globals m) g_inits') as res_g'.
   destruct res_g' as [s3' idg'].
+  remember (alloc_tags s3' (mod_tags m)) as res_tg'.
+  destruct res_tg' as [s4' idtg'].
   symmetry in Heqres_f'.
   symmetry in Heqres_t'.
   symmetry in Heqres_m'.
   symmetry in Heqres_g'.
+  symmetry in Heqres_tg'.
   apply alloc_func_gen_index in Heqres_f'.
   apply alloc_tab_gen_index in Heqres_t'.
   apply alloc_mem_gen_index in Heqres_m'.
   apply alloc_glob_gen_index in Heqres_g' => //.
-  destruct s0', s1', s2', s3'; simpl in *.
-  destruct Heqres_f' as [Hidf' [-> [<- [<- <-]]]].
-  destruct Heqres_t' as [Hidt' [-> [<- [<- <-]]]].
-  destruct Heqres_m' as [Hidm' [-> [<- [<- <-]]]].
-  destruct Heqres_g' as [Hidg' [-> [<- [<- <-]]]].
+  apply alloc_tag_gen_index in Heqres_tg'.
+  destruct s0', s1', s2', s3', s4'; simpl in *.
+  destruct Heqres_f' as (Hidf' & -> & <- & <- & <- & <- & <- & <-).
+  destruct Heqres_t' as (Hidt' & -> & <- & <- & <- & <- & <- & <-).
+  destruct Heqres_m' as (Hidm' & -> & <- & <- & <- & <- & <- & <-).
+  destruct Heqres_g' as (Hidg' & -> & <- & <- & <- & <- & <- & <-).
+  destruct Heqres_tg' as (Hidtg' & <- & <- & <- & <- & -> & <- & <-).
   
   rewrite <- Hidf' in Hidf.
 
@@ -1047,6 +1130,21 @@ Proof.
     inversion H; subst; clear H.
     f_equal.
     by apply IHidf.
+  }
+  subst.
+
+  rewrite <- Hidtg' in Hidtg.
+
+  assert (idtg = idtg').
+  { clear - Hidtg.
+    move: Hidtg.
+    move: idtg'.
+    induction idtg as [|tgi ?]; move => idtg'; destruct idtg' => //=.
+    move => H.
+    destruct tgi, t.
+    inversion H; subst; clear H.
+    f_equal.
+    by apply IHidtg.
   }
   subst.
 
@@ -1145,9 +1243,7 @@ Proof.
   move/eqP in Ham1; move/eqP in Ham2.
   assert (g_inits = g_inits') as Heqgi.
   {
-    eapply module_glob_init_det.
-    2: exact Hinitg1.
-    2: exact Hinitg2.
+    eapply module_glob_init_det; eauto.
     move => i Hilen.
     unfold sglob_val, sglob, sglob_ind => /=.
     repeat rewrite nth_error_lookup.
@@ -1155,7 +1251,7 @@ Proof.
     repeat rewrite list_lookup_fmap.
     remember ((ext_globs v_imps ++ idg') !! i) as gi.
     specialize (vt_imps_comp_len _ _ _ Hexttype) as Hcomplen.
-    destruct Hcomplen as [_ [_ [_ Hglen]]].
+    destruct Hcomplen as (_ & _ & _ & Hglen & _).
     rewrite lookup_app in Heqgi.
     rewrite <- Hglen in Hilen.
     destruct (ext_globs v_imps !! i) eqn:Hgvi; last by apply lookup_ge_None in Hgvi; lias.
@@ -1165,7 +1261,7 @@ Proof.
     assert (n < length (s_globals s)) as Hnlen.
     { unfold module_typing in Hmt.
       destruct m; simpl in *.
-      destruct Hmt as [fts [gts [_ [_ [_ [_ [_ [_ [_ [Hit _]]]]]]]]]].
+      destruct Hmt as [fts [gts [_ [_ [_ [_ (_ & _ & _ & Hit & _)]]]]]].
       rewrite -> Forall2_lookup in Hexttype.
       apply ext_globs_lookup_exist in Hgvi.
       destruct Hgvi as [k Hvi].
@@ -1181,7 +1277,8 @@ Proof.
     destruct (s_globals s !! n) eqn:Hsgn => //=.
     exfalso. apply lookup_ge_None in Hsgn. by lias.
   }
-  split => //; last by subst.
+  split => //.
+  subst. f_equal.
 Qed.
   
 Lemma instantiate_det s m vimps res res':

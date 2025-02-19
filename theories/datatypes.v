@@ -424,11 +424,15 @@ Definition memaddr := immediate.
 Definition globaladdr := immediate.
 Definition tagaddr := immediate.
 
+Inductive tagidx : Type :=
+| Mk_tagidx : nat -> tagidx.
+
+
 Inductive value_ref : Set :=
 | VAL_ref_null : reference_type -> value_ref
 | VAL_ref_func : funcaddr -> value_ref
 | VAL_ref_cont : funcaddr -> value_ref
-| VAL_ref_exn : exnaddr -> value_ref
+| VAL_ref_exn : exnaddr -> tagidx -> value_ref
 .
 
 Inductive value : Type :=
@@ -530,8 +534,6 @@ the syntax of instructions is extended to include the following administrative
 instructions:
  *)
 
-Inductive tagidx : Type :=
-| Mk_tagidx : nat -> tagidx.
 
 Inductive continuation_clause : Type :=
 | DC_catch : tagidx -> immediate -> continuation_clause
@@ -549,7 +551,7 @@ Inductive administrative_instruction : Type := (* e *)
 | AI_basic : basic_instruction -> administrative_instruction
 | AI_trap
 | AI_ref : funcaddr -> administrative_instruction
-| AI_ref_exn : exnaddr -> administrative_instruction
+| AI_ref_exn : exnaddr -> tagidx -> administrative_instruction
 | AI_ref_cont : funcaddr -> administrative_instruction
 | AI_suspend_desugared : tagidx -> administrative_instruction
 | AI_switch_desugared : function_type -> tagidx -> administrative_instruction
@@ -569,7 +571,7 @@ Definition AI_const v :=
       | VAL_ref_null t => AI_basic (BI_ref_null t)
       | VAL_ref_func x => AI_ref x
       | VAL_ref_cont x => AI_ref_cont x
-      | VAL_ref_exn x => AI_ref_exn x
+      | VAL_ref_exn x i => AI_ref_exn x i
       end
   end
   .

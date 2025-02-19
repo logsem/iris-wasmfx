@@ -351,7 +351,7 @@ Proof.
     + edestruct IHes => //=.
       exists (VAL_ref (VAL_ref_func f) :: x). simpl. by rewrite H1.
     + edestruct IHes => //=.
-      exists (VAL_ref (VAL_ref_exn e) :: x). simpl. by rewrite H1.
+      exists (VAL_ref (VAL_ref_exn e t) :: x). simpl. by rewrite H1.
     + edestruct IHes => //=.
       exists (VAL_ref (VAL_ref_cont f) :: x). simpl. by rewrite H1.
 Qed.
@@ -2505,7 +2505,9 @@ Proof.
     generalize dependent l'. generalize dependent e.
     induction l; intros e l' Hextension.
     + destruct (List.nth_error l' e).
-      * right. right. split; first by destruct e. done.
+      * destruct (e_tag e0 == t).
+        -- right. right. split; first by destruct e. done.
+        -- left. by destruct e.
       * left. by destruct e.
     + destruct l' => //. simpl in Hextension.
       inversion Hextension.

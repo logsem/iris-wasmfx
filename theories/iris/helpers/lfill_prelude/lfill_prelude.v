@@ -226,6 +226,36 @@ Proof.
   all: apply app_eq_nil in H as [_ H] ; inversion H.
 Qed.
 
+Lemma susfill_is_nil x (sh : susholed x) es :
+  susfill sh es = [] -> es = [] /\ sh = SuBase x [] [].
+Proof.
+  destruct sh => //=; intros.
+  { repeat apply app_eq_nil in H as [? H].
+    apply map_eq_nil in H0.
+    by subst. }
+  all: apply app_eq_nil in H as [_ H]; inversion H.
+Qed.
+
+Lemma swfill_is_nil x (sh : swholed x) es :
+  swfill sh es = [] -> es = [] /\ sh = SwBase x [] [].
+Proof.
+  destruct sh => //=; intros.
+  { repeat apply app_eq_nil in H as [? H].
+    apply map_eq_nil in H0.
+    by subst. }
+  all: apply app_eq_nil in H as [_ H]; inversion H.
+Qed.
+
+Lemma exnfill_is_nil x (sh : exnholed x) es :
+  exnfill sh es = [] -> es = [] /\ sh = ExBase x [] [].
+Proof.
+  destruct sh => //=; intros.
+  { repeat apply app_eq_nil in H as [? H].
+    apply map_eq_nil in H0.
+    by subst. }
+  all: apply app_eq_nil in H as [_ H]; inversion H.
+Qed. 
+
 Lemma sfill_is_nil sh es :
   sfill sh es = [] -> es = [] /\ sh = SH_base [] [].
 Proof.
@@ -675,6 +705,27 @@ Proof.
   destruct vh => //= ; rewrite catA => //.
 Qed.
 
+Lemma sus_push_const_app x (sh : susholed x) vs1 vs2 :
+  sus_push_const sh (vs1 ++ vs2) =
+    sus_push_const (sus_push_const sh vs2) vs1.
+Proof.
+  destruct sh => //=; rewrite catA => //=.
+Qed.
+
+Lemma sw_push_const_app x (sh : swholed x) vs1 vs2 :
+  sw_push_const sh (vs1 ++ vs2) =
+    sw_push_const (sw_push_const sh vs2) vs1.
+Proof.
+  destruct sh => //=; rewrite catA => //=.
+Qed.
+
+Lemma exn_push_const_app x (sh : exnholed x) vs1 vs2 :
+  exn_push_const sh (vs1 ++ vs2) =
+    exn_push_const (exn_push_const sh vs2) vs1.
+Proof.
+  destruct sh => //=; rewrite catA => //=.
+Qed. 
+
 Lemma llh_push_const_app lh vs1 vs2 :
   llh_push_const lh (vs1 ++ vs2) =
     llh_push_const (llh_push_const lh vs2) vs1.
@@ -689,6 +740,18 @@ Proof. destruct sh => //=. Qed.
 Lemma vh_push_const_nil n (vh : valid_holed n) :
   vh_push_const vh [] = vh.
 Proof. destruct vh => //=. Qed.
+
+Lemma sus_push_const_nil x (sh : susholed x) :
+  sus_push_const sh [] = sh.
+Proof. destruct sh => //=. Qed.
+
+Lemma sw_push_const_nil x (sh : swholed x) :
+  sw_push_const sh [] = sh.
+Proof. destruct sh => //=. Qed.
+
+Lemma exn_push_const_nil x (sh : exnholed x) :
+  exn_push_const sh [] = sh.
+Proof. destruct sh => //=. Qed.
 
 Lemma llh_push_const_nil lh :
   llh_push_const lh [] = lh.
@@ -708,6 +771,27 @@ Proof.
   destruct vh => //= ; rewrite catA => //.
 Qed.
 
+Lemma sus_append_app x (sh : susholed x) es1 es2 :
+  sus_append sh (es1 ++ es2) =
+    sus_append (sus_append sh es1) es2.
+Proof.
+  destruct sh; rewrite /= catA => //.
+Qed.
+
+Lemma sw_append_app x (sh : swholed x) es1 es2 :
+  sw_append sh (es1 ++ es2) =
+    sw_append (sw_append sh es1) es2.
+Proof.
+  destruct sh; rewrite /= catA => //.
+Qed.
+
+Lemma exn_append_app x (sh : exnholed x) es1 es2 :
+  exn_append sh (es1 ++ es2) =
+    exn_append (exn_append sh es1) es2.
+Proof.
+  destruct sh; rewrite /= catA => //.
+Qed. 
+
 Lemma llh_append_app lh es1 es2 :
   llh_append lh (es1 ++ es2) =
     llh_append (llh_append lh es1) es2.
@@ -722,6 +806,18 @@ Proof. destruct sh => /= ; rewrite cats0 => //. Qed.
 Lemma vh_append_nil n (vh : valid_holed n) :
   vh_append vh [] = vh.
 Proof. destruct vh => /= ; rewrite cats0 => //. Qed.
+
+Lemma sus_append_nil x (sh : susholed x) :
+  sus_append sh [] = sh.
+Proof. destruct sh; rewrite /= cats0 => //. Qed.
+
+Lemma sw_append_nil x (sh : swholed x) :
+  sw_append sh [] = sh.
+Proof. destruct sh; rewrite /= cats0 => //. Qed.
+
+Lemma exn_append_nil x (sh : exnholed x) :
+  exn_append sh [] = sh.
+Proof. destruct sh; rewrite /= cats0 => //. Qed.
 
 Lemma llh_append_nil lh :
   llh_append lh [] = lh.
@@ -740,6 +836,27 @@ Lemma vh_push_const_append n (vh : valid_holed n) vs es :
 Proof.
   destruct vh => //=.
 Qed.
+
+Lemma sus_push_const_append x (sh : susholed x) vs es :
+  sus_push_const (sus_append sh es) vs =
+    sus_append (sus_push_const sh vs) es.
+Proof.
+  destruct sh => //=.
+Qed.
+
+Lemma sw_push_const_append x (sh : swholed x) vs es :
+  sw_push_const (sw_append sh es) vs =
+    sw_append (sw_push_const sh vs) es.
+Proof.
+  destruct sh => //=.
+Qed.
+
+Lemma exn_push_const_append x (sh : exnholed x) vs es :
+  exn_push_const (exn_append sh es) vs =
+    exn_append (exn_push_const sh vs) es.
+Proof.
+  destruct sh => //=.
+Qed. 
 
 Lemma llh_push_const_append lh vs es :
   llh_push_const (llh_append lh es) vs =
@@ -770,7 +887,8 @@ Lemma vh_increase_repeat_push_const m (vh : valid_holed m) vs j :
   vh_increase_repeat (vh_push_const vh vs) j = vh_push_const (vh_increase_repeat vh j) vs.
 Proof. induction j => //=. rewrite IHj. by rewrite vh_increase_push_const. Qed.
 
-Lemma S_plus m n : S (m + n) = m + S n. Proof. induction m => //=. by rewrite IHm. Defined.
+Lemma S_plus m n : S (m + n) = m + S n.
+Proof. induction m => //=. by rewrite IHm. Defined.
 
 Lemma vh_increase_repeat_rec m (vh : valid_holed m) bef n es aft j :
   vh_increase_repeat (VH_rec bef n es vh aft) j =
@@ -879,7 +997,9 @@ Proof.
       all: rewrite list_extra.cons_app.
       all: rewrite - cat_app.
       all: apply IHl in Hl as (vh & ? & ?).
+      all: unfold e_to_v_list_opt in *.
       all: destruct (those _) eqn:Hthose => //.
+      all: rewrite map_cat.
       all: erewrite those_app => //=.
       all: eexists ; split => //=.
       all: replace (v_to_e_list l1) with l ; first done.
@@ -913,7 +1033,9 @@ Proof.
       all: rewrite list_extra.cons_app.
       all: rewrite - cat_app.
       all: specialize (IHl Hl) as (vh0 & Hvh0 & Hvfill0).
-      all: destruct (those (map _ l)) eqn:Hthose => //.
+      all: unfold e_to_v_list_opt.
+      all: rewrite map_cat.
+      all: destruct (e_to_v_list_opt l) eqn:Hthose => //.
       all: erewrite those_app => //.
       all: eexists ; split => //=.
       all: inversion Hvh0 ; subst.
@@ -935,7 +1057,8 @@ Proof.
       all: rewrite list_extra.cons_app.
       all: rewrite - cat_app.
       all: specialize (IHl Hl) as (vh0 & Hvh0 & Hvfill0).
-      all: destruct (those (map _ l)) eqn:Hthose => //.
+      all: destruct (e_to_v_list_opt l) eqn:Hthose => //.
+      all: rewrite /e_to_v_list_opt map_cat.
       all: erewrite those_app => //.
       all: eexists ; split => //=.
       all: inversion Hvh0 ; subst.
@@ -957,7 +1080,8 @@ Proof.
       all: rewrite list_extra.cons_app.
       all: rewrite - cat_app.
       all: specialize (IHl Hl) as (vh0 & Hvh0 & Hvfill0).
-      all: destruct (those (map _ l)) eqn:Hthose => //.
+      all: destruct (e_to_v_list_opt l) eqn:Hthose => //.
+      all: rewrite /e_to_v_list_opt map_cat.
       all: erewrite those_app => //.
       all: eexists ; split => //=.
       all: inversion Hvh0 ; subst.
@@ -1548,7 +1672,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H0 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H2 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -1566,7 +1690,20 @@ Proof.
     apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
-    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
+    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
+  - (* switch *)
+    assert (lfilled 0 (LH_prompt [::] ts hs (LH_base [::] [::]) [::]) LI0 [::AI_prompt ts hs LI0]) as Hfill0.
+    { unfold lfilled, lfill => //=.
+      by rewrite List.app_nil_r. }
+    destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
+    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
+    all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
+    2: rewrite_cats1_list. 
+    rewrite separate1 in Hfill'.
+    rewrite -cat_app in Hfill'.
+    rewrite catA in Hfill'.
+    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
+    apply const_list_concat => //. 
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
@@ -1657,7 +1794,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H0 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H2 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -1675,7 +1812,20 @@ Proof.
     apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
-    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
+    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
+     - (* switch *)
+    assert (lfilled 0 (LH_prompt [::] ts hs (LH_base [::] [::]) [::]) LI0 [::AI_prompt ts hs LI0]) as Hfill0.
+    { unfold lfilled, lfill => //=.
+      by rewrite List.app_nil_r. }
+    destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
+    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
+    all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
+    2: rewrite_cats1_list. 
+    rewrite separate1 in Hfill'.
+    rewrite -cat_app in Hfill'.
+    rewrite catA in Hfill'.
+    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
+    apply const_list_concat => //. 
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
@@ -1919,7 +2069,7 @@ Proof.
     { simpl.
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_llfill in H0 as [lh' Hlh].
+    apply hfilled_to_llfill in H2 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values H1 Hfill') as [Habs _] => //. 
@@ -1937,7 +2087,18 @@ Proof.
     apply hfilled_to_llfill in H5 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list. 
-    specialize (llfill_first_values H1 Hfill') as [Habs _] => //. 
+    specialize (llfill_first_values H1 Hfill') as [Habs _] => //.
+  - (* switch *)
+    assert (llfill (LL_prompt [::] ts hs (LL_base [::] [::]) [::]) LI0 = [::AI_prompt ts hs LI0]) as Hfill0.
+    { simpl. 
+      by rewrite List.app_nil_r. }
+    destruct (llfill_trans Hfill0 Hfill) as [lh0 Hfill1].
+    apply hfilled_to_llfill in H5 as [lh' Hlh].
+    destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
+    rewrite_cats1_list.
+    rewrite separate1 -cat_app catA in Hfill'.
+    specialize (llfill_first_values H1 Hfill') as [Habs _] => //.
+    apply const_list_concat => //. 
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
@@ -2038,7 +2199,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H0 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H2 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -2056,7 +2217,19 @@ Proof.
     apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
-    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
+    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
+  - (* switch *)
+     assert (lfilled 0 (LH_prompt [::] ts hs (LH_base [::] [::]) [::]) LI0 [::AI_prompt ts hs LI0]) as Hfill0.
+    { unfold lfilled, lfill => //=.
+      by rewrite List.app_nil_r. }
+    destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
+    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
+    all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
+    all: rewrite_cats1_list.
+    rewrite separate1 -cat_app catA in Hfill'.
+    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
+    apply const_list_concat => //. 
+    
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.

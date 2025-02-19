@@ -197,6 +197,326 @@ Proof.
   decidable_equality.
 Qed.
 
+Inductive offset : Type :=
+(* OMinusS n represents an offset of S n; same with OPlusS *)
+| OMinusS : nat -> offset
+| OPlusS : nat -> offset
+.
+
+Inductive suselt : Type :=
+| SuSuspend: offset -> immediate -> suselt
+| SuSwitch: tagidx -> suselt
+.
+
+Inductive susholed : Type :=
+| SuBase: list value -> list administrative_instruction -> susholed
+| SuLabel : list value -> nat -> list administrative_instruction -> susholed -> list administrative_instruction -> susholed
+| SuLocal : list value -> nat -> frame -> susholed -> list administrative_instruction -> susholed
+| SuHandler : list value -> list exception_clause -> susholed -> list administrative_instruction -> susholed
+| SuPrompt: list value -> list value_type -> list suselt -> susholed -> list administrative_instruction -> susholed
+.
+
+
+Lemma neq_UIP: forall (A: Type) (x y: A) (p q: x <> y), p = q.
+Proof.
+  intros A x y p q.
+(*  unfold not in *. *)
+  apply FunctionalExtensionality.functional_extensionality_dep.
+  intros eq.
+  exfalso. apply p. exact eq.
+Qed. 
+
+
+Definition suslist_eq_dec x:
+  forall l1 l2 : list (suselt x), { l1 = l2 } + { l1 <> l2 }.
+Proof.
+  induction l1; destruct l2; (try by right); (try by left);
+    destruct a, s; try by right.
+  - destruct ((y == y0) && (i == i0)) eqn:Hy.
+    + remove_bools_options; subst y0 i0.
+      destruct (IHl1 l2).
+      * subst l2.
+        specialize (neq_UIP n n0) as <-.
+        by left.
+      * right. intros Habs; inversion Habs.
+        done.
+    + right. intros Habs; inversion Habs.
+      subst y0 i0. repeat rewrite eq_refl in Hy. done.
+  - destruct (t == t0) eqn:Ht.
+    + move/eqP in Ht; subst t0.
+      destruct (IHl1 l2).
+      * subst l2.
+        by left.
+      * right. intros Habs; inversion Habs.
+        done.
+    + right. intros Habs; inversion Habs.
+      subst t0. rewrite eq_refl in Ht. done.
+Qed.
+
+Definition susholed_eq_dec x:
+  forall sh1 sh2: susholed x, { sh1 = sh2 } + { sh1 <> sh2 }.
+Proof.
+  induction sh1; destruct sh2; try by right.
+  - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
+    + remove_bools_options; subst; by left.
+    + right; intros Habs'; inversion Habs';
+        subst; repeat rewrite eq_refl in Habs.
+      done.
+  - destruct ((l == l2) && (n =? n0) && (l0 == l3) && (l1 == l4)) eqn:Hb.
+    + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        apply Nat.eqb_eq in H2.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H3.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      rewrite Nat.eqb_refl in Hb.
+      done.
+  - destruct ((l == l1) && (n =? n0) && (f == f0) && (l0 == l2)) eqn:Hb.
+      + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        apply Nat.eqb_eq in H2.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H3.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      rewrite Nat.eqb_refl in Hb.
+      done.
+  - destruct ((l == l2) && (l0 == l3) && (l1 == l4)) eqn:Hb.
+    + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H2.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      done.
+  - destruct ((l == l3) && (l0 == l4) && (l2 == l6)) eqn:Hb.
+    + destruct (suslist_eq_dec l1 l5) eqn:Hsus.
+      * destruct (IHsh1 sh2).
+        -- remove_bools_options.
+           subst. by left.
+        -- right; intros Habs'; inversion Habs'; subst.
+           apply Eqdep.EqdepTheory.inj_pair2 in H3.
+           done.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H2.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      done.
+Qed.
+
+
+Inductive swelt : tagidx -> Type :=
+| SwSwitch (x : tagidx) (y: tagidx) : (x <> y) -> swelt x
+| SwSuspend (x : tagidx) : tagidx -> immediate -> swelt x
+.
+
+Inductive swholed : tagidx -> Type :=
+| SwBase (x: tagidx) : list value -> list administrative_instruction -> swholed x
+| SwLabel (x: tagidx) : list value -> nat -> list administrative_instruction -> swholed x -> list administrative_instruction -> swholed x
+| SwLocal (x: tagidx) : list value -> nat -> frame -> swholed x -> list administrative_instruction -> swholed x
+| SwHandler (x: tagidx) : list value -> list exception_clause -> swholed x -> list administrative_instruction -> swholed x
+| SwPrompt (x: tagidx) : list value -> list value_type -> list (swelt x) -> swholed x -> list administrative_instruction -> swholed x
+.
+
+
+
+Definition swlist_eq_dec x:
+  forall l1 l2 : list (swelt x), { l1 = l2 } + { l1 <> l2 }.
+Proof.
+  induction l1; destruct l2; (try by (left + right)).
+  destruct a, s; try by right.
+  - destruct (y == y0) eqn:Hy.
+    + move/eqP in Hy; subst y0.
+      destruct (IHl1 l2).
+      * subst l2.
+        specialize (neq_UIP n n0) as <-.
+        by left.
+      * right. intros Habs; inversion Habs.
+        done.
+    + right. intros Habs; inversion Habs.
+      subst y0. rewrite eq_refl in Hy. done.
+  - destruct ((t == t0) && (i == i0)) eqn:Ht.
+    + remove_bools_options; subst i0 t0.  
+      destruct (IHl1 l2).
+      * subst l2.
+        by left.
+      * right. intros Habs; inversion Habs.
+        done.
+    + right. intros Habs; inversion Habs.
+      subst i0 t0. repeat rewrite eq_refl in Ht. done.
+Qed.
+
+Definition swholed_eq_dec x:
+  forall sh1 sh2: swholed x, { sh1 = sh2 } + { sh1 <> sh2 }.
+Proof.
+  induction sh1; destruct sh2; try by right.
+  - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
+    + remove_bools_options; subst; by left.
+    + right; intros Habs'; inversion Habs';
+        subst; repeat rewrite eq_refl in Habs.
+      done.
+  - destruct ((l == l2) && (n =? n0) && (l0 == l3) && (l1 == l4)) eqn:Hb.
+    + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        apply Nat.eqb_eq in H2.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H3.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      rewrite Nat.eqb_refl in Hb.
+      done.
+  - destruct ((l == l1) && (n =? n0) && (f == f0) && (l0 == l2)) eqn:Hb.
+      + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        apply Nat.eqb_eq in H2.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H3.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      rewrite Nat.eqb_refl in Hb.
+      done.
+  - destruct ((l == l2) && (l0 == l3) && (l1 == l4)) eqn:Hb.
+    + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H2.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      done.
+  - destruct ((l == l3) && (l0 == l4) && (l2 == l6)) eqn:Hb.
+    + destruct (swlist_eq_dec l1 l5) eqn:Hsus.
+      * destruct (IHsh1 sh2).
+        -- remove_bools_options.
+           subst. by left.
+        -- right; intros Habs'; inversion Habs'; subst.
+           apply Eqdep.EqdepTheory.inj_pair2 in H3.
+           done.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H2.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      done.
+Qed.
+
+
+Inductive exnelt : tagidx -> Type :=
+| ExCatch (x : tagidx) (y: tagidx) : (x <> y) -> immediate -> exnelt x
+| ExCatchRef (x : tagidx) (y : tagidx) : (x <> y) -> immediate -> exnelt x
+.
+
+Inductive exnholed : tagidx -> Type :=
+| ExBase (x: tagidx) : list value -> list administrative_instruction -> exnholed x
+| ExLabel (x: tagidx) : list value -> nat -> list administrative_instruction -> exnholed x -> list administrative_instruction -> exnholed x
+| ExLocal (x: tagidx) : list value -> nat -> frame -> exnholed x -> list administrative_instruction -> exnholed x
+| ExHandler (x: tagidx) : list value -> list (exnelt x) -> exnholed x -> list administrative_instruction -> exnholed x
+| ExPrompt (x: tagidx) : list value -> list value_type -> list continuation_clause -> exnholed x -> list administrative_instruction -> exnholed x
+.
+
+
+
+Definition exnlist_eq_dec x:
+  forall l1 l2 : list (exnelt x), { l1 = l2 } + { l1 <> l2 }.
+Proof.
+  induction l1; destruct l2; try by (left + right).
+  destruct a, e; try by right.
+  - destruct ((y == y0) && (i == i0)) eqn:Hy.
+    + remove_bools_options; subst y0 i0.
+      destruct (IHl1 l2).
+      * subst l2.
+        specialize (neq_UIP n n0) as <-.
+        by left.
+      * right. intros Habs; inversion Habs.
+        done.
+    + right. intros Habs; inversion Habs.
+      subst y0 i0. repeat rewrite eq_refl in Hy. done.
+  - destruct ((y == y0) && (i == i0)) eqn:Hy.
+    + remove_bools_options; subst y0 i0.
+      destruct (IHl1 l2).
+      * subst l2.
+        specialize (neq_UIP n n0) as <-.
+        by left.
+      * right. intros Habs; inversion Habs.
+        done.
+    + right. intros Habs; inversion Habs.
+      subst y0 i0. repeat rewrite eq_refl in Hy. done.
+Qed.
+
+Definition exnholed_eq_dec x:
+  forall sh1 sh2: exnholed x, { sh1 = sh2 } + { sh1 <> sh2 }.
+Proof.
+  induction sh1; destruct sh2; try by right.
+  - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
+    + remove_bools_options; subst; by left.
+    + right; intros Habs'; inversion Habs';
+        subst; repeat rewrite eq_refl in Habs.
+      done.
+  - destruct ((l == l2) && (n =? n0) && (l0 == l3) && (l1 == l4)) eqn:Hb.
+    + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        apply Nat.eqb_eq in H2.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H3.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      rewrite Nat.eqb_refl in Hb.
+      done.
+  - destruct ((l == l1) && (n =? n0) && (f == f0) && (l0 == l2)) eqn:Hb.
+      + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        apply Nat.eqb_eq in H2.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H3.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      rewrite Nat.eqb_refl in Hb.
+      done.
+  - destruct ((l == l2) && (l1 == l4)) eqn:Hb.
+    + destruct (exnlist_eq_dec l0 l3) eqn:Hsus.
+      * destruct (IHsh1 sh2).
+        -- remove_bools_options.
+           subst. by left.
+        -- right; intros Habs'; inversion Habs'; subst.
+           apply Eqdep.EqdepTheory.inj_pair2 in H2.
+           done.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H1.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      done.
+  - destruct ((l == l3) && (l0 == l4) && (l1 == l5) && (l2 == l6)) eqn:Hb.
+    + destruct (IHsh1 sh2).
+      * remove_bools_options.
+        subst. by left.
+      * right; intros Habs'; inversion Habs'; subst.
+        apply Eqdep.EqdepTheory.inj_pair2 in H3.
+        done.
+    + right; intros Habs'; inversion Habs'; subst.
+      repeat rewrite eq_refl in Hb.
+      done.
+Qed. 
+        
+  
+
 (* Since we enforced constance of the left-hand-sides, the fill operations are total
    functions *)
 Fixpoint vfill n (vh : valid_holed n) es  :=
@@ -234,6 +554,53 @@ Fixpoint llfill lh es :=
       v_to_e_list bef ++ AI_handler hs (llfill lh es) :: aft
   end.
 
+Definition continuation_clause_of_suselt {x: tagidx} (l: suselt x) :=
+  match l with
+  | SuSuspend x y n i => DC_catch y i 
+  | SuSwitch x y => DC_switch y 
+  end.
+
+Fixpoint susfill {x: tagidx} (lh: susholed x) es :=
+  match lh with
+  | SuBase x bef aft => v_to_e_list bef ++ es ++ aft
+  | SuLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (susfill lh es) :: aft
+  | SuLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (susfill lh es) :: aft
+  | SuPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map continuation_clause_of_suselt hs) (susfill lh es) :: aft
+  | SuHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler hs (susfill lh es) :: aft
+  end.
+
+Definition continuation_clause_of_swelt {x : tagidx} (l: swelt x) :=
+  match l with
+  | SwSwitch x y n => DC_switch y 
+  | SwSuspend x y i => DC_catch y i 
+  end.
+
+Fixpoint swfill {x: tagidx} (lh: swholed x) es :=
+  match lh with
+  | SwBase x bef aft => v_to_e_list bef ++ es ++ aft
+  | SwLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (swfill lh es) :: aft
+  | SwLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (swfill lh es) :: aft
+  | SwPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map continuation_clause_of_swelt hs) (swfill lh es) :: aft
+  | SwHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler hs (swfill lh es) :: aft
+  end.
+
+Definition exception_clause_of_exnelt {x : tagidx} (l : exnelt x) :=
+  match l with
+  | ExCatch x y n i => DE_catch y i 
+  | ExCatchRef x y n i => DE_catch_ref y i
+  end. 
+
+Fixpoint exnfill {x: tagidx} (lh: exnholed x) es :=
+  match lh with
+  | ExBase x bef aft => v_to_e_list bef ++ es ++ aft
+  | ExLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (exnfill lh es) :: aft
+  | ExLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (exnfill lh es) :: aft
+  | ExPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf hs (exnfill lh es) :: aft
+  | ExHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler (map exception_clause_of_exnelt hs) (exnfill lh es) :: aft
+  end.
+
+
+
 Definition sh_push_const sh vs :=
   match sh with
   | SH_base bef aft  => SH_base (vs ++ bef) aft 
@@ -253,6 +620,62 @@ Definition sh_append sh expr :=
   | SH_handler bef hs sh aft =>
       SH_handler bef hs sh (aft ++ expr)
   end.
+
+Definition sus_push_const {x : tagidx} (sh: susholed x) vs :=
+  match sh with
+  | SuBase x bef aft => SuBase x (vs ++ bef) aft
+  | SuLabel x bef n es sh aft => SuLabel (x := x) (vs ++ bef) n es sh aft
+  | SuLocal x bef n f sh aft => SuLocal (x := x) (vs ++ bef) n f sh aft
+  | SuPrompt x bef tf hs sh aft => SuPrompt (x := x) (vs ++ bef) tf hs sh aft
+  | SuHandler x bef hs sh aft => SuHandler (x := x) (vs ++ bef) hs sh aft
+  end.
+
+Definition sus_append {x : tagidx} (sh: susholed x) expr :=
+  match sh with
+  | SuBase x bef aft => SuBase x bef (aft ++ expr)
+  | SuLabel x bef n es sh aft => SuLabel bef n es sh (aft ++ expr)
+  | SuLocal x bef n f sh aft => SuLocal bef n f sh (aft ++ expr)
+  | SuPrompt x bef tf hs sh aft => SuPrompt bef tf hs sh (aft ++ expr)
+  | SuHandler x bef hs sh aft => SuHandler bef hs sh (aft ++ expr)
+  end.
+
+
+Definition sw_push_const {x : tagidx} (sh: swholed x) vs :=
+  match sh with
+  | SwBase x bef aft => SwBase x (vs ++ bef) aft
+  | SwLabel x bef n es sh aft => SwLabel (x := x) (vs ++ bef) n es sh aft
+  | SwLocal x bef n f sh aft => SwLocal (x := x) (vs ++ bef) n f sh aft
+  | SwPrompt x bef tf hs sh aft => SwPrompt (x := x) (vs ++ bef) tf hs sh aft
+  | SwHandler x bef hs sh aft => SwHandler (x := x) (vs ++ bef) hs sh aft
+  end.
+
+Definition sw_append {x : tagidx} (sh: swholed x) expr :=
+  match sh with
+  | SwBase x bef aft => SwBase x bef (aft ++ expr)
+  | SwLabel x bef n es sh aft => SwLabel bef n es sh (aft ++ expr)
+  | SwLocal x bef n f sh aft => SwLocal bef n f sh (aft ++ expr)
+  | SwPrompt x bef tf hs sh aft => SwPrompt bef tf hs sh (aft ++ expr)
+  | SwHandler x bef hs sh aft => SwHandler bef hs sh (aft ++ expr)
+  end.
+
+
+Definition exn_push_const {x : tagidx} (sh: exnholed x) vs :=
+  match sh with
+  | ExBase x bef aft => ExBase x (vs ++ bef) aft
+  | ExLabel x bef n es sh aft => ExLabel (x := x) (vs ++ bef) n es sh aft
+  | ExLocal x bef n f sh aft => ExLocal (x := x) (vs ++ bef) n f sh aft
+  | ExPrompt x bef tf hs sh aft => ExPrompt (x := x) (vs ++ bef) tf hs sh aft
+  | ExHandler x bef hs sh aft => ExHandler (x := x) (vs ++ bef) hs sh aft
+  end.
+
+Definition exn_append {x : tagidx} (sh: exnholed x) expr :=
+  match sh with
+  | ExBase x bef aft => ExBase x bef (aft ++ expr)
+  | ExLabel x bef n es sh aft => ExLabel bef n es sh (aft ++ expr)
+  | ExLocal x bef n f sh aft => ExLocal bef n f sh (aft ++ expr)
+  | ExPrompt x bef tf hs sh aft => ExPrompt bef tf hs sh (aft ++ expr)
+  | ExHandler x bef hs sh aft => ExHandler bef hs sh (aft ++ expr)
+  end. 
 
 Definition vh_push_const n (vh : valid_holed n) vs :=
   match vh with
@@ -334,7 +757,7 @@ Fixpoint vh_increase_repeat m (vh : valid_holed m) n : valid_holed (n + m) :=
   match n with 0 => vh
           | S n => vh_increase (vh_increase_repeat vh n) end.
 
-Definition v_of_e e :=
+(* Definition v_of_e e :=
   match e with
   | AI_basic (BI_const n) => Some (VAL_num n)
   | AI_basic (BI_ref_null r) => Some (VAL_ref (VAL_ref_null r))
@@ -342,32 +765,32 @@ Definition v_of_e e :=
   | AI_ref_cont f => Some (VAL_ref (VAL_ref_cont f))
   | AI_ref_exn f => Some (VAL_ref (VAL_ref_exn f))
   | _ => None
-  end.
+  end. *)
 
 Fixpoint vh_of_lh lh i :=
   match lh with
   | LH_base bef aft =>
-      match those (map v_of_e bef) with
+      match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
       | Some bef => Some (VH_base i bef aft)
       |  _ => None end
   | LH_rec bef n es lh aft =>
       match i with
       | 0 => None
       | S i => 
-          match those (map v_of_e bef) with
+          match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
           |  Some bef => match vh_of_lh lh i with
                         | Some vh => Some (VH_rec bef n es vh aft)
                         | None => None end
           |  _ => None end
       end
   | LH_prompt bef tf hs lh aft =>
-      match those (map v_of_e bef) with
+      match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
       | Some bef => match vh_of_lh lh i with
                    | Some vh => Some (VH_prompt bef tf hs vh aft)
                    | None => None end
       | _ => None end
   | LH_handler bef hs lh aft =>
-      match those (map v_of_e bef) with
+      match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
       | Some bef => match vh_of_lh lh i with
                    | Some vh => Some (VH_handler bef hs vh aft)
                    | None => None end
@@ -399,11 +822,11 @@ Fixpoint lh_of_sh sh :=
 Fixpoint llh_of_lh lh :=
   match lh with
   | LH_base bef aft =>
-      match those (map v_of_e bef) with
+      match e_to_v_list_opt bef (*those (map v_of_e bef) *) with
       | Some bef => Some (LL_base bef aft)
       | None => None end 
   | LH_rec bef n es lh aft =>
-      match those (map v_of_e bef) with
+      match e_to_v_list_opt bef (*those (map v_of_e bef)*) with
       | Some bef =>
           match llh_of_lh lh with
           | Some lh' => Some (LL_label bef n es lh' aft)
@@ -411,7 +834,7 @@ Fixpoint llh_of_lh lh :=
           end
       | None => None end
   | LH_prompt bef tf hs lh aft =>
-      match those (map v_of_e bef) with
+      match e_to_v_list_opt bef (*those (map v_of_e bef)*) with
       | Some bef =>
           match llh_of_lh lh with
           | Some lh' => Some (LL_prompt bef tf hs lh' aft)
@@ -420,7 +843,7 @@ Fixpoint llh_of_lh lh :=
       | None => None
       end
   | LH_handler bef hs lh aft =>
-      match those (map v_of_e bef) with
+      match e_to_v_list_opt bef (*those (map v_of_e bef)*) with
       | Some bef =>
           match llh_of_lh lh with
           | Some lh' => Some (LL_handler bef hs lh' aft)

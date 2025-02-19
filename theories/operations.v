@@ -295,9 +295,11 @@ Definition typeof_ref s (v : value_ref) : option reference_type :=
       | Some cont => Some (T_contref (typeof_cont cont))
       | _ => None
       end
-  | VAL_ref_exn i =>
+  | VAL_ref_exn i t =>
       match List.nth_error (s_exns s) i with 
-      | Some _ => Some T_exnref
+      | Some exn =>
+          if (e_tag exn == t) then Some T_exnref
+          else None
       | _ => None
       end
   end.
@@ -753,7 +755,7 @@ Definition e_to_vref_opt (e : administrative_instruction) : option value_ref :=
   | AI_basic (BI_ref_null t) => Some (VAL_ref_null t)
   | AI_ref addr => Some (VAL_ref_func addr)
   | AI_ref_cont addr => Some (VAL_ref_cont addr)
-  | AI_ref_exn addr => Some (VAL_ref_exn addr)
+  | AI_ref_exn addr addr' => Some (VAL_ref_exn addr addr')
 (*  | AI_ref_extern addr => Some (VAL_ref_extern addr) *)
   | _ => None
   end.

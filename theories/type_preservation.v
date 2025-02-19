@@ -18,7 +18,7 @@ Ltac fold_const0 :=
   | |- context [ AI_basic (BI_ref_null ?t) ] => fold (AI_const (VAL_ref (VAL_ref_null t)))
   | |- context [ AI_ref ?r ] => fold (AI_const (VAL_ref (VAL_ref_func r)))
   | |- context [ AI_ref_cont ?r ] => fold (AI_const (VAL_ref (VAL_ref_cont r)))
-  | |- context [ AI_ref_exn ?r ] => fold (AI_const (VAL_ref (VAL_ref_exn r)))
+  | |- context [ AI_ref_exn ?r ?t] => fold (AI_const (VAL_ref (VAL_ref_exn r t)))
   | _ => idtac
   end.
 
@@ -123,19 +123,21 @@ Proof.
 Qed.
 
 
-Lemma AI_ref_exn_typing: forall s C r t1s t2s,
-    e_typing s C [::AI_ref_exn r] (Tf t1s t2s) ->
-    exists exn, List.nth_error (s_exns s) r = Some exn /\ t2s = t1s ++ [::T_ref T_exnref].
+Lemma AI_ref_exn_typing: forall s C r t t1s t2s,
+    e_typing s C [::AI_ref_exn r t] (Tf t1s t2s) ->
+    exists exn, List.nth_error (s_exns s) r = Some exn /\
+             e_tag exn = t /\
+             t2s = t1s ++ [::T_ref T_exnref].
 Proof.
-  move => s C r t1s t2s HType.
+  move => s C r t t1s t2s HType.
   gen_ind_subst HType => //.
   - destruct bes => //.
   - apply extract_list1 in H2; inversion H2; subst.
     apply empty_typing in HType1; subst.
     by eapply IHHType2.
 (*  - erewrite (IHHType s0 (Logic.eq_refl s0) C0 (Logic.eq_refl C0) r (Logic.eq_refl _) t2s) => //. *)
-  - edestruct IHHType as (t & Ht & Hts2) => //.
-    subst t2s. exists t. split => //.  
+  - edestruct IHHType as (t' & Ht & Hexn & Hts2) => //.
+    subst t2s. exists t'. split => //.  
     by rewrite - catA.
   - simpl. rewrite H. eexists. repeat split => //.  
 Qed.
@@ -187,8 +189,9 @@ Proof.
     inversion H4; subst; rewrite H => //.
     eexists. split => //. split => //. eapply ety_ref_cont; eauto.
   - destruct econst => //. destruct v => //.
-    inversion H3; subst.
-    eexists. split => //. simpl. rewrite H. done.
+    inversion H4; subst.
+    eexists. split => //. simpl. rewrite H.
+    rewrite eq_refl. done.
     split => //.
     eapply ety_ref_exn; eauto.
 Qed. 
@@ -3866,14 +3869,16 @@ Proof.
       * simpl in Hc. move/eqP in Hc. subst; done.
       * simpl in Hc. move/eqP in Hc. subst; done.
     + simpl in Htv.
-      destruct (List.nth_error _ e) eqn:He => //. 
+      destruct (List.nth_error _ e) eqn:He => //.
+      destruct (e_tag e0 == t0) eqn:Htag => //. 
       inversion Htv; subst.
-      apply AI_ref_exn_typing in Htyp as (exn & Hexn & _).
+      apply AI_ref_exn_typing in Htyp as (exn & Hexn & Hetag & _).
       unfold store_extension in Hsext. remove_bools_options.
       rewrite H0 in Hexn.
       eapply ety_ref_exn.
       eapply nth_take.
       exact Hexn.
+      done.
 Qed. 
 
 
@@ -4180,12 +4185,13 @@ Proof.
     + move/eqP in Hext. rewrite Hext.
       replace f with (typeof_cont (Cont_dagger f)) => //. econstructor.
       eapply nth_take. exact Hs'. constructor. (* done. *)
-  - move => s C k exn Hexn s' HST Hext.
+  - move => s C k i exn Hexn Hetag s' HST Hext.
     unfold store_extension in Hext. remove_bools_options.
     rewrite H0 in Hexn.
     econstructor.
     rewrite - (cat_take_drop (length (s_exns s)) (s_exns s')).
-    apply nth_error_prefix. exact Hexn. 
+    apply nth_error_prefix. exact Hexn.
+    exact Hetag.
   - intros s C x tf Hx s' HST Hext.
     constructor.
     unfold store_extension in Hext.
@@ -5476,13 +5482,13 @@ Proof.
 Qed.
 
 
-Lemma e_typing_plug_throw s C es1 (* es2 *) ts x h LI1 LI2 tf a:
+Lemma e_typing_plug_throw s C es1 (* es2 *) ts x h LI1 LI2 tf a t:
   const_list es1 ->
 (*  const_list es2 -> *)
   e_typing s C es1 (Tf [::] ts) ->
-  e_typing s C ((* es2 ++ *) [:: AI_ref_exn a; AI_basic BI_throw_ref]) (Tf [::] ts) ->
+  e_typing s C ((* es2 ++ *) [:: AI_ref_exn a t; AI_basic BI_throw_ref]) (Tf [::] ts) ->
   hfilled x h es1 LI1 ->
-  hfilled x h ((* es2 ++ *) [:: AI_ref_exn a; AI_basic BI_throw_ref]) LI2 ->
+  hfilled x h ((* es2 ++ *) [:: AI_ref_exn a t; AI_basic BI_throw_ref]) LI2 ->
   e_typing s C LI1 tf ->
   e_typing s C LI2 tf.
 Proof.
@@ -5517,7 +5523,7 @@ Proof.
     rewrite separate1 in Hes2 (* Hexnthrow *).
     apply e_composition_typing in Hes2 (* Hexnthrow *) as (ts0' & tx' & ty' & t3s' & ? & -> & Hexn & Hthrow).
     destruct ts0' => //. destruct tx' => //. 
-    apply AI_ref_exn_typing in Hexn as (exn & Hexn & ->). 
+    apply AI_ref_exn_typing in Hexn as (exn & Hexn & Hetag & ->). 
     apply et_to_bet in Hthrow; last by constructor.
     apply Throw_ref_typing in Hthrow as (tz & Htypes).
 (*    destruct tz; last by destruct tz. *)
@@ -5535,11 +5541,12 @@ Proof.
 
     simpl.
     apply ety_weakening.  *)
-    rewrite (separate1 (AI_ref_exn a)).
+    rewrite (separate1 (AI_ref_exn a t)).
     eapply et_composition'.
 (*    instantiate (1 := tz ++ _).
     apply et_weakening_empty_1. *)
-    eapply ety_ref_exn. exact Hexn. 
+    eapply ety_ref_exn. exact Hexn.
+    exact Hetag.
     apply ety_a'. constructor => //.
     rewrite - (cat0s [:: T_ref _]).
     apply bet_throw_ref. unfold hfilled.
@@ -5564,7 +5571,7 @@ Proof.
     rewrite separate1 in Hes2 (* Hexnthrow *).
     apply e_composition_typing in Hes2 (* Hexnthrow *) as (ts0' & tx' & ty' & t3s' & ? & -> & Hexn & Hthrow).
     destruct ts0' => //. destruct tx' => //. 
-    apply AI_ref_exn_typing in Hexn as (exn & Hexn & ->). 
+    apply AI_ref_exn_typing in Hexn as (exn & Hexn & Hetag & ->). 
     apply et_to_bet in Hthrow; last by constructor.
     apply Throw_ref_typing in Hthrow as (tz & Htypes).
     apply concat_cancel_last in Htypes as [-> _].
@@ -5575,7 +5582,7 @@ Proof.
     rewrite separate1.
     eapply et_composition'.
 (*    instantiate (1 := tz ++ _). apply et_weakening_empty_1. *)
-    eapply ety_ref_exn. exact Hexn.
+    eapply ety_ref_exn. exact Hexn. exact Hetag.
     apply ety_a'. constructor => //.
     rewrite - (cat0s [:: T_ref _]).
     constructor. 
@@ -5598,8 +5605,8 @@ Proof.
     all: try exact Hl0. 
     all: eapply IHh => //.
     all: try by instantiate (2 := Var_handler x); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt_switch t); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_prompt_suspend t); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_switch t0); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_prompt_suspend t0); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
     all: try by eapply t_const_ignores_context; last exact Hes1.
@@ -5621,7 +5628,7 @@ Proof.
     all: eapply IHh => //.
     all: try by instantiate (2 := Var_prompt_suspend x); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := Var_prompt_switch x); unfold hfilled; rewrite Hfill1.
-    all: try by instantiate (2 := Var_handler t); unfold hfilled; rewrite Hfill1.
+    all: try by instantiate (2 := Var_handler t0); unfold hfilled; rewrite Hfill1.
     all: try by instantiate (2 := No_var); unfold hfilled; rewrite Hfill1.
     all: try by unfold hfilled; rewrite Hfill2.
     all: try by eapply t_const_ignores_context; last exact Hes1.
@@ -5630,7 +5637,7 @@ Proof.
     all: apply e_composition_typing in Hes2 (* Hexnthrow *) as (ts0' & tx' & ty' & t3s' & ? & -> & Hexn & Hthrow).
     all: destruct ts0' => //.
     all: destruct tx' => //. 
-    all: apply AI_ref_exn_typing in Hexn as (exn & Hexn & ->). 
+    all: apply AI_ref_exn_typing in Hexn as (exn & Hexn & Hetag & ->). 
     all: apply et_to_bet in Hthrow; last by constructor.
     all: apply Throw_ref_typing in Hthrow as (tz & Htypes).
     all: apply concat_cancel_last in Htypes as [-> _].
@@ -5644,7 +5651,8 @@ Proof.
 (*    1,3: instantiate (1 := tz ++ _).
     all: try apply et_weakening_empty_1. *)
     all: try eapply ety_ref_exn.
-    all: try exact Hexn. 
+    all: try exact Hexn.
+    all: try exact Hetag.
     all: eapply ety_a'; first by constructor.
     all: rewrite - (cat0s [:: T_ref _]).
     all: apply bet_throw_ref.
@@ -8368,7 +8376,7 @@ Proof.
       apply et_weakening_empty_1. eapply ety_ref_exn.
       simpl. 
       rewrite - (cats0 [:: _]).
-      rewrite list_nth_prefix. done. 
+      rewrite list_nth_prefix. done. done.
     + apply ety_a' ; first by constructor.
       apply bet_throw_ref.
   - (* Throw_ref *)
@@ -8377,7 +8385,7 @@ Proof.
     2: exact H0.
     rewrite separate1 in HType.
     apply e_composition_typing in HType as (ts' & t1s' & t2s' & t3s & -> & -> & Hexn & Hthrowref).
-    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & ->). 
+    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & Hetag & ->). 
     convert_et_to_bet.
     apply Throw_ref_typing in Hthrowref as (ts'' & Htypes).
     apply concat_cancel_last in Htypes as [-> _].
@@ -8417,7 +8425,7 @@ Proof.
         inst_typing_equal (f_inst f) C HIT1. }  *)
     rewrite separate1 in HType.
     apply e_composition_typing in HType as (ts' & t1s' & t2s' & t3s & -> & -> & Hexn & Hthrowref).
-    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & ->). 
+    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & Hetag & ->). 
     convert_et_to_bet.
     apply Throw_ref_typing in Hthrowref as (ts'' & Htypes).
     apply concat_cancel_last in Htypes as [-> _].
@@ -8455,10 +8463,10 @@ Proof.
   - (* Throw_ref_ref *) 
     apply Handler_typing in HType as (ts2' & -> & Hhs & HLI).
     eapply hfilled_typing in HLI as ([t1s t2s] & (* i' & *) C' & HType & (* HC' & *) Hreconstruct).
-    2: exact H0.
+    2: exact H1.
     rewrite separate1 in HType.
     apply e_composition_typing in HType as (ts' & t1s' & t2s' & t3s & -> & -> & Hexn & Hthrowref).
-    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & ->).
+    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & Hetag & ->).
     remember Hexn as Hexn'; clear HeqHexn'.
     convert_et_to_bet.
     apply Throw_ref_typing in Hthrowref as (ts'' & Htypes).
@@ -8478,11 +8486,11 @@ Proof.
     instantiate (1 := tse ++ _).
     apply et_weakening_empty_1.
     eapply ety_ref_exn.
-    exact Hexn'. 
+    exact Hexn'. exact Hetag.
     
     apply ety_a'; first by constructor.
     destruct (e_tag _) eqn:He.
-    eapply firstx_clause_typing_ref in Hhs; last exact H1.
+    eapply firstx_clause_typing_ref in Hhs; last exact H2.
     destruct Hhs as [(ts0' & Htagst & Hlab) | Hlab].
     + rewrite - (cat0s (tse ++ _)).
       apply bet_br.
@@ -8501,10 +8509,10 @@ Proof.
   - (* Throw_ref_ref *) 
     apply Handler_typing in HType as (ts2' & -> & Hhs & HLI).
     eapply hfilled_typing in HLI as ([t1s t2s] & (* i' & *) C' & HType & (* HC' & *) Hreconstruct).
-    2: exact H0.
+    2: exact H1.
     rewrite separate1 in HType.
     apply e_composition_typing in HType as (ts' & t1s' & t2s' & t3s & -> & -> & Hexn & Hthrowref).
-    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & ->).
+    apply AI_ref_exn_typing in Hexn as (exn' & Hexn & Hetag & ->).
     remember Hexn as Hexn'; clear HeqHexn'.
     convert_et_to_bet.
     apply Throw_ref_typing in Hthrowref as (ts'' & Htypes).
@@ -8525,10 +8533,10 @@ Proof.
     apply et_weakening_empty_1.
     eapply ety_ref_exn.
     exact Hexn'. 
-    
+    exact Hetag.
     apply ety_a'; first by constructor.
     destruct (e_tag _) eqn:He.
-    eapply firstx_clause_typing_ref in Hhs; last exact H1.
+    eapply firstx_clause_typing_ref in Hhs; last exact H2.
     destruct Hhs as [(ts0' & Htagst & Hlab) | Hlab].
     + rewrite - (cat0s (tse ++ _)).
       apply bet_br.
@@ -9109,7 +9117,7 @@ Proof.
           simpl.
           rewrite - (cats0 [:: _]).
           rewrite list_nth_prefix.
-          done.
+          done. done.
           apply ety_a'; first by constructor.
           rewrite - (cat0s [:: T_ref _]).
           apply bet_throw_ref. } 
@@ -9120,6 +9128,7 @@ Proof.
           exact H13. } 
       3: exact H12.
       done.
+      2: instantiate (1 := {| e_tag := _ ; e_fields := _ |}).
       2: exact H8.
       apply typing_empty_context.
       eapply store_extension_e_typing.

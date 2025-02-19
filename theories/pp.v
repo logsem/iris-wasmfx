@@ -165,7 +165,7 @@ Definition pp_value_ref (v : value_ref) : string :=
   | VAL_ref_null r => "(" ++ pp_reference_type r ++ ").null" ++ newline
   | VAL_ref_func f => "ref.func " ++ pp_immediate f ++ newline
   | VAL_ref_cont f => "ref.cont " ++ pp_immediate f ++ newline
-  | VAL_ref_exn e => "ref.exn" ++ pp_immediate e ++ newline
+  | VAL_ref_exn e _ => "ref.exn" ++ pp_immediate e ++ newline
   end .
 
 Definition pp_value (v : value) : string :=
@@ -469,7 +469,7 @@ Fixpoint pp_administrative_instruction (n : indentation) (e : administrative_ins
         indent n (with_fg ae_style "with values " ++ pp_values_hint_empty cvs ++ newline)
 
   | AI_ref f => indent n (with_fg ae_style "ref " ++ pp_immediate f ++ newline) 
-| AI_ref_exn e => indent n (with_fg ae_style "ref.exn " ++ pp_immediate e ++ newline)
+| AI_ref_exn e _ => indent n (with_fg ae_style "ref.exn " ++ pp_immediate e ++ newline)
 | AI_ref_cont f => indent n (with_fg ae_style "ref.cont " ++ pp_immediate f ++ newline) 
   | AI_suspend_desugared (Mk_tagidx i) => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i)
   | AI_switch_desugared tf (Mk_tagidx i) => indent n (with_fg ae_style "switch.desugared " ++ pp_function_type tf ++ pp_immediate i)

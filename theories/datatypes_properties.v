@@ -448,7 +448,7 @@ Definition value_ref_rec_safe (P : Type)
   (null : reference_type -> P)
   (func : funcaddr -> P)
   (cont : funcaddr -> P)
-  (exn : exnaddr -> P)
+  (exn : exnaddr -> tagidx -> P)
 (*  (extern : externaddr -> P) *)
   v : P :=
   value_ref_rect null func cont (* extern *) exn v.

@@ -131,6 +131,24 @@ Definition alloc_glob (s : store_record) (m_g_v : module_glob * value) : store_r
 Definition alloc_globs s m_gs vs :=
   alloc_Xs alloc_glob s (List.combine m_gs vs).
 
+Definition add_tag (s : store_record) m_tg : store_record :=
+  {|
+  s_funcs := s.(s_funcs);
+  s_tables := s.(s_tables);
+  s_mems := s.(s_mems);
+    s_globals := s.(s_globals);
+    s_conts := s.(s_conts);
+    s_exns := s.(s_exns);
+    s_tags := List.app s.(s_tags) [:: m_tg];
+|}.
+
+Definition alloc_tag (s : store_record) m_tg : store_record * tagidx :=
+  let tagaddr := Mk_tagidx (List.length s.(s_tags)) in
+  (add_tag s m_tg, tagaddr).
+
+Definition alloc_tags s (m_tgs : seq function_type) :=
+  alloc_Xs alloc_tag s m_tgs.
+
 Definition v_ext := module_export_desc.
 
 Definition export_get_v_ext (inst : instance) (exp : module_export_desc) : v_ext :=
@@ -148,6 +166,14 @@ Definition ext_funcs :=
     (fun x =>
       match x with
       | MED_func i => Some i
+      | _ => None
+      end).
+
+Definition ext_tags :=
+  seq.pmap
+    (fun x =>
+      match x with
+      | MED_tag i => Some i
       | _ => None
       end).
 
@@ -183,6 +209,14 @@ Definition ext_t_funcs :=
       | _ => None
       end).
 
+Definition ext_t_tags :=
+  seq.pmap
+    (fun x =>
+      match x with
+      | ET_tag tf => Some tf
+      | _ => None
+      end).
+
 Definition ext_t_tabs :=
   seq.pmap
     (fun x =>
@@ -213,10 +247,12 @@ Definition alloc_module (s : store_record) (m : module) (imps : list v_ext) (gvs
   let '(s1, i_fs) := alloc_funcs s m.(mod_funcs) inst in
   let '(s2, i_ts) := alloc_tabs s1 (List.map (fun t => t.(modtab_type)) m.(mod_tables)) in
   let '(s3, i_ms) := alloc_mems s2 m.(mod_mems) in
-  let '(s', i_gs) := alloc_globs s3 m.(mod_globals) gvs in
+  let '(s4, i_gs) := alloc_globs s3 m.(mod_globals) gvs in
+  let '(s', i_tgs) := alloc_tags s4 m.(mod_tags) in
   (s'_goal == s') &&
     (inst.(inst_types) == m.(mod_types)) &&
-    (List.map (List.nth_error (inst.(inst_types))) inst.(inst_tags) == List.map Some m.(mod_tags)) &&
+    (*    (List.map (List.nth_error (inst.(inst_types))) inst.(inst_tags) == List.map Some m.(mod_tags)) && *)
+    (inst.(inst_tags) == List.map (fun '(Mk_tagidx i) => i) (List.app (ext_tags imps) i_tgs)) &&
   (inst.(inst_funcs) == List.map (fun '(Mk_funcidx i) => i) (List.app (ext_funcs imps) i_fs)) &&
   (inst.(inst_tab) == List.map (fun '(Mk_tableidx i) => i) (List.app (ext_tabs imps) i_ts)) &&
   (inst.(inst_memory) == List.map (fun '(Mk_memidx i) => i) (List.app (ext_mems imps) i_ms)) &&

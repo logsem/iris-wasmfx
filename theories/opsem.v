@@ -293,17 +293,18 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     ves = v_to_e_list vcs ->
     length ves = length ts ->
     s' = add_exn s {| e_tag := Mk_tagidx a ; e_fields := vcs |} ->
-    reduce s f (ves ++ [:: AI_basic (BI_throw x)]) s' f [::AI_ref_exn (length s.(s_exns)); AI_basic (BI_throw_ref)]
+    reduce s f (ves ++ [:: AI_basic (BI_throw x)]) s' f [::AI_ref_exn (length s.(s_exns)) (Mk_tagidx a) ; AI_basic (BI_throw_ref)]
 | r_throw_ref: forall s f a hh exn l hs LI,
     List.nth_error (s_exns s) a = Some exn ->
-    hfilled (Var_handler (e_tag exn)) hh [:: AI_ref_exn a; AI_basic (BI_throw_ref)] LI ->
+    hfilled (Var_handler (e_tag exn)) hh [:: AI_ref_exn a (e_tag exn); AI_basic (BI_throw_ref)] LI ->
     firstx_exception hs (e_tag exn) = Clause_label l ->
     reduce s f [:: AI_handler hs LI ] s f (v_to_e_list exn.(e_fields) ++ [:: AI_basic (BI_br l)])
-| r_throw_ref_ref: forall s f a hh exn l hs LI,
+| r_throw_ref_ref: forall s f a hh exn i l hs LI,
     List.nth_error (s_exns s) a = Some exn ->
-    hfilled (Var_handler (e_tag exn)) hh [:: AI_ref_exn a; AI_basic (BI_throw_ref)] LI ->
+    e_tag exn = i ->
+    hfilled (Var_handler i) hh [:: AI_ref_exn a i; AI_basic (BI_throw_ref)] LI ->
     firstx_exception hs (e_tag exn) = Clause_label_ref l ->
-    reduce s f [:: AI_handler hs LI ] s f (v_to_e_list exn.(e_fields) ++ [:: AI_ref_exn a; AI_basic (BI_br l)])
+    reduce s f [:: AI_handler hs LI ] s f (v_to_e_list exn.(e_fields) ++ [:: AI_ref_exn a i; AI_basic (BI_br l)])
 
            
 (** Effect handler operations **)
@@ -393,7 +394,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     List.nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh) ->
     stypes s (f_inst f) i = Some (Tf t1s t2s) ->
     map (desugar_continuation_clause (f_inst f)) hs = map Some hsd ->
-    hfilled No_var hh ([:: AI_ref_exn (List.length (s_exns s)); AI_basic BI_throw_ref]) LI -> 
+    hfilled No_var hh ([:: AI_ref_exn (List.length (s_exns s)) (Mk_tagidx a) ; AI_basic BI_throw_ref]) LI -> 
     reduce s f (ves ++ [:: AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]) s'' f [:: AI_prompt t2s hsd LI]
 | r_resume_throw_failure :
   forall s f k i x hs tf,

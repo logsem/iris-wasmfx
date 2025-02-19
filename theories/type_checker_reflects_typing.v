@@ -1910,31 +1910,6 @@ Qed.
 Lemma le_le a b: a <= b <-> (a <= b)%coq_nat.
 Proof. lias. Qed.
 
-Lemma separate_last_spec {A} l l' (x: A):
-  separate_last l = Some (l', x) ->
-  l = l' ++ [:: x].
-Proof.
-  generalize dependent l'.
-  induction l => //=.
-  destruct l => //=.
-  { intros l' H; inversion H; subst => //. }
-  destruct l => //.
-  { intros l' H; inversion H; subst => //. }
-  intros l' Hlast.
-  simpl in IHl.
-  simpl in Hlast.
-  destruct (match match l with
-                  | [::] => _
-                  | _ :: _ => _
-                  end
-            with
-            | Some (l, x) => _
-            | None => None
-            end) => //.
-  destruct p.
-  inversion Hlast; subst.
-  simpl. rewrite -IHl => //.
-Qed. 
 
 
 (*
@@ -2636,13 +2611,6 @@ Qed.
 Lemma add_0_r n : n + 0 = n.
 Proof. lias. Qed.
 
-Lemma separate_last_trivial {A} l (x : A) :
-  separate_last (l ++ [:: x]) = Some (l, x).
-Proof.
-  induction l => //=.
-  rewrite IHl.
-  destruct l => //.
-Qed. 
 
 Lemma b_e_type_checker_reflects_typing:
   forall C bes tf,
