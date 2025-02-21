@@ -197,66 +197,168 @@ Proof.
   decidable_equality.
 Qed.
 
-Inductive offset : Type :=
-(* OMinusS n represents an offset of S n; same with OPlusS *)
-| OMinusS : nat -> offset
-| OPlusS : nat -> offset
+(* A term of type capped_nat n is an integer <= n *)
+Inductive capped_nat : nat -> Type :=
+| Zero (n : nat) : capped_nat n
+| PlusOne (n : nat) : capped_nat n -> capped_nat (S n)
 .
 
-Inductive suselt : Type :=
-| SuSuspend: offset -> immediate -> suselt
-| SuSwitch: tagidx -> suselt
-.
+Fixpoint nat_of_capped_nat (p: nat) (n : capped_nat p) :=
+  match n with
+  | Zero _ => 0
+  | PlusOne _ n => S (nat_of_capped_nat n)
+  end.
 
-Inductive susholed : Type :=
-| SuBase: list value -> list administrative_instruction -> susholed
-| SuLabel : list value -> nat -> list administrative_instruction -> susholed -> list administrative_instruction -> susholed
-| SuLocal : list value -> nat -> frame -> susholed -> list administrative_instruction -> susholed
-| SuHandler : list value -> list exception_clause -> susholed -> list administrative_instruction -> susholed
-| SuPrompt: list value -> list value_type -> list suselt -> susholed -> list administrative_instruction -> susholed
-.
-
-
-Lemma neq_UIP: forall (A: Type) (x y: A) (p q: x <> y), p = q.
+Lemma capped_nat_capped p (n : capped_nat p) :
+  (nat_of_capped_nat n) <= p.
 Proof.
-  intros A x y p q.
-(*  unfold not in *. *)
-  apply FunctionalExtensionality.functional_extensionality_dep.
-  intros eq.
-  exfalso. apply p. exact eq.
+  induction n; lias.
+Qed.
+
+Lemma capped_nat_eq_dec:
+  forall p (n1 n2: capped_nat p), { n1 = n2 } + { n1 <> n2 }.
+Proof.
+  induction n1; intros.
+  - destruct n2 ; by (left + right).
+  - set (k := S n) in n2.
+
+    pose (Logic.eq_refl : k = S n) as Hk.
+    change n2 with (match Hk in _ = w return capped_nat w with
+                      | Logic.eq_refl => n2 end).
+    clearbody Hk k.
+    destruct n2.
+    + right. subst n0. done.
+    + pose proof (eq_add_S _ _ Hk) as Hn.
+      
+      assert (Hk = f_equal S Hn) as Hproof.
+      apply Eqdep.EqdepTheory.UIP.
+      
+      replace (match Hk in _ = w return (capped_nat w) with
+               | Logic.eq_refl => PlusOne n2
+               end) with
+        ( PlusOne (match Hn in _ = w return capped_nat w with
+                           | Logic.eq_refl => n2 end )) ; last first.
+
+      { rewrite Hproof.
+        destruct Hn. done. } 
+      destruct (IHn1 (match Hn in (_ = w) return capped_nat w with
+                      | Logic.eq_refl => n2 end)).
+      * left; by subst.
+      * right. intro H. inversion H.
+        apply Eqdep.EqdepTheory.inj_pair2 in H1.
+        done.
+Defined.     
+
+
+Inductive offset : nat -> Type :=
+(* OMinusS n represents an offset of S n; same with OPlusS *)
+| OMinusS (n : nat) : capped_nat n -> offset (S n)
+| OPlusS (n: nat) : nat -> offset n
+.
+
+Lemma offset_eq_dec :
+  forall p (o1 o2: offset p), { o1 = o2 } + { o1 <> o2 }.
+Proof.
+  intros. destruct o1.
+  - set (k := S n) in o2.
+
+    pose (Logic.eq_refl : k = S n) as Hk.
+    change o2 with (match Hk in _ = w return offset w with
+                      | Logic.eq_refl => o2 end).
+    clearbody Hk k.
+    destruct o2; last by right; subst n0.
+    pose proof (eq_add_S _ _ Hk) as Hn.
+      
+    assert (Hk = f_equal S Hn) as Hproof.
+    apply Eqdep.EqdepTheory.UIP.
+    
+    replace (match Hk in _ = w return (offset w) with
+               | Logic.eq_refl => OMinusS c0
+               end) with
+        ( OMinusS (match Hn in _ = w return capped_nat w with
+                   | Logic.eq_refl => c0 end )) ; last first.
+
+      { rewrite Hproof.
+        destruct Hn. done. }
+      destruct (capped_nat_eq_dec c 
+                  (match Hn in (_ = w) return capped_nat w with
+                   | Logic.eq_refl => c0 end)).
+      * left; by subst.
+      * right. intro H. inversion H.
+        apply Eqdep.EqdepTheory.inj_pair2 in H1.
+        done.
+  - destruct o2.
+    + by right.
+    + destruct (decide (n0 = n1)).
+      * subst; by left.
+      * right; intros H; inversion H; done.
 Qed. 
+
+Inductive suselt : tagidx -> Type :=
+| SuSuspend (n : nat) : offset n  -> immediate -> suselt (Mk_tagidx n)
+| SuSwitch (x : tagidx) : tagidx -> suselt x
+.
+
+
+Lemma suselt_eq_dec :
+  forall p (o1 o2: suselt p), { o1 = o2 } + { o1 <> o2 }.
+Proof.
+  intros. destruct o1.
+  - set (k := Mk_tagidx n) in o2.
+
+    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
+    change o2 with (match Hk in _ = w return suselt w with
+                      | Logic.eq_refl => o2 end).
+    clearbody Hk k.
+    destruct o2; last by right; subst x.
+    inversion Hk.
+      
+    assert (Hk = f_equal Mk_tagidx H0) as Hproof.
+    apply Eqdep.EqdepTheory.UIP.
+    
+    replace (match Hk in _ = w return (suselt w) with
+               | Logic.eq_refl => SuSuspend o0 i0
+               end) with
+        ( SuSuspend (match H0 in _ = w return offset w with
+                   | Logic.eq_refl => o0 end ) i0) ; last first.
+
+      { rewrite Hproof.
+        destruct H0. done. }
+      destruct (offset_eq_dec o 
+                  (match H0 in (_ = w) return offset w with
+                   | Logic.eq_refl => o0 end)), (decide (i = i0)); first by left; subst.
+      all: right; intro H; inversion H.
+      done.
+      all: apply Eqdep.EqdepTheory.inj_pair2 in H2.
+      all: done.
+  - destruct o2.
+    + by right.
+    + destruct (t == t0) eqn:Ht.
+      * move/eqP in Ht; subst; by left.
+      * right; intros H; inversion H.
+        subst t; rewrite eq_refl in Ht; done.
+Qed. 
+
+Inductive susholed : tagidx -> Type :=
+| SuBase (x : tagidx) : list value -> list administrative_instruction -> susholed x
+| SuLabel (x : tagidx): list value -> nat -> list administrative_instruction -> susholed x -> list administrative_instruction -> susholed x
+| SuLocal (x: tagidx) : list value -> nat -> frame -> susholed x -> list administrative_instruction -> susholed x
+| SuHandler (x: tagidx) : list value -> list exception_clause -> susholed x -> list administrative_instruction -> susholed x
+| SuPrompt (x: tagidx) : list value -> list value_type -> list (suselt x) -> (susholed x) -> list administrative_instruction -> susholed x
+.
 
 
 Definition suslist_eq_dec x:
   forall l1 l2 : list (suselt x), { l1 = l2 } + { l1 <> l2 }.
 Proof.
-  induction l1; destruct l2; (try by right); (try by left);
-    destruct a, s; try by right.
-  - destruct ((y == y0) && (i == i0)) eqn:Hy.
-    + remove_bools_options; subst y0 i0.
-      destruct (IHl1 l2).
-      * subst l2.
-        specialize (neq_UIP n n0) as <-.
-        by left.
-      * right. intros Habs; inversion Habs.
-        done.
-    + right. intros Habs; inversion Habs.
-      subst y0 i0. repeat rewrite eq_refl in Hy. done.
-  - destruct (t == t0) eqn:Ht.
-    + move/eqP in Ht; subst t0.
-      destruct (IHl1 l2).
-      * subst l2.
-        by left.
-      * right. intros Habs; inversion Habs.
-        done.
-    + right. intros Habs; inversion Habs.
-      subst t0. rewrite eq_refl in Ht. done.
-Qed.
+  decidable_equality.
+  apply suselt_eq_dec.
+Qed. 
 
 Definition susholed_eq_dec x:
   forall sh1 sh2: susholed x, { sh1 = sh2 } + { sh1 <> sh2 }.
 Proof.
-  induction sh1; destruct sh2; try by right.
+induction sh1; destruct sh2; try by right.
   - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
     + remove_bools_options; subst; by left.
     + right; intros Habs'; inversion Habs';
@@ -310,13 +412,53 @@ Proof.
     + right; intros Habs'; inversion Habs'; subst.
       repeat rewrite eq_refl in Hb.
       done.
-Qed.
+Qed. 
 
 
 Inductive swelt : tagidx -> Type :=
-| SwSwitch (x : tagidx) (y: tagidx) : (x <> y) -> swelt x
-| SwSuspend (x : tagidx) : tagidx -> immediate -> swelt x
+| SwSwitch (n : nat) : offset n -> swelt (Mk_tagidx n)
+| SwSuspend (x: tagidx) : tagidx -> immediate -> swelt x
 .
+
+
+Lemma swelt_eq_dec :
+  forall p (o1 o2: swelt p), { o1 = o2 } + { o1 <> o2 }.
+Proof.
+  intros. destruct o1.
+  - set (k := Mk_tagidx n) in o2.
+
+    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
+    change o2 with (match Hk in _ = w return swelt w with
+                      | Logic.eq_refl => o2 end).
+    clearbody Hk k.
+    destruct o2; last by right; subst x.
+    inversion Hk.
+      
+    assert (Hk = f_equal Mk_tagidx H0) as Hproof.
+    apply Eqdep.EqdepTheory.UIP.
+    
+    replace (match Hk in _ = w return (swelt w) with
+               | Logic.eq_refl => SwSwitch o0
+               end) with
+        ( SwSwitch (match H0 in _ = w return offset w with
+                   | Logic.eq_refl => o0 end )) ; last first.
+
+      { rewrite Hproof.
+        destruct H0. done. }
+      destruct (offset_eq_dec o 
+                  (match H0 in (_ = w) return offset w with
+                   | Logic.eq_refl => o0 end)); first by left; subst.
+      right; intro H; inversion H.
+      apply Eqdep.EqdepTheory.inj_pair2 in H2.
+      done.
+  - destruct o2.
+    + by right.
+    + destruct ((t == t0) && (i == i0)) eqn:Ht.
+      * remove_bools_options; subst; by left.
+      * right; intros H; inversion H.
+        subst; repeat rewrite eq_refl in Ht; done.
+Qed. 
+
 
 Inductive swholed : tagidx -> Type :=
 | SwBase (x: tagidx) : list value -> list administrative_instruction -> swholed x
@@ -327,31 +469,11 @@ Inductive swholed : tagidx -> Type :=
 .
 
 
-
 Definition swlist_eq_dec x:
   forall l1 l2 : list (swelt x), { l1 = l2 } + { l1 <> l2 }.
 Proof.
-  induction l1; destruct l2; (try by (left + right)).
-  destruct a, s; try by right.
-  - destruct (y == y0) eqn:Hy.
-    + move/eqP in Hy; subst y0.
-      destruct (IHl1 l2).
-      * subst l2.
-        specialize (neq_UIP n n0) as <-.
-        by left.
-      * right. intros Habs; inversion Habs.
-        done.
-    + right. intros Habs; inversion Habs.
-      subst y0. rewrite eq_refl in Hy. done.
-  - destruct ((t == t0) && (i == i0)) eqn:Ht.
-    + remove_bools_options; subst i0 t0.  
-      destruct (IHl1 l2).
-      * subst l2.
-        by left.
-      * right. intros Habs; inversion Habs.
-        done.
-    + right. intros Habs; inversion Habs.
-      subst i0 t0. repeat rewrite eq_refl in Ht. done.
+  decidable_equality.
+  apply swelt_eq_dec.
 Qed.
 
 Definition swholed_eq_dec x:
@@ -415,9 +537,97 @@ Qed.
 
 
 Inductive exnelt : tagidx -> Type :=
-| ExCatch (x : tagidx) (y: tagidx) : (x <> y) -> immediate -> exnelt x
-| ExCatchRef (x : tagidx) (y : tagidx) : (x <> y) -> immediate -> exnelt x
+| ExCatch (n : nat) : offset n -> immediate -> exnelt (Mk_tagidx n)
+| ExCatchRef (n : nat) : offset n -> immediate -> exnelt (Mk_tagidx n)
 .
+
+
+Lemma exnelt_eq_dec :
+  forall p (o1 o2: exnelt p), { o1 = o2 } + { o1 <> o2 }.
+Proof.
+  intros. destruct o1.
+  - set (k := Mk_tagidx n) in o2.
+
+    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
+    change o2 with (match Hk in _ = w return exnelt w with
+                      | Logic.eq_refl => o2 end).
+    clearbody Hk k.
+    destruct o2. 
+    + inversion Hk.
+      
+      assert (Hk = f_equal Mk_tagidx H0) as Hproof.
+      apply Eqdep.EqdepTheory.UIP.
+      
+      replace (match Hk in _ = w return (exnelt w) with
+               | Logic.eq_refl => ExCatch o0 i0
+               end) with
+        ( ExCatch (match H0 in _ = w return offset w with
+                   | Logic.eq_refl => o0 end ) i0) ; last first.
+
+      { rewrite Hproof.
+        destruct H0. done. }
+      destruct (offset_eq_dec o 
+                  (match H0 in (_ = w) return offset w with
+                   | Logic.eq_refl => o0 end)), (decide (i = i0)); first by left; subst.
+      all: right; intro H; inversion H.
+      done.
+      all: apply Eqdep.EqdepTheory.inj_pair2 in H2.
+      all: done.
+    + inversion Hk.
+       assert (Hk = f_equal Mk_tagidx H0) as Hproof.
+      apply Eqdep.EqdepTheory.UIP.
+      
+      replace (match Hk in _ = w return (exnelt w) with
+               | Logic.eq_refl => ExCatchRef o0 i0
+               end) with
+        ( ExCatchRef (match H0 in _ = w return offset w with
+                   | Logic.eq_refl => o0 end ) i0) ; last first.
+
+      { rewrite Hproof.
+        destruct H0. done. }
+      by right.
+  - set (k := Mk_tagidx n) in o2.
+
+    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
+    change o2 with (match Hk in _ = w return exnelt w with
+                      | Logic.eq_refl => o2 end).
+    clearbody Hk k.
+    destruct o2.
+    + inversion Hk.
+       assert (Hk = f_equal Mk_tagidx H0) as Hproof.
+      apply Eqdep.EqdepTheory.UIP.
+      
+      replace (match Hk in _ = w return (exnelt w) with
+               | Logic.eq_refl => ExCatch o0 i0
+               end) with
+        ( ExCatch (match H0 in _ = w return offset w with
+                   | Logic.eq_refl => o0 end ) i0) ; last first.
+
+      { rewrite Hproof.
+        destruct H0. done. }
+      by right.
+    + inversion Hk.
+      
+      assert (Hk = f_equal Mk_tagidx H0) as Hproof.
+      apply Eqdep.EqdepTheory.UIP.
+      
+      replace (match Hk in _ = w return (exnelt w) with
+               | Logic.eq_refl => ExCatchRef o0 i0
+               end) with
+        ( ExCatchRef (match H0 in _ = w return offset w with
+                   | Logic.eq_refl => o0 end ) i0) ; last first.
+
+      { rewrite Hproof.
+        destruct H0. done. }
+      destruct (offset_eq_dec o 
+                  (match H0 in (_ = w) return offset w with
+                   | Logic.eq_refl => o0 end)), (decide (i = i0)); first by left; subst.
+      all: right; intro H; inversion H.
+      done.
+      all: apply Eqdep.EqdepTheory.inj_pair2 in H2.
+      all: done.
+Qed. 
+
 
 Inductive exnholed : tagidx -> Type :=
 | ExBase (x: tagidx) : list value -> list administrative_instruction -> exnholed x
@@ -428,32 +638,11 @@ Inductive exnholed : tagidx -> Type :=
 .
 
 
-
 Definition exnlist_eq_dec x:
   forall l1 l2 : list (exnelt x), { l1 = l2 } + { l1 <> l2 }.
 Proof.
-  induction l1; destruct l2; try by (left + right).
-  destruct a, e; try by right.
-  - destruct ((y == y0) && (i == i0)) eqn:Hy.
-    + remove_bools_options; subst y0 i0.
-      destruct (IHl1 l2).
-      * subst l2.
-        specialize (neq_UIP n n0) as <-.
-        by left.
-      * right. intros Habs; inversion Habs.
-        done.
-    + right. intros Habs; inversion Habs.
-      subst y0 i0. repeat rewrite eq_refl in Hy. done.
-  - destruct ((y == y0) && (i == i0)) eqn:Hy.
-    + remove_bools_options; subst y0 i0.
-      destruct (IHl1 l2).
-      * subst l2.
-        specialize (neq_UIP n n0) as <-.
-        by left.
-      * right. intros Habs; inversion Habs.
-        done.
-    + right. intros Habs; inversion Habs.
-      subst y0 i0. repeat rewrite eq_refl in Hy. done.
+  decidable_equality.
+  apply exnelt_eq_dec.
 Qed.
 
 Definition exnholed_eq_dec x:
@@ -513,7 +702,7 @@ Proof.
     + right; intros Habs'; inversion Habs'; subst.
       repeat rewrite eq_refl in Hb.
       done.
-Qed. 
+Qed.
         
   
 
@@ -554,10 +743,12 @@ Fixpoint llfill lh es :=
       v_to_e_list bef ++ AI_handler hs (llfill lh es) :: aft
   end.
 
-Definition continuation_clause_of_suselt {x: tagidx} (l: suselt x) :=
+Definition continuation_clause_of_suselt x (l: suselt x) :=
+  let '(Mk_tagidx x) := x in
   match l with
-  | SuSuspend x y n i => DC_catch y i 
-  | SuSwitch x y => DC_switch y 
+  | SuSuspend _ (OMinusS _ x') i => DC_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
+  | SuSuspend _ (OPlusS _ x') i => DC_catch (Mk_tagidx (x + S x')) i 
+  | SuSwitch _ y => DC_switch y 
   end.
 
 Fixpoint susfill {x: tagidx} (lh: susholed x) es :=
@@ -565,14 +756,16 @@ Fixpoint susfill {x: tagidx} (lh: susholed x) es :=
   | SuBase x bef aft => v_to_e_list bef ++ es ++ aft
   | SuLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (susfill lh es) :: aft
   | SuLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (susfill lh es) :: aft
-  | SuPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map continuation_clause_of_suselt hs) (susfill lh es) :: aft
+  | SuPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_suselt (x := x)) hs) (susfill lh es) :: aft
   | SuHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler hs (susfill lh es) :: aft
   end.
 
-Definition continuation_clause_of_swelt {x : tagidx} (l: swelt x) :=
+Definition continuation_clause_of_swelt x (l: swelt x) :=
+  let '(Mk_tagidx x) := x in
   match l with
-  | SwSwitch x y n => DC_switch y 
-  | SwSuspend x y i => DC_catch y i 
+  | SwSwitch _ (OMinusS _ x') => DC_switch (Mk_tagidx (x - S (nat_of_capped_nat x')))
+  | SwSwitch _ (OPlusS _ x') => DC_switch (Mk_tagidx (x + S x'))
+  | SwSuspend _ y i => DC_catch y i 
   end.
 
 Fixpoint swfill {x: tagidx} (lh: swholed x) es :=
@@ -580,15 +773,20 @@ Fixpoint swfill {x: tagidx} (lh: swholed x) es :=
   | SwBase x bef aft => v_to_e_list bef ++ es ++ aft
   | SwLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (swfill lh es) :: aft
   | SwLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (swfill lh es) :: aft
-  | SwPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map continuation_clause_of_swelt hs) (swfill lh es) :: aft
+  | SwPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_swelt (x := x)) hs) (swfill lh es) :: aft
   | SwHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler hs (swfill lh es) :: aft
   end.
 
-Definition exception_clause_of_exnelt {x : tagidx} (l : exnelt x) :=
+
+Definition exception_clause_of_exnelt x (l : exnelt x) :=
+  let '(Mk_tagidx x) := x in
   match l with
-  | ExCatch x y n i => DE_catch y i 
-  | ExCatchRef x y n i => DE_catch_ref y i
+  | ExCatch _ (OMinusS _ x') i => DE_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
+  | ExCatch _ (OPlusS _ x') i => DE_catch (Mk_tagidx (x + S x')) i 
+  | ExCatchRef _ (OMinusS _ x') i => DE_catch_ref (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
+  | ExCatchRef _ (OPlusS _ x') i => DE_catch_ref (Mk_tagidx (x + S x')) i 
   end. 
+
 
 Fixpoint exnfill {x: tagidx} (lh: exnholed x) es :=
   match lh with
@@ -596,7 +794,7 @@ Fixpoint exnfill {x: tagidx} (lh: exnholed x) es :=
   | ExLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (exnfill lh es) :: aft
   | ExLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (exnfill lh es) :: aft
   | ExPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf hs (exnfill lh es) :: aft
-  | ExHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler (map exception_clause_of_exnelt hs) (exnfill lh es) :: aft
+  | ExHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler (map (exception_clause_of_exnelt (x := x)) hs) (exnfill lh es) :: aft
   end.
 
 
