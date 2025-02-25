@@ -226,8 +226,8 @@ Proof.
   all: apply app_eq_nil in H as [_ H] ; inversion H.
 Qed.
 
-Lemma susfill_is_nil x (sh : susholed x) es :
-  susfill sh es = [] -> es = [] /\ sh = SuBase x [] [].
+Lemma susfill_is_nil x (sh : susholed) es :
+  susfill x sh es = [] -> es = [] /\ sh = SuBase [] [].
 Proof.
   destruct sh => //=; intros.
   { repeat apply app_eq_nil in H as [? H].
@@ -236,8 +236,8 @@ Proof.
   all: apply app_eq_nil in H as [_ H]; inversion H.
 Qed.
 
-Lemma swfill_is_nil x (sh : swholed x) es :
-  swfill sh es = [] -> es = [] /\ sh = SwBase x [] [].
+Lemma swfill_is_nil x (sh : swholed) es :
+  swfill x sh es = [] -> es = [] /\ sh = SwBase [] [].
 Proof.
   destruct sh => //=; intros.
   { repeat apply app_eq_nil in H as [? H].
@@ -246,8 +246,8 @@ Proof.
   all: apply app_eq_nil in H as [_ H]; inversion H.
 Qed.
 
-Lemma exnfill_is_nil x (sh : exnholed x) es :
-  exnfill sh es = [] -> es = [] /\ sh = ExBase x [] [].
+Lemma exnfill_is_nil x (sh : exnholed) es :
+  exnfill x sh es = [] -> es = [] /\ sh = ExBase [] [].
 Proof.
   destruct sh => //=; intros.
   { repeat apply app_eq_nil in H as [? H].
@@ -705,21 +705,21 @@ Proof.
   destruct vh => //= ; rewrite catA => //.
 Qed.
 
-Lemma sus_push_const_app x (sh : susholed x) vs1 vs2 :
+Lemma sus_push_const_app (sh : susholed) vs1 vs2 :
   sus_push_const sh (vs1 ++ vs2) =
     sus_push_const (sus_push_const sh vs2) vs1.
 Proof.
   destruct sh => //=; rewrite catA => //=.
 Qed.
 
-Lemma sw_push_const_app x (sh : swholed x) vs1 vs2 :
+Lemma sw_push_const_app (sh : swholed) vs1 vs2 :
   sw_push_const sh (vs1 ++ vs2) =
     sw_push_const (sw_push_const sh vs2) vs1.
 Proof.
   destruct sh => //=; rewrite catA => //=.
 Qed.
 
-Lemma exn_push_const_app x (sh : exnholed x) vs1 vs2 :
+Lemma exn_push_const_app (sh : exnholed) vs1 vs2 :
   exn_push_const sh (vs1 ++ vs2) =
     exn_push_const (exn_push_const sh vs2) vs1.
 Proof.
@@ -741,15 +741,15 @@ Lemma vh_push_const_nil n (vh : valid_holed n) :
   vh_push_const vh [] = vh.
 Proof. destruct vh => //=. Qed.
 
-Lemma sus_push_const_nil x (sh : susholed x) :
+Lemma sus_push_const_nil (sh : susholed) :
   sus_push_const sh [] = sh.
 Proof. destruct sh => //=. Qed.
 
-Lemma sw_push_const_nil x (sh : swholed x) :
+Lemma sw_push_const_nil (sh : swholed) :
   sw_push_const sh [] = sh.
 Proof. destruct sh => //=. Qed.
 
-Lemma exn_push_const_nil x (sh : exnholed x) :
+Lemma exn_push_const_nil (sh : exnholed) :
   exn_push_const sh [] = sh.
 Proof. destruct sh => //=. Qed.
 
@@ -771,21 +771,21 @@ Proof.
   destruct vh => //= ; rewrite catA => //.
 Qed.
 
-Lemma sus_append_app x (sh : susholed x) es1 es2 :
+Lemma sus_append_app (sh : susholed) es1 es2 :
   sus_append sh (es1 ++ es2) =
     sus_append (sus_append sh es1) es2.
 Proof.
   destruct sh; rewrite /= catA => //.
 Qed.
 
-Lemma sw_append_app x (sh : swholed x) es1 es2 :
+Lemma sw_append_app (sh : swholed) es1 es2 :
   sw_append sh (es1 ++ es2) =
     sw_append (sw_append sh es1) es2.
 Proof.
   destruct sh; rewrite /= catA => //.
 Qed.
 
-Lemma exn_append_app x (sh : exnholed x) es1 es2 :
+Lemma exn_append_app (sh : exnholed) es1 es2 :
   exn_append sh (es1 ++ es2) =
     exn_append (exn_append sh es1) es2.
 Proof.
@@ -807,15 +807,15 @@ Lemma vh_append_nil n (vh : valid_holed n) :
   vh_append vh [] = vh.
 Proof. destruct vh => /= ; rewrite cats0 => //. Qed.
 
-Lemma sus_append_nil x (sh : susholed x) :
+Lemma sus_append_nil (sh : susholed) :
   sus_append sh [] = sh.
 Proof. destruct sh; rewrite /= cats0 => //. Qed.
 
-Lemma sw_append_nil x (sh : swholed x) :
+Lemma sw_append_nil (sh : swholed) :
   sw_append sh [] = sh.
 Proof. destruct sh; rewrite /= cats0 => //. Qed.
 
-Lemma exn_append_nil x (sh : exnholed x) :
+Lemma exn_append_nil (sh : exnholed) :
   exn_append sh [] = sh.
 Proof. destruct sh; rewrite /= cats0 => //. Qed.
 
@@ -837,21 +837,21 @@ Proof.
   destruct vh => //=.
 Qed.
 
-Lemma sus_push_const_append x (sh : susholed x) vs es :
+Lemma sus_push_const_append (sh : susholed) vs es :
   sus_push_const (sus_append sh es) vs =
     sus_append (sus_push_const sh vs) es.
 Proof.
   destruct sh => //=.
 Qed.
 
-Lemma sw_push_const_append x (sh : swholed x) vs es :
+Lemma sw_push_const_append (sh : swholed) vs es :
   sw_push_const (sw_append sh es) vs =
     sw_append (sw_push_const sh vs) es.
 Proof.
   destruct sh => //=.
 Qed.
 
-Lemma exn_push_const_append x (sh : exnholed x) vs es :
+Lemma exn_push_const_append (sh : exnholed) vs es :
   exn_push_const (exn_append sh es) vs =
     exn_append (exn_push_const sh vs) es.
 Proof.
@@ -883,9 +883,20 @@ Lemma vh_increase_push_const m (vh : valid_holed m) vs :
   vh_increase (vh_push_const vh vs) = vh_push_const (vh_increase vh) vs.
 Proof. destruct vh => //=. Qed.
 
+(* Lemma vh_increase_append m (vh : valid_holed m) vs :
+  vh_increase (vh_append vh vs) = vh_append (vh_increase vh) vs.
+Proof. destruct vh => //=. Qed. *)
+
 Lemma vh_increase_repeat_push_const m (vh : valid_holed m) vs j :
   vh_increase_repeat (vh_push_const vh vs) j = vh_push_const (vh_increase_repeat vh j) vs.
 Proof. induction j => //=. rewrite IHj. by rewrite vh_increase_push_const. Qed.
+
+(* Lemma vh_increase_repeat_append m (vh : valid_holed m) vs j :
+  vh_increase_repeat (vh_append vh vs) j = vh_append (vh_increase_repeat vh j) vs.
+Proof.
+  induction j => //=. rewrite IHj.
+  by rewrite vh_increase_append.
+Qed. *)
 
 Lemma S_plus m n : S (m + n) = m + S n.
 Proof. induction m => //=. by rewrite IHm. Defined.
@@ -907,6 +918,27 @@ Proof.
   clearbody Hp.
   destruct Hp => //=.
 Qed.
+
+Lemma vh_increase_repeat_handler m (vh : valid_holed m) bef n aft j :
+  vh_increase_repeat (VH_handler bef n vh aft) j =
+    VH_handler bef n (vh_increase_repeat vh j) aft .
+Proof.
+  induction j ; first done.
+  unfold vh_increase_repeat ; fold vh_increase_repeat.
+  rewrite IHj.
+  done.
+Qed.
+
+Lemma vh_increase_repeat_prompt m (vh : valid_holed m) bef ts n aft j :
+  vh_increase_repeat (VH_prompt bef ts n vh aft) j =
+    VH_prompt bef ts n (vh_increase_repeat vh j) aft .
+Proof.
+  induction j ; first done.
+  unfold vh_increase_repeat ; fold vh_increase_repeat.
+  rewrite IHj.
+  done.
+Qed.
+
 
 Lemma const_list_AI_const l :
   const_list (map AI_const l).

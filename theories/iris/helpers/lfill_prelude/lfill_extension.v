@@ -197,6 +197,7 @@ Proof.
   decidable_equality.
 Qed.
 
+(*
 (* A term of type capped_nat n is an integer <= n *)
 Inductive capped_nat : nat -> Type :=
 | Zero (n : nat) : capped_nat n
@@ -292,18 +293,20 @@ Proof.
     + destruct (decide (n0 = n1)).
       * subst; by left.
       * right; intros H; inversion H; done.
-Qed. 
+Qed.
+*)
 
-Inductive suselt : tagidx -> Type :=
-| SuSuspend (n : nat) : offset n  -> immediate -> suselt (Mk_tagidx n)
-| SuSwitch (x : tagidx) : tagidx -> suselt x
+Inductive suselt : Type :=
+| SuSuspend : nat  -> immediate -> suselt
+| SuSwitch : tagidx -> suselt
 .
 
 
 Lemma suselt_eq_dec :
-  forall p (o1 o2: suselt p), { o1 = o2 } + { o1 <> o2 }.
+  forall (o1 o2: suselt), { o1 = o2 } + { o1 <> o2 }.
 Proof.
-  intros. destruct o1.
+  decidable_equality.
+(*  intros. destruct o1.
   - set (k := Mk_tagidx n) in o2.
 
     pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
@@ -336,28 +339,29 @@ Proof.
     + destruct (t == t0) eqn:Ht.
       * move/eqP in Ht; subst; by left.
       * right; intros H; inversion H.
-        subst t; rewrite eq_refl in Ht; done.
+        subst t; rewrite eq_refl in Ht; done. *)
 Qed. 
 
-Inductive susholed : tagidx -> Type :=
-| SuBase (x : tagidx) : list value -> list administrative_instruction -> susholed x
-| SuLabel (x : tagidx): list value -> nat -> list administrative_instruction -> susholed x -> list administrative_instruction -> susholed x
-| SuLocal (x: tagidx) : list value -> nat -> frame -> susholed x -> list administrative_instruction -> susholed x
-| SuHandler (x: tagidx) : list value -> list exception_clause -> susholed x -> list administrative_instruction -> susholed x
-| SuPrompt (x: tagidx) : list value -> list value_type -> list (suselt x) -> (susholed x) -> list administrative_instruction -> susholed x
+Inductive susholed : Type :=
+| SuBase: list value -> list administrative_instruction -> susholed 
+| SuLabel: list value -> nat -> list administrative_instruction -> susholed -> list administrative_instruction -> susholed
+| SuLocal: list value -> nat -> frame -> susholed -> list administrative_instruction -> susholed
+| SuHandler: list value -> list exception_clause -> susholed -> list administrative_instruction -> susholed
+| SuPrompt: list value -> list value_type -> list (suselt) -> (susholed) -> list administrative_instruction -> susholed
 .
 
 
-Definition suslist_eq_dec x:
-  forall l1 l2 : list (suselt x), { l1 = l2 } + { l1 <> l2 }.
+Definition suslist_eq_dec:
+  forall l1 l2 : list (suselt), { l1 = l2 } + { l1 <> l2 }.
 Proof.
   decidable_equality.
-  apply suselt_eq_dec.
 Qed. 
 
-Definition susholed_eq_dec x:
-  forall sh1 sh2: susholed x, { sh1 = sh2 } + { sh1 <> sh2 }.
+Definition susholed_eq_dec:
+  forall sh1 sh2: susholed , { sh1 = sh2 } + { sh1 <> sh2 }.
 Proof.
+  decidable_equality.
+  (*
 induction sh1; destruct sh2; try by right.
   - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
     + remove_bools_options; subst; by left.
@@ -411,20 +415,21 @@ induction sh1; destruct sh2; try by right.
         done.
     + right; intros Habs'; inversion Habs'; subst.
       repeat rewrite eq_refl in Hb.
-      done.
+      done. *)
 Qed. 
 
 
-Inductive swelt : tagidx -> Type :=
-| SwSwitch (n : nat) : offset n -> swelt (Mk_tagidx n)
-| SwSuspend (x: tagidx) : tagidx -> immediate -> swelt x
+Inductive swelt : Type :=
+| SwSwitch: nat -> swelt
+| SwSuspend : tagidx -> immediate -> swelt
 .
 
 
 Lemma swelt_eq_dec :
-  forall p (o1 o2: swelt p), { o1 = o2 } + { o1 <> o2 }.
+  forall (o1 o2: swelt), { o1 = o2 } + { o1 <> o2 }.
 Proof.
-  intros. destruct o1.
+  decidable_equality.
+(*  intros. destruct o1.
   - set (k := Mk_tagidx n) in o2.
 
     pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
@@ -456,30 +461,30 @@ Proof.
     + destruct ((t == t0) && (i == i0)) eqn:Ht.
       * remove_bools_options; subst; by left.
       * right; intros H; inversion H.
-        subst; repeat rewrite eq_refl in Ht; done.
+        subst; repeat rewrite eq_refl in Ht; done. *)
 Qed. 
 
 
-Inductive swholed : tagidx -> Type :=
-| SwBase (x: tagidx) : list value -> list administrative_instruction -> swholed x
-| SwLabel (x: tagidx) : list value -> nat -> list administrative_instruction -> swholed x -> list administrative_instruction -> swholed x
-| SwLocal (x: tagidx) : list value -> nat -> frame -> swholed x -> list administrative_instruction -> swholed x
-| SwHandler (x: tagidx) : list value -> list exception_clause -> swholed x -> list administrative_instruction -> swholed x
-| SwPrompt (x: tagidx) : list value -> list value_type -> list (swelt x) -> swholed x -> list administrative_instruction -> swholed x
+Inductive swholed : Type :=
+| SwBase : list value -> list administrative_instruction -> swholed
+| SwLabel : list value -> nat -> list administrative_instruction -> swholed -> list administrative_instruction -> swholed
+| SwLocal  : list value -> nat -> frame -> swholed -> list administrative_instruction -> swholed
+| SwHandler  : list value -> list exception_clause -> swholed-> list administrative_instruction -> swholed
+| SwPrompt  : list value -> list value_type -> list (swelt) -> swholed-> list administrative_instruction -> swholed
 .
 
 
-Definition swlist_eq_dec x:
-  forall l1 l2 : list (swelt x), { l1 = l2 } + { l1 <> l2 }.
+Definition swlist_eq_dec:
+  forall l1 l2 : list (swelt), { l1 = l2 } + { l1 <> l2 }.
 Proof.
   decidable_equality.
-  apply swelt_eq_dec.
 Qed.
 
-Definition swholed_eq_dec x:
-  forall sh1 sh2: swholed x, { sh1 = sh2 } + { sh1 <> sh2 }.
+Definition swholed_eq_dec:
+  forall sh1 sh2: swholed, { sh1 = sh2 } + { sh1 <> sh2 }.
 Proof.
-  induction sh1; destruct sh2; try by right.
+  decidable_equality.
+(*  induction sh1; destruct sh2; try by right.
   - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
     + remove_bools_options; subst; by left.
     + right; intros Habs'; inversion Habs';
@@ -532,20 +537,21 @@ Proof.
         done.
     + right; intros Habs'; inversion Habs'; subst.
       repeat rewrite eq_refl in Hb.
-      done.
+      done. *)
 Qed.
 
 
-Inductive exnelt : tagidx -> Type :=
-| ExCatch (n : nat) : offset n -> immediate -> exnelt (Mk_tagidx n)
-| ExCatchRef (n : nat) : offset n -> immediate -> exnelt (Mk_tagidx n)
+Inductive exnelt : Type :=
+| ExCatch: nat -> immediate -> exnelt
+| ExCatchRef: nat -> immediate -> exnelt
 .
 
 
 Lemma exnelt_eq_dec :
-  forall p (o1 o2: exnelt p), { o1 = o2 } + { o1 <> o2 }.
+  forall (o1 o2: exnelt), { o1 = o2 } + { o1 <> o2 }.
 Proof.
-  intros. destruct o1.
+  decidable_equality.
+(*  intros. destruct o1.
   - set (k := Mk_tagidx n) in o2.
 
     pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
@@ -625,30 +631,30 @@ Proof.
       all: right; intro H; inversion H.
       done.
       all: apply Eqdep.EqdepTheory.inj_pair2 in H2.
-      all: done.
+      all: done. *)
 Qed. 
 
 
-Inductive exnholed : tagidx -> Type :=
-| ExBase (x: tagidx) : list value -> list administrative_instruction -> exnholed x
-| ExLabel (x: tagidx) : list value -> nat -> list administrative_instruction -> exnholed x -> list administrative_instruction -> exnholed x
-| ExLocal (x: tagidx) : list value -> nat -> frame -> exnholed x -> list administrative_instruction -> exnholed x
-| ExHandler (x: tagidx) : list value -> list (exnelt x) -> exnholed x -> list administrative_instruction -> exnholed x
-| ExPrompt (x: tagidx) : list value -> list value_type -> list continuation_clause -> exnholed x -> list administrative_instruction -> exnholed x
+Inductive exnholed : Type :=
+| ExBase  : list value -> list administrative_instruction -> exnholed
+| ExLabel  : list value -> nat -> list administrative_instruction -> exnholed -> list administrative_instruction -> exnholed
+| ExLocal  : list value -> nat -> frame -> exnholed -> list administrative_instruction -> exnholed
+| ExHandler  : list value -> list (exnelt) -> exnholed -> list administrative_instruction -> exnholed
+| ExPrompt  : list value -> list value_type -> list continuation_clause -> exnholed -> list administrative_instruction -> exnholed
 .
 
 
-Definition exnlist_eq_dec x:
-  forall l1 l2 : list (exnelt x), { l1 = l2 } + { l1 <> l2 }.
+Definition exnlist_eq_dec:
+  forall l1 l2 : list (exnelt), { l1 = l2 } + { l1 <> l2 }.
 Proof.
   decidable_equality.
-  apply exnelt_eq_dec.
 Qed.
 
-Definition exnholed_eq_dec x:
-  forall sh1 sh2: exnholed x, { sh1 = sh2 } + { sh1 <> sh2 }.
+Definition exnholed_eq_dec:
+  forall sh1 sh2: exnholed, { sh1 = sh2 } + { sh1 <> sh2 }.
 Proof.
-  induction sh1; destruct sh2; try by right.
+  decidable_equality.
+(*  induction sh1; destruct sh2; try by right.
   - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
     + remove_bools_options; subst; by left.
     + right; intros Habs'; inversion Habs';
@@ -701,7 +707,7 @@ Proof.
         done.
     + right; intros Habs'; inversion Habs'; subst.
       repeat rewrite eq_refl in Hb.
-      done.
+      done. *)
 Qed.
         
   
@@ -743,58 +749,67 @@ Fixpoint llfill lh es :=
       v_to_e_list bef ++ AI_handler hs (llfill lh es) :: aft
   end.
 
-Definition continuation_clause_of_suselt x (l: suselt x) :=
-  let '(Mk_tagidx x) := x in
+Definition continuation_clause_of_suselt '(Mk_tagidx x) (l: suselt) :=
   match l with
-  | SuSuspend _ (OMinusS _ x') i => DC_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
-  | SuSuspend _ (OPlusS _ x') i => DC_catch (Mk_tagidx (x + S x')) i 
-  | SuSwitch _ y => DC_switch y 
+  | SuSuspend x' i =>
+      if (Nat.ltb x' x) then DC_catch (Mk_tagidx x') i
+      else DC_catch (Mk_tagidx (S x')) i
+(*  | SuSuspend _ (OMinusS _ x') i => DC_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
+  | SuSuspend _ (OPlusS _ x') i => DC_catch (Mk_tagidx (x + S x')) i  *)
+  | SuSwitch y => DC_switch y 
   end.
 
-Fixpoint susfill {x: tagidx} (lh: susholed x) es :=
+Fixpoint susfill x (lh: susholed) es :=
   match lh with
-  | SuBase x bef aft => v_to_e_list bef ++ es ++ aft
-  | SuLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (susfill lh es) :: aft
-  | SuLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (susfill lh es) :: aft
-  | SuPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_suselt (x := x)) hs) (susfill lh es) :: aft
-  | SuHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler hs (susfill lh es) :: aft
+  | SuBase bef aft => v_to_e_list bef ++ es ++ aft
+  | SuLabel bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (susfill x lh es) :: aft
+  | SuLocal bef n f lh aft => v_to_e_list bef ++ AI_local n f (susfill x lh es) :: aft
+  | SuPrompt bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_suselt x) hs) (susfill x lh es) :: aft
+  | SuHandler bef hs lh aft => v_to_e_list bef ++ AI_handler hs (susfill x lh es) :: aft
   end.
 
-Definition continuation_clause_of_swelt x (l: swelt x) :=
-  let '(Mk_tagidx x) := x in
+Definition continuation_clause_of_swelt '(Mk_tagidx x) (l: swelt) :=
   match l with
-  | SwSwitch _ (OMinusS _ x') => DC_switch (Mk_tagidx (x - S (nat_of_capped_nat x')))
-  | SwSwitch _ (OPlusS _ x') => DC_switch (Mk_tagidx (x + S x'))
-  | SwSuspend _ y i => DC_catch y i 
+  | SwSwitch x' =>
+      if (Nat.ltb x' x) then DC_switch (Mk_tagidx x')
+      else DC_switch (Mk_tagidx (S x'))
+(*  | SwSwitch _ (OMinusS _ x') => DC_switch (Mk_tagidx (x - S (nat_of_capped_nat x')))
+  | SwSwitch _ (OPlusS _ x') => DC_switch (Mk_tagidx (x + S x')) *)
+  | SwSuspend y i => DC_catch y i 
   end.
 
-Fixpoint swfill {x: tagidx} (lh: swholed x) es :=
+Fixpoint swfill (x: tagidx) (lh: swholed) es :=
   match lh with
-  | SwBase x bef aft => v_to_e_list bef ++ es ++ aft
-  | SwLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (swfill lh es) :: aft
-  | SwLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (swfill lh es) :: aft
-  | SwPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_swelt (x := x)) hs) (swfill lh es) :: aft
-  | SwHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler hs (swfill lh es) :: aft
+  | SwBase bef aft => v_to_e_list bef ++ es ++ aft
+  | SwLabel bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (swfill x lh es) :: aft
+  | SwLocal bef n f lh aft => v_to_e_list bef ++ AI_local n f (swfill x lh es) :: aft
+  | SwPrompt bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_swelt x) hs) (swfill x lh es) :: aft
+  | SwHandler bef hs lh aft => v_to_e_list bef ++ AI_handler hs (swfill x lh es) :: aft
   end.
 
 
-Definition exception_clause_of_exnelt x (l : exnelt x) :=
-  let '(Mk_tagidx x) := x in
+Definition exception_clause_of_exnelt '(Mk_tagidx x) (l : exnelt) :=
   match l with
-  | ExCatch _ (OMinusS _ x') i => DE_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
+  | ExCatch x' i =>
+      if (Nat.ltb x' x) then DE_catch (Mk_tagidx x') i
+      else DE_catch (Mk_tagidx (S x')) i
+  | ExCatchRef x' i =>
+      if (Nat.ltb x' x) then DE_catch_ref (Mk_tagidx x') i
+      else DE_catch_ref (Mk_tagidx (S x')) i
+(*  | ExCatch _ (OMinusS _ x') i => DE_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
   | ExCatch _ (OPlusS _ x') i => DE_catch (Mk_tagidx (x + S x')) i 
   | ExCatchRef _ (OMinusS _ x') i => DE_catch_ref (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
-  | ExCatchRef _ (OPlusS _ x') i => DE_catch_ref (Mk_tagidx (x + S x')) i 
+  | ExCatchRef _ (OPlusS _ x') i => DE_catch_ref (Mk_tagidx (x + S x')) i  *)
   end. 
 
 
-Fixpoint exnfill {x: tagidx} (lh: exnholed x) es :=
+Fixpoint exnfill (x: tagidx) (lh: exnholed) es :=
   match lh with
-  | ExBase x bef aft => v_to_e_list bef ++ es ++ aft
-  | ExLabel x bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (exnfill lh es) :: aft
-  | ExLocal x bef n f lh aft => v_to_e_list bef ++ AI_local n f (exnfill lh es) :: aft
-  | ExPrompt x bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf hs (exnfill lh es) :: aft
-  | ExHandler x bef hs lh aft => v_to_e_list bef ++ AI_handler (map (exception_clause_of_exnelt (x := x)) hs) (exnfill lh es) :: aft
+  | ExBase bef aft => v_to_e_list bef ++ es ++ aft
+  | ExLabel bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (exnfill x lh es) :: aft
+  | ExLocal bef n f lh aft => v_to_e_list bef ++ AI_local n f (exnfill x lh es) :: aft
+  | ExPrompt bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf hs (exnfill x lh es) :: aft
+  | ExHandler bef hs lh aft => v_to_e_list bef ++ AI_handler (map (exception_clause_of_exnelt x) hs) (exnfill x lh es) :: aft
   end.
 
 
@@ -819,60 +834,60 @@ Definition sh_append sh expr :=
       SH_handler bef hs sh (aft ++ expr)
   end.
 
-Definition sus_push_const {x : tagidx} (sh: susholed x) vs :=
+Definition sus_push_const (sh: susholed) vs :=
   match sh with
-  | SuBase x bef aft => SuBase x (vs ++ bef) aft
-  | SuLabel x bef n es sh aft => SuLabel (x := x) (vs ++ bef) n es sh aft
-  | SuLocal x bef n f sh aft => SuLocal (x := x) (vs ++ bef) n f sh aft
-  | SuPrompt x bef tf hs sh aft => SuPrompt (x := x) (vs ++ bef) tf hs sh aft
-  | SuHandler x bef hs sh aft => SuHandler (x := x) (vs ++ bef) hs sh aft
+  | SuBase bef aft => SuBase (vs ++ bef) aft
+  | SuLabel bef n es sh aft => SuLabel (vs ++ bef) n es sh aft
+  | SuLocal bef n f sh aft => SuLocal (vs ++ bef) n f sh aft
+  | SuPrompt bef tf hs sh aft => SuPrompt (vs ++ bef) tf hs sh aft
+  | SuHandler bef hs sh aft => SuHandler (vs ++ bef) hs sh aft
   end.
 
-Definition sus_append {x : tagidx} (sh: susholed x) expr :=
+Definition sus_append (sh: susholed) expr :=
   match sh with
-  | SuBase x bef aft => SuBase x bef (aft ++ expr)
-  | SuLabel x bef n es sh aft => SuLabel bef n es sh (aft ++ expr)
-  | SuLocal x bef n f sh aft => SuLocal bef n f sh (aft ++ expr)
-  | SuPrompt x bef tf hs sh aft => SuPrompt bef tf hs sh (aft ++ expr)
-  | SuHandler x bef hs sh aft => SuHandler bef hs sh (aft ++ expr)
-  end.
-
-
-Definition sw_push_const {x : tagidx} (sh: swholed x) vs :=
-  match sh with
-  | SwBase x bef aft => SwBase x (vs ++ bef) aft
-  | SwLabel x bef n es sh aft => SwLabel (x := x) (vs ++ bef) n es sh aft
-  | SwLocal x bef n f sh aft => SwLocal (x := x) (vs ++ bef) n f sh aft
-  | SwPrompt x bef tf hs sh aft => SwPrompt (x := x) (vs ++ bef) tf hs sh aft
-  | SwHandler x bef hs sh aft => SwHandler (x := x) (vs ++ bef) hs sh aft
-  end.
-
-Definition sw_append {x : tagidx} (sh: swholed x) expr :=
-  match sh with
-  | SwBase x bef aft => SwBase x bef (aft ++ expr)
-  | SwLabel x bef n es sh aft => SwLabel bef n es sh (aft ++ expr)
-  | SwLocal x bef n f sh aft => SwLocal bef n f sh (aft ++ expr)
-  | SwPrompt x bef tf hs sh aft => SwPrompt bef tf hs sh (aft ++ expr)
-  | SwHandler x bef hs sh aft => SwHandler bef hs sh (aft ++ expr)
+  | SuBase bef aft => SuBase bef (aft ++ expr)
+  | SuLabel bef n es sh aft => SuLabel bef n es sh (aft ++ expr)
+  | SuLocal bef n f sh aft => SuLocal bef n f sh (aft ++ expr)
+  | SuPrompt bef tf hs sh aft => SuPrompt bef tf hs sh (aft ++ expr)
+  | SuHandler bef hs sh aft => SuHandler bef hs sh (aft ++ expr)
   end.
 
 
-Definition exn_push_const {x : tagidx} (sh: exnholed x) vs :=
+Definition sw_push_const (sh: swholed) vs :=
   match sh with
-  | ExBase x bef aft => ExBase x (vs ++ bef) aft
-  | ExLabel x bef n es sh aft => ExLabel (x := x) (vs ++ bef) n es sh aft
-  | ExLocal x bef n f sh aft => ExLocal (x := x) (vs ++ bef) n f sh aft
-  | ExPrompt x bef tf hs sh aft => ExPrompt (x := x) (vs ++ bef) tf hs sh aft
-  | ExHandler x bef hs sh aft => ExHandler (x := x) (vs ++ bef) hs sh aft
+  | SwBase bef aft => SwBase (vs ++ bef) aft
+  | SwLabel bef n es sh aft => SwLabel (vs ++ bef) n es sh aft
+  | SwLocal bef n f sh aft => SwLocal (vs ++ bef) n f sh aft
+  | SwPrompt bef tf hs sh aft => SwPrompt (vs ++ bef) tf hs sh aft
+  | SwHandler bef hs sh aft => SwHandler (vs ++ bef) hs sh aft
   end.
 
-Definition exn_append {x : tagidx} (sh: exnholed x) expr :=
+Definition sw_append (sh: swholed) expr :=
   match sh with
-  | ExBase x bef aft => ExBase x bef (aft ++ expr)
-  | ExLabel x bef n es sh aft => ExLabel bef n es sh (aft ++ expr)
-  | ExLocal x bef n f sh aft => ExLocal bef n f sh (aft ++ expr)
-  | ExPrompt x bef tf hs sh aft => ExPrompt bef tf hs sh (aft ++ expr)
-  | ExHandler x bef hs sh aft => ExHandler bef hs sh (aft ++ expr)
+  | SwBase bef aft => SwBase bef (aft ++ expr)
+  | SwLabel bef n es sh aft => SwLabel bef n es sh (aft ++ expr)
+  | SwLocal bef n f sh aft => SwLocal bef n f sh (aft ++ expr)
+  | SwPrompt bef tf hs sh aft => SwPrompt bef tf hs sh (aft ++ expr)
+  | SwHandler bef hs sh aft => SwHandler bef hs sh (aft ++ expr)
+  end.
+
+
+Definition exn_push_const (sh: exnholed) vs :=
+  match sh with
+  | ExBase bef aft => ExBase (vs ++ bef) aft
+  | ExLabel bef n es sh aft => ExLabel (vs ++ bef) n es sh aft
+  | ExLocal bef n f sh aft => ExLocal (vs ++ bef) n f sh aft
+  | ExPrompt bef tf hs sh aft => ExPrompt (vs ++ bef) tf hs sh aft
+  | ExHandler bef hs sh aft => ExHandler (vs ++ bef) hs sh aft
+  end.
+
+Definition exn_append (sh: exnholed) expr :=
+  match sh with
+  | ExBase bef aft => ExBase bef (aft ++ expr)
+  | ExLabel bef n es sh aft => ExLabel bef n es sh (aft ++ expr)
+  | ExLocal bef n f sh aft => ExLocal bef n f sh (aft ++ expr)
+  | ExPrompt bef tf hs sh aft => ExPrompt bef tf hs sh (aft ++ expr)
+  | ExHandler bef hs sh aft => ExHandler bef hs sh (aft ++ expr)
   end. 
 
 Definition vh_push_const n (vh : valid_holed n) vs :=
