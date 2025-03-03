@@ -20,12 +20,9 @@ Inductive val : Type :=
 | brV (i : nat) (lh : valid_holed i) : val
 | retV : simple_valid_holed -> val
 | callHostV : function_type -> hostfuncidx -> seq.seq value -> llholed -> val
-.
-
-Inductive eff : Type :=
-| susE (k: immediate) (i : tagidx) (sh: susholed) : eff
-| swE (k: immediate) (tf: function_type) (i : tagidx) (sh: swholed) : eff
-| thrE (a : immediate) (i: tagidx) (sh: exnholed) : eff
+| susV (i : tagidx) (sh: susholed) : val
+| swV (tf: function_type) (i : tagidx) (sh: swholed) : val
+| thrV (a : immediate) (i: tagidx) (sh: exnholed) : val
 .
 
 Definition val_eq_dec : forall v1 v2: val, {v1 = v2} + {v1 <> v2}.
@@ -47,25 +44,19 @@ Proof.
   - destruct (function_type_eq_dec f f0), (llholed_eq_dec l0 l2),
       (hostfuncidx_eq_dec h h0), (decide (l = l1)) ;subst; try by right;congruence.
     by left.
-Defined.
-
-Definition eff_eq_dec: forall e1 e2: eff, {e1 = e2} + {e1 <> e2}.
-Proof.
-  intros e1 e2; destruct e1,e2; auto.
-  - destruct ((k == k0) && (i == i0)) eqn:Hi.
-    + remove_bools_options; subst.
-      destruct (susholed_eq_dec sh sh0).
+  - destruct (i == i0) eqn:Hi.
+    + move/eqP in Hi; subst i0. destruct (susholed_eq_dec sh sh0).
       * subst. by left.
       * right. intros Habs; inversion Habs.
         done.
-    + right. intros Habs; inversion Habs. subst.
-      repeat rewrite eq_refl in Hi => //.
-  - destruct ((k == k0) && (tf == tf0) && (i == i0)) eqn:H.
+    + right. intros Habs; inversion Habs. subst i0.
+      rewrite eq_refl in Hi => //.
+  - destruct ((tf == tf0) && (i == i0)) eqn:H.
     + remove_bools_options; subst i0 tf0. destruct (swholed_eq_dec sh sh0).
       * subst. by left.
       * right. intros Habs; inversion Habs.
         done.
-    + right. intros Habs; inversion Habs. subst.
+    + right. intros Habs; inversion Habs. subst i0 tf0.
       repeat rewrite eq_refl in H => //.
   - destruct ((a == a0) && (i == i0)) eqn:H.
     + remove_bools_options; subst i0 a0. destruct (exnholed_eq_dec sh sh0).
@@ -95,13 +86,9 @@ Definition of_val (v : val) : expr :=
   | brV i vh => vfill vh [AI_basic (BI_br i)]
   | retV sh => sfill sh [AI_basic BI_return]
   | callHostV tf h vcs sh => llfill sh [AI_call_host tf h vcs]
-  end. 
-
-Definition of_eff (e : eff) : expr :=
-  match e with 
-  | susE k i sh => susfill i sh [AI_ref_cont k; AI_suspend_desugared i]
-  | swE k tf i sh => swfill i sh [AI_ref_cont k; AI_switch_desugared tf i]
-  | thrE a i sh => exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref]
+  | susV i sh => susfill i sh [AI_suspend_desugared i]
+  | swV tf i sh => swfill i sh [AI_switch_desugared tf i]
+  | thrV a i sh => exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref]
   end.
 
 Lemma of_val_imm (vs : list value) :
@@ -111,7 +98,6 @@ Proof. done. Qed.
 (* The following operation mirrors the opsem of AI_trap *)
 (* in which a trap value swallows all other stack values *)
 (* and the opsem of br and return, which skips over all subsequent expressions *)
-(*
 Definition val_combine (v1 v2 : val) :=
   match v1 with
   | immV l => match v2 with
@@ -120,39 +106,32 @@ Definition val_combine (v1 v2 : val) :=
              | brV i vh => brV (vh_push_const vh l)
              | retV lh => retV (sh_push_const lh l)
              | callHostV tf h cvs sh => callHostV tf h cvs (llh_push_const sh l)
-(*             | susV i sh => susV i (sus_push_const sh l)
+             | susV i sh => susV i (sus_push_const sh l)
              | swV tf i sh => swV tf i (sw_push_const sh l)
-             | thrV a i sh => thrV a i (exn_push_const sh l) *)
+             | thrV a i sh => thrV a i (exn_push_const sh l)
              end
   | trapV => trapV
   | brV i vh => brV (vh_append vh (of_val v2))
   | retV lh => retV (sh_append lh (of_val v2))
   | callHostV tf h vcs sh => callHostV tf h vcs (llh_append sh (of_val v2))
-(*  | susV i sh => susV i (sus_append sh (of_val v2))
+  | susV i sh => susV i (sus_append sh (of_val v2))
   | swV tf i sh => swV tf i (sw_append sh (of_val v2))
-  | thrV a i sh => thrV a i (exn_append sh (of_val v2)) *)
+  | thrV a i sh => thrV a i (exn_append sh (of_val v2))
   end.
-*)
 
 (* Intuitively, when writing [NotVal e], we intend to mean e is not a value.
    This is however not enforced by the syntax *)
 Inductive ValNotVal :=
   Val : val -> ValNotVal
-| Eff : eff -> ValNotVal
 | NotVal : expr -> ValNotVal
 | ThrowRef : expr -> ValNotVal
-| Suspend : tagidx -> expr -> ValNotVal
-| Switch : function_type -> tagidx -> expr -> ValNotVal
 .
 
 Definition expr_of_val_not_val x :=
   match x with
   | Val v => of_val v
-  | Eff e => of_eff e
   | NotVal e => e
   | ThrowRef es => AI_basic BI_throw_ref :: es
-  | Suspend i es => AI_suspend_desugared i :: es
-  | Switch tf i es => AI_switch_desugared tf i :: es
   end.
 
 Lemma expr_of_val_of_val_not_val v :
@@ -162,95 +141,66 @@ Proof. done. Qed.
 Definition val_of_val_not_val x :=
   match x with
   | Val v => Some v
-  | _ => None
+  | NotVal _ => None
+  | ThrowRef _ => None 
   end.
 
 
 
-(* Combining two ValNotVals. It is intended that combining will yield a ValNotVal 
+(* Combining a val and a ValNotVal. It is intended that combining will yield a ValNotVal 
    representinig the concatenation of the function arguments, and verifies our
    invariant that [NotVal e] is used only when e is not a value *)
-Definition val_not_val_combine (v1 : ValNotVal) (v2 : ValNotVal) : ValNotVal :=
+Definition val_not_val_combine (v1 : val) (v2 : ValNotVal) : ValNotVal :=
   match v1 with
-  | Val (immV l) =>
-      match v2 with
-      | Val (immV l') => Val (immV (l ++ l'))
-      | Val trapV => match l with
-                    | [] => Val trapV
-                    | _ => NotVal (v_to_e_list l ++ [AI_trap])
-                    end
-      | Val (brV i vh) => Val (brV (vh_push_const vh l))
-      | Val (retV lh) => Val (retV (sh_push_const lh l))
-      | Val (callHostV tf h vcs lh) => Val (callHostV tf h vcs (llh_push_const lh l))
-      | Eff (susE k i sh) => Eff (susE k i (sus_push_const sh l))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (sw_push_const sh l))
-      | Eff (thrE a i sh) => Eff (thrE a i (exn_push_const sh l))
-      | ThrowRef es =>
-          match separate_last l with
-          | Some (l, VAL_ref (VAL_ref_exn a i)) =>
-              Eff (thrE a i (ExBase l es))
-          | None => ThrowRef es
-          | _ => NotVal (v_to_e_list l ++ [:: AI_basic BI_throw_ref] ++ es)
-          end
-      | Suspend i es =>
-          match separate_last l with
-          | Some (l, VAL_ref (VAL_ref_cont k)) =>
-              Eff (susE k i (SuBase l es))
-          | None => Suspend i es
-          | _ => NotVal (v_to_e_list l ++ AI_suspend_desugared i :: es)
-          end
-      | Switch tf i es =>
-          match separate_last l with
-          | Some (l, VAL_ref (VAL_ref_cont k)) =>
-              Eff (swE k tf i (SwBase l es))
-          | None => Switch tf i es
-          | _ => NotVal (v_to_e_list l ++ AI_switch_desugared tf i :: es)
-          end
-      | NotVal e => NotVal (v_to_e_list l ++ e)
-      end
-  | Val trapV => match expr_of_val_not_val v2 with
+  | immV l => match v2 with
+             | Val (immV l') => Val (immV (l ++ l'))
+             | Val trapV => match l with
+                           | [] => Val trapV
+                           | _ => NotVal (v_to_e_list l ++ [AI_trap])
+                           end
+             | Val (brV i vh) => Val (brV (vh_push_const vh l))
+             | Val (retV lh) => Val (retV (sh_push_const lh l))
+             | Val (callHostV tf h vcs lh) => Val (callHostV tf h vcs (llh_push_const lh l))
+             | Val (susV i sh) => Val (susV i (sus_push_const sh l))
+             | Val (swV tf i sh) => Val (swV tf i (sw_push_const sh l))
+             | Val (thrV a i sh) => Val (thrV a i (exn_push_const sh l))
+             | ThrowRef es =>
+                 match separate_last l with
+                 | Some (l, VAL_ref (VAL_ref_exn a i)) =>
+                     Val (thrV a i (ExBase l es))
+                 | None => ThrowRef es
+                 | _ => NotVal (v_to_e_list l ++ [:: AI_basic BI_throw_ref] ++ es)
+                 end
+             | NotVal e => NotVal (v_to_e_list l ++ e)
+             end
+  | trapV => match expr_of_val_not_val v2 with
               [] => Val trapV
             | _ => NotVal (AI_trap :: expr_of_val_not_val v2)
             end
-  | Val (brV i vh) =>
+  | brV i vh =>
       Val (brV (vh_append vh (expr_of_val_not_val v2)))
-  | Val (retV lh) =>
+  | retV lh =>
       Val (retV (sh_append lh (expr_of_val_not_val v2)))
-  | Val (callHostV tf h vcs lh) =>
+  | callHostV tf h vcs lh =>
       Val (callHostV tf h vcs (llh_append lh (expr_of_val_not_val v2)))
-  | Eff (susE k i sh) =>
-      Eff (susE k i (sus_append sh (expr_of_val_not_val v2)))
-  | Eff (swE k tf i sh) =>
-      Eff (swE k tf i (sw_append sh (expr_of_val_not_val v2)))
-  | Eff (thrE a i sh) =>
-      Eff (thrE a i (exn_append sh (expr_of_val_not_val v2)))
-  | ThrowRef es =>
-      ThrowRef (es ++ expr_of_val_not_val v2)
-  | Suspend i es =>
-      Suspend i (es ++ expr_of_val_not_val v2)
-  | Switch tf i es =>
-      Switch tf i (es ++ expr_of_val_not_val v2)
-  | NotVal es =>
-      NotVal (es ++ expr_of_val_not_val v2)
+  | susV i sh =>
+      Val (susV i (sus_append sh (expr_of_val_not_val v2)))
+  | swV tf i sh =>
+      Val (swV tf i (sw_append sh (expr_of_val_not_val v2)))
+  | thrV a i sh =>
+      Val (thrV a i (exn_append sh (expr_of_val_not_val v2)))
   end.
 
-
-Definition merge_values vs :=
-  fold_left val_not_val_combine vs (Val (immV [])).
-
-(*
 (* performs a fold_left on a list of ValNotVals. Aborts if a NotVal is reached *)
 Fixpoint merge_values (v : val) (vs : list ValNotVal) : ValNotVal  :=
   match vs with
   | [] => Val v
   | a :: vs => match val_not_val_combine v a with
              | Val v => merge_values v vs
-             | Eff e => val_not_val_combin 
              | ThrowRef es => ThrowRef (es ++ flatten (map expr_of_val_not_val vs))
              | NotVal e => NotVal (e ++ flatten (map expr_of_val_not_val vs))  end
   end.
-*)
-(*
+
 Definition merge_values_list vs :=
   match vs with
   | Val v :: vs => merge_values v vs
@@ -258,7 +208,6 @@ Definition merge_values_list vs :=
   | ThrowRef es :: vs => ThrowRef (es ++ flatten (map expr_of_val_not_val vs))
   | _ => NotVal (flatten (map expr_of_val_not_val vs))
   end.
-*)
 
 (*
 Fixpoint capped_nat_of_nat cap n :=
@@ -745,8 +694,8 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
   | AI_trap => Val trapV
   | AI_basic (BI_br i) => Val (brV (VH_base i [] []))
   | AI_basic BI_return => Val (retV (SH_base [] []))
-  | AI_suspend_desugared i => Suspend i [::]
-  | AI_switch_desugared tf i => Switch tf i [::]
+  | AI_suspend_desugared i => Val (susV i (SuBase [] []))
+  | AI_switch_desugared tf i => Val (swV tf i (SwBase [] []))
   | AI_basic BI_throw_ref => ThrowRef [::]
   | AI_basic (BI_const v) => Val (immV [VAL_num v])
   | AI_basic (BI_ref_null r) => Val (immV [VAL_ref (VAL_ref_null r)])
@@ -754,7 +703,7 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
   | AI_ref_cont f => Val (immV [VAL_ref (VAL_ref_cont f)])
   | AI_ref_exn e i => Val (immV [VAL_ref (VAL_ref_exn e i)])
   | AI_label n labe es =>
-      match merge_values (map to_val_instr es) with
+      match merge_values_list (map to_val_instr es) with
       | Val (brV i vh) => 
           match vh_decrease (VH_rec [] n labe vh []) with
           | Some vh' => Val (brV vh')
@@ -762,46 +711,46 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
           end 
       | Val (retV lh) => Val (retV (SH_rec [] n labe lh []))
       | Val (callHostV tf h cvs lh) => Val (callHostV tf h cvs (LL_label [] n labe lh []))
-      | Eff (susE k i sh) => Eff (susE k i (SuLabel [] n labe sh []))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (SwLabel [] n labe sh []))
-      | Eff (thrE a i sh) => Eff (thrE a i (ExLabel [] n labe sh []))
+      | Val (susV i sh) => Val (susV i (SuLabel [] n labe sh []))
+      | Val (swV tf i sh) => Val (swV tf i (SwLabel [] n labe sh []))
+      | Val (thrV a i sh) => Val (thrV a i (ExLabel [] n labe sh []))
       | _ => NotVal [instr]
       end
  | AI_local n f es =>
-      match merge_values (map to_val_instr es) with
+      match merge_values_list (map to_val_instr es) with
       | Val (callHostV tf h cvs sh) =>
           Val (callHostV tf h cvs (LL_local [] n f sh []))
-      | Eff (susE k i sh) => Eff (susE k i (SuLocal [] n f sh []))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (SwLocal [] n f sh []))
-      | Eff (thrE a i sh) => Eff (thrE a i (ExLocal [] n f sh []))
+      | Val (susV i sh) => Val (susV i (SuLocal [] n f sh []))
+      | Val (swV tf i sh) => Val (swV tf i (SwLocal [] n f sh []))
+      | Val (thrV a i sh) => Val (thrV a i (ExLocal [] n f sh []))
       | _ => NotVal [instr]
       end 
   | AI_call_host tf h cvs => Val (callHostV tf h cvs (LL_base [] []))
   | AI_prompt ts hs es =>
-      match merge_values (map to_val_instr es) with
+      match merge_values_list (map to_val_instr es) with
       | Val (brV i vh) => Val (brV (VH_prompt [] ts hs vh []))
       | Val (retV lh) => Val (retV (SH_prompt [] ts hs lh []))
       | Val (callHostV tf h cvs lh) => Val (callHostV tf h cvs (LL_prompt []  ts hs lh []))
-      | Eff (susE k i sh) => match suselts_of_continuation_clauses hs i with
-                          | Some hs' => Eff (susE k i (SuPrompt [] ts hs' sh []))
+      | Val (susV i sh) => match suselts_of_continuation_clauses hs i with
+                          | Some hs' => Val (susV i (SuPrompt [] ts hs' sh []))
                           | None => NotVal [instr]
                           end
-      | Eff (swE k tf i sh) => match swelts_of_continuation_clauses hs i with
-                            | Some hs' => Eff (swE k tf i (SwPrompt [] ts hs' sh []))
+      | Val (swV tf i sh) => match swelts_of_continuation_clauses hs i with
+                            | Some hs' => Val (swV tf i (SwPrompt [] ts hs' sh []))
                             | None => NotVal [instr]
                             end
-      | Eff (thrE a i sh) => Eff (thrE a i (ExPrompt [] ts hs sh []))
+      | Val (thrV a i sh) => Val (thrV a i (ExPrompt [] ts hs sh []))
       | _ => NotVal [instr]
       end
   | AI_handler hs es =>
-      match merge_values (map to_val_instr es) with
+      match merge_values_list (map to_val_instr es) with
       | Val (brV i vh) => Val (brV (VH_handler [] hs vh []))
       | Val (retV lh) => Val (retV (SH_handler [] hs lh []))
       | Val (callHostV tf h cvs lh) => Val (callHostV tf h cvs (LL_handler [] hs lh []))
-      | Eff (susE k i sh) => Eff (susE k i (SuHandler [] hs sh []))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (SwHandler [] hs sh []))
-      | Eff (thrE a i sh) => match exnelts_of_exception_clauses hs i with
-                            | Some hs' => Eff (thrE a i (ExHandler [] hs' sh []))
+      | Val (susV i sh) => Val (susV i (SuHandler [] hs sh []))
+      | Val (swV tf i sh) => Val (swV tf i (SwHandler [] hs sh []))
+      | Val (thrV a i sh) => match exnelts_of_exception_clauses hs i with
+                            | Some hs' => Val (thrV a i (ExHandler [] hs' sh []))
                             | None => NotVal [instr]
                             end
       | _ => NotVal [instr]
@@ -810,14 +759,8 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
   end.
 
 Definition to_val (e : expr) : option val :=
-  match merge_values (map to_val_instr e) with
+  match merge_values_list (map to_val_instr e) with
   | Val v => Some v
-  | _ => None
-  end.
-
-Definition to_eff (e : expr) : option eff :=
-  match merge_values (map to_val_instr e) with
-  | Eff e => Some e
   | _ => None
   end.
 
@@ -828,140 +771,64 @@ Definition prim_step (e : expr) (s : state) (os : list observation) (e' : expr) 
 
   
 Lemma val_not_val_combine_app v1 v2 :
-  expr_of_val_not_val (val_not_val_combine v1 v2) = expr_of_val_not_val v1 ++ expr_of_val_not_val v2.
+  expr_of_val_not_val (val_not_val_combine v1 v2) = of_val v1 ++ expr_of_val_not_val v2.
 Proof.
   intros.
   destruct v1, v2 => //=.
-  all: try destruct v => //=.
-  all: try destruct e => //=.
-  all: try destruct v0 => //=. 
+  destruct v => //=.
   by rewrite - v_to_e_cat.
-  all: try by destruct l => //=.
-  all: try by destruct lh => //= ; rewrite - v_to_e_cat ; by rewrite app_assoc.
+  destruct l => //=.
+  destruct lh => //= ; rewrite - v_to_e_cat ; by rewrite app_assoc.
   all : try by destruct s => //= ; rewrite - v_to_e_cat ; by rewrite app_assoc.
-(*  all : try by destruct (of_val v) => //=. *)
-(*  all : try by destruct e => //=. *)
+  all : try by destruct (of_val v) => //=.
+  all : try by destruct e => //=.
   all : try by destruct lh => //= ; rewrite app_comm_cons ; rewrite app_assoc.
   all : try by destruct s => //= ; rewrite app_comm_cons ; rewrite app_assoc.
   all : try by destruct l0 => //= ; rewrite app_comm_cons ; rewrite app_assoc.
   all : try by destruct l1 => //= ; rewrite - v_to_e_cat ; rewrite app_assoc.
-(*  all : try by destruct sh => //=; rewrite app_comm_cons app_assoc. *)
+  all : try by destruct sh => //=; rewrite app_comm_cons app_assoc.
   all : try by destruct sh => //=; rewrite -v_to_e_cat app_assoc.
   all: try by destruct sh => //=; rewrite -app_assoc.
-  destruct (vfill _ _) => //.
-  destruct (sfill _ _) => //.
-  destruct (llfill _ _) => //.
-  destruct (susfill _ _ _) => //.
-  destruct (swfill _ _ _) => //.
-  destruct (exnfill _ _ _) => //. 
-  all: destruct (separate_last l) as [[l' x]|] eqn:Hl.
-  all: try by apply separate_last_None in Hl; subst.
-  all: destruct x => //.
-  all: destruct v => //=.
-  all: apply separate_last_spec in Hl.
-  all: subst l.
-  all: rewrite -v_to_e_cat.
-  all: rewrite -app_assoc.
-  all: done.
+  destruct (separate_last l) as [[l' x]|] eqn:Hl.
+    - destruct x => //.
+      destruct v => //=.
+      apply separate_last_spec in Hl. subst l.
+      rewrite -v_to_e_cat. rewrite -app_assoc.
+      done.
+    - apply separate_last_None in Hl. subst l.
+      done. 
 Qed.
 
 (* if we write val_not_val_combine_assoc v1 v2 as v1 + v2, this lemma is just plain
-   associativity : v1 + (v2 + x) = (v1 + v2) + x. Because of typing, the phrasing used to be 
+   associativity : v1 + (v2 + x) = (v1 + v2) + x. Because of typing, the phrasing is
    a little more complicated *)
 Lemma val_not_val_combine_assoc v1 v2 x :
-  val_not_val_combine v1 (val_not_val_combine v2 x) =
-    val_not_val_combine (val_not_val_combine v1 v2) x.
-(*    match val_not_val_combine v1 (Val v2) with
+  val_not_val_combine v1 (val_not_val_combine v2 x) = 
+    match val_not_val_combine v1 (Val v2) with
     | Val v3 => val_not_val_combine v3 x
     | NotVal es => NotVal (es ++ expr_of_val_not_val x)
     | ThrowRef es => ThrowRef (es ++ expr_of_val_not_val x)
-    end. *)
+    end.
 Proof.
-  (* might this be simpler? *)
-(*  unfold val_not_val_combine.
-  destruct v1 => //=.
-  - destruct v => //=.
-    + destruct v2 => //=.
-      * destruct v => //=.
-        -- destruct x => //=.
-           ++ destruct v => //=.
-              ** by rewrite catA.
-              ** destruct l0 => //=.
-                 --- destruct l => //=.
-                     by rewrite cats0.
-                 --- destruct l => //=.
-                     rewrite -v_to_e_cat. *)
   
-  
-  destruct v1 as [[ vs1 | | n1 vh1 | sh1 | tf1 h1 vcs1 llh1] |[ k1 i1 sh1 | k1 tf1 i1 sh1 | a1 i1 sh1 ] | es1 | es1 | i1 es1 | tf1 i1 es1 ] ,
-      v2 as [[ vs2 | | n2 vh2 | sh2 | tf2 h2 vcs2 llh2 ]|[ k2 i2 sh2 | k2 tf2 i2 sh2 | a2 i2 sh2] | es2 | es2 | i2 es2 | tf2 i2 es2 ],
-        x as [[ vs0 | | n0 vh0 | sh0 | tf0 h0 vcs0 llh0] | [k0 i0 sh0 | k0 tf0 i0 sh0 | a0 i0 sh0 ] | es0 | es0 | i0 es0 | tf0 i0 es0 ].
+  destruct v1 as [ vs1 | | n1 vh1 | sh1 | tf1 h1 vcs1 llh1 | i1 sh1 | tf1 i1 sh1 | a1 i1 sh1 ],
+      v2 as [ vs2 | | n2 vh2 | sh2 | tf2 h2 vcs2 llh2 | i2 sh2 | tf2 i2 sh2 | a2 i2 sh2 ],
+          x as [[ vs0 | | n0 vh0 | sh0 | tf0 h0 vcs0 llh0 | i0 sh0 | tf0 i0 sh0 | a0 i0 sh0 ] | es0 | ].
 
+  10:{ simpl.
+       destruct (separate_last vs2) as [[??] |] eqn:Hlast.
+       - destruct v => //=.
+         2: destruct v => //=. 
+         all: repeat rewrite cat_app.
+         all: erewrite separate_last_app; last exact Hlast.
+         all: simpl; try done.
+         all: rewrite -v_to_e_cat.
+         all: rewrite cat_app.
+         all: rewrite app_assoc.
+         all: done.
+       - apply separate_last_None in Hlast as ->.
+         rewrite cats0. done. } 
   all: simpl ; try done.
-  all: try (destruct (separate_last _) as [[??] |] eqn:Hlast => //=).
-  all: try apply separate_last_spec in Hlast.
-  all: try apply separate_last_None in Hlast.
-(*  10:{ simpl.
-       destruct (separate_last vs2) as [[??] |] eqn:Hlast.
-       - destruct v => //=.
-         2: destruct v => //=. 
-         all: repeat rewrite cat_app.
-         all: erewrite separate_last_app; last exact Hlast.
-         all: simpl; try done.
-         all: rewrite -v_to_e_cat.
-         all: rewrite cat_app.
-         all: rewrite app_assoc.
-         all: done.
-       - apply separate_last_None in Hlast as ->.
-         rewrite cats0. done. }
-  10:{ simpl.
-       destruct (separate_last vs2) as [[??] |] eqn:Hlast.
-       - destruct v => //=.
-         2: destruct v => //=. 
-         all: repeat rewrite cat_app.
-         all: erewrite separate_last_app; last exact Hlast.
-         all: simpl; try done.
-         all: rewrite -v_to_e_cat.
-         all: rewrite cat_app.
-         all: rewrite app_assoc.
-         all: done.
-       - apply separate_last_None in Hlast as ->.
-         rewrite cats0. done. }
-  10:{ simpl.
-       destruct (separate_last vs2) as [[??] |] eqn:Hlast.
-       - destruct v => //=.
-         2: destruct v => //=. 
-         all: repeat rewrite cat_app.
-         all: erewrite separate_last_app; last exact Hlast.
-         all: simpl; try done.
-         all: rewrite -v_to_e_cat.
-         all: rewrite cat_app.
-         all: rewrite app_assoc.
-         all: done.
-       - apply separate_last_None in Hlast as ->.
-         rewrite cats0. done. }
-  all: try by destruct (separate_last _) as [[??] |] eqn:Hlast; 
-    [ destruct v; (try destruct v); (try done); by rewrite app_comm_cons app_assoc
-    | done] .
-  
-
-  all: try by destruct (separate_last _) as [[??] |] eqn:Hlast;
-    [ destruct v => //=;
-                     [ destruct vs2 => //
-                     | destruct v => //;
-                                      (destruct vs2 => //=);
-        apply separate_last_spec in Hlast;
-        destruct l; inversion Hlast; subst => //=;
-        rewrite -v_to_e_cat => //=;
-                                rewrite -app_assoc; done
-                     ]
-    | apply separate_last_None in Hlast;
-      subst => //=].
-
-  1367:{
-    destruct (separate_last 
- *)
-  by rewrite catA.
 
   all: (try destruct vs1).
   all: (try destruct vs2).
@@ -969,8 +836,6 @@ Proof.
   all: try destruct es0.
 
   all: simpl ; try done.
-  all: try by rewrite app_nil_r.
-  all: try by rewrite cats0.
   
   all: (try rewrite - vh_push_const_app) ;
     (try rewrite - sh_push_const_app) ;
@@ -1037,7 +902,7 @@ Proof.
 
   
   all : simpl ; try done.
-  all: try by destruct l.
+
 
   all : try by repeat rewrite cats0.
   all : try by repeat rewrite app_comm_cons ; rewrite app_assoc.
@@ -1072,7 +937,7 @@ Proof.
   all : try by destruct sh2 => //= ; rewrite app_comm_cons app_assoc.
   all : try by destruct llh2 => //= ; rewrite app_comm_cons app_assoc.
   all: try by repeat f_equal; destruct sh2 ; simpl; repeat rewrite -catA; repeat rewrite -cat_app.
-(*   all: try by repeat f_equal; destruct vs2; 
+  all: try by repeat f_equal; destruct vs2; 
     [ destruct v => //; destruct v => // 
     |  destruct (separate_last _) as [[??] |] eqn:Hlast;
        [ destruct v1 => //; destruct v1 => //=;
@@ -1086,66 +951,13 @@ Proof.
 
        |  apply separate_last_None in Hlast
        ]
-    ]. *)
-  all: try by destruct v;
-      (try destruct v);
-      (destruct l;
-       [ destruct vs2 ; inversion Hlast; subst => //=
-       | inversion Hlast; subst; rewrite separate_last_trivial;
-         destruct l => //=]).
-  all: try by destruct v;
-      [|destruct v];
-    
-    (destruct l;
-       [ destruct vs2 => //=;
-        inversion Hlast; subst => //=;
-        rewrite separate_last_trivial;
-        destruct vs1 => //=;
-                         (try by rewrite -app_assoc);
-                       try by rewrite cats0
-       | inversion Hlast; subst => //=;
-                                    repeat rewrite -cat_app;
-        rewrite (app_comm_cons l);
-        repeat rewrite -cat_app;
-        rewrite (catA vs1 _ [::_]);
-        rewrite separate_last_trivial;
-        destruct vs1 => //=;
-        rewrite -catA; done]).
-  all: try by destruct v; [|destruct v]; simpl; (try done); by repeat rewrite app_nil_r.
-  all: try by destruct v; [|destruct v]; simpl; (try done); repeat rewrite -cat_app; by rewrite -catA.
-  all: try by destruct v => //=;
-    destruct v => //=;
-    destruct l => //=;
-                  inversion Hlast; subst => //=;
-      rewrite -v_to_e_cat => //=;
-      repeat rewrite -cat_app; by rewrite -catA.
-  all: try by destruct es2 => //=.
-  all: try by destruct vh0; simpl;
-      rewrite -v_to_e_cat;
-      repeat rewrite -cat_app;
-    repeat rewrite -catA.
-  all: try by destruct sh0; simpl;
-      rewrite -v_to_e_cat;
-      repeat rewrite -cat_app;
-    repeat rewrite -catA.
-  all: try by destruct llh0; simpl;
-      rewrite -v_to_e_cat;
-      repeat rewrite -cat_app;
-      repeat rewrite -catA.
-  all: try by destruct v; [|destruct v]; simpl; (try done);
-      repeat rewrite -cat_app; rewrite -catA;
-      (try done);
-    try (specialize (f_equal v_to_e_list Hlast) as H000;
-         simpl in H000; rewrite H000;
-         rewrite -v_to_e_cat => //=; repeat rewrite -catA).
-  all: try by destruct vh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
-  all: try by destruct sh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
-  all: try by destruct llh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA. 
+    ].
+  
 Qed.
 
 
 Lemma merge_br i (vh : valid_holed i) es :
-  merge_values (Val (brV vh) :: es) =
+  merge_values (brV vh) es =
     Val (brV (vh_append vh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent vh.
@@ -1154,13 +966,11 @@ Proof.
   intros.
   rewrite vh_append_app.
   rewrite - IHes.
-  unfold merge_values => //=.
-  rewrite vh_push_const_append.
   done.
 Qed.
 
 Lemma merge_return sh es :
-  merge_values (Val (retV sh) :: es) =
+  merge_values (retV sh) es =
     Val (retV (sh_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
@@ -1169,110 +979,41 @@ Proof.
   intros.
   rewrite sh_append_app.
   rewrite - IHes.
-  unfold merge_values => //=.
-  rewrite sh_push_const_append.
   done.
 Qed.
 
-Lemma merge_suspend k x (sh : susholed) es :
-  merge_values (Eff (susE k x sh) :: es) =
-    Eff (susE k x (sus_append sh (flatten (map expr_of_val_not_val es)))).
+Lemma merge_suspend x (sh : susholed) es :
+  merge_values (susV x sh) es =
+    Val (susV x (sus_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
   induction es => //=.
-  intros sh. rewrite sus_append_nil.
-  unfold merge_values => //=. rewrite sus_push_const_nil => //. 
-  intros. rewrite sus_append_app. rewrite - IHes.
-  unfold merge_values => //=.
-  rewrite sus_push_const_append.
-  done.
+  intros sh. rewrite sus_append_nil. done.
+  intros. rewrite sus_append_app. rewrite - IHes. done.
 Qed.
 
-Lemma merge_switch k tf x (sh : swholed) es :
-  merge_values (Eff (swE k tf x sh) :: es) =
-    Eff (swE k tf x (sw_append sh (flatten (map expr_of_val_not_val es)))).
+Lemma merge_switch tf x (sh : swholed) es :
+  merge_values (swV tf x sh) es =
+    Val (swV tf x (sw_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
   induction es => //=.
-  intros sh. unfold merge_values => //=.
-  rewrite sw_append_nil. rewrite sw_push_const_nil. done.
-  intros. rewrite sw_append_app. rewrite - IHes.
-  unfold merge_values => /=.
-  rewrite sw_push_const_append. done.
+  intros sh. rewrite sw_append_nil. done.
+  intros. rewrite sw_append_app. rewrite - IHes. done.
 Qed.
 
 Lemma merge_throw a x (sh : exnholed) es :
-  merge_values (Eff (thrE a x sh) :: es) =
-    Eff (thrE a x (exn_append sh (flatten (map expr_of_val_not_val es)))).
+  merge_values (thrV a x sh) es =
+    Val (thrV a x (exn_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
   induction es => //=.
-  intros sh.
-  unfold merge_values => //=.
-  rewrite exn_append_nil. rewrite exn_push_const_nil. done.
-  intros. rewrite exn_append_app. rewrite - IHes.
-  unfold merge_values => //=. 
-  rewrite exn_push_const_append. done.
-Qed.
-
-
-Lemma merge_notval es es':
-  merge_values (NotVal es :: es') =
-    NotVal (es ++ (flatten (map expr_of_val_not_val es'))).
-Proof.
-  generalize dependent es.
-  unfold merge_values => //=. 
-  induction es' => //=.
-  - intros; by rewrite app_nil_r.
-  - intros.
-    rewrite IHes'.
-    by rewrite app_assoc.
-Qed.
-
-
-Lemma merge_ThrowRef es es':
-  merge_values (ThrowRef es :: es') =
-    ThrowRef (es ++ (flatten (map expr_of_val_not_val es'))).
-Proof.
-  generalize dependent es.
-  unfold merge_values => //=. 
-  induction es' => //=.
-  - intros; by rewrite app_nil_r.
-  - intros.
-    rewrite IHes'.
-    by rewrite app_assoc.
-Qed.
-
-
-Lemma merge_Suspend i es es':
-  merge_values (Suspend i es :: es') =
-    Suspend i (es ++ (flatten (map expr_of_val_not_val es'))).
-Proof.
-  generalize dependent es.
-  unfold merge_values => //=. 
-  induction es' => //=.
-  - intros; by rewrite app_nil_r.
-  - intros.
-    rewrite IHes'.
-    by rewrite app_assoc.
-Qed.
-
-
-Lemma merge_Switch tf i es es':
-  merge_values (Switch tf i es :: es') =
-    Switch tf i (es ++ (flatten (map expr_of_val_not_val es'))).
-Proof.
-  generalize dependent es.
-  unfold merge_values => //=. 
-  induction es' => //=.
-  - intros; by rewrite app_nil_r.
-  - intros.
-    rewrite IHes'.
-    by rewrite app_assoc.
+  intros sh. rewrite exn_append_nil. done.
+  intros. rewrite exn_append_app. rewrite - IHes. done.
 Qed. 
 
 Lemma merge_call_host tf h cvs sh es :
-  merge_values (Val (callHostV tf h cvs sh) :: es) =
+  merge_values (callHostV tf h cvs sh) es =
     Val (callHostV tf h cvs (llh_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
@@ -1281,95 +1022,104 @@ Proof.
   intros.
   rewrite llh_append_app.
   rewrite - IHes.
-  rewrite /merge_values /= llh_push_const_append.
   done.
 Qed.
 
 Lemma merge_trap es :
-  merge_values (Val trapV :: es) =
-    val_not_val_combine (Val trapV) (NotVal (flatten (map expr_of_val_not_val es))).
+  merge_values trapV es =
+    val_not_val_combine trapV (NotVal (flatten (map expr_of_val_not_val es))).
 Proof.
-  unfold merge_values => //=.
-  assert (Val trapV = val_not_val_combine (Val trapV) (NotVal [::])) => //=.
-  rewrite H.
-  rewrite - (app_nil_l (flatten _)).
-  remember [] as l.
-  clear Heql. clear H.
-  generalize dependent l. 
   induction es => //=.
-  - intros. destruct l => //=.
-    by rewrite app_nil_r.
-  - intros.
-    simpl in IHes.
-    destruct l => //=. 
-    + destruct (expr_of_val_not_val a) eqn:Ha => //=.
-      * exact (IHes []).
-      * rewrite (IHes (a0 :: e)).
-        simpl. done.
-    + rewrite (IHes (a0 :: l ++ expr_of_val_not_val a)).
-      simpl. rewrite app_assoc. done.
+  destruct (expr_of_val_not_val a) eqn:Ha => //=.
 Qed.
 
 
 (* This next lemma proves two identities that had to be proven mutually recursively *)
 Lemma merge_prepend_flatten vs :
-  (forall v0, merge_values (v0 :: vs) = val_not_val_combine v0 (merge_values vs)) /\
-    flatten (map expr_of_val_not_val vs) = expr_of_val_not_val (merge_values vs).
+  (forall v0, merge_values v0 vs = val_not_val_combine v0 (merge_values_list vs)) /\
+    flatten (map expr_of_val_not_val vs) = expr_of_val_not_val (merge_values_list vs).
 Proof.
   induction vs => //=. 
-  - unfold merge_values. split => //. destruct v0 => //=.
-    + destruct v => //=.
-      * by rewrite cats0.
-      * by rewrite vh_append_nil vh_push_const_nil.
-      * by rewrite sh_append_nil sh_push_const_nil.
-      * by rewrite llh_append_nil llh_push_const_nil.
-    + destruct e => //=.
-      * by rewrite sus_append_nil sus_push_const_nil.
-      * by rewrite sw_append_nil sw_push_const_nil.
-      * by rewrite exn_append_nil exn_push_const_nil.
-    + by rewrite app_nil_r.
-    + by rewrite app_nil_r.
-    + by rewrite app_nil_r.
-    + by rewrite app_nil_r.
-  - destruct IHvs as [IHvs1 IHvs2].
-    rewrite (IHvs1 a).
-    split.
-    + intros v0; rewrite val_not_val_combine_assoc.
-      rewrite - IHvs1.
-      Opaque val_not_val_combine.
-      unfold merge_values => //=.
-      rewrite val_not_val_combine_assoc.
-      done.
-    + rewrite IHvs2.
-      rewrite val_not_val_combine_app.
-      done.
-Qed.      
-
-Transparent val_not_val_combine.
+  - split => //. destruct v0 => //=.
+    + by rewrite cats0.
+    + by rewrite vh_append_nil.
+    + by rewrite sh_append_nil.
+    + by rewrite llh_append_nil.
+    + by rewrite sus_append_nil.
+    + by rewrite sw_append_nil.
+    + by rewrite exn_append_nil.
+  - destruct a => //=.
+    + destruct IHvs as [IHvs1 IHvs2].
+      rewrite (IHvs1 v).
+      split.
+      * intro v0 ; rewrite val_not_val_combine_assoc.
+        destruct (val_not_val_combine v0 (Val v)) eqn:Hv0a.
+        -- done.
+        -- by rewrite IHvs2.
+        -- by rewrite IHvs2.
+      * rewrite IHvs2.
+        by rewrite val_not_val_combine_app.
+    + split ; last done.
+      destruct v0 => //=.
+      * by rewrite app_assoc.
+      * destruct e => //=.
+        by rewrite merge_trap.
+      * rewrite merge_br.
+        by rewrite vh_append_app.
+      * rewrite merge_return.
+        by rewrite sh_append_app. 
+      * rewrite merge_call_host.
+        by rewrite llh_append_app.
+      * rewrite merge_suspend.
+        by rewrite sus_append_app.
+      * rewrite merge_switch.
+        by rewrite sw_append_app.
+      * rewrite merge_throw.
+        by rewrite exn_append_app.
+    + split; last done.
+      destruct v0 => //=.
+      * destruct (separate_last l) as [[??] |] eqn:Hlast.
+        -- destruct v => //=.
+           2: destruct v => //=.
+           all: try rewrite -app_assoc.
+           all: try done.
+           rewrite merge_throw => /=. done.
+        -- done.
+      * rewrite merge_br.
+        rewrite -vh_append_app. done.
+      * rewrite merge_return.
+        by rewrite -sh_append_app.
+      * rewrite merge_call_host.
+        by rewrite -llh_append_app.
+      * rewrite merge_suspend.
+        by rewrite -sus_append_app.
+      * rewrite merge_switch.
+        by rewrite -sw_append_app.
+      * rewrite merge_throw.
+        by rewrite -exn_append_app.
+Qed.
 
 (* For convenience, we provide lemmas for usage of each identity separately *)
 Lemma merge_prepend v0 vs :
-  merge_values (v0 :: vs) = val_not_val_combine v0 (merge_values vs).
+  merge_values v0 vs = val_not_val_combine v0 (merge_values_list vs).
 Proof. by edestruct merge_prepend_flatten as [? _]. Qed.
 
 Lemma merge_flatten vs :
-  flatten (map expr_of_val_not_val vs) = expr_of_val_not_val (merge_values vs).
+  flatten (map expr_of_val_not_val vs) = expr_of_val_not_val (merge_values_list vs).
 Proof. by edestruct merge_prepend_flatten as [_ ?]. Qed.
 
-
-Lemma merge_is_ThrowRef0 a l e:
-  merge_values (map to_val_instr (a :: l)) = ThrowRef e ->
-  l = expr_of_val_not_val (merge_values (map to_val_instr l)) ->
+Lemma merge_ThrowRef a l e:
+  merge_values_list (map to_val_instr (a :: l)) = ThrowRef e ->
+  l = expr_of_val_not_val (merge_values_list (map to_val_instr l)) ->
   a = AI_basic BI_throw_ref /\ l = e. 
 Proof.
   simpl.
   destruct (to_val_instr a) eqn:Ha => //=.
   - destruct v => //=.
     + rewrite merge_prepend.
-      destruct (merge_values _) eqn:Hl => //=.
+      destruct (merge_values_list _) eqn:Hl => //=.
       * destruct v => //=.
         destruct l0 => //.
-      * destruct e0 => //=.
       * destruct (separate_last l0) as [[??]|] eqn:Hl0 => //.
         -- destruct v => //.
            destruct v => //.
@@ -1378,256 +1128,53 @@ Proof.
            destruct a => //=.
            ++ destruct b => //=.
            ++ simpl in Ha.
-              destruct (merge_values (map _ l1)) => //.
+              destruct (merge_values_list (map _ l1)) => //.
               destruct v => //.
-              destruct e0 => //. 
               destruct (exnelts_of_exception_clauses _ _) => //.
            ++ simpl in Ha.
-              destruct (merge_values (map _ l2)) => //.
+              destruct (merge_values_list (map _ l2)) => //.
               destruct v => //.
-              destruct e0 => //. 
               ** destruct (suselts_of_continuation_clauses _ _) => //.
               ** destruct (swelts_of_continuation_clauses _ _) => //.
            ++ simpl in Ha.
-              destruct (merge_values (map _ l1)) => //.
+              destruct (merge_values_list (map _ l1)) => //.
               destruct v => //.
               destruct i => //.
               destruct (vh_decrease lh) => //.
-              destruct e0 => //. 
            ++ simpl in Ha.
-              destruct (merge_values (map _ l0)) => //.
-              destruct v => //.
-              destruct e0 => //.
-      * destruct (separate_last l0) as [[??]|] => //=.
-        destruct v => //=.
-        destruct v => //=.
-      * destruct (separate_last l0) as [[??]|] => //=.
-        destruct v => //=.
-        destruct v => //=.
+              destruct (merge_values_list (map _ l0)) => //.
+              destruct v => //.  
     + rewrite merge_trap => //=.
       destruct (flatten _) => //.
     + rewrite merge_br => //=.
     + rewrite merge_return => //=.
     + rewrite merge_call_host => //=.
-  - destruct e0 => //=. 
     + rewrite merge_suspend => //=.
     + rewrite merge_switch => //=.
     + rewrite merge_throw => //=.
-  - rewrite merge_notval => //.
-  - rewrite merge_ThrowRef => //.
-    intros H ->.
-    inversion H; subst e.
+  - intros H; inversion H; subst e.
     destruct a => //=.
     destruct b => //=.
     + simpl in Ha. inversion Ha; subst e0 => //=.
-      rewrite merge_flatten. done.
+      rewrite merge_flatten.
+      intros Hl. rewrite -Hl. done.
     + simpl in Ha.
-      destruct (merge_values (map _ l1)) => //.
+      destruct (merge_values_list (map _ l1)) => //.
       destruct v => //.
-      destruct e => //. 
       destruct (exnelts_of_exception_clauses _ _) => //.
     + simpl in Ha.
-      destruct (merge_values (map _ l2)) => //.
+      destruct (merge_values_list (map _ l2)) => //.
       destruct v => //.
-      destruct e => //.
       * destruct (suselts_of_continuation_clauses _ _) => //.
       * destruct (swelts_of_continuation_clauses _ _) => //.
     + simpl in Ha.
-      destruct (merge_values (map _ l1)) => //. 
+      destruct (merge_values_list (map _ l1)) => //. 
       destruct v => //.
       destruct i => //.
       destruct (vh_decrease lh) => //.
-      destruct e => //. 
     + simpl in Ha.
-      destruct (merge_values (map _ l0)) => //.
-      destruct v => //.
-      destruct e => //.
-  - rewrite merge_Suspend => //.
-  - rewrite merge_Switch => //. 
-Qed.
-
-
-
-Lemma merge_is_Suspend0 a l i e:
-  merge_values (map to_val_instr (a :: l)) = Suspend i e ->
-  l = expr_of_val_not_val (merge_values (map to_val_instr l)) ->
-  a = AI_suspend_desugared i /\ l = e. 
-Proof.
-  simpl.
-  destruct (to_val_instr a) eqn:Ha => //=.
-  - destruct v => //=.
-    + rewrite merge_prepend.
-      destruct (merge_values _) eqn:Hl => //=.
-      * destruct v => //=.
-        destruct l0 => //.
-      * destruct e0 => //=.
-      * destruct (separate_last l0) as [[??]|] eqn:Hl0 => //.
-        destruct v => //.
-        destruct v => //.
-      * destruct (separate_last l0) as [[??]|] eqn:Hl0 => //.
-        -- destruct v => //.
-           destruct v => //.
-        -- intros H; inversion H; subst.
-           apply separate_last_None in Hl0 as ->.
-           destruct a => //=.
-           ++ destruct b => //=.
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l1)) => //.
-              destruct v => //.
-              destruct e0 => //. 
-              destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l2)) => //.
-              destruct v => //.
-              destruct e0 => //. 
-              ** destruct (suselts_of_continuation_clauses _ _) => //.
-              ** destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l1)) => //.
-              destruct v => //.
-              destruct i0 => //.
-              destruct (vh_decrease lh) => //.
-              destruct e0 => //. 
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l0)) => //.
-              destruct v => //.
-              destruct e0 => //.
-      * destruct (separate_last l0) as [[??]|] => //=.
-        destruct v => //=.
-        destruct v => //=.
-    + rewrite merge_trap => //=.
-      destruct (flatten _) => //.
-    + rewrite merge_br => //=.
-    + rewrite merge_return => //=.
-    + rewrite merge_call_host => //=.
-  - destruct e0 => //=. 
-    + rewrite merge_suspend => //=.
-    + rewrite merge_switch => //=.
-    + rewrite merge_throw => //=.
-  - rewrite merge_notval => //.
-  - rewrite merge_ThrowRef => //.
-  - rewrite merge_Suspend => //.
-        intros H ->.
-    inversion H; subst e.
-    destruct a => //=.
-    destruct b => //=.
-    + simpl in Ha. inversion Ha; subst e0 => //=.
-      rewrite merge_flatten. by subst. 
-    + simpl in Ha.
-      destruct (merge_values (map _ l1)) => //.
-      destruct v => //.
-      destruct e => //. 
-      destruct (exnelts_of_exception_clauses _ _) => //.
-    + simpl in Ha.
-      destruct (merge_values (map _ l2)) => //.
-      destruct v => //.
-      destruct e => //.
-      * destruct (suselts_of_continuation_clauses _ _) => //.
-      * destruct (swelts_of_continuation_clauses _ _) => //.
-    + simpl in Ha.
-      destruct (merge_values (map _ l1)) => //. 
-      destruct v => //.
-      destruct i0 => //.
-      destruct (vh_decrease lh) => //.
-      destruct e => //. 
-    + simpl in Ha.
-      destruct (merge_values (map _ l0)) => //.
-      destruct v => //.
-      destruct e => //.
-  - rewrite merge_Switch => //. 
-Qed.
-
-
-
-Lemma merge_is_Switch0 a l tf i e:
-  merge_values (map to_val_instr (a :: l)) = Switch tf i e ->
-  l = expr_of_val_not_val (merge_values (map to_val_instr l)) ->
-  a = AI_switch_desugared tf i /\ l = e. 
-Proof.
-  simpl.
-  destruct (to_val_instr a) eqn:Ha => //=.
-  - destruct v => //=.
-    + rewrite merge_prepend.
-      destruct (merge_values _) eqn:Hl => //=.
-      * destruct v => //=.
-        destruct l0 => //.
-      * destruct e0 => //=.
-      * destruct (separate_last l0) as [[??]|] => //=.
-        destruct v => //=.
-        destruct v => //=.
-      * destruct (separate_last l0) as [[??]|] => //=.
-        destruct v => //=.
-        destruct v => //=.
-      * destruct (separate_last l0) as [[??]|] eqn:Hl0 => //.
-        -- destruct v => //.
-           destruct v => //.
-        -- intros H; inversion H; subst.
-           apply separate_last_None in Hl0 as ->.
-           destruct a => //=.
-           ++ destruct b => //=.
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l1)) => //.
-              destruct v => //.
-              destruct e0 => //. 
-              destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l2)) => //.
-              destruct v => //.
-              destruct e0 => //. 
-              ** destruct (suselts_of_continuation_clauses _ _) => //.
-              ** destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l1)) => //.
-              destruct v => //.
-              destruct i0 => //.
-              destruct (vh_decrease lh) => //.
-              destruct e0 => //. 
-           ++ simpl in Ha.
-              destruct (merge_values (map _ l0)) => //.
-              destruct v => //.
-              destruct e0 => //.
-
-    + rewrite merge_trap => //=.
-      destruct (flatten _) => //.
-    + rewrite merge_br => //=.
-    + rewrite merge_return => //=.
-    + rewrite merge_call_host => //=.
-  - destruct e0 => //=. 
-    + rewrite merge_suspend => //=.
-    + rewrite merge_switch => //=.
-    + rewrite merge_throw => //=.
-  - rewrite merge_notval => //.
-  - rewrite merge_ThrowRef => //.
-  - rewrite merge_Suspend => //.
-  - rewrite merge_Switch => //.
-        intros H ->.
-    inversion H; subst e.
-    destruct a => //=.
-    destruct b => //=.
-    + simpl in Ha. inversion Ha; subst e0 => //=.
-      rewrite merge_flatten. by subst. 
-    + simpl in Ha.
-      destruct (merge_values (map _ l1)) => //.
-      destruct v => //.
-      destruct e => //. 
-      destruct (exnelts_of_exception_clauses _ _) => //.
-    + simpl in Ha.
-      destruct (merge_values (map _ l2)) => //.
-      destruct v => //.
-      destruct e => //.
-      * destruct (suselts_of_continuation_clauses _ _) => //.
-      * destruct (swelts_of_continuation_clauses _ _) => //.
-    + simpl in Ha.
-      destruct (merge_values (map _ l1)) => //. 
-      destruct v => //.
-      destruct i0 => //.
-      destruct (vh_decrease lh) => //.
-      destruct e => //. 
-    + simpl in Ha.
-      destruct (merge_values (map _ l0)) => //.
-      destruct v => //.
-      destruct e => //.
-
+      destruct (merge_values_list (map _ l0)) => //.
+      destruct v => //. 
 Qed. 
 
 
@@ -1644,8 +1191,7 @@ Proof.
   - (* Basic instructions *)
     destruct b => //=.
   - (* Handlers *)
-    destruct (merge_values (map to_val_instr l0)) eqn:Hmerge => //.
-    2: destruct e => //. 
+    destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge => //.
     destruct v => //.
     + (* Br *)
       simpl.
@@ -1662,7 +1208,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -1684,8 +1229,8 @@ Proof.
       * (* Constant *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge => //.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         subst i0.
         apply Eqdep.EqdepTheory.inj_pair2 in H2.
@@ -1701,8 +1246,8 @@ Proof.
       * (* Null reference *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -1714,8 +1259,6 @@ Proof.
         destruct lh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -1723,8 +1266,8 @@ Proof.
       * (* Ref *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -1739,8 +1282,8 @@ Proof.
       * (* Ref_exn *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try by destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -1755,8 +1298,8 @@ Proof.
       * (* Ref_cont *)
          simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try by destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -1769,20 +1312,17 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge.
+        rewrite merge_suspend in Hmerge.
         inversion Hmerge.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge.
+        rewrite merge_switch in Hmerge.
         inversion Hmerge.
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-(*        unfold merge_values, to_val_instr in Hmerge; fold to_val_instr in Hmerge. *)
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e => //.
-        destruct v => //.
-        all: (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_br in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -1805,15 +1345,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e => //.
-        destruct v => //.
-        all: (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_br in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -1836,39 +1373,31 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
 
       * (* Label *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e => //. 
-        destruct v => //.
-        all: (try by rewrite merge_return in Hmerge) ; (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge);
-          (try by rewrite merge_notval in Hmerge);
-          try by rewrite merge_call_host in Hmerge.
-        destruct i0; first by rewrite merge_notval in Hmerge => //.
-        destruct (vh_decrease _) eqn:Hdecr;
-          last by rewrite merge_notval in Hmerge.
-        (* destruct (vh_decrease (VH_rec _ _ _ _ _)) eqn:Hdecr => //. *)
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => // ; (try by rewrite merge_return in Hmerge) ; (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge);
+                      try by rewrite merge_call_host in Hmerge.
+        destruct (vh_decrease (VH_rec _ _ _ _ _)) eqn:Hdecr => //.
         rewrite merge_br in Hmerge.
         replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
         -- inversion Hmerge.
-           subst i.
+           subst i0.
            apply Eqdep.EqdepTheory.inj_pair2 in H2.
            subst lh.
            simpl in Hdecr.
-(*           destruct i0 => //.
-           destruct (vh_decrease lh0) eqn:Hdecr0 => //. 
-           inversion Hdecr; subst v. *)
+           destruct i => //.
+           destruct (vh_decrease lh0) eqn:Hdecr0 => //.
+           inversion Hdecr; subst v.
            simpl. repeat f_equal.
            apply IHm in Hmerge2.
-           ++ eapply vfill_decrease in Hdecr.
-              erewrite Hdecr in Hmerge2.
+           ++ eapply vfill_decrease in Hdecr0.
+              erewrite Hdecr0 in Hmerge2.
               exact Hmerge2.
            ++ simpl. simpl in Hsize. lia.
            ++ unfold length_rec in H; simpl in H.
@@ -1882,10 +1411,8 @@ Proof.
            lia. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) eqn:Hl0 => //.
-        2: destruct e => //. 
+        destruct (merge_values_list _) eqn:Hl0 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //. 
         -- rewrite merge_switch in Hmerge => //.
@@ -1908,7 +1435,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -1931,8 +1457,8 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -1942,16 +1468,14 @@ Proof.
       * (* Ref_null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -1959,8 +1483,8 @@ Proof.
       * (* Ref *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -1970,8 +1494,8 @@ Proof.
       * (* Ref_exn *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -1981,8 +1505,8 @@ Proof.
       * (* Ref_cont *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -1991,17 +1515,15 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //. 
+        rewrite merge_suspend in Hmerge => //. 
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
-        rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e => //. 
-        destruct v => //.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+         rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -2021,15 +1543,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e => //.
-        destruct v => //.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -2049,21 +1568,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e => //.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _);
-             last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
@@ -2087,17 +1600,15 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) => //=.
-        2: destruct e => //=. 
+        destruct (merge_values_list _) => //=.
         destruct v => //=.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
         -- rewrite merge_throw in Hmerge => //. 
 (*      * (* ??? *)
         simpl in Hmerge.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
       destruct v => //=. 
         rewrite merge_call_host in Hmerge => //. *)
       * simpl in Hmerge.
@@ -2117,7 +1628,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -2129,8 +1639,8 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -2140,16 +1650,14 @@ Proof.
       * (* Ref null *)
           simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
         destruct l4 => //=. 
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -2157,8 +1665,8 @@ Proof.
       * (* Ref *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -2168,8 +1676,8 @@ Proof.
       * (* Ref_exn *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -2179,8 +1687,8 @@ Proof.
       * (* Ref_cont *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -2189,17 +1697,15 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
-        rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+         rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_call_host in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -2219,15 +1725,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l5)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l5)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_call_host in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -2247,20 +1750,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge.
@@ -2284,10 +1782,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l3)) eqn:Hmerge2 => //.
-        2: destruct e => //.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge.
            inversion Hmerge ; subst.
            simpl.
@@ -2336,7 +1832,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -2346,29 +1841,25 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        inversion Hmerge. subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_const v)) l0).
         lia.
       * (* Ref null *)
-        simpl in Hmerge.
+           simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -2376,10 +1867,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -2388,53 +1878,29 @@ Proof.
       * (* Ref_exn *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e0); try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_exn e t) l0).
         lia.
       * (* Ref_cont *)
-        simpl in Hmerge.
+                simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
-           assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
-           rewrite -(IHm sh0 l0 H0 Hmerge0).
-           destruct sh0 => //.
-           specialize (length_cons_rec (AI_ref_cont f) l0).
-           lia.
-        -- inversion Hmerge; subst.
-           simpl.
-           destruct l0 => //. 
-           apply merge_is_Suspend0 in Hmerge0 as [-> ->].
-           done.
-           clear - IHn Hsize.
-           induction l0 => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l0)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl0.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
-           
+        destruct v ; inversion Hmerge. subst.
+        assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
+        rewrite -(IHm sh0 l0 H0 Hmerge0).
+        destruct sh0 => //.
+        specialize (length_cons_rec (AI_ref_cont f) l0).
+        lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
-(*        inversion Hmerge => /=.
+        rewrite merge_suspend in Hmerge => //.
+        inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
                    (map (λ x, expr_of_val_not_val (to_val_instr x)) l0))
@@ -2445,17 +1911,15 @@ Proof.
         simpl.
         rewrite -> IHl0 at 1 => //=.
         simpl in Hsize.
-        lia.   *)
+        lia.  
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e. 
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -2475,17 +1939,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses l2 _) eqn:Hsuselts' => //.
-           2: by rewrite merge_notval in Hmerge.
            rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -2508,17 +1968,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -2542,10 +1998,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: try by rewrite merge_notval in Hmerge.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
+        destruct v => //.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //. 
            inversion Hmerge ; subst.
@@ -2582,7 +2036,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -2592,12 +2045,10 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        inversion Hmerge; subst.
-        assert (size_of_instruction (AI_handler l l0) < S n).
-        simpl in Hsize. simpl. lia.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v0 ; inversion Hmerge. subst.
+        assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -2606,28 +2057,24 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
         destruct (flatten _) => //=.
       * (* Ref *)
-        simpl in Hmerge.
+                simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l0 H0 Hmerge0).
@@ -2635,12 +2082,11 @@ Proof.
         specialize (length_cons_rec (AI_ref f) l0).
         lia.
       * (* Ref_exn *)
-        simpl in Hmerge.
+                simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e0; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l0 H0 Hmerge0).
@@ -2648,43 +2094,24 @@ Proof.
         specialize (length_cons_rec (AI_ref_exn e t) l0).
         lia.
       * (* Ref_cont *)
-        simpl in Hmerge.
+                simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
-           assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize.
-           simpl. lia.
-           rewrite -(IHm sh0 l0 H0 Hmerge0).
-           destruct sh0 => //.
-           specialize (length_cons_rec (AI_ref_cont f) l0).
-           lia.
-        -- inversion Hmerge; subst.
-           destruct l0 => //. apply merge_is_Switch0 in Hmerge0 as [-> ->] => //.
-           clear - IHn Hsize.
-           induction l0 => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l0)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl0.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
+        destruct v ; inversion Hmerge. subst.
+        assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
+
+        rewrite -(IHm sh0 l0 H0 Hmerge0).
+        destruct sh0 => //.
+        specialize (length_cons_rec (AI_ref_cont f) l0).
+        lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
+
         inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
@@ -2696,14 +2123,12 @@ Proof.
         simpl.
         rewrite -> IHl0 at 1 => //=.
         simpl in Hsize.
-        lia.   *)
+        lia.  
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_switch in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -2723,20 +2148,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses l2 _) eqn:Hswelts' => //.
-           2: by rewrite merge_notval in Hmerge.
            rewrite merge_switch in Hmerge => //. 
 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
@@ -2761,13 +2181,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -2792,10 +2209,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: try by rewrite merge_notval in Hmerge.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
+        destruct v => //.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -2835,7 +2250,6 @@ Proof.
       destruct l0 => //=.
       destruct a0 ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -2845,10 +2259,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l0 H0 Hmerge0).
@@ -2858,29 +2271,25 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
         destruct (flatten _) => //=.
       * (* Ref *)
-        simpl in Hmerge.
+                simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        inversion Hmerge; subst.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l0 H0 Hmerge0).
@@ -2890,40 +2299,63 @@ Proof.
       * (* Ref_exn *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v; inversion Hmerge.
-        -- destruct e0 ; inversion Hmerge. subst.
+        -- destruct v ; inversion Hmerge. subst.
            assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
            rewrite -(IHm sh0 l0 H0 Hmerge0).
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l0).
            lia.
-        -- inversion Hmerge; subst. destruct l0 => //.
-           apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
-           clear - IHn Hsize.
-           induction l0 => //=.
-           assert (size_of_instruction a1 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a1 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l0)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a1) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a1) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl0.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
+        -- destruct l0 => //.
+           apply merge_ThrowRef in Hmerge0 as [-> ->].
+           2:{
+             clear - IHn Hsize.
+             induction l0 => //=.
+             assert (size_of_instruction a < n) as Han.
+             { simpl in Hsize. lia. } 
+             specialize (IHn a Han) as Ha'.
+             destruct (to_val_instr a) eqn:Ha => /= ; simpl in Ha'.
+             - rewrite merge_prepend.
+               remember (merge_values_list (map _ l0)) as vnv.
+               specialize (val_not_val_combine_app v vnv) as H'.
+               destruct (val_not_val_combine v vnv) eqn:Hv ; simpl in H' ; simpl.
+               all: rewrite H'.
+               all: rewrite Ha'.
+               all: rewrite IHl0.
+               all: try done.
+               all: simpl.
+               all: simpl in Hsize.
+               all: lia.
+             - rewrite Ha'.
+               f_equal.
+               clear - IHn Hsize.
+               induction l0 => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl0.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia.
+             - destruct e0 => //.
+               inversion Ha'; subst a.
+               f_equal. simpl.
+               clear - Hsize IHn.
+               induction l0 => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl0.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia. } 
+           simpl in Hmerge.
+           inversion Hmerge.
+           subst.
+           done.
       * (* Ref_cont *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_handler l l0) < S n). simpl in Hsize. simpl. lia.
         simpl in Hmerge.
         inversion Hmerge.
@@ -2933,10 +2365,10 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -2952,16 +2384,13 @@ Proof.
         lia.   *)
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
-        destruct (exnelts_of_exception_clauses l2 _) eqn:Hexnels => //.
-        2: by rewrite merge_notval in Hmerge.
-        rewrite merge_throw in Hmerge.
-        replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
-        -- inversion Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
+        destruct (exnelts_of_exception_clauses l2 _) eqn:Hexnels => //. 
+           rewrite merge_throw in Hmerge.
+           replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
+           -- inversion Hmerge.
               subst. simpl.
               repeat f_equal.
               apply exnelts_of_exception_clauses_inj.
@@ -2981,17 +2410,13 @@ Proof.
               lia.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) eqn:Hswelts => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
         -- rewrite merge_throw in Hmerge => //. 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -3012,13 +2437,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -3044,10 +2466,8 @@ Proof.
 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: try by rewrite merge_notval in Hmerge.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
+        destruct v => //.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -3073,8 +2493,7 @@ Proof.
         rewrite merge_call_host in Hmerge => //.
 
   - (* Prompts *)
-    destruct (merge_values (map to_val_instr l1)) eqn:Hmerge => //.
-    2: destruct e.
+    destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge => //.
     destruct v => //.
     + (* Br *)
       simpl.
@@ -3091,7 +2510,6 @@ Proof.
       destruct l1 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -3113,8 +2531,8 @@ Proof.
       * (* Constant *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge => //.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         subst i0.
         apply Eqdep.EqdepTheory.inj_pair2 in H2.
@@ -3130,8 +2548,8 @@ Proof.
       * (* Null reference *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -3143,8 +2561,6 @@ Proof.
         destruct lh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3152,8 +2568,8 @@ Proof.
       * (* Ref *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -3168,8 +2584,8 @@ Proof.
       * (* Ref_exn *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -3184,8 +2600,8 @@ Proof.
       * (* Ref_cont *)
          simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v ; inversion Hmerge.
         subst i0.
@@ -3198,19 +2614,17 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge.
+        rewrite merge_suspend in Hmerge.
         inversion Hmerge.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge.
+        rewrite merge_switch in Hmerge.
         inversion Hmerge.
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_br in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3233,15 +2647,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_br in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3264,38 +2675,31 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
 
       * (* Label *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_return in Hmerge) ; (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge);
-          (try by rewrite merge_notval in Hmerge);
-          try by rewrite merge_call_host in Hmerge.
-        destruct i0; first by rewrite merge_notval in Hmerge.
-        destruct (vh_decrease lh0) eqn:Hdecr; last by rewrite merge_notval in Hmerge.
-        (* destruct (vh_decrease (VH_rec _ _ _ _ _)) eqn:Hdecr => //. *)
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => // ; (try by rewrite merge_return in Hmerge) ; (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge);
+                      try by rewrite merge_call_host in Hmerge.
+        destruct (vh_decrease (VH_rec _ _ _ _ _)) eqn:Hdecr => //.
         rewrite merge_br in Hmerge.
         replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
         -- inversion Hmerge.
-           subst i.
+           subst i0.
            apply Eqdep.EqdepTheory.inj_pair2 in H2.
            subst lh.
-(*           simpl in Hdecr.
+           simpl in Hdecr.
            destruct i => //.
-           destruct (vh_decrease lh0) eqn:Hdecr0 => //. 
-           inversion Hdecr; subst v. *)
+           destruct (vh_decrease lh0) eqn:Hdecr0 => //.
+           inversion Hdecr; subst v.
            simpl. repeat f_equal.
            apply IHm in Hmerge2.
-           ++ eapply vfill_decrease in Hdecr.
-              erewrite Hdecr in Hmerge2.
+           ++ eapply vfill_decrease in Hdecr0.
+              erewrite Hdecr0 in Hmerge2.
               exact Hmerge2.
            ++ simpl. simpl in Hsize. lia.
            ++ unfold length_rec in H; simpl in H.
@@ -3309,10 +2713,8 @@ Proof.
            lia. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l2)) eqn:Hl1 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hl1 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //. 
         -- rewrite merge_switch in Hmerge => //.
@@ -3335,7 +2737,6 @@ Proof.
       destruct l1 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -3358,8 +2759,8 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l1) => //=.
@@ -3369,16 +2770,14 @@ Proof.
       * (* Ref_null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l1) => //=.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3386,8 +2785,8 @@ Proof.
       * (* Ref *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l1) => //=.
@@ -3397,8 +2796,8 @@ Proof.
       * (* Ref_exn *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l1) => //=.
@@ -3408,8 +2807,8 @@ Proof.
       * (* Ref_cont *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l1) => //=.
@@ -3418,17 +2817,15 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //. 
+        rewrite merge_suspend in Hmerge => //. 
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
-        rewrite map_cons in Hmerge.
-        simpl in Hmerge. 
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all:(try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+         rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3448,15 +2845,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all:(try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3476,20 +2870,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
@@ -3513,17 +2902,15 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l2)) => //=.
-        2: destruct e.
+        destruct (merge_values_list _) => //=.
         destruct v => //=.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
         -- rewrite merge_throw in Hmerge => //. 
 (*      * (* ??? *)
         simpl in Hmerge.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
       destruct v => //=. 
         rewrite merge_call_host in Hmerge => //. *)
       * simpl in Hmerge.
@@ -3543,7 +2930,6 @@ Proof.
       destruct l1 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -3555,8 +2941,8 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l1) => //=.
@@ -3566,16 +2952,14 @@ Proof.
       * (* Ref null *)
           simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l1) => //=.
         destruct l5 => //=. 
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3583,8 +2967,8 @@ Proof.
       * (* Ref *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l1) => //=.
@@ -3594,8 +2978,8 @@ Proof.
       * (* Ref_exn *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-           (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l1) => //=.
@@ -3605,8 +2989,8 @@ Proof.
       * (* Ref_cont *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l1) => //=.
@@ -3615,17 +2999,15 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
-        rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l5)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+         rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l5)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_call_host in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3645,15 +3027,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l6)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l6)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_call_host in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3673,20 +3052,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l5)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l5)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge.
@@ -3710,10 +3084,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l4)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge.
            inversion Hmerge ; subst.
            simpl.
@@ -3765,7 +3137,6 @@ Proof.
       destruct l1 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -3775,10 +3146,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
@@ -3787,17 +3157,14 @@ Proof.
       * (* Ref null *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3805,10 +3172,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
@@ -3817,10 +3183,9 @@ Proof.
       * (* Ref_exn *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e0; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l1 H0 Hmerge0).
@@ -3830,39 +3195,18 @@ Proof.
       * (* Ref_cont *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
-           assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
-           rewrite -(IHm sh0 l1 H0 Hmerge0).
-           destruct sh0 => //.
-           specialize (length_cons_rec (AI_ref_cont f) l1).
-           lia.
-        -- inversion Hmerge; subst.
-           destruct l1 => //. 
-           apply merge_is_Suspend0 in Hmerge0 as [-> ->] => //.
-           clear - IHn Hsize.
-           induction l1 => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l1)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl1.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
-           
+        destruct v ; inversion Hmerge. subst.
+        assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
+        rewrite -(IHm sh0 l1 H0 Hmerge0).
+        destruct sh0 => //.
+        specialize (length_cons_rec (AI_ref_cont f) l1).
+        lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
-(*        inversion Hmerge => /=.
+        rewrite merge_suspend in Hmerge => //.
+        inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
                    (map (λ x, expr_of_val_not_val (to_val_instr x)) l1))
@@ -3873,17 +3217,15 @@ Proof.
         simpl.
         rewrite -> IHl1 at 1 => //=.
         simpl in Hsize.
-        lia.  *)
+        lia.  
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3903,17 +3245,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l5)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l5)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses l4 _) eqn:Hsuselts' => //.
-           2: by rewrite merge_notval in Hmerge.
            rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -3936,17 +3274,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -3970,10 +3304,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l3)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //. 
            inversion Hmerge ; subst.
@@ -4013,7 +3345,6 @@ Proof.
       destruct l1 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -4023,10 +3354,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
@@ -4035,17 +3365,14 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4053,10 +3380,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
@@ -4065,54 +3391,32 @@ Proof.
       * (* Ref_exn *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e0; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_exn e t) l1).
         lia.
       * (* Ref_cont *)
-        simpl in Hmerge.
+                simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l1).
         lia.
-        -- inversion Hmerge; subst.
-           destruct l1 => //.
-           apply merge_is_Switch0 in Hmerge0 as [-> ->] => //.
-             clear - IHn Hsize.
-           induction l1 => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l1)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl1.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
-           
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
+
         inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
@@ -4124,14 +3428,12 @@ Proof.
         simpl.
         rewrite -> IHl1 at 1 => //=.
         simpl in Hsize.
-        lia.   *)
+        lia.  
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_switch in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -4151,20 +3453,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l5)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l5)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses l4 _) eqn:Hswelts' => //.
-           2: rewrite merge_notval in Hmerge => //. 
            rewrite merge_switch in Hmerge => //. 
 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
@@ -4189,13 +3486,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -4220,10 +3514,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l3)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -4261,7 +3553,6 @@ Proof.
       destruct l1 => //=.
       destruct a0 ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -4271,10 +3562,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
@@ -4283,17 +3573,14 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4301,10 +3588,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l1 H0 Hmerge0).
         destruct sh0 => //.
@@ -4313,41 +3599,64 @@ Proof.
       * (* Ref_exn *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e0; inversion Hmerge; subst.
+        -- destruct v ; inversion Hmerge. subst.
            assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
            rewrite -(IHm sh0 l1 H0 Hmerge0).
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l1).
            lia.
         -- destruct l1 => //.
-           inversion Hmerge; subst.
-           apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
-           clear - IHn Hsize.
-           induction l1 => //=.
-           assert (size_of_instruction a1 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a1 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l1)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a1) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a1) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl1.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
+           apply merge_ThrowRef in Hmerge0 as [-> ->].
+           2:{
+             clear - IHn Hsize.
+             induction l1 => //=.
+             assert (size_of_instruction a < n) as Han.
+             { simpl in Hsize. lia. } 
+             specialize (IHn a Han) as Ha'.
+             destruct (to_val_instr a) eqn:Ha => /= ; simpl in Ha'.
+             - rewrite merge_prepend.
+               remember (merge_values_list (map _ l1)) as vnv.
+               specialize (val_not_val_combine_app v vnv) as H'.
+               destruct (val_not_val_combine v vnv) eqn:Hv ; simpl in H' ; simpl.
+               all: rewrite H'.
+               all: rewrite Ha'.
+               all: rewrite IHl1.
+               all: try done.
+               all: simpl.
+               all: simpl in Hsize.
+               all: lia.
+             - rewrite Ha'.
+               f_equal.
+               clear - IHn Hsize.
+               induction l1 => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl1.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia.
+             - destruct e0 => //.
+               inversion Ha'; subst a.
+               f_equal. simpl.
+               clear - Hsize IHn.
+               induction l1 => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl1.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia. } 
+           simpl in Hmerge.
+           inversion Hmerge.
+           subst.
+
+           done.
       * (* Ref_cont *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_prompt l l0 l1) < S n). simpl in Hsize. simpl. lia.
         simpl in Hmerge.
         inversion Hmerge.
@@ -4358,10 +3667,10 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -4377,14 +3686,11 @@ Proof.
         lia.   *)
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e. 
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
-        destruct (exnelts_of_exception_clauses _ _) eqn:Hexnels => //.
-        2: rewrite merge_notval in Hmerge => //. 
-        rewrite merge_throw in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
+        destruct (exnelts_of_exception_clauses _ _) eqn:Hexnels => //. 
+           rewrite merge_throw in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            -- inversion Hmerge.
               subst. simpl.
@@ -4406,17 +3712,13 @@ Proof.
               lia.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) eqn:Hswelts => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
         -- rewrite merge_throw in Hmerge => //. 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l1))) with l1 in Hmerge.
            ++ inversion Hmerge.
@@ -4437,13 +3739,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -4469,10 +3768,8 @@ Proof.
 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l2)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -4499,8 +3796,7 @@ Proof.
 
 
   - (* Labels *) 
-    destruct (merge_values (map to_val_instr l0)) eqn:Hmerge => //.
-    2: destruct e.
+    destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge => //.
     destruct v => //.
     + (* Br *)
       destruct i => //.
@@ -4517,7 +3813,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -4543,8 +3838,8 @@ Proof.
       * (* Constant *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v1 ; inversion Hmerge.
         subst i0.
         apply Eqdep.EqdepTheory.inj_pair2 in H2.
@@ -4558,8 +3853,8 @@ Proof.
       * (* Null reference *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v0 ; inversion Hmerge.
         subst i0.
@@ -4571,8 +3866,6 @@ Proof.
         destruct vh'' ; simpl in Hpush ; subst v => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4580,8 +3873,8 @@ Proof.
       * (* Ref *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v0 ; inversion Hmerge.
         subst i0.
@@ -4596,8 +3889,8 @@ Proof.
       * (* Ref_exn *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v0 ; inversion Hmerge.
         subst i0.
@@ -4612,8 +3905,8 @@ Proof.
       * (* Ref_cont *)
          simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-           (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         simpl in Hmerge.
         destruct v0 ; inversion Hmerge.
         subst i0.
@@ -4627,19 +3920,17 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge.
+        rewrite merge_suspend in Hmerge.
         inversion Hmerge.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge.
+        rewrite merge_switch in Hmerge.
         inversion Hmerge.
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v0.
-        all: (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v0 => //; (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_br in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -4666,15 +3957,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v0.
-        all: (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v0 => //; (try by rewrite merge_return in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_br in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -4701,22 +3989,17 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e. destruct v0.
-        all: (try by rewrite merge_return in Hmerge) ; (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_notval in Hmerge);
-          try by rewrite merge_call_host in Hmerge.
-        destruct i0; first by rewrite merge_notval in Hmerge.
-        destruct (vh_decrease lh0) eqn:Hdecr; last by rewrite merge_notval in Hmerge.
-        (*destruct (vh_decrease (VH_rec _ _ _ _ _)) eqn:Hdecr => //.*)
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v0 => // ; (try by rewrite merge_return in Hmerge) ; (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge);
+                      try by rewrite merge_call_host in Hmerge.
+        destruct (vh_decrease (VH_rec _ _ _ _ _)) eqn:Hdecr => //.
         rewrite merge_br in Hmerge.
         replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
         inversion Hmerge.
@@ -4724,19 +4007,19 @@ Proof.
         subst i0.
         apply Eqdep.EqdepTheory.inj_pair2 in H2.
         subst lh.
-        (* simpl in Hdecr.
+        simpl in Hdecr.
         destruct (vh_decrease lh0) eqn:Hdecr0 => //.
-        inversion Hdecr; subst v0. *)
+        inversion Hdecr; subst v0.
         simpl in Hvh.
         destruct i => //.
-        destruct (vh_decrease v0) eqn:Hdecr1 => //. 
+        destruct (vh_decrease v1) eqn:Hdecr1 => //.
         inversion Hvh; subst v.
         simpl. repeat f_equal.
         eapply IHm in Hmerge2.
         erewrite <- vfill_decrease.
         exact Hmerge2.
         exact Hdecr1.
-        exact Hdecr.
+        exact Hdecr0.
         simpl; simpl in Hsize; lia.
         unfold length_rec in H; simpl in H; unfold length_rec; lia.
         clear - IHn Hsize.
@@ -4748,10 +4031,8 @@ Proof.
         lia.
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) eqn:Hl1 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hl1 => //.
         destruct v0 => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //. 
         -- rewrite merge_switch in Hmerge => //.
@@ -4774,7 +4055,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -4797,8 +4077,8 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -4808,16 +4088,14 @@ Proof.
       * (* Ref_null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4825,8 +4103,8 @@ Proof.
       * (* Ref *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -4836,8 +4114,8 @@ Proof.
       * (* Ref_exn *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -4847,8 +4125,8 @@ Proof.
       * (* Ref_cont *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite (IHm s0 l0) => //=.
@@ -4857,17 +4135,15 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //. 
+        rewrite merge_suspend in Hmerge => //. 
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
-        rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all:(try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+         rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -4887,14 +4163,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e. destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_call_host in Hmerge).
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -4914,19 +4188,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e. destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- rewrite merge_return in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
@@ -4950,17 +4220,15 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) => //=.
-        2: destruct e.
+        destruct (merge_values_list _) => //=.
         destruct v => //=.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
         -- rewrite merge_throw in Hmerge => //. 
 (*      * (* ??? *)
         simpl in Hmerge.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
       destruct v => //=. 
         rewrite merge_call_host in Hmerge => //. *)
       * simpl in Hmerge.
@@ -4980,7 +4248,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge.
@@ -4992,8 +4259,8 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-          (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -5003,16 +4270,14 @@ Proof.
       * (* Ref null *)
           simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
         destruct l4 => //=. 
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5020,8 +4285,8 @@ Proof.
       * (* Ref *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -5031,8 +4296,8 @@ Proof.
       * (* Ref_exn *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e0); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -5042,8 +4307,8 @@ Proof.
       * (* Ref_cont *)
              simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
-            (try destruct e); try by inversion Hmerge.
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
+          try by inversion Hmerge.
         destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         erewrite (IHm _ l0) => //=.
@@ -5052,17 +4317,15 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
-        rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+         rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_call_host in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -5082,15 +4345,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
-        rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l5)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+            rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l5)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_call_host in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -5110,20 +4370,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge.
@@ -5147,10 +4402,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l3)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge.
            inversion Hmerge ; subst.
            simpl.
@@ -5199,7 +4452,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -5209,10 +4461,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -5221,17 +4472,14 @@ Proof.
       * (* Ref null *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5239,10 +4487,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -5251,52 +4498,29 @@ Proof.
       * (* Ref_exn *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e0; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_exn e t) l0).
         lia.
       * (* Ref_cont *)
-        simpl in Hmerge.
+                simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
-        --  inversion Hmerge; subst.
-           simpl.
-           destruct l0 => //. 
-           apply merge_is_Suspend0 in Hmerge0 as [-> ->].
-           done.
-           clear - IHn Hsize.
-           induction l0 => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l0)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl0.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
-(*        inversion Hmerge => /=.
+        rewrite merge_suspend in Hmerge => //.
+        inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
                    (map (λ x, expr_of_val_not_val (to_val_instr x)) l0))
@@ -5307,17 +4531,15 @@ Proof.
         simpl.
         rewrite -> IHl0 at 1 => //=.
         simpl in Hsize.
-        lia.   *)
+        lia.  
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -5337,17 +4559,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) eqn:Hsuselts => //.
-           2: by rewrite merge_notval in Hmerge.
            rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -5370,17 +4588,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -5404,10 +4618,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //. 
            inversion Hmerge ; subst.
@@ -5444,7 +4656,6 @@ Proof.
       destruct l0 => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -5454,10 +4665,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -5466,17 +4676,14 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5484,10 +4691,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -5496,10 +4702,9 @@ Proof.
       * (* Ref_exn *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e0; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -5508,40 +4713,21 @@ Proof.
       * (* Ref_cont *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
-        -- inversion Hmerge; subst.
-           destruct l0 => //. apply merge_is_Switch0 in Hmerge0 as [-> ->] => //.
-           clear - IHn Hsize.
-           induction l0 => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l0)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl0.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
+
         inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
@@ -5553,14 +4739,12 @@ Proof.
         simpl.
         rewrite -> IHl0 at 1 => //=.
         simpl in Hsize.
-        lia.  *)
+        lia.  
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_switch in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -5580,20 +4764,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) eqn:Hswelts => //.
-           2: rewrite merge_notval in Hmerge => //.
            rewrite merge_switch in Hmerge => //. 
 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
@@ -5618,13 +4797,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -5649,10 +4825,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -5690,7 +4864,6 @@ Proof.
       destruct l0 => //=.
       destruct a0 ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -5700,10 +4873,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
 
         rewrite -(IHm sh0 l0 H0 Hmerge0).
@@ -5713,17 +4885,14 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //.
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5731,10 +4900,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -5743,41 +4911,63 @@ Proof.
       * (* Ref_exn *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e0; inversion Hmerge; subst.
+        -- destruct v ; inversion Hmerge. subst.
            assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
            rewrite -(IHm sh0 l0 H0 Hmerge0).
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l0).
            lia.
-        -- inversion Hmerge; subst. destruct l0 => //.
-           apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
-           clear - IHn Hsize.
-           induction l0 => //=.
-           assert (size_of_instruction a1 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a1 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l0)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a1) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a1) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl0.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
-
+        -- destruct l0 => //.
+           apply merge_ThrowRef in Hmerge0 as [-> ->].
+           2:{
+             clear - IHn Hsize.
+             induction l0 => //=.
+             assert (size_of_instruction a < n) as Han.
+             { simpl in Hsize. lia. } 
+             specialize (IHn a Han) as Ha'.
+             destruct (to_val_instr a) eqn:Ha => /= ; simpl in Ha'.
+             - rewrite merge_prepend.
+               remember (merge_values_list (map _ l0)) as vnv.
+               specialize (val_not_val_combine_app v vnv) as H'.
+               destruct (val_not_val_combine v vnv) eqn:Hv ; simpl in H' ; simpl.
+               all: rewrite H'.
+               all: rewrite Ha'.
+               all: rewrite IHl0.
+               all: try done.
+               all: simpl.
+               all: simpl in Hsize.
+               all: lia.
+             - rewrite Ha'.
+               f_equal.
+               clear - IHn Hsize.
+               induction l0 => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl0.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia.
+             - destruct e0 => //.
+               inversion Ha'; subst a.
+               f_equal. simpl.
+               clear - Hsize IHn.
+               induction l0 => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl0.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia. } 
+           simpl in Hmerge.
+           inversion Hmerge.
+           subst.
+           done.
       * (* Ref_cont *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l0)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l0)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_label n0 l l0) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l0 H0 Hmerge0).
         destruct sh0 => //.
@@ -5785,10 +4975,10 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -5804,14 +4994,11 @@ Proof.
         lia.   *)
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v => //.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
-        destruct (exnelts_of_exception_clauses _ _) eqn:Hexnels => //.
-        2: by rewrite merge_notval in Hmerge.
-        rewrite merge_throw in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
+        destruct (exnelts_of_exception_clauses _ _) eqn:Hexnels => //. 
+           rewrite merge_throw in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            -- inversion Hmerge.
               subst. simpl.
@@ -5833,17 +5020,13 @@ Proof.
               lia.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) eqn:Hswelts => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //.
+           rewrite merge_switch in Hmerge => //. 
         -- rewrite merge_throw in Hmerge => //. 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l0))) with l0 in Hmerge.
            ++ inversion Hmerge.
@@ -5864,13 +5047,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -5896,10 +5076,8 @@ Proof.
 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l1)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -5925,8 +5103,7 @@ Proof.
         rewrite merge_call_host in Hmerge => //.
 
   - (* Local *)
-    destruct (merge_values _) eqn:Hmerge => //.
-    2: destruct e.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //=.
     + (* Call host *)
       replace l with (llfill l1 [AI_call_host f0 h l0]) ; first done.
@@ -5941,7 +5118,6 @@ Proof.
     destruct l => //=.
     destruct a ; try by inversion Hmerge.
     destruct b ; try by inversion Hmerge.
-    all: try by rewrite merge_notval in Hmerge.
     * (* Br *)
       simpl in Hmerge.
       rewrite merge_br in Hmerge.
@@ -5953,8 +5129,8 @@ Proof.
     * (* Const *)
       simpl in Hmerge.
       rewrite merge_prepend in Hmerge.
-      destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
-        (try destruct e); try by inversion Hmerge.
+      destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
+        try by inversion Hmerge.
       destruct v0 ; inversion Hmerge. subst.
       assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
@@ -5964,16 +5140,14 @@ Proof.
     * (* Ref null *)
          simpl in Hmerge.
       rewrite merge_prepend in Hmerge.
-      destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
-         (try destruct e); try by inversion Hmerge.
+      destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
+        try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
       assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
       lia.
-    * (* Throw_ref *)
-      rewrite merge_ThrowRef in Hmerge => //. 
     * (* Trap *)
       simpl in Hmerge.
       rewrite merge_trap in Hmerge.
@@ -5981,8 +5155,8 @@ Proof.
     * (* Ref *)
       simpl in Hmerge.
       rewrite merge_prepend in Hmerge.
-      destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
-        (try destruct e); try by inversion Hmerge.
+      destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
+        try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
       assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
@@ -5992,8 +5166,8 @@ Proof.
     * (* Ref_exn *)
            simpl in Hmerge.
       rewrite merge_prepend in Hmerge.
-      destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
-         (try destruct e0); try by inversion Hmerge.
+      destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
+        try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
       assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
@@ -6003,8 +5177,8 @@ Proof.
     * (* Ref_cont *)
            simpl in Hmerge.
       rewrite merge_prepend in Hmerge.
-      destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
-         (try destruct e); try by inversion Hmerge.
+      destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
+        try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
       assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
@@ -6013,17 +5187,15 @@ Proof.
       lia.
     * (* Suspend *)
       simpl in Hmerge.
-      rewrite merge_Suspend in Hmerge => //. 
+      rewrite merge_suspend in Hmerge => //. 
     * (* Switch *)
       simpl in Hmerge.
-      rewrite merge_Switch in Hmerge => //. 
+      rewrite merge_switch in Hmerge => //. 
     * (* Handler *)
-      rewrite map_cons in Hmerge.
-      simpl in Hmerge.
-      destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-      2: destruct e.
-      destruct v.
-      all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_notval in Hmerge).
+        rewrite map_cons in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_throw in Hmerge).
         
         -- rewrite merge_call_host in Hmerge => //.
            inversion Hmerge; subst.
@@ -6043,15 +5215,12 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //. 
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l4)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l4)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_throw in Hmerge).
         -- rewrite merge_call_host in Hmerge.
            inversion Hmerge; subst.
            simpl.
@@ -6070,20 +5239,15 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (suselts_of_continuation_clauses _ _) => //.
-           ++ rewrite merge_suspend in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_suspend in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) eqn:Hswelts => //.
-           ++ rewrite merge_switch in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
     * (* Label *) 
       rewrite map_cons in Hmerge.
-      simpl in Hmerge.
-      destruct (merge_values (map to_val_instr l3)) eqn:Hmerge2 => //.
-      2: destruct e.
+      unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+      destruct (merge_values_list (map to_val_instr l3)) eqn:Hmerge2 => //.
       destruct v => //.
-      all: try by rewrite merge_notval in Hmerge.
-      -- destruct i; first by rewrite merge_notval in Hmerge.
-         destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+      -- destruct (vh_decrease _) => //.
          by rewrite merge_br in Hmerge.
       -- by rewrite merge_return in Hmerge.
       -- rewrite merge_call_host in Hmerge.
@@ -6106,10 +5270,8 @@ Proof.
       -- rewrite merge_throw in Hmerge => //. 
     * (* Local *)
       simpl in Hmerge.
-      destruct (merge_values (map _ l2)) eqn:Hmerge2 => //.
-      2: destruct e.
+      destruct (merge_values_list _) eqn:Hmerge2 => //.
       destruct v => //.
-      all: try by rewrite merge_notval in Hmerge.
       -- rewrite merge_call_host in Hmerge.
          inversion Hmerge ; subst.
          simpl.
@@ -6158,7 +5320,6 @@ Proof.
       destruct l => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -6168,10 +5329,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6180,17 +5340,14 @@ Proof.
       * (* Ref null *)
            simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -6198,10 +5355,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6210,10 +5366,9 @@ Proof.
       * (* Ref_exn *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e0; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6222,40 +5377,18 @@ Proof.
       * (* Ref_cont *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f0) l).
         lia.
-        -- inversion Hmerge; subst.
-           simpl.
-           destruct l => //. 
-           apply merge_is_Suspend0 in Hmerge0 as [-> ->].
-           done.
-           clear - IHn Hsize.
-           induction l => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
-(*        inversion Hmerge => /=.
+        rewrite merge_suspend in Hmerge => //.
+        inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
                    (map (λ x, expr_of_val_not_val (to_val_instr x)) l))
@@ -6266,17 +5399,15 @@ Proof.
         simpl.
         rewrite -> IHl at 1 => //=.
         simpl in Hsize.
-        lia.  *)
+        lia.  
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l))) with l in Hmerge.
            ++ inversion Hmerge.
@@ -6296,17 +5427,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
-           ++ rewrite merge_throw in Hmerge => //.
-           ++ rewrite merge_notval in Hmerge => //. 
+           rewrite merge_throw in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) eqn:Hsuselts => //.
-           2: by rewrite merge_notval in Hmerge.
            rewrite merge_suspend in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l))) with l in Hmerge.
            ++ inversion Hmerge.
@@ -6329,17 +5456,13 @@ Proof.
               simpl in Hsize.
               lia.
         -- destruct (swelts_of_continuation_clauses _ _) => //.
-           rewrite merge_switch in Hmerge => //.
-           rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -6363,10 +5486,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l0)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //. 
            inversion Hmerge ; subst.
@@ -6403,7 +5524,6 @@ Proof.
       destruct l => //=.
       destruct a ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -6413,10 +5533,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6425,17 +5544,14 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -6443,10 +5559,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6455,10 +5570,9 @@ Proof.
       * (* Ref_exn *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e0; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6467,43 +5581,21 @@ Proof.
       * (* Ref_cont *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f0) l).
         lia.
-        -- inversion Hmerge; subst.
-           simpl.
-           destruct l => //. 
-           apply merge_is_Switch0 in Hmerge0 as [-> ->].
-           done.
-           clear - IHn Hsize.
-           induction l => //=.
-           assert (size_of_instruction a0 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a0 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a0) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a0) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
+
         inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
@@ -6515,14 +5607,12 @@ Proof.
         simpl.
         rewrite -> IHl at 1 => //=.
         simpl in Hsize.
-        lia.  *)
+        lia.  
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v => //.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- rewrite merge_switch in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l))) with l in Hmerge.
            ++ inversion Hmerge.
@@ -6543,19 +5633,14 @@ Proof.
               lia.
         -- destruct (exnelts_of_exception_clauses _ _) => //.
            rewrite merge_throw in Hmerge => //.
-           rewrite merge_notval in Hmerge => //.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_throw in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
            rewrite merge_suspend in Hmerge => //.
-           rewrite merge_notval in Hmerge => //.
         -- destruct (swelts_of_continuation_clauses _ _) eqn:Hswelts => //.
-           2: rewrite merge_notval in Hmerge => //.
            rewrite merge_switch in Hmerge => //. 
 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l))) with l in Hmerge.
@@ -6580,13 +5665,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -6611,10 +5693,8 @@ Proof.
         -- rewrite merge_throw in Hmerge => //. 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l0)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -6652,7 +5732,6 @@ Proof.
       destruct l => //=.
       destruct a0 ; try by inversion Hmerge.
       destruct b ; try by inversion Hmerge.
-      all: try by rewrite merge_notval in Hmerge.
       * (* Br *)
         simpl in Hmerge.
         rewrite merge_br in Hmerge => //.
@@ -6662,10 +5741,9 @@ Proof.
       * (* Const *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v0 ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v0 ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6674,17 +5752,14 @@ Proof.
       * (* Ref null *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //.
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -6692,10 +5767,9 @@ Proof.
       * (* Ref *)
                 simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6704,40 +5778,64 @@ Proof.
       * (* Ref_exn *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        -- destruct v ; inversion Hmerge.
-        -- destruct e0; inversion Hmerge; subst.
+        -- destruct v ; inversion Hmerge. subst.
            assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
            rewrite -(IHm sh0 l H0 Hmerge0).
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l).
            lia.
-        -- inversion Hmerge; subst. destruct l => //.
-           apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
-           clear - IHn Hsize.
-           induction l => //=.
-           assert (size_of_instruction a1 < n) as Han.
-           { simpl in Hsize. lia. } 
-           specialize (IHn a1 Han) as Ha'.
-           rewrite merge_prepend.
-           remember (merge_values (map _ l)) as vnv.
-           specialize (val_not_val_combine_app (to_val_instr a1) vnv) as H'.
-           destruct (val_not_val_combine (to_val_instr a1) vnv) eqn:Hv ; simpl in H' ; simpl.
-           all: rewrite H'.
-           all: rewrite Ha'.
-           all: rewrite IHl.
-           all: try done.
-           all: simpl.
-           all: simpl in Hsize.
-           all: lia.
+        -- destruct l => //.
+           apply merge_ThrowRef in Hmerge0 as [-> ->].
+           2:{
+             clear - IHn Hsize.
+             induction l => //=.
+             assert (size_of_instruction a < n) as Han.
+             { simpl in Hsize. lia. } 
+             specialize (IHn a Han) as Ha'.
+             destruct (to_val_instr a) eqn:Ha => /= ; simpl in Ha'.
+             - rewrite merge_prepend.
+               remember (merge_values_list (map _ l)) as vnv.
+               specialize (val_not_val_combine_app v vnv) as H'.
+               destruct (val_not_val_combine v vnv) eqn:Hv ; simpl in H' ; simpl.
+               all: rewrite H'.
+               all: rewrite Ha'.
+               all: rewrite IHl.
+               all: try done.
+               all: simpl.
+               all: simpl in Hsize.
+               all: lia.
+             - rewrite Ha'.
+               f_equal.
+               clear - IHn Hsize.
+               induction l => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia.
+             - destruct e0 => //.
+               inversion Ha'; subst a.
+               f_equal. simpl.
+               clear - Hsize IHn.
+               induction l => //=.
+               rewrite IHn.
+               f_equal.
+               apply IHl.
+               simpl. simpl in Hsize. lia.
+               simpl in Hsize. lia. } 
+           simpl in Hmerge.
+           inversion Hmerge.
+           subst.
+
+           done.
       * (* Ref_cont *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
-        destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
+        destruct (merge_values_list (map to_val_instr l)) eqn:Hmerge0 ;
           try by inversion Hmerge.
-        destruct v ; inversion Hmerge.
-        destruct e; inversion Hmerge; subst.
+        destruct v ; inversion Hmerge. subst.
         assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
@@ -6745,10 +5843,10 @@ Proof.
         lia.
       * (* Suspend *)
         simpl in Hmerge.
-        rewrite merge_Suspend in Hmerge => //.
+        rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -6764,13 +5862,10 @@ Proof.
         lia.   *)
       * (* Handler *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
-        destruct (exnelts_of_exception_clauses _ _) eqn:Hexnels => //.
-        2: by rewrite merge_notval in Hmerge.
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
+        destruct (exnelts_of_exception_clauses _ _) eqn:Hexnels => //. 
            rewrite merge_throw in Hmerge.
            replace (flatten (map expr_of_val_not_val (map to_val_instr l))) with l in Hmerge.
            -- inversion Hmerge.
@@ -6793,17 +5888,13 @@ Proof.
               lia.
       * (* Prompt *)
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l2)) eqn:Hmerge2 => //.
-        2: destruct e.
-        destruct v => //.
-        all: (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge); (try by rewrite merge_notval in Hmerge).
+        unfold merge_values_list, to_val_instr in Hmerge; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l2)) eqn:Hmerge2 => //.
+        destruct v => //; (try by rewrite merge_br in Hmerge); (try by rewrite merge_call_host in Hmerge); (try by rewrite merge_suspend in Hmerge); (try by rewrite merge_switch in Hmerge); (try by rewrite merge_return in Hmerge).
         -- destruct (suselts_of_continuation_clauses _ _) => //.
            rewrite merge_suspend in Hmerge => //.
-           rewrite merge_notval in Hmerge => //. 
         -- destruct (swelts_of_continuation_clauses _ _) eqn:Hswelts => //.
-           rewrite merge_switch in Hmerge => //.
-                      rewrite merge_notval in Hmerge => //. 
+           rewrite merge_switch in Hmerge => //. 
         -- rewrite merge_throw in Hmerge => //. 
            replace (flatten (map expr_of_val_not_val (map to_val_instr l))) with l in Hmerge.
            ++ inversion Hmerge.
@@ -6824,13 +5915,10 @@ Proof.
               lia.
       * (* Label *) 
         rewrite map_cons in Hmerge.
-        simpl in Hmerge.
-        destruct (merge_values (map to_val_instr l1)) eqn:Hmerge2 => //.
-        2: destruct e.
+        unfold merge_values_list, to_val_instr in Hmerge ; fold to_val_instr in Hmerge.
+        destruct (merge_values_list (map to_val_instr l1)) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
-        -- destruct i0; first by rewrite merge_notval in Hmerge.
-           destruct (vh_decrease _); last by rewrite merge_notval in Hmerge.
+        -- destruct (vh_decrease _) => //.
            by rewrite merge_br in Hmerge.
         -- by rewrite merge_return in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
@@ -6856,10 +5944,8 @@ Proof.
 
       * (* Local *)
         simpl in Hmerge.
-        destruct (merge_values (map _ l0)) eqn:Hmerge2 => //.
-        2: destruct e.
+        destruct (merge_values_list _) eqn:Hmerge2 => //.
         destruct v => //.
-        all: try by rewrite merge_notval in Hmerge.
         -- rewrite merge_call_host in Hmerge => //.
         -- rewrite merge_suspend in Hmerge => //.
         -- rewrite merge_switch in Hmerge => //.
@@ -6885,7 +5971,6 @@ Proof.
         rewrite merge_call_host in Hmerge => //.
 Qed.
 
-
 Lemma flatten_simplify es :
   flatten (map expr_of_val_not_val (map to_val_instr es)) = es.
 Proof.
@@ -6895,61 +5980,30 @@ Qed.
   
 
 Lemma merge_to_val es :
-  expr_of_val_not_val (merge_values (map to_val_instr es)) = es.
+  expr_of_val_not_val (merge_values_list (map to_val_instr es)) = es.
 Proof.
   induction es => //=.
   specialize (of_to_val_instr a) ; intro Ha'.
-  rewrite merge_prepend.
-  remember (merge_values _) as vnv.
-  specialize (val_not_val_combine_app (to_val_instr a) vnv) ; intro H.
-  destruct (val_not_val_combine (to_val_instr a) vnv) eqn:Hv ; simpl in H ; simpl ; 
-    rewrite H Ha' IHes ; subst ; done.
+  destruct (to_val_instr a) eqn:Ha => /= ; simpl in Ha'.
+  - rewrite merge_prepend.
+    remember (merge_values_list _) as vnv.
+    specialize (val_not_val_combine_app v vnv) ; intro H.
+    destruct (val_not_val_combine v vnv) eqn:Hv ; simpl in H ; simpl ; 
+      rewrite H Ha' IHes ; subst ; done.
+  - rewrite Ha'.
+    rewrite flatten_simplify => //=.
+  - rewrite app_comm_cons. rewrite Ha'.
+    rewrite flatten_simplify => //. 
 Qed.
 
 
-Lemma merge_is_Suspend l i e:
-  merge_values (map to_val_instr (l)) = Suspend i e ->
-  l = AI_suspend_desugared i :: e.
-Proof.
-  destruct l => //.
-  intro H.
-  apply merge_is_Suspend0 in H as [-> ->] => //.
-  by rewrite merge_to_val.
-Qed.
-
-Lemma merge_is_Switch l tf i e:
-  merge_values (map to_val_instr (l)) = Switch tf i e ->
-  l = AI_switch_desugared tf i :: e. 
-Proof.
-  destruct l => //.
-  intro H.
-  apply merge_is_Switch0 in H as [-> ->] => //.
-  by rewrite merge_to_val.
-Qed.
-
-Lemma merge_is_ThrowRef l e:
-  merge_values (map to_val_instr (l)) = ThrowRef e ->
-  l = AI_basic BI_throw_ref :: e.
-Proof.
-  destruct l => //.
-  intro H.
-  apply merge_is_ThrowRef0 in H as [-> ->] => //.
-  by rewrite merge_to_val.
-Qed.
-  
 Lemma of_to_val es v : to_val es = Some v -> of_val v = es.
 Proof.
   unfold to_val. specialize (merge_to_val es) ; intro H.
-  destruct (merge_values _) => //.
+  destruct (merge_values_list _) => //.
   simpl in H. intro H' ; inversion H' ; by subst.
 Qed.
 
-Lemma of_to_eff es e : to_eff es = Some e -> of_eff e = es.
-Proof.
-  unfold to_eff. specialize (merge_to_val es) ; intro H.
-  destruct (merge_values _) => //.
-  simpl in H. intros H'; inversion H'; by subst.
-Qed. 
 
 Lemma to_val_instr_AI_const a :
   to_val_instr (AI_const a) = Val (immV [:: a]).
@@ -6963,24 +6017,20 @@ Proof.
   destruct v.
   - induction l => //=.
     unfold to_val.
-    simpl.
-    unfold to_val in IHl.
-    simpl in IHl.
-(*    unfold merge_values.
+    unfold merge_values_list.
     rewrite map_cons.
     rewrite to_val_instr_AI_const.
     unfold to_val in IHl.
-    unfold of_val in IHl.     *)
-    rewrite to_val_instr_AI_const.
+    unfold of_val in IHl.    
     destruct (map to_val_instr _) eqn:Hmap; try by inversion IHl.
-    destruct (merge_values (v :: l0)) eqn:Hmerge ; try by inversion IHl.
+    destruct (merge_values_list (v :: l0)) eqn:Hmerge ; try by inversion IHl.
     inversion IHl ; subst => //.
     rewrite merge_prepend.
     rewrite Hmerge.
     done.
   - done.
   - unfold of_val, to_val. 
-    cut (forall i (vh : valid_holed i) j, merge_values (map to_val_instr (vfill vh [AI_basic (BI_br (j + i))])) = Val (brV (vh_increase_repeat vh j))).
+    cut (forall i (vh : valid_holed i) j, merge_values_list (map to_val_instr (vfill vh [AI_basic (BI_br (j + i))])) = Val (brV (vh_increase_repeat vh j))).
     intro H. specialize (H i lh 0).
     unfold vh_increase_repeat in H. simpl in H.
     by rewrite H.
@@ -6994,7 +6044,7 @@ Proof.
         fold vh_increase_repeat.
         rewrite - IHj => //=.
       * rewrite to_val_instr_AI_const merge_prepend.
-        destruct (merge_values _) eqn:Hmerge => //.
+        destruct (merge_values_list _) eqn:Hmerge => //.
         inversion IHbef ; subst v => //=.
         by rewrite - vh_increase_repeat_push_const. 
     + induction bef.
@@ -7008,7 +6058,7 @@ Proof.
         destruct (S_plus j i) => //.
       * simpl. rewrite to_val_instr_AI_const.
         rewrite merge_prepend.
-        destruct (merge_values _) eqn:Hmerge => //.
+        destruct (merge_values_list _) eqn:Hmerge => //.
         inversion IHbef ; subst v => //.
         simpl.
         by rewrite - vh_increase_repeat_push_const.
@@ -7022,7 +6072,7 @@ Proof.
         done.
       * simpl. rewrite to_val_instr_AI_const.
         rewrite merge_prepend.
-        destruct (merge_values _) eqn:Hmerge => //.
+        destruct (merge_values_list _) eqn:Hmerge => //.
         inversion IHbef; subst v => //.
         simpl.
         by rewrite - vh_increase_repeat_push_const.
@@ -7036,7 +6086,7 @@ Proof.
         done.
       * simpl. rewrite to_val_instr_AI_const.
         rewrite merge_prepend.
-        destruct (merge_values _) eqn:Hmerge => //.
+        destruct (merge_values_list _) eqn:Hmerge => //.
         inversion IHbef; subst v => //.
         simpl.
         by rewrite - vh_increase_repeat_push_const.
@@ -7047,37 +6097,37 @@ Proof.
         rewrite flatten_simplify.
         done.
       * rewrite to_val_instr_AI_const merge_prepend.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
         inversion IHl ; subst => //=.
     + induction l => /=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHs ; subst => /=.
         rewrite merge_return.
         rewrite flatten_simplify.
         done.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHs.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //=.
             + induction l => /=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHs ; subst => /=.
         rewrite merge_return.
         rewrite flatten_simplify.
         done.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHs.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //=.
             + induction l => /=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHs ; subst => /=.
         rewrite merge_return.
         rewrite flatten_simplify.
         done.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHs.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //=.
   - unfold of_val, to_val => //=.
     induction l0 => //=.
@@ -7085,194 +6135,188 @@ Proof.
       * rewrite merge_call_host.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
         inversion IHl0 ; subst => //.
     + induction l0 => //=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHl0 ; subst => /=.
         rewrite merge_call_host.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHl0.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl1 ; subst => //.
     +  induction l0 => //=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHl0 ; subst => /=.
         rewrite merge_call_host.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHl0.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl1 ; subst => //.
             +  induction l0 => //=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHl0 ; subst => /=.
         rewrite merge_call_host.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHl0.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl1 ; subst => //.
             +  induction l0 => //=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHl0 ; subst => /=.
         rewrite merge_call_host.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHl0.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl1 ; subst => //.
-Qed.
-
-Lemma to_of_eff e : to_eff (of_eff e) = Some e.
-Proof.
-  destruct e.
-  - unfold of_eff, to_eff => //=.
+  - unfold of_val, to_val => //=.
     induction sh => //=.
     + induction l => //=.
-      * rewrite merge_prepend.
-        rewrite merge_Suspend.
+      * rewrite merge_suspend.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_suspend.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //=.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_suspend.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_suspend.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHsh ; subst => /=.
         rewrite suselts_of_continuation_clauses_inv.
         rewrite merge_suspend.
         rewrite flatten_simplify => //=.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
 
-  - unfold of_eff, to_eff => //=.
+  - unfold of_val, to_val => //=.
     induction sh => //=.
     + induction l => //=.
-      * rewrite merge_prepend merge_Switch.
+      * rewrite merge_switch.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_switch.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //=.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_switch.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_switch.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHsh ; subst => /=.
         rewrite swelts_of_continuation_clauses_inv.
         rewrite merge_switch.
         rewrite flatten_simplify => //=.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
-  - unfold of_eff, to_eff => //=.
+  - unfold of_val, to_val => //=.
     induction sh => //=.
     + induction l => //=.
-      * rewrite merge_prepend merge_ThrowRef.
+      * rewrite merge_throw.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
-        destruct (merge_values _) => //=.
+        destruct (merge_values_list _) => //=.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_throw.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //=.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite merge_throw.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
-        destruct e => //. 
+      * destruct (merge_values_list _) => //.
+        destruct v => //. 
         inversion IHsh ; subst => /=.
         rewrite exnelts_of_exception_clauses_inv.
         rewrite merge_throw.
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
     + induction l => //=.
-      * destruct (merge_values _) => //.
+      * destruct (merge_values_list _) => //.
         inversion IHsh ; subst => /=.
         rewrite merge_throw.
         rewrite flatten_simplify => //=.
       * rewrite to_val_instr_AI_const merge_prepend.
         clear IHsh.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
         inversion IHl ; subst => //.
         
 Qed.
@@ -7292,7 +6336,6 @@ Proof.
   intros e0 e Hlen.
   destruct e0 => //.
   destruct b => //= ; unfold to_val => /=.
-  all: try rewrite /to_val /= merge_notval => //=. 
   - rewrite merge_br => //.
   - rewrite merge_return => //.
   - rewrite merge_prepend => /=.
@@ -7302,9 +6345,8 @@ Proof.
     unfold length_rec => //=. lia.
     apply IHn in H.
     unfold to_val in H.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v0 => //.
-    destruct e0 => //. 
   - rewrite merge_prepend => /=.
     destruct e => //.
     assert (length_rec (a :: e) < n).
@@ -7312,10 +6354,8 @@ Proof.
     unfold length_rec => //=. lia.
     apply IHn in H.
     unfold to_val in H.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //.
-    destruct e0 => //.
-  - rewrite merge_ThrowRef. done.
   - unfold to_val => //=.
     rewrite merge_trap => /=.
     rewrite flatten_simplify => /=.
@@ -7327,9 +6367,8 @@ Proof.
      unfold length_rec => //=. lia.
      apply IHn in H.
      unfold to_val in H.
-     destruct (merge_values _) => //.
+     destruct (merge_values_list _) => //.
      destruct v => //.
-     destruct e0 => //. 
   - unfold to_val => /=. rewrite merge_prepend => /=.
     destruct e => //.
     assert (length_rec (a :: e) < n).
@@ -7337,9 +6376,8 @@ Proof.
     unfold length_rec => //=. lia.
     apply IHn in H.
     unfold to_val in H.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //.
-    destruct e1 => //. 
   - unfold to_val => /=. rewrite merge_prepend => /=.
     destruct e => //.
     assert (length_rec (a :: e) < n).
@@ -7347,14 +6385,14 @@ Proof.
     unfold length_rec => //=. lia.
     apply IHn in H.
     unfold to_val in H.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //.
-    destruct e0 => //. 
-  - unfold to_val => /=. rewrite merge_Suspend => //=.
-  - unfold to_val => /=. rewrite merge_Switch => //=.
+  - unfold to_val => /=. rewrite merge_suspend => //=.
+  - unfold to_val => /=. rewrite merge_switch => //=.
   - unfold to_val.
-    simpl. 
-    destruct l0; first by rewrite merge_notval.
+    unfold merge_values_list, map, to_val_instr.
+    fold to_val_instr.
+    destruct l0 ; first done.
     assert (length_rec (a :: l0) < n).
     unfold length_rec in Hlen ; simpl in Hlen.
     unfold length_rec.
@@ -7364,10 +6402,8 @@ Proof.
     apply IHn in H.
     unfold is_none_or in H.
     unfold to_val in H.
-    destruct (merge_values _) => //.
-    2: destruct e0.
+    destruct (merge_values_list _) => //.
     destruct v => //.
-    all: try by rewrite merge_notval.
     + rewrite merge_br => //=.
     + rewrite merge_return => //=.
     + rewrite merge_call_host => //=.
@@ -7375,10 +6411,10 @@ Proof.
     + rewrite merge_switch => //=.
     + destruct (exnelts_of_exception_clauses _ _) eqn:Hexnelts => //.
       rewrite merge_throw => //=.
-      rewrite merge_notval => //. 
   - unfold to_val.
-    simpl.
-    destruct l1 ; first by rewrite merge_notval.
+    unfold merge_values_list, map, to_val_instr.
+    fold to_val_instr.
+    destruct l1 ; first done.
     assert (length_rec (a :: l1) < n).
     unfold length_rec in Hlen ; simpl in Hlen.
     unfold length_rec.
@@ -7388,23 +6424,20 @@ Proof.
     apply IHn in H.
     unfold is_none_or in H.
     unfold to_val in H.
-    destruct (merge_values _) => //.
-    2: destruct e0.
+    destruct (merge_values_list _) => //.
     destruct v => //.
-    all: try by rewrite merge_notval.
     + rewrite merge_br => //=.
     + rewrite merge_return => //=.
     + rewrite merge_call_host => //=.
     + destruct (suselts_of_continuation_clauses _ _) => //.
       rewrite merge_suspend => //=.
-      rewrite merge_notval => //. 
     + destruct (swelts_of_continuation_clauses _ _) => //. 
       rewrite merge_switch => //=.
-      rewrite merge_notval => //. 
     + rewrite merge_throw => //=.
   - unfold to_val.
-    simpl.
-    destruct l0 ; first by rewrite merge_notval.
+    unfold merge_values_list, map, to_val_instr.
+    fold to_val_instr.
+    destruct l0 ; first done.
     assert (length_rec (a :: l0) < n).
     unfold length_rec in Hlen ; simpl in Hlen.
     unfold length_rec.
@@ -7414,13 +6447,9 @@ Proof.
     apply IHn in H.
     unfold is_none_or in H.
     unfold to_val in H.
-    destruct (merge_values _) => //.
-    2: destruct e0.
+    destruct (merge_values_list _) => //.
     destruct v => //.
-    all: try by rewrite merge_notval.
-    + destruct i.
-      2: destruct (vh_decrease _) eqn:Hdecr => //=.
-      all: try rewrite merge_notval => //. 
+    + destruct (vh_decrease _) eqn:Hdecr => //=.
       rewrite merge_br => //=.
     + rewrite merge_return => //=.
     + rewrite merge_call_host => //=.
@@ -7428,10 +6457,8 @@ Proof.
     + rewrite merge_switch => //=.
     + rewrite merge_throw => //=.
   - unfold to_val => //=.
-    destruct (merge_values (map _ l)) eqn:Hmerge => //.
-    2: destruct e0.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //.
-    all: try by rewrite merge_notval.
     rewrite merge_call_host => //.
     rewrite merge_suspend => //.
     rewrite merge_switch => //.
@@ -7447,41 +6474,33 @@ Proof.
   destruct e => //=.
   destruct a => //=.
   destruct b => //= ; unfold to_val => /=.
-  all: try by rewrite /to_val /= merge_notval.
   - by rewrite merge_br.
   - by rewrite merge_return.
   - rewrite merge_prepend.
-    destruct (merge_values _) => //=.
+    destruct (merge_values_list _) => //=.
     destruct v0 => //=.
-    destruct e0 => //=. 
   - rewrite merge_prepend.
-    destruct (merge_values _) => //=.
-    destruct v => //.
-    destruct e0 => //.
-  - rewrite merge_ThrowRef => //.
-  - rewrite /to_val /= merge_trap.
-    destruct e => //=. 
-    rewrite of_to_val_instr => //=.
-  - unfold to_val => /=. rewrite merge_prepend.
-    destruct (merge_values _) => //=.
-    destruct v => //=.
-    destruct e0 => //. 
-  - unfold to_val => /=. rewrite merge_prepend.
-    destruct (merge_values _) => //=.
-    destruct v => //.
-    destruct e1 => //. 
-  - unfold to_val => /=. rewrite merge_prepend.
-    destruct (merge_values _) => //=.
-    destruct v => //.
-    destruct e0 => //. 
-  - unfold to_val => //=.
-    rewrite merge_Suspend => //=.
-  - unfold to_val => /=; rewrite merge_Switch => //.
+    destruct (merge_values_list _) => //=.
+    destruct v => //. 
   - unfold to_val => /=.
-    destruct (merge_values (map _ l0)) => //=.
-    2: destruct e0.
+    destruct e => //=.
+    rewrite of_to_val_instr.
+    done.
+  - unfold to_val => /=. rewrite merge_prepend.
+    destruct (merge_values_list _) => //=.
     destruct v => //=.
-    all: try by rewrite merge_notval.
+  - unfold to_val => /=. rewrite merge_prepend.
+    destruct (merge_values_list _) => //=.
+    destruct v => //.
+  - unfold to_val => /=. rewrite merge_prepend.
+    destruct (merge_values_list _) => //=.
+    destruct v => //.
+  - unfold to_val => //=.
+    rewrite merge_suspend => //=.
+  - unfold to_val => /=; rewrite merge_switch => //.
+  - unfold to_val => /=.
+    destruct (merge_values_list _) => //=.
+    destruct v => //=.
     rewrite merge_br => //=.
     rewrite merge_return => //=.
     rewrite merge_call_host => //=.
@@ -7489,30 +6508,22 @@ Proof.
     rewrite merge_switch => //.
     destruct (exnelts_of_exception_clauses _ _) => //.
     rewrite merge_throw => //.
-    rewrite merge_notval => //. 
   - unfold to_val => /=.
-    destruct (merge_values (map _ _)) => //=.
-    2: destruct e0.
+    destruct (merge_values_list _) => //=.
     destruct v => //=.
-    all: try by rewrite merge_notval.
     rewrite merge_br => //=.
     rewrite merge_return => //=.
     rewrite merge_call_host => //=.
     destruct (suselts_of_continuation_clauses _ _) => //. 
     rewrite merge_suspend => //.
-    rewrite merge_notval => //. 
     destruct (swelts_of_continuation_clauses _ _) => //. 
     rewrite merge_switch => //.
-    rewrite merge_notval => //. 
     rewrite merge_throw => //. 
   - unfold to_val => /=.
-    destruct (merge_values (map _ _)) => //=.
-    2: destruct e0.
+    destruct (merge_values_list _) => //=.
     destruct v => //=.
-    all: try by rewrite merge_notval.
     destruct i => //=.
-    2: destruct (vh_decrease _) => //=.
-    all: try by rewrite merge_notval.
+    destruct (vh_decrease _) => //=.
     rewrite merge_br => //=.
     rewrite merge_return => //=.
     rewrite merge_call_host => //=.
@@ -7520,10 +6531,8 @@ Proof.
     rewrite merge_switch => //.
     rewrite merge_throw => //.
   - unfold to_val => //=.
-    destruct (merge_values (map _ _)) => //.
-    2: destruct e0 => //. 
+    destruct (merge_values_list _) => //.
     destruct v => //.
-    all: try by rewrite merge_notval.
     rewrite merge_call_host => //.
     rewrite merge_suspend => //.
     rewrite merge_switch => //. 
@@ -7535,35 +6544,73 @@ Qed.
 
 Lemma flatten_map_expr_of_val_not_val vs :
   flatten (map expr_of_val_not_val vs) =
-    expr_of_val_not_val (merge_values vs).
+    expr_of_val_not_val (merge_values_list vs).
 Proof.
   induction vs => //=.
   destruct a => //=.
-  all: rewrite IHvs.
-  all: rewrite merge_prepend.
-  all: by rewrite val_not_val_combine_app.
+  rewrite IHvs.
+  rewrite merge_prepend.
+  by rewrite val_not_val_combine_app.
 Qed.
 
 Lemma merge_app vs1 vs2:
-  merge_values (vs1 ++ vs2) =
-    val_not_val_combine (merge_values vs1) (merge_values vs2).
+  merge_values_list (vs1 ++ vs2) =
+    match (merge_values_list vs1) with
+    | Val v1 => val_not_val_combine v1 (merge_values_list vs2)
+    | NotVal e1 => NotVal (e1 ++ expr_of_val_not_val (merge_values_list vs2))
+    | ThrowRef es => ThrowRef (es ++ expr_of_val_not_val (merge_values_list vs2))
+    end.
 Proof.
   induction vs1 => //=.
-  { destruct (merge_values vs2) => //.
+  { destruct (merge_values_list vs2) => //.
     destruct v => //.
     by rewrite vh_push_const_nil.
     by rewrite sh_push_const_nil.
     by rewrite llh_push_const_nil.
-    destruct e => //. 
     by rewrite sus_push_const_nil.
     by rewrite sw_push_const_nil.
     by rewrite exn_push_const_nil.
   }
-  do 2 rewrite merge_prepend.
-  rewrite IHvs1.
-  rewrite val_not_val_combine_assoc.
-  done.
-Qed. 
+  destruct a => //.
+  { do 2 rewrite merge_prepend.
+    rewrite IHvs1.  
+    destruct (merge_values_list vs1) eqn:Hvs1 => //=.
+    - by rewrite val_not_val_combine_assoc.
+    - destruct v => //=.
+      + by rewrite app_assoc. 
+      + destruct e => //=.
+      + destruct (merge_values_list vs2) ;
+          by rewrite vh_append_app.
+      + destruct (merge_values_list vs2) ;
+          by rewrite sh_append_app.
+      + destruct (merge_values_list vs2) ;
+          by rewrite llh_append_app.
+      + destruct (merge_values_list vs2);
+          by rewrite sus_append_app.
+      + destruct (merge_values_list vs2);
+          by rewrite sw_append_app.
+      + destruct (merge_values_list vs2);
+          by rewrite exn_append_app.
+    - destruct v => //=.
+      + destruct (separate_last l) as [[??]|] eqn:Hl => //=.
+        apply separate_last_spec in Hl as ->.
+        destruct v => //=.
+        * rewrite app_comm_cons app_assoc => //.
+        * destruct v => //=.
+          all: rewrite app_comm_cons app_assoc => //.
+      + rewrite - vh_append_app => //.
+      + rewrite - sh_append_app => //.
+      + rewrite - llh_append_app => //.
+      + rewrite - sus_append_app => //.
+      + rewrite - sw_append_app => //.
+      + rewrite - exn_append_app => //. 
+    } 
+    all: rewrite map_app.
+  all: rewrite flatten_cat.
+  all: rewrite (flatten_map_expr_of_val_not_val vs2).
+  by rewrite catA.
+  by rewrite app_assoc.
+Qed.
 
 Lemma to_val_is_immV es vs :
   to_val es = Some (immV vs) -> es = map (λ x, AI_const x) vs.
@@ -7578,17 +6625,9 @@ Proof.
   intros.
   unfold to_val in H ; simpl in H.
   destruct (to_val_instr a) eqn:Ha => //.
-  3: by rewrite merge_notval in H.
-  3: by rewrite merge_ThrowRef in H.
-  3: by rewrite merge_Suspend in H.
-  3: by rewrite merge_Switch in H.
-  2: destruct e => //=.
-  2: by rewrite merge_suspend in H.
-  2: by rewrite merge_switch in H.
-  2: by rewrite merge_throw in H.
   rewrite merge_prepend in H.
   unfold to_val in IHes.
-  destruct (merge_values _) => //.
+  destruct (merge_values_list _) => //.
   - destruct v, v0 => //.
     + simpl in H.
       inversion H ; subst.
@@ -7597,9 +6636,8 @@ Proof.
       destruct b => //.
       all: try by inversion Ha.
       all: simpl in Ha.
-      all: destruct (merge_values _) => //.
-      all: try destruct v => //.
-      all: try destruct e => //. 
+      all: destruct (merge_values_list _) => //.
+      all: destruct v => //.
       destruct (exnelts_of_exception_clauses _ _) => //.
       destruct (suselts_of_continuation_clauses _ _) => //.
       destruct (swelts_of_continuation_clauses _ _) => //.
@@ -7615,7 +6653,6 @@ Proof.
       destruct (sfill _ _) => //.
     + simpl in H.
       destruct (llfill _ _) => //.
-  - destruct v, e => //. 
     + simpl in H.
       destruct (susfill _ _ _) => //.
     + simpl in H.
@@ -7628,21 +6665,14 @@ Proof.
     unfold val_not_val_combine in H.
     destruct (separate_last l) as [[??]|] => //.
     destruct v => //.
-    destruct v => //.
-  - destruct v => //.
-    simpl in H. destruct (separate_last _) as [[??]|] => //.
-    destruct v => //. destruct v => //.
-  - destruct v => //.
-    simpl in H. destruct (separate_last _) as [[??]|] => //.
-    destruct v => //. destruct v => //.
+    destruct v => //. 
 Qed.
 
-
-
-
-Lemma merge_is_NotVal  es es' :
-  merge_values (map to_val_instr es) = NotVal es' ->
-   es = es'.
+Lemma merge_is_not_val_is_throw_ref es es' :
+  (merge_values_list (map to_val_instr es) = NotVal es' ->
+   es = es') /\
+    (merge_values_list (map to_val_instr es) = ThrowRef es' ->
+     es = AI_basic BI_throw_ref :: es').
 Proof.
   generalize dependent es'.
   induction es => //= ; intro es'.
@@ -7652,99 +6682,115 @@ Proof.
       * by rewrite merge_br.
       * by rewrite merge_return.
       * rewrite merge_prepend.
-        destruct (merge_values _) eqn:Hmerge => //=.
+        destruct (merge_values_list _) eqn:Hmerge => //=.
         -- destruct v => //=.
+           split; last by intros.
            intro H ; inversion H ; subst.
            rewrite (to_val_trap_is_singleton (e := es)) => //.
            unfold to_val ; by rewrite Hmerge.
-        -- destruct e => //.
-        -- intro H ; inversion H.
-           by erewrite IHes.
-        -- intro H; inversion H.
-           apply merge_is_ThrowRef in Hmerge as -> => //.
-        -- intro H; inversion H.
-           apply merge_is_Suspend in Hmerge as -> => //.
-        -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //. 
-      * rewrite merge_prepend.
-         destruct (merge_values _) eqn:Hmerge => //=.
+        -- split; last by intros.
+           intro H ; inversion H.
+           edestruct IHes as [Hres _].
+           by erewrite Hres.
+        -- split; last by intros.
+           intro H; inversion H.
+           edestruct IHes as [_ Hres].
+           by erewrite Hres.
+      *  rewrite merge_prepend.
+        destruct (merge_values_list _) eqn:Hmerge => //=.
         -- destruct v => //=.
+           split; last by intros.
            intro H ; inversion H ; subst.
            rewrite (to_val_trap_is_singleton (e := es)) => //.
            unfold to_val ; by rewrite Hmerge.
-        -- destruct e => //.
-        -- intro H ; inversion H.
-           by erewrite IHes.
-        -- intro H; inversion H.
-           apply merge_is_ThrowRef in Hmerge as -> => //.
-        -- intro H; inversion H.
-           apply merge_is_Suspend in Hmerge as -> => //.
-        -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //.
+        -- split; last by intros.
+           intro H ; inversion H.
+           edestruct IHes as [Hres _].
+           by erewrite Hres.
+        -- split; last by intros.
+           intro H; inversion H.
+           edestruct IHes as [_ Hres].
+           by erewrite Hres.
     + inversion Ha; subst v.
       rewrite merge_trap => //=.
       rewrite flatten_simplify.
       destruct es => //=.
+      split; last by intros.
       intro H; inversion H; subst. done.
     + inversion Ha; subst.
       rewrite merge_prepend.
-       destruct (merge_values _) eqn:Hmerge => //=.
-        -- destruct v => //=.
-           intro H ; inversion H ; subst.
-           rewrite (to_val_trap_is_singleton (e := es)) => //.
-           unfold to_val ; by rewrite Hmerge.
-        -- destruct e => //.
-        -- intro H ; inversion H.
-           by erewrite IHes.
-        -- intro H; inversion H.
-           apply merge_is_ThrowRef in Hmerge as -> => //.
-        -- intro H; inversion H.
-           apply merge_is_Suspend in Hmerge as -> => //.
-        -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //.
+      simpl.
+      destruct (merge_values_list (map _ es)) eqn:Hmerge => //=.
+      -- destruct v => //=.
+         split; last done.
+         intros H; inversion H; subst es'.
+         rewrite (to_val_trap_is_singleton (e := es)) => //.
+         unfold to_val ; by rewrite Hmerge.
+      -- split; last by intros.
+         intro H ; inversion H; subst.
+         edestruct IHes as [Hres _].
+         rewrite Hres => //.
+      -- split; last by intros.
+         intros H; inversion H; subst es'.
+         edestruct IHes as [_ Hres].
+         by erewrite Hres.
     + inversion Ha; subst v.
       rewrite merge_prepend.
-       destruct (merge_values _) eqn:Hmerge => //=.
-        -- destruct v => //=.
-           intro H ; inversion H ; subst.
-           rewrite (to_val_trap_is_singleton (e := es)) => //.
-           unfold to_val ; by rewrite Hmerge.
-        -- destruct e0 => //.
-        -- intro H ; inversion H.
-           by erewrite IHes.
-        -- intro H; inversion H.
-           apply merge_is_Suspend in Hmerge as -> => //.
-        -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //.
+      simpl.
+      destruct (merge_values_list (map _ es)) eqn:Hmerge => //=.
+      -- destruct v => //=.
+         split; last done.
+         intros H; inversion H; subst es'.
+         rewrite (to_val_trap_is_singleton (e := es)) => //.
+         unfold to_val ; by rewrite Hmerge.
+      -- split; last by intros.
+         intro H ; inversion H; subst.
+         edestruct IHes as [Hres _].
+         rewrite Hres => //.
     + inversion Ha; subst v.
       rewrite merge_prepend.
-      destruct (merge_values _) eqn:Hmerge => //=.
-        -- destruct v => //=.
-           intro H ; inversion H ; subst.
-           rewrite (to_val_trap_is_singleton (e := es)) => //.
-           unfold to_val ; by rewrite Hmerge.
-        -- destruct e => //.
-        -- intro H ; inversion H.
-           by erewrite IHes.
-        -- intro H; inversion H.
-           apply merge_is_ThrowRef in Hmerge as -> => //.
-    + destruct (merge_values (map _ l0)) eqn:Hmerge => //.
-      2: destruct e => //.
+      simpl.
+      destruct (merge_values_list (map _ es)) eqn:Hmerge => //=.
+      -- destruct v => //=.
+         split; last done.
+         intros H; inversion H; subst es'.
+         rewrite (to_val_trap_is_singleton (e := es)) => //.
+         unfold to_val ; by rewrite Hmerge.
+      -- split; last by intros.
+         intro H ; inversion H; subst.
+         edestruct IHes as [Hres _].
+         rewrite Hres => //.
+      -- split; last by intros.
+         intros H; inversion H; subst es'.
+         edestruct IHes as [_ Hres].
+         by erewrite Hres.
+    + inversion Ha; subst.
+      rewrite merge_suspend => //.
+    + inversion Ha; subst.
+      rewrite merge_switch => //.
+    + destruct (merge_values_list (map _ l0)) eqn:Hmerge => //.
       destruct v0 => //; try (inversion Ha; subst v).
       * rewrite merge_br => //.
       * rewrite merge_return => //.
       * rewrite merge_call_host => //.
+      * rewrite merge_suspend => //.
+      * rewrite merge_switch => //.
       * destruct (exnelts_of_exception_clauses _ _) => //.
-    + destruct (merge_values (map _ l1)) eqn:Hmerge => //.
-      2: destruct e => //.
+        inversion Ha; subst v.
+        rewrite merge_throw => //.
+    + destruct (merge_values_list (map _ l1)) eqn:Hmerge => //.
       destruct v0 => //; try (inversion Ha; subst v).
       * rewrite merge_br => //.
       * rewrite merge_return => //.
       * rewrite merge_call_host => //.
       * destruct (suselts_of_continuation_clauses _ _) => //.
+        inversion Ha; subst.
+        rewrite merge_suspend => //.
       * destruct (swelts_of_continuation_clauses _ _) => //.
-    + destruct (merge_values (map _ l0)) eqn:Hmerge => //.
-      2: destruct e => //. 
+        inversion Ha; subst.
+        rewrite merge_switch => //.
+      * rewrite merge_throw => //.
+    + destruct (merge_values_list (map _ l0)) eqn:Hmerge => //.
       destruct v0 => //; try (inversion Ha; subst v).
       * destruct i => //.
         destruct (vh_decrease _) => //.
@@ -7752,59 +6798,80 @@ Proof.
         rewrite merge_br => //.
       * rewrite merge_return => //.
       * rewrite merge_call_host => //.
-    + destruct (merge_values (map _ l)) eqn:Hmerge => //.
-      2: destruct e => //. 
+      * rewrite merge_suspend => //.
+      * rewrite merge_switch => //.
+      * rewrite merge_throw => //.
+    + destruct (merge_values_list (map _ l)) eqn:Hmerge => //.
       destruct v0 => //; try (inversion Ha; subst v).
-      rewrite merge_call_host => //.
+      * rewrite merge_call_host => //.
+      * rewrite merge_suspend => //.
+      * rewrite merge_switch => //.
+      * rewrite merge_throw => //.
     + inversion Ha; subst v.
-      rewrite merge_call_host => //.
-  - destruct e => //=.
-    + rewrite merge_suspend => //.
-    + rewrite merge_switch => //.
-    + rewrite merge_throw => //. 
-  - rewrite merge_notval => //=.
-    rewrite flatten_map_expr_of_val_not_val.
-    rewrite merge_to_val.
-    intros H; inversion H.
-    destruct a => //=.
-    destruct b => //=.
-    all: try by inversion Ha; subst.
+      rewrite merge_call_host => //. 
+  - rewrite flatten_simplify.
+    split; last done.
+    intro H ; inversion H.
+    destruct a => // ; try by inversion Ha. 
+    + destruct b => // ; try by inversion Ha.
     + simpl in Ha.
-      destruct (merge_values (map _ l0)) eqn:Hmerge => //.
-      all: try by inversion Ha; subst.
-      * destruct v => //; inversion Ha; subst => //.
-      * destruct e0 => //.
-        destruct (exnelts_of_exception_clauses _ _) => //.
-        inversion Ha; subst => //.
+      destruct (merge_values_list (map _ l0)) => // ; try by inversion Ha. 
+      destruct v => // ; try by inversion Ha.
+      destruct (exnelts_of_exception_clauses _ _) eqn:Hexnelts => //.
+      inversion Ha; subst e. done.
     + simpl in Ha.
-      destruct (merge_values (map _ l1)) eqn:Hmerge => //.
-      all: try by inversion Ha; subst.
-      * destruct v => //; inversion Ha; subst => //.
-      * destruct e0 => //.
-        -- destruct (suselts_of_continuation_clauses _ _) => //.
-           inversion Ha; subst => //.
-        -- destruct (swelts_of_continuation_clauses _ _) => //.
-           inversion Ha; subst => //.
+      destruct (merge_values_list (map _ l1)) => // ; try by inversion Ha. 
+      destruct v => // ; try by inversion Ha.
+      * destruct (suselts_of_continuation_clauses _ _) => //. 
+        inversion Ha; subst e. done.
+      * destruct (swelts_of_continuation_clauses _ _) => //.
+        inversion Ha; subst e. done.
     + simpl in Ha.
-      destruct (merge_values (map _ l0)) eqn:Hmerge => //.
-      all: try by inversion Ha; subst.
-      * destruct v => //.
-        all: try by inversion Ha; subst => //.
-        destruct i => //; try by inversion Ha; subst => //.
-        destruct (vh_decrease _) => //.
-        inversion Ha; subst => //. 
-      * destruct e0 => //.
+      destruct (merge_values_list (map _ l0)) => // ; try by inversion Ha. 
+      destruct v => // ; try by inversion Ha.
+      destruct i => // ; try by inversion Ha.
+      destruct (vh_decrease lh) ; try by inversion Ha.
     + simpl in Ha.
-      destruct (merge_values (map _ l)) eqn:Hmerge => //.
-      all: try by inversion Ha; subst.
-      * destruct v => //; inversion Ha; subst => //.
-      * destruct e0 => //=. 
-  - rewrite merge_ThrowRef => //.
-  - rewrite merge_Suspend => //.
-  - rewrite merge_Switch => //. 
-Qed.     
+      destruct (merge_values_list (map _ l)) => // ; try by inversion Ha.
+      destruct v => // ; by inversion Ha.
+  - rewrite flatten_simplify.
+    split; first done.
+    intros H; inversion H; subst es'.
+    destruct a => //.
+    + destruct b => //.
+      simpl in Ha. inversion Ha; subst.
+      done.
+    + simpl in Ha. destruct (merge_values_list (map _ l0)) => //.
+      destruct v => //.
+      destruct (exnelts_of_exception_clauses _ _) => //.
+    + simpl in Ha.
+      destruct (merge_values_list (map _ l1)) => //.
+      destruct v => //.
+      destruct (suselts_of_continuation_clauses _ _) => //.
+      destruct (swelts_of_continuation_clauses _ _) => //.
+    + simpl in Ha. destruct (merge_values_list (map _ l0)) => //.
+      destruct v => //.
+      destruct i => //.
+      destruct (vh_decrease _ ) => //.
+    + simpl in Ha. destruct (merge_values_list (map _ l)) => //.
+      destruct v => //. 
+Qed.
 
+Lemma merge_is_not_val es es' :
+  (merge_values_list (map to_val_instr es) = NotVal es' ->
+   es = es') .
+Proof.
+  edestruct merge_is_not_val_is_throw_ref as [Hres _].
+  exact Hres.
+Qed.
 
+Lemma merge_is_throw_ref es es' :
+    (merge_values_list (map to_val_instr es) = ThrowRef es' ->
+     es = AI_basic BI_throw_ref :: es').
+Proof.
+  edestruct merge_is_not_val_is_throw_ref as [_ Hres].
+  exact Hres.
+Qed. 
 
 Lemma extend_retV sh es :
   to_val (of_val (retV sh) ++ es) = Some (retV (sh_append sh es)).
@@ -7814,21 +6881,15 @@ Proof.
   rewrite merge_app.
   specialize (to_of_val (retV sh)) as H.
   unfold to_val in H.
-  destruct (merge_values _) => //.
+  destruct (merge_values_list _) => //.
   inversion H => /=.
-  destruct (merge_values _) eqn:Hmerge => //=.
+  destruct (merge_values_list _) eqn:Hmerge => //=.
   - erewrite of_to_val.
     done.
     unfold to_val.
     by rewrite Hmerge.
-  - erewrite of_to_eff.
-    done.
-    unfold to_eff.
-    by rewrite Hmerge.
-  - by apply merge_is_NotVal in Hmerge ; subst.
-  - by apply merge_is_ThrowRef in Hmerge; subst.
-  - by apply merge_is_Suspend in Hmerge; subst.
-  - by apply merge_is_Switch in Hmerge; subst.
+  - by apply merge_is_not_val in Hmerge ; subst.
+  - by apply merge_is_throw_ref in Hmerge; subst.
 Qed.
 
 
@@ -7844,16 +6905,16 @@ Qed.
 
 Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
     split_vals_e e1 = (vs, e :: es) ->
-    to_val e1 = None /\ to_eff e1 = None 
+    to_val e1 = None
     ∨ (vs = [] ∧ to_val e1 = Some trapV)
 (*    \/ (vs = [] /\ e1 = AI_basic BI_throw_ref :: es)
     \/ (∃ vs' v, separate_last vs = Some (vs', v) /\ (forall a i, v <> VAL_ref (VAL_ref_exn a i)) /\ e1 = v_to_e_list vs ++ AI_basic BI_throw_ref :: es) *)
     ∨ (∃ i, e = AI_basic (BI_br i) ∧ to_val e1 = Some (brV (VH_base i vs es)))
     ∨ (e = AI_basic BI_return ∧ to_val e1 = Some (retV (SH_base vs es)))
     \/ (∃ tf h vcs, e = AI_call_host tf h vcs /\ to_val e1 = Some (callHostV tf h vcs ((LL_base vs es))))
-    \/ (∃ k i, e = AI_suspend_desugared i /\ to_eff e1 = Some (susE k i (SuBase vs es)))
-    \/ (∃ k tf i, e = AI_switch_desugared tf i /\ to_eff e1 = Some (swE k tf i (SwBase vs es)))
-    \/ (∃ a i vs', e = AI_basic BI_throw_ref /\ separate_last vs = Some (vs', VAL_ref (VAL_ref_exn a i)) /\ to_eff e1 = Some (thrE a i (ExBase vs' es)))
+    \/ (∃ i, e = AI_suspend_desugared i /\ to_val e1 = Some (susV i (SuBase vs es)))
+    \/ (∃ tf i, e = AI_switch_desugared tf i /\ to_val e1 = Some (swV tf i (SwBase vs es)))
+    \/ (∃ a i vs', e = AI_basic BI_throw_ref /\ separate_last vs = Some (vs', VAL_ref (VAL_ref_exn a i)) /\ to_val e1 = Some (thrV a i (ExBase vs' es)))
     \/ (∃ i n es' LI (vh : valid_holed i),
           e = AI_label n es' LI /\ to_val e1 = Some (brV (VH_rec vs n es' vh es))
           /\ vfill vh [AI_basic (BI_br (S i))] = LI)
@@ -7861,14 +6922,14 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
                       /\ sfill sh [AI_basic BI_return] = LI)
     \/ (∃ tf h vcs n es' LI sh, e = AI_label n es' LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_label vs n es' sh es)))
                                /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ k i n es' LI sh,
-          e = AI_label n es' LI /\ to_eff e1 = Some (susE k i (SuLabel vs n es' sh es)) /\
+    \/ (∃ i n es' LI sh,
+          e = AI_label n es' LI /\ to_val e1 = Some (susV i (SuLabel vs n es' sh es)) /\
             susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i n es' LI sh,
-          e = AI_label n es' LI /\ to_eff e1 = Some (swE k tf i (SwLabel vs n es' sh es)) /\
+    \/ (∃ tf i n es' LI sh,
+          e = AI_label n es' LI /\ to_val e1 = Some (swV tf i (SwLabel vs n es' sh es)) /\
             swfill i sh [AI_switch_desugared tf i] = LI)
     \/ (∃ a i n es' LI sh,
-          e = AI_label n es' LI /\ to_eff e1 = Some (thrE a i (ExLabel vs n es' sh es)) /\
+          e = AI_label n es' LI /\ to_val e1 = Some (thrV a i (ExLabel vs n es' sh es)) /\
             exnfill i sh [AI_ref_exn a i ; AI_basic BI_throw_ref] = LI)
     \/ (∃ i es' LI (vh : valid_holed i),
           e = AI_handler es' LI /\ to_val e1 = Some (brV (VH_handler vs es' vh es))
@@ -7877,14 +6938,14 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
                       /\ sfill sh [AI_basic BI_return] = LI)
     \/ (∃ tf h vcs es' LI sh, e = AI_handler es' LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_handler vs es' sh es)))
                                /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ k i es' LI sh,
-          e = AI_handler es' LI /\ to_eff e1 = Some (susE k i (SuHandler vs es' sh es)) /\
+    \/ (∃ i es' LI sh,
+          e = AI_handler es' LI /\ to_val e1 = Some (susV i (SuHandler vs es' sh es)) /\
             susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i es' LI sh,
-          e = AI_handler es' LI /\ to_eff e1 = Some (swE k tf i (SwHandler vs es' sh es)) /\
+    \/ (∃ tf i es' LI sh,
+          e = AI_handler es' LI /\ to_val e1 = Some (swV tf i (SwHandler vs es' sh es)) /\
             swfill i sh [AI_switch_desugared tf i] = LI)
     \/ (∃ a i es' LI sh,
-          e = AI_handler (map (exception_clause_of_exnelt i) es') LI /\ to_eff e1 = Some (thrE a i (ExHandler vs es' sh es)) /\
+          e = AI_handler (map (exception_clause_of_exnelt i) es') LI /\ to_val e1 = Some (thrV a i (ExHandler vs es' sh es)) /\
             exnfill i sh [AI_ref_exn a i ; AI_basic BI_throw_ref] = LI)
     \/ (∃ i n es' LI (vh : valid_holed i),
           e = AI_prompt n es' LI /\ to_val e1 = Some (brV (VH_prompt vs n es' vh es))
@@ -7893,20 +6954,20 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
                       /\ sfill sh [AI_basic BI_return] = LI)
     \/ (∃ tf h vcs n es' LI sh, e = AI_prompt n es' LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_prompt vs n es' sh es)))
                                /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ k i n es' LI sh,
-          e = AI_prompt n (map (continuation_clause_of_suselt i) es') LI /\ to_eff e1 = Some (susE k i (SuPrompt vs n es' sh es)) /\
+    \/ (∃ i n es' LI sh,
+          e = AI_prompt n (map (continuation_clause_of_suselt i) es') LI /\ to_val e1 = Some (susV i (SuPrompt vs n es' sh es)) /\
             susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i n es' LI sh,
-          e = AI_prompt n (map (continuation_clause_of_swelt i) es') LI /\ to_eff e1 = Some (swE k tf i (SwPrompt vs n es' sh es)) /\
+    \/ (∃ tf i n es' LI sh,
+          e = AI_prompt n (map (continuation_clause_of_swelt i) es') LI /\ to_val e1 = Some (swV tf i (SwPrompt vs n es' sh es)) /\
             swfill i sh [AI_switch_desugared tf i] = LI)
     \/ (∃ a i n es' LI sh,
-          e = AI_prompt n es' LI /\ to_eff e1 = Some (thrE a i (ExPrompt vs n es' sh es)) /\
+          e = AI_prompt n es' LI /\ to_val e1 = Some (thrV a i (ExPrompt vs n es' sh es)) /\
             exnfill i sh [AI_ref_exn a i ; AI_basic BI_throw_ref] = LI)
     \/ (∃ tf h vcs n f LI sh, e = AI_local n f LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_local vs n f sh es)))
                              /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ k i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (susE k i (SuLocal vs n f sh es)) /\ susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (swE k tf i (SwLocal vs n f sh es)) /\ swfill i sh [AI_switch_desugared tf i] = LI)
-    \/ (∃ a i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (thrE a i (ExLocal vs n f sh es)) /\ exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref] = LI)
+    \/ (∃ i n f LI sh, e = AI_local n f LI /\ to_val e1 = Some (susV i (SuLocal vs n f sh es)) /\ susfill i sh [AI_suspend_desugared i] = LI)
+    \/ (∃ tf i n f LI sh, e = AI_local n f LI /\ to_val e1 = Some (swV tf i (SwLocal vs n f sh es)) /\ swfill i sh [AI_switch_desugared tf i] = LI)
+    \/ (∃ a i n f LI sh, e = AI_local n f LI /\ to_val e1 = Some (thrV a i (ExLocal vs n f sh es)) /\ exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref] = LI)
 .
 Proof.
   intros e1.
@@ -7914,8 +6975,8 @@ Proof.
   { destruct vs => //. } 
   destruct vs => //.
   { simpl in Hsplit.
-    destruct a => // ; try by left; rewrite /to_val /to_eff /= merge_notval.
-    destruct b => // ; simplify_eq;try by left; rewrite /to_val /to_eff /= merge_notval.
+    destruct a => // ; try by left.
+    destruct b => // ; simplify_eq;try by left.
     all: try by destruct (split_vals_e e1); inversion Hsplit.
     all: try (inversion Hsplit; subst e es).
     - (* Br *)
@@ -7928,21 +6989,18 @@ Proof.
       rewrite merge_return flatten_simplify.
       (* right. right. *) right. right. right. left.
       eauto.
-    - (* Throw_ref *)
-      left. rewrite /to_val /to_eff /= merge_ThrowRef => //. 
     - (* Trap *)
       destruct e1.
       + right;left;auto.
       + left. 
-        unfold to_val, to_eff. simpl.
-        rewrite merge_trap => //=. 
+        unfold to_val. simpl.
         destruct (expr_of_val_not_val _) eqn:Ha => //.
-        by rewrite of_to_val_instr in Ha.
+        rewrite of_to_val_instr in Ha.
+        done.
     (*   - simpl.
-      destruct (merge_values _) eqn:Hmerge => //.
+      destruct (merge_values_list _) eqn:Hmerge => //.
       destruct v => //. *)
     - (* Suspend *)
-      left. rewrite /to_val /to_eff /= merge_Suspend => //.
       (* right. right. *) right. right. right. right. right. left.
       eexists. split => //=.
       unfold to_val => //=.
@@ -7960,7 +7018,7 @@ Proof.
       right. right. (* right. right. *)
       unfold to_val in Htv => /=. 
       simpl in Htv.
-      destruct (merge_values _) eqn:Hmerge => //.
+      destruct (merge_values_list _) eqn:Hmerge => //.
       destruct v0 => //.
       + (* Br *)
         rewrite merge_br flatten_simplify in Htv.
@@ -8028,7 +7086,7 @@ Proof.
 (*      right. right. *)
       unfold to_val in Htv => /=. 
       simpl in Htv.
-      destruct (merge_values _) eqn:Hmerge => //.
+      destruct (merge_values_list _) eqn:Hmerge => //.
       destruct v0 => //.
       + (* Br *)
         rewrite merge_br flatten_simplify in Htv.
@@ -8097,7 +7155,7 @@ Proof.
 (*      right. right. *)
       unfold to_val in Htv => /=.
       simpl in Htv.
-      destruct (merge_values _) eqn:Hmerge => //.
+      destruct (merge_values_list _) eqn:Hmerge => //.
       destruct v0 => //.
       + (* Br *)
         destruct i => //.
@@ -8168,7 +7226,7 @@ Proof.
       right. right. (* right. right. *)
       unfold to_val in Htv => /=. 
       simpl in Htv.
-      destruct (merge_values _) eqn:Hmerge => //.
+      destruct (merge_values_list _) eqn:Hmerge => //.
       destruct v0 => //.
       + (* Call_host *)
         rewrite merge_call_host flatten_simplify in Htv.
@@ -8257,7 +7315,7 @@ Proof.
       unfold to_val => /= ; rewrite Ha merge_prepend.
   + (* Not Val *)
     unfold to_val in H.
-    destruct (merge_values _) eqn:Hmerge; try by left.
+    destruct (merge_values_list _) eqn:Hmerge; try by left.
     destruct v0; try by left.
     destruct v0; try by left.
     simpl. inversion Hsplit; subst.
@@ -8269,39 +7327,39 @@ Proof.
     repeat eexists.
   + (* Trap *)
     left. unfold to_val in H0.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     by inversion H0. 
   + (* Br *)
     unfold to_val in H0.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     inversion H0 => /=.
     right. right. left. eexists _.
     split => //=. inversion Hsplit ; subst => //. 
   + (* Return *)
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => /=. right. right. right. left.
       split;auto. by inversion Hsplit. 
     + (* Call_host *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=.
       right. right. right. right. left. repeat eexists.
       by inversion Hsplit. by inversion Hsplit. 
     + (* Suspend *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=.
       right. right. right. right. right. left. repeat eexists.
       by inversion Hsplit. by inversion Hsplit.
     + (* Switch *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=.
       right; right; right; right; right; right; left.
       repeat eexists. by inversion Hsplit. by inversion Hsplit.
     + (* Throw *)
       unfold to_val in H1.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H1 => /=.
       right; right; right; right; right; right; right; left.
       repeat eexists. done.
@@ -8310,140 +7368,140 @@ Proof.
       destruct x1; by inversion Hsplit.
     + (* Label br *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=.
       right. right. right. right. right. right; right; right; left.
       repeat eexists _. repeat split => //. by inversion Hsplit. 
     + (* Label return *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=. do 9 right.
       left. repeat eexists _. repeat split => //.
       by inversion Hsplit.
       
     + (* Label call_host *)
       unfold to_val in H0.
-      destruct (merge_values _) => //. 
+      destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 10 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Label suspend *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 11 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Label switch *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 12 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Label throw *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 13 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Handler br *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=.
       do 14 right; left.
       repeat eexists _.
       repeat split => //. by inversion Hsplit. 
     + (* Handler return *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=. do 15 right.
       left. repeat eexists _. repeat split => //.
       by inversion Hsplit.
       
     + (* Handler call_host *)
       unfold to_val in H0.
-      destruct (merge_values _) => //. 
+      destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 16 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Handler suspend *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 17 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Handler switch *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 18 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Handler throw *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 19 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Prompt br *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=.
       do 20 right; left.
       repeat eexists _.
       repeat split => //. by inversion Hsplit. 
     + (* Prompt return *)
       unfold to_val in H0.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion H0 => /=. do 21 right.
       left. repeat eexists _. repeat split => //.
       by inversion Hsplit.
       
     + (* Prompt call_host *)
       unfold to_val in H0.
-      destruct (merge_values _) => //. 
+      destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 22 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Prompt suspend *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 23 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Prompt switch *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 24 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Prompt throw *)
       destruct H0 as [H0 ?].
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 25 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
       
       
     + (* Local return *)
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => /=. do 26 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
        + (* Local suspend *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 27 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Local switch *)
       unfold to_val in H0.
-       destruct (merge_values _) => //. 
+       destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 28 right. left.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
     + (* Local throw *)
       unfold to_val in H0.
-      destruct (merge_values _) => //. 
+      destruct (merge_values_list _) => //. 
       inversion H0 => /=. do 29 right.
       repeat eexists _. repeat split => //.
       by inversion Hsplit.
@@ -8477,54 +7535,54 @@ Proof.
     eauto.
   - destruct IHes1 as [?|[[?[??]]|[[??]|[(?&?&?&?&?) | [(?&?&?)|[(?&?&?&?)|[(?&?&?&?) | (?&?&?&?&?&?)]]]]]]].
     + simpl. unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //=.
+      unfold to_val in H0. destruct (merge_values_list _) => //=.
       all: by left. 
     + right;left. eexists _, (vh_push_const _ _). unfold to_val => /=.
       rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) ; try done. inversion H0 => //=. 
+      destruct (merge_values_list _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_val => /=. rewrite merge_prepend.  unfold to_val in H0.
-      destruct (merge_values _) => //.  inversion H0 => //=.
+      destruct (merge_values_list _) => //.  inversion H0 => //=.
       by repeat eexists. 
     + right;right; right; left. unfold to_val => /=. rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) => //. inversion H0 => //=.  by repeat eexists.
+      destruct (merge_values_list _) => //. inversion H0 => //=.  by repeat eexists.
     + right; right; right; right; left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + repeat right. subst. repeat eexists.
       instantiate (3:= VAL_num v :: _).
       simpl. done.
   - destruct IHes1 as [?|[[?[??]]|[[??]|[(?&?&?&?&?) | [(?&?&?)|[(?&?&?&?)|[(?&?&?&?) | (?&?&?&?&?&?)]]]]]]].
     + simpl. unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //=.
+      unfold to_val in H0. destruct (merge_values_list _) => //=.
       all: by left. 
     + right;left. eexists _, (vh_push_const _ _). unfold to_val => /=.
       rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) ; try done. inversion H0 => //=. 
+      destruct (merge_values_list _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_val => /=. rewrite merge_prepend.  unfold to_val in H0.
-      destruct (merge_values _) => //.  inversion H0 => //=.
+      destruct (merge_values_list _) => //.  inversion H0 => //=.
       by repeat eexists. 
     + right;right; right; left. unfold to_val => /=. rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) => //. inversion H0 => //=.  by repeat eexists.
+      destruct (merge_values_list _) => //. inversion H0 => //=.  by repeat eexists.
     + right; right; right; right; left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + repeat right. subst. repeat eexists.
       instantiate (3:= VAL_ref (VAL_ref_null r) :: _).
@@ -8536,34 +7594,34 @@ Proof.
     by left.
   - destruct IHes1 as [?|[[?[??]]|[[??]|[(?&?&?&?&?) | [(?&?&?)|[(?&?&?&?)|[(?&?&?&?) | (?&?&?&?&?&?)]]]]]]].
     + simpl. unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //=.
+      unfold to_val in H0. destruct (merge_values_list _) => //=.
       all: by left. 
     + right;left. eexists _, (vh_push_const _ _). unfold to_val => /=.
       rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) ; try done. inversion H0 => //=. 
+      destruct (merge_values_list _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_val => /=. rewrite merge_prepend.  unfold to_val in H0.
-      destruct (merge_values _) => //.  inversion H0 => //=.
+      destruct (merge_values_list _) => //.  inversion H0 => //=.
       by repeat eexists. 
     + right;right; right; left. unfold to_val => /=. rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) => //. inversion H0 => //=.  by repeat eexists.
+      destruct (merge_values_list _) => //. inversion H0 => //=.  by repeat eexists.
     + right; right; right; right; left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + repeat right. subst. repeat eexists.
       instantiate (3:= VAL_ref (VAL_ref_func f) :: _).
       simpl. done.
   - destruct IHes1 as [?|[[?[??]]|[[??]|[(?&?&?&?&?) | [(?&?&?)|[(?&?&?&?)|[(?&?&?&?) | (?&?&?&?&?&?)]]]]]]].
     + simpl. unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) eqn:Hmerge => //=.
+      unfold to_val in H0. destruct (merge_values_list _) eqn:Hmerge => //=.
       all: try by left.
       apply merge_is_throw_ref in Hmerge.
       destruct es1.
@@ -8577,50 +7635,50 @@ Proof.
         simpl. rewrite merge_throw. done.
     + right;left. eexists _, (vh_push_const _ _). unfold to_val => /=.
       rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) ; try done. inversion H0 => //=. 
+      destruct (merge_values_list _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_val => /=. rewrite merge_prepend.  unfold to_val in H0.
-      destruct (merge_values _) => //.  inversion H0 => //=.
+      destruct (merge_values_list _) => //.  inversion H0 => //=.
       by repeat eexists. 
     + right;right; right; left. unfold to_val => /=. rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) => //. inversion H0 => //=.  by repeat eexists.
+      destruct (merge_values_list _) => //. inversion H0 => //=.  by repeat eexists.
     + right; right; right; right; left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + repeat right. subst. repeat eexists.
       instantiate (3:= VAL_ref (VAL_ref_exn e t) :: _).
       simpl. done.
   - destruct IHes1 as [?|[[?[??]]|[[??]|[(?&?&?&?&?) | [(?&?&?)|[(?&?&?&?)|[(?&?&?&?) | (?&?&?&?&?&?)]]]]]]].
     + simpl. unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //=.
+      unfold to_val in H0. destruct (merge_values_list _) => //=.
       all: by left. 
     + right;left. eexists _, (vh_push_const _ _). unfold to_val => /=.
       rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) ; try done. inversion H0 => //=. 
+      destruct (merge_values_list _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_val => /=. rewrite merge_prepend.  unfold to_val in H0.
-      destruct (merge_values _) => //.  inversion H0 => //=.
+      destruct (merge_values_list _) => //.  inversion H0 => //=.
       by repeat eexists. 
     + right;right; right; left. unfold to_val => /=. rewrite merge_prepend. unfold to_val in H0.
-      destruct (merge_values _) => //. inversion H0 => //=.  by repeat eexists.
+      destruct (merge_values_list _) => //. inversion H0 => //=.  by repeat eexists.
     + right; right; right; right; left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + right; right; right; right; right; right. left.
       unfold to_val => /=. rewrite merge_prepend.
-      unfold to_val in H0. destruct (merge_values _) => //.
+      unfold to_val in H0. destruct (merge_values_list _) => //.
       inversion H0 => //=. by repeat eexists.
     + repeat right. subst. repeat eexists.
       instantiate (3:= VAL_ref (VAL_ref_cont f) :: _).
@@ -8632,7 +7690,7 @@ Proof.
     unfold to_val => /=. rewrite merge_switch.
     repeat eexists.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => // ; try by left.
+    destruct (merge_values_list _) eqn:Hmerge => // ; try by left.
     destruct v => // ; try by left.
     + right ; left.
       rewrite merge_br flatten_simplify.
@@ -8655,7 +7713,7 @@ Proof.
         by repeat eexists.
       * by left.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => // ; try by left.
+    destruct (merge_values_list _) eqn:Hmerge => // ; try by left.
     destruct v => // ; try by left.
     + right ; left.
       rewrite merge_br flatten_simplify.
@@ -8678,7 +7736,7 @@ Proof.
       rewrite merge_throw flatten_simplify.
       by repeat eexists.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => // ; try by left.
+    destruct (merge_values_list _) eqn:Hmerge => // ; try by left.
     destruct v => // ; try by left.
     + destruct i => // ; try by left.
       destruct (vh_decrease _) ; try by left.
@@ -8701,7 +7759,7 @@ Proof.
       rewrite merge_throw flatten_simplify.
       by repeat eexists.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hl ; try by left.
+    destruct (merge_values_list _) eqn:Hl ; try by left.
     destruct v ; try by left.
     + do 3 right ; left; repeat eexists.
       rewrite merge_call_host flatten_simplify.
@@ -8734,7 +7792,7 @@ Proof.
     destruct b => //=.
     all: unfold to_val in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v0 => //.
     2-5: destruct v => //. 
     all: apply (IHes1 H i0 lh) => //.
@@ -8748,7 +7806,7 @@ Proof.
     destruct b => //=.
     all: unfold to_val in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v0 => //.
     2-5: destruct v => //.
     all: apply (IHes1 H s) => //.
@@ -8762,7 +7820,7 @@ Proof.
     destruct b => //=.
     all: unfold to_val in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v0 => //.
     2-5: destruct v => //.
     all: inversion Hes1; subst.
@@ -8777,7 +7835,7 @@ Proof.
     destruct b => //=.
     all: unfold to_val in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v0 => //.
     2-5: destruct v => //.
     all: inversion Hes1; subst.
@@ -8792,7 +7850,7 @@ Proof.
     destruct b => //=.
     all: unfold to_val in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v0 => //.
     2-5: destruct v => //.
     all: inversion Hes1; subst.
@@ -8807,7 +7865,7 @@ Proof.
     destruct b => //=.
     all: unfold to_val in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     5:{ apply merge_is_throw_ref in Hmerge as ->.
         simpl in H. done. } 
     destruct v0 => //.
@@ -8832,27 +7890,27 @@ Proof.
   - by rewrite merge_return flatten_simplify.
   - rewrite merge_prepend.
     unfold to_val in IHes1.
-    destruct (merge_values _) eqn:Hmerge => //=.
+    destruct (merge_values_list _) eqn:Hmerge => //=.
     + destruct v0 => //=.
       assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
       apply to_val_trap_is_singleton in H as -> => //=.
     + rewrite merge_prepend.
-      destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map to_val_instr (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
     + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
   - rewrite merge_prepend.
     unfold to_val in IHes1.
-    destruct (merge_values _) eqn:Hmerge => //=.
+    destruct (merge_values_list _) eqn:Hmerge => //=.
     + destruct v => //=.
       assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
       apply to_val_trap_is_singleton in H as -> => //=.
     + rewrite merge_prepend.
-      destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map to_val_instr (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
     + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
   - unfold to_val => /=.
     rewrite merge_trap => /=.
@@ -8861,24 +7919,24 @@ Proof.
     rewrite of_to_val_instr => //.
   - unfold to_val => /=. rewrite merge_prepend.
     unfold to_val in IHes1.
-    destruct (merge_values _) eqn:Hmerge => //=.
+    destruct (merge_values_list _) eqn:Hmerge => //=.
     + destruct v => //=.
       assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
       apply to_val_trap_is_singleton in H as -> => //=.
     + rewrite merge_prepend.
-      destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map to_val_instr (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
     + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
   - unfold to_val => /=. rewrite merge_prepend.
     unfold to_val in IHes1.
-    destruct (merge_values _) eqn:Hmerge => //=.
+    destruct (merge_values_list _) eqn:Hmerge => //=.
     + destruct v => //=.
       assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
       apply to_val_trap_is_singleton in H as -> => //=.
     + rewrite merge_prepend.
-      destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) eqn:Hmerge' => //=.
+      destruct (merge_values_list (map to_val_instr (es1 ++ es2)%list)) eqn:Hmerge' => //=.
       * by specialize (IHes1 Logic.eq_refl).
       * apply merge_is_throw_ref in Hmerge'.
         destruct es1 => //.
@@ -8886,21 +7944,21 @@ Proof.
         simpl in Hmerge. done.
   - unfold to_val => /=. rewrite merge_prepend.
     unfold to_val in IHes1.
-    destruct (merge_values _) eqn:Hmerge => //=.
+    destruct (merge_values_list _) eqn:Hmerge => //=.
     + destruct v => //=.
       assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
       apply to_val_trap_is_singleton in H as -> => //=.
     + rewrite merge_prepend.
-      destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map to_val_instr (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
     + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
+      destruct (merge_values_list (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
   - unfold to_val => //=.
     rewrite merge_suspend => //=.
   - rewrite /to_val /= merge_switch => //.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => //.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //.
     + rewrite merge_br => //.
     + rewrite merge_return => //.
@@ -8910,7 +7968,7 @@ Proof.
     + destruct (exnelts_of_exception_clauses _ _) => //. 
       rewrite merge_throw => //.
         - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => //.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //.
     + rewrite merge_br => //.
     + rewrite merge_return => //.
@@ -8921,7 +7979,7 @@ Proof.
       rewrite merge_switch => //.
     + rewrite merge_throw => //. 
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => //.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //.
     + destruct i => //.
       destruct (vh_decrease _) eqn:Hdecr => //.
@@ -8932,7 +7990,7 @@ Proof.
     + rewrite merge_switch => //.
     + rewrite merge_throw => //. 
   - unfold to_val => /=.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //.
     + rewrite merge_call_host => //.
     + rewrite merge_suspend => //.
@@ -8953,7 +8011,7 @@ Proof.
     all: simpl.
     all: unfold to_val => /=.
     all: rewrite merge_prepend.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     all: destruct es,es1 ; first simpl in Hmerge;
         [ inversion Hmerge => //
         |  assert (to_val ([] ++ [AI_trap] ++ s :: es1) = None);
@@ -8978,7 +8036,7 @@ Proof.
     all: simpl.
     all: unfold to_val => /=.
     all: rewrite merge_prepend.
-    all: destruct (merge_values _) eqn:Hmerge => //.
+    all: destruct (merge_values_list _) eqn:Hmerge => //.
     all: destruct es,es1 ; first simpl in Hmerge;
       [ inversion Hmerge => //
       | assert (to_val ([] ++ [AI_trap] ++ s :: es1) = None);
@@ -9009,7 +8067,7 @@ Proof.
   all: rewrite merge_prepend.
   all: apply IHes in H as [vs Htv].
   all: unfold to_val in Htv.
-  all: destruct (merge_values _) => //=.
+  all: destruct (merge_values_list _) => //=.
   all: inversion Htv => //=.
   all: by eexists.
 Qed.
@@ -9027,13 +8085,13 @@ Proof.
   - rewrite merge_return flatten_simplify => //.
   - rewrite merge_prepend.
     unfold to_val in IH.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v0 => //=.
     intro H ; inversion H ; subst.
     by eapply IH.
   - rewrite merge_prepend.
     unfold to_val in IH.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //=.
     intro H ; inversion H ; subst.
     by eapply IH.
@@ -9042,26 +8100,26 @@ Proof.
     destruct es' => //=.
   - rewrite /to_val /= merge_prepend.
     unfold to_val in IH.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //=.
     intro H ; inversion H ; subst.
     by eapply IH.
   - rewrite /to_val /= merge_prepend.
     unfold to_val in IH.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //=.
     intro H ; inversion H ; subst.
     by eapply IH.
   - rewrite /to_val /= merge_prepend.
     unfold to_val in IH.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //=.
     intro H ; inversion H ; subst.
     by eapply IH.
   - rewrite /to_val /= merge_suspend => //.
   - rewrite /to_val /= merge_switch => //.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => //.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //.
     + rewrite merge_br => //.
     + rewrite merge_return => //.
@@ -9071,7 +8129,7 @@ Proof.
     + destruct (exnelts_of_exception_clauses _ _) => //. 
       rewrite merge_throw => //.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => //.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //.
     + rewrite merge_br => //.
     + rewrite merge_return => //.
@@ -9082,7 +8140,7 @@ Proof.
       rewrite merge_switch => //.
     + rewrite merge_throw => //.
   - unfold to_val => /=.
-    destruct (merge_values _) eqn:Hmerge => //.
+    destruct (merge_values_list _) eqn:Hmerge => //.
     destruct v => //.
     + destruct i => //.
       destruct (vh_decrease lh) => //.
@@ -9093,7 +8151,7 @@ Proof.
     + rewrite merge_switch => //.
     + rewrite merge_throw => //.
   - unfold to_val => /=.
-    destruct (merge_values _) => //.
+    destruct (merge_values_list _) => //.
     destruct v => //.
     + rewrite merge_call_host => //.
     + rewrite merge_suspend => //.
@@ -9114,10 +8172,10 @@ Proof.
     + unfold to_val => /=.
       apply const_list_to_val in H0 as [vs Htv].
       unfold to_val in Htv.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion Htv => //.
     + unfold to_val => /=.
-      destruct (merge_values _) eqn:Hmerge => //.
+      destruct (merge_values_list _) eqn:Hmerge => //.
       destruct v => //.
       destruct i0 => //.
       destruct (vh_decrease lh0) eqn:Hdecr => //.
@@ -9157,10 +8215,10 @@ Proof.
     + unfold to_val => /=.
       apply const_list_to_val in H0 as [vs Htv].
       unfold to_val in Htv.
-      destruct (merge_values _) => //.
+      destruct (merge_values_list _) => //.
       inversion Htv => //.
     + unfold to_val => /=.
-      destruct (merge_values _) eqn:Hmerge => //.
+      destruct (merge_values_list _) eqn:Hmerge => //.
       destruct v => //.
       assert (to_val es = Some (callHostV f1 h l l0)) ;
         first by unfold to_val ; rewrite Hmerge.
@@ -9192,7 +8250,7 @@ Proof.
       apply b2p in H ; subst.
       generalize dependent les'.
       induction l ; intros ;  unfold to_val => /=.
-      * destruct (merge_values _) eqn:Hmerge => //.
+      * destruct (merge_values_list _) eqn:Hmerge => //.
         destruct v => //.
         -- destruct i => //.
            destruct (vh_decrease lh0) eqn:Hdecr => //.
@@ -9237,10 +8295,10 @@ Proof.
         rewrite Hfill'. by inversion H0.
         apply IHl in H => //.
         unfold to_val in H.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
       * unfold to_val => /=.
         unfold to_val in IHHRed.
-        destruct (merge_values _) => //.
+        destruct (merge_values_list _) => //.
 Qed.
 
 Lemma val_head_stuck : forall e1 s1 κ e2 s2 efs,
