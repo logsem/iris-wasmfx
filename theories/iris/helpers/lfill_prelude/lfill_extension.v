@@ -1030,7 +1030,56 @@ Fixpoint lh_of_sh sh :=
       LH_prompt (map AI_const bef) tf hs (lh_of_sh sh) aft
   | SH_handler bef hs sh aft =>
       LH_handler (map AI_const bef) hs (lh_of_sh sh) aft
-  end. 
+  end.
+
+Fixpoint hh_of_sush i sh :=
+  match sh with
+  | SuBase bef aft =>
+      HH_base (map AI_const bef) aft
+  | SuLabel bef n es sh aft =>
+      HH_label (map AI_const bef) n es (hh_of_sush i sh) aft
+  | SuLocal bef n f sh aft =>
+      HH_local (map AI_const bef) n f (hh_of_sush i sh) aft
+  | SuPrompt bef tf hs sh aft =>
+      HH_prompt (map AI_const bef) tf
+        (map (continuation_clause_of_suselt i) hs) (hh_of_sush i sh) aft
+  | SuHandler bef hs sh aft =>
+      HH_handler (map AI_const bef) hs (hh_of_sush i sh) aft
+  end
+.
+
+Fixpoint hh_of_swh i sh :=
+  match sh with
+  | SwBase bef aft =>
+      HH_base (map AI_const bef) aft
+  | SwLabel bef n es sh aft =>
+      HH_label (map AI_const bef) n es (hh_of_swh i sh) aft
+  | SwLocal bef n f sh aft =>
+      HH_local (map AI_const bef) n f (hh_of_swh i sh) aft
+  | SwPrompt bef tf hs sh aft =>
+      HH_prompt (map AI_const bef) tf
+        (map (continuation_clause_of_swelt i) hs) (hh_of_swh i sh) aft
+  | SwHandler bef hs sh aft =>
+      HH_handler (map AI_const bef) hs (hh_of_swh i sh) aft
+  end
+.
+
+Fixpoint hh_of_exnh i sh :=
+  match sh with
+  | ExBase bef aft =>
+      HH_base (map AI_const bef) aft
+  | ExLabel bef n es sh aft =>
+      HH_label (map AI_const bef) n es (hh_of_exnh i sh) aft
+  | ExLocal bef n f sh aft =>
+      HH_local (map AI_const bef) n f (hh_of_exnh i sh) aft
+  | ExPrompt bef tf hs sh aft =>
+      HH_prompt (map AI_const bef) tf hs (hh_of_exnh i sh) aft
+  | ExHandler bef hs sh aft =>
+      HH_handler (map AI_const bef)
+        (map (exception_clause_of_exnelt i) hs) (hh_of_exnh i sh) aft
+  end
+.
+
 
 Fixpoint llh_of_lh lh :=
   match lh with

@@ -8160,6 +8160,7 @@ Proof.
   - unfold to_val => /= ; by rewrite merge_call_host.
 Qed.
 
+(*
 Lemma val_head_stuck_reduce : ∀ locs1 s1 e1 locs2 s2 e2,
     reduce locs1 s1 e1 locs2 s2 e2 ->
     to_val e1 = None.
@@ -8314,4 +8315,4 @@ Lemma wasm_mixin : LanguageMixin of_val to_val prim_step.
 Proof. split; eauto using to_of_val, of_to_val, val_head_stuck. Qed.
 
 Definition wasm_lang := Language wasm_mixin.
-
+*)
