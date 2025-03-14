@@ -1835,16 +1835,16 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H0 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
   - (* throw_ref_ref *)
-            assert (lfilled 0 (LH_handler [::] hs (LH_base [::] [::]) [::]) LI0 [::AI_handler hs LI0]) as Hfill0.
+    assert (lfilled 0 (LH_handler [::] hs (LH_base [::] [::]) [::]) LI0 [::AI_handler hs LI0]) as Hfill0.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H2 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -1853,29 +1853,31 @@ Proof.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //.
     apply const_list_concat => //. 
-    
+  - (* switch *)
+    rewrite separate1 in Hfill.
+    rewrite -cat_app catA in Hfill.
+    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //.
+    apply const_list_concat => //.
+    apply v_to_e_is_const_list.
   - (* suspend *)
     assert (lfilled 0 (LH_prompt [::] ts hs (LH_base [::] [::]) [::]) LI0 [::AI_prompt ts hs LI0]) as Hfill0.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H3 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
-    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
+    all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
   - (* switch *)
     assert (lfilled 0 (LH_prompt [::] ts hs (LH_base [::] [::]) [::]) LI0 [::AI_prompt ts hs LI0]) as Hfill0.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
+    apply hfilled_to_lfilled in H3 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     2: rewrite_cats1_list. 
-    rewrite separate1 in Hfill'.
-    rewrite -cat_app in Hfill'.
-    rewrite catA in Hfill'.
+    rewrite - (cat0s [::_]) in Hfill'.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
-    apply const_list_concat => //. 
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
@@ -1957,7 +1959,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H0 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -1966,7 +1968,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H2 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -1975,13 +1977,17 @@ Proof.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //.
     apply const_list_concat => //. 
-    
+  - (* switch *)
+    rewrite separate1 -cat_app catA in Hfill.
+    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //.
+    apply const_list_concat => //.
+    apply v_to_e_is_const_list.
   - (* suspend *)
     assert (lfilled 0 (LH_prompt [::] ts hs (LH_base [::] [::]) [::]) LI0 [::AI_prompt ts hs LI0]) as Hfill0.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H3 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
@@ -1990,15 +1996,12 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
+    apply hfilled_to_lfilled in H3 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     2: rewrite_cats1_list. 
-    rewrite separate1 in Hfill'.
-    rewrite -cat_app in Hfill'.
-    rewrite catA in Hfill'.
+    rewrite - (cat0s [:: _]) in Hfill'.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
-    apply const_list_concat => //. 
-  - (* contbind *)
+     - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //.
@@ -2232,7 +2235,7 @@ Proof.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_llfill in H0 as [lh' Hlh].
+    apply hfilled_to_llfill in H as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values H1 Hfill') as [Habs _] => //. 
@@ -2241,7 +2244,7 @@ Proof.
     { simpl.
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_llfill in H2 as [lh' Hlh].
+    apply hfilled_to_llfill in H as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values H1 Hfill') as [Habs _] => //. 
@@ -2249,14 +2252,20 @@ Proof.
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (llfill_first_values H1 Hfill) as [Habs _] => //.
-    apply const_list_concat => //. 
-    
+    apply const_list_concat => //.
+  - (* switch *)
+    rewrite separate1 -cat_app catA in Hfill.
+    specialize (llfill_first_values H1 Hfill) as [Habs _] => //.
+    apply const_list_concat => //.
+    apply v_to_e_is_const_list.
+
+  
   - (* suspend *)
     assert (llfill (LL_prompt [::] ts hs (LL_base [::] [::]) [::]) LI0 = [::AI_prompt ts hs LI0]) as Hfill0.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_llfill in H5 as [lh' Hlh].
+    apply hfilled_to_llfill in H3 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list. 
     specialize (llfill_first_values H1 Hfill') as [Habs _] => //.
@@ -2265,12 +2274,10 @@ Proof.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_llfill in H5 as [lh' Hlh].
+    apply hfilled_to_llfill in H3 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
-    rewrite separate1 -cat_app catA in Hfill'.
     specialize (llfill_first_values H1 Hfill') as [Habs _] => //.
-    apply const_list_concat => //. 
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
@@ -2326,8 +2333,8 @@ Qed.
 
 
 
-Lemma prompt_in_susfill i sh LI lh ts hs es:
-  susfill i sh [AI_suspend_desugared i] = LI ->
+Lemma prompt_in_susfill vs i sh LI lh ts hs es:
+  susfill i sh [AI_suspend_desugared vs i] = LI ->
   llfill lh [AI_prompt ts hs es] = LI ->
   firstx_continuation_suspend hs i = None.
 Proof.
@@ -2412,15 +2419,15 @@ Proof.
 Qed. 
 
 
-Lemma susfill_suspend_and_reduce s f es LI s' f' es' i sh k lh:
+Lemma susfill_suspend_and_reduce s f es LI s' f' es' vs i sh k lh:
   reduce s f es s' f' es' ->
-  susfill i sh [AI_suspend_desugared i] = LI ->
+  susfill i sh [AI_suspend_desugared vs i] = LI ->
   lfilled k lh es LI ->
   False.
 Proof.
   intros Hred H1 Hes.
   apply lfilled_implies_llfill in Hes as (lh' & _ & Hlh').
-  specialize (susfill_to_hfilled i sh [AI_suspend_desugared i]) as Hh;
+  specialize (susfill_to_hfilled i sh [AI_suspend_desugared vs i]) as Hh;
     rewrite H1 in Hh;
     apply hfilled_to_llfill in Hh as [lh0 Hlh0].
   cut (forall n, length_rec es < n -> False).
@@ -2452,8 +2459,9 @@ Proof.
       by right.
     - apply (llfill_all_values_label Hlh0 Hfill) => //=. 
       by left.
-    - apply (llfill_all_values_label Hlh0 Hfill) => //=. by right. 
-    - assert (lfilled (S i0) (LH_rec [] n es lh2 []) (vs ++ [AI_basic (BI_br i0)])
+    - apply (llfill_all_values_label Hlh0 Hfill) => //=. by right.
+
+    - assert (lfilled (S i0) (LH_rec [] n es lh2 []) (vs0 ++ [AI_basic (BI_br i0)])
                 [AI_label n es LI0]) as Hfill'.
       unfold lfilled, lfill ; fold lfill => //=.
       unfold lfilled in H2. destruct (lfill i0 _ _) => //. 
@@ -2465,7 +2473,7 @@ Proof.
     - apply (llfill_all_values_local Hlh0 Hfill) => //=.
       by right. 
     - apply lfilled_implies_llfill in H2 as (llh & _ & H2).
-      assert (llfill (LL_local [] n f0 llh []) (vs ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
+      assert (llfill (LL_local [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
       by rewrite H2.
       destruct (llfill_trans H3 Hfill) as [llh' Hfill'].
       edestruct llfill_first_values as [? _].
@@ -2485,7 +2493,7 @@ Proof.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H0 as [lh' Hlh].
+    apply hfilled_to_llfill in H as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //. 
@@ -2494,7 +2502,7 @@ Proof.
     { simpl.
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H2 as [lh' Hlh].
+    apply hfilled_to_llfill in H as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //. 
@@ -2502,19 +2510,25 @@ Proof.
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //.
-    apply const_list_concat => //. 
+    apply const_list_concat => //.
+  - (* switch *)
+    rewrite separate1 in Hfill.
+    rewrite - cat_app catA in Hfill.
+    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //.
+    apply const_list_concat => //.
+    apply v_to_e_is_const_list.
   - (* suspend *)
     assert (x = i) as ->.
     { assert (llfill (LL_prompt [::] ts hs (LL_base [::] [::]) [::]) LI0 = [::AI_prompt ts hs LI0]) as Hfill0.
       { simpl. 
         by rewrite List.app_nil_r. }
       destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-      apply hfilled_to_llfill in H5 as [lh' Hlh].
+      apply hfilled_to_llfill in H3 as [lh' Hlh].
       destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
       rewrite_cats1_list. 
       specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //.
       inversion Habs; subst. done. }
-    erewrite prompt_in_susfill in H4.
+    erewrite prompt_in_susfill in H2.
     done. exact H1. exact Hfill.
 
   - (* switch *)
@@ -2522,12 +2536,10 @@ Proof.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H5 as [lh' Hlh].
+    apply hfilled_to_llfill in H3 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
-    rewrite separate1 -cat_app catA in Hfill'.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //.
-    apply const_list_concat => //. 
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
@@ -2584,8 +2596,8 @@ Qed.
 
 
 
-Lemma prompt_in_swfill k tf i sh LI lh ts hs es:
-  swfill i sh [AI_ref_cont k; AI_switch_desugared tf i] = LI ->
+Lemma prompt_in_swfill vs k tf i sh LI lh ts hs es:
+  swfill i sh [AI_switch_desugared vs k tf i] = LI ->
   llfill lh [AI_prompt ts hs es] = LI ->
   firstx_continuation_switch hs i = false.
 Proof.
@@ -2600,8 +2612,6 @@ Proof.
   intros LI lh Hll sh Hsus Hn.
   induction sh.
   - simpl in Hsus.
-    rewrite separate1 in Hsus.
-    rewrite app_assoc in Hsus.
     destruct lh.
     all: simpl in Hll.
     all: rewrite -Hsus in Hll.
@@ -2691,23 +2701,23 @@ Proof.
   by rewrite app_nil_r.
 Qed.
 
-Lemma swfill_switch_and_reduce s f es LI s' f' es' k0 tf i sh k lh:
+Lemma swfill_switch_and_reduce s f es LI s' f' es' vs k0 tf i sh k lh:
   reduce s f es s' f' es' ->
-  swfill i sh [AI_ref_cont k0; AI_switch_desugared tf i] = LI ->
+  swfill i sh [AI_switch_desugared vs k0 tf i] = LI ->
   lfilled k lh es LI ->
   exists tf' sh hh,
-      llfill sh [AI_ref_cont k0; AI_switch_desugared tf i] = es /\
+      llfill sh [AI_switch_desugared vs k0 tf i] = es /\
         List.nth_error (s_conts s) k0 = Some (Cont_dagger tf') /\
         s = s' /\ f = f' /\ hfilled No_var hh [::AI_trap] es'.
 Proof.
   intros Hred H1 Hes.
   apply lfilled_implies_llfill in Hes as (lh' & _ & Hlh').
-  specialize (swfill_to_hfilled i sh [AI_ref_cont k0; AI_switch_desugared tf i]) as Hh;
+  specialize (swfill_to_hfilled i sh [AI_switch_desugared vs k0 tf i]) as Hh;
     rewrite H1 in Hh;
     apply hfilled_to_llfill in Hh as [lh0 Hlh0].
   cut (forall n, length_rec es < n ->
        ∃ (tf' : function_type) sh0 (hh : hholed),
-    llfill sh0 [AI_ref_cont k0; AI_switch_desugared tf i] = es
+    llfill sh0 [AI_switch_desugared vs k0 tf i] = es
     ∧ nth_error (s_conts s) k0 = Some (Cont_dagger tf') ∧ s = s' ∧ f = f' ∧ hfilled No_var hh [AI_trap] es').
   { intro Hn ; apply (Hn (S (length_rec es))) ; lia. }
   intro n0. 
@@ -2728,9 +2738,6 @@ Proof.
     - rewrite_cats1_list.
       specialize (llfill_first_values Hfill Hlh0) as [? _] => //.
       destruct ref => //=.
-    - rewrite_cats1_list.
-      specialize (llfill_first_values Hfill Hlh0) as [_ ?] => //.
-      destruct H as [? _] => //.
     - apply (llfill_all_values_prompt Hlh0 Hfill) => //.
       by left.
     - apply (llfill_all_values_handler Hlh0 Hfill) => //. 
@@ -2742,7 +2749,7 @@ Proof.
     - apply (llfill_all_values_label Hlh0 Hfill) => //=. 
       by left.
     - apply (llfill_all_values_label Hlh0 Hfill) => //=. by right. 
-    - assert (lfilled (S i0) (LH_rec [] n es lh2 []) (vs ++ [AI_basic (BI_br i0)])
+    - assert (lfilled (S i0) (LH_rec [] n es lh2 []) (vs0 ++ [AI_basic (BI_br i0)])
                 [AI_label n es LI0]) as Hfill'.
       unfold lfilled, lfill ; fold lfill => //=.
       unfold lfilled in H2. destruct (lfill i0 _ _) => //. 
@@ -2754,7 +2761,7 @@ Proof.
     - apply (llfill_all_values_local Hlh0 Hfill) => //=.
       by right. 
     - apply lfilled_implies_llfill in H2 as (llh & _ & H2).
-      assert (llfill (LL_local [] n f0 llh []) (vs ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
+      assert (llfill (LL_local [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
       by rewrite H2.
       destruct (llfill_trans H3 Hfill) as [llh' Hfill'].
       edestruct llfill_first_values as [? _].
@@ -2774,7 +2781,7 @@ Proof.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H0 as [lh' Hlh].
+    apply hfilled_to_llfill in H as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //. 
@@ -2783,7 +2790,7 @@ Proof.
     { simpl.
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H2 as [lh' Hlh].
+    apply hfilled_to_llfill in H as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //. 
@@ -2792,12 +2799,16 @@ Proof.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //.
     apply const_list_concat => //.
+  - rewrite separate1 -cat_app catA in Hfill.
+    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //.
+    apply const_list_concat => //.
+    apply v_to_e_is_const_list.
   - (* suspend *)
     assert (llfill (LL_prompt [::] ts hs (LL_base [::] [::]) [::]) LI0 = [::AI_prompt ts hs LI0]) as Hfill0.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H5 as [lh' Hlh].
+    apply hfilled_to_llfill in H3 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //.
@@ -2807,14 +2818,12 @@ Proof.
       { simpl. 
         by rewrite List.app_nil_r. }
       destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-      apply hfilled_to_llfill in H5 as [lh' Hlh].
+      apply hfilled_to_llfill in H3 as [lh' Hlh].
       destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
-      rewrite separate1 in Hfill'.
-      rewrite -cat_app catA in Hfill'.
+      rewrite -(cat0s [:: _]) in Hfill'.
       specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //.
-      apply const_list_concat => //. 
       inversion Habs; subst. done. }
-    erewrite prompt_in_swfill in H0.
+    erewrite prompt_in_swfill in H.
     done. exact H1. exact Hfill.
   - (* switch failure *)
     do 2 rewrite_cats1_list.
@@ -2896,8 +2905,8 @@ Qed.
 
 
 
-Lemma handler_in_exnfill a i sh LI lh hs es:
-  exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref] = LI ->
+Lemma handler_in_exnfill vs a i sh LI lh hs es:
+  exnfill i sh [AI_throw_ref_desugared vs a i] = LI ->
   llfill lh [AI_handler hs es] = LI ->
   firstx_exception hs i = No_label.
 Proof.
@@ -2912,8 +2921,7 @@ Proof.
   intros LI lh Hll sh Hsus Hn.
   induction sh.
   - simpl in Hsus.
-    rewrite separate1 in Hsus.
-    rewrite app_assoc in Hsus.
+
     destruct lh.
     all: simpl in Hll.
     all: rewrite -Hsus in Hll.
@@ -2985,15 +2993,15 @@ Proof.
 Qed. 
 
 
-Lemma exnfill_throw_ref_and_reduce s f es LI s' f' es' a i sh k lh:
+Lemma exnfill_throw_ref_and_reduce s f es LI s' f' es' vs a i sh k lh:
   reduce s f es s' f' es' ->
-  exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref] = LI ->
+  exnfill i sh [AI_throw_ref_desugared vs a i] = LI ->
   lfilled k lh es LI ->
   False.
 Proof.
   intros Hred H1 Hes.
   apply lfilled_implies_llfill in Hes as (lh' & _ & Hlh').
-  specialize (exnfill_to_hfilled i sh [AI_ref_exn a i; AI_basic BI_throw_ref]) as Hh;
+  specialize (exnfill_to_hfilled i sh [AI_throw_ref_desugared vs a i]) as Hh;
     rewrite H1 in Hh;
     apply hfilled_to_llfill in Hh as [lh0 Hlh0].
   cut (forall n, length_rec es < n -> False).
@@ -3004,7 +3012,7 @@ Proof.
   generalize dependent f'.
   induction n0 ; intros f' f lh1 es' es1 Hred2 Hfill Hlab ; first by lia.
   rewrite_cats1_list.
-  induction Hred2;
+  induction Hred2 ;
     try by (
       rewrite_cats1_list; specialize (llfill_first_values Hfill Hlh0) as [Hcontra _] => //=; (try subst; apply v_to_e_is_const_list); repeat rewrite const_const). 
   (* r_simple *) 
@@ -3015,9 +3023,6 @@ Proof.
     - rewrite_cats1_list.
       specialize (llfill_first_values Hfill Hlh0) as [? _] => //.
       destruct ref => //=.
-    - rewrite_cats1_list.
-      specialize (llfill_first_values Hfill Hlh0) as [_ ?] => //.
-      destruct H as [? _] => //. 
     - apply (llfill_all_values_prompt Hlh0 Hfill) => //.
       by left.
     - apply (llfill_all_values_handler Hlh0 Hfill) => //. 
@@ -3029,7 +3034,7 @@ Proof.
     - apply (llfill_all_values_label Hlh0 Hfill) => //=. 
       by left.
     - apply (llfill_all_values_label Hlh0 Hfill) => //=. by right. 
-    - assert (lfilled (S i0) (LH_rec [] n es lh2 []) (vs ++ [AI_basic (BI_br i0)])
+    - assert (lfilled (S i0) (LH_rec [] n es lh2 []) (vs0 ++ [AI_basic (BI_br i0)])
                 [AI_label n es LI0]) as Hfill'.
       unfold lfilled, lfill ; fold lfill => //=.
       unfold lfilled in H2. destruct (lfill i0 _ _) => //. 
@@ -3041,7 +3046,7 @@ Proof.
     - apply (llfill_all_values_local Hlh0 Hfill) => //=.
       by right. 
     - apply lfilled_implies_llfill in H2 as (llh & _ & H2).
-      assert (llfill (LL_local [] n f0 llh []) (vs ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
+      assert (llfill (LL_local [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
       by rewrite H2.
       destruct (llfill_trans H3 Hfill) as [llh' Hfill'].
       edestruct llfill_first_values as [? _].
@@ -3056,46 +3061,48 @@ Proof.
     - destruct (lfilled_in_llfill H0 Hfill) as [lh' Hfill'].
       replace [AI_trap] with ([] ++ [AI_trap])%SEQ in Hfill' => //=.
       destruct (llfill_first_values Hfill' Hlh0) as [??] => //=. }
-    - (* throw_ref *)
-      assert (i = e_tag exn) as ->.
+  - (* throw_ref *)
+    assert (i = i0) as ->.
     { assert (llfill (LL_handler [::] hs (LL_base [::] [::]) [::]) LI0 = [::AI_handler hs LI0]) as Hfill0.
       { simpl. 
         by rewrite List.app_nil_r. }
       destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-      apply hfilled_to_llfill in H0 as [lh' Hlh].
+      apply hfilled_to_llfill in H as [lh' Hlh].
       destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
       rewrite_cats1_list. 
-      specialize (llfill_first_values Hlh0 Hfill') as [_ Habs] => //.
-      destruct Habs as [Habs _] => //. 
-      inversion Habs; subst. done. }
-    erewrite handler_in_exnfill in H2.
+      specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //.
+      inversion Habs; subst. done. }  
+    erewrite handler_in_exnfill in H0.
     done. exact H1. exact Hfill.
  
     - (* throw_ref_ref *)
-          assert (i = e_tag exn) as ->.
+      assert (i = i0) as ->.
     { assert (llfill (LL_handler [::] hs (LL_base [::] [::]) [::]) LI0 = [::AI_handler hs LI0]) as Hfill0.
       { simpl. 
         by rewrite List.app_nil_r. }
       destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-      apply hfilled_to_llfill in H2 as [lh' Hlh].
+      apply hfilled_to_llfill in H as [lh' Hlh].
       destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
       rewrite_cats1_list. 
-      specialize (llfill_first_values Hlh0 Hfill') as [_ Habs] => //.
-      destruct Habs as [Habs _] => //. 
+      specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //.
       inversion Habs; subst. done. }
-    erewrite handler_in_exnfill in H3.
+    erewrite handler_in_exnfill in H0.
     done. exact H1. exact Hfill.
   - (* resume *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //.
-    apply const_list_concat => //. 
+    apply const_list_concat => //.
+  - rewrite separate1 -cat_app catA in Hfill.
+    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //.
+    apply const_list_concat => //.
+    apply v_to_e_is_const_list.
  - (* suspend *)
      assert (llfill (LL_prompt [::] ts hs (LL_base [::] [::]) [::]) LI0 = [::AI_prompt ts hs LI0]) as Hfill0.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H5 as [lh' Hlh].
+    apply hfilled_to_llfill in H3 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //. 
@@ -3105,13 +3112,11 @@ Proof.
     { simpl. 
       by rewrite List.app_nil_r. }
     destruct (llfill_trans Hfill0 Hfill) as [lh00 Hfill1].
-    apply hfilled_to_llfill in H5 as [lh' Hlh].
+    apply hfilled_to_llfill in H3 as [lh' Hlh].
     destruct (llfill_trans Hlh Hfill1) as [lh2 Hfill'].
     rewrite_cats1_list.
-    rewrite separate1 -cat_app catA in Hfill'.
     specialize (llfill_first_values Hlh0 Hfill') as [Habs _] => //.
-    apply const_list_concat => //. 
-  - (* contbind *)
+      - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //.
@@ -3200,12 +3205,12 @@ Proof.
       replace [AI_trap] with ([] ++ [AI_trap])%SEQ in Hfill' => //=.
       assert (AI_call_host tf h cvs = AI_trap) => //=.
       apply (lfilled_first_values H1 Hfill') => //=. }
-    - (* throw_ref *)
+  - (* throw_ref *)
      assert (lfilled 0 (LH_handler [::] hs (LH_base [::] [::]) [::]) LI0 [::AI_handler hs LI0]) as Hfill0.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H0 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -3214,7 +3219,7 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H2 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //. 
@@ -3223,13 +3228,17 @@ Proof.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //.
     apply const_list_concat => //. 
-    
+  - (* switch *)
+    rewrite separate1 -cat_app catA in Hfill.
+    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //.
+    apply const_list_concat => //.
+    apply v_to_e_is_const_list.
   - (* suspend *)
     assert (lfilled 0 (LH_prompt [::] ts hs (LH_base [::] [::]) [::]) LI0 [::AI_prompt ts hs LI0]) as Hfill0.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
+    apply hfilled_to_lfilled in H3 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list. 
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
@@ -3238,13 +3247,11 @@ Proof.
     { unfold lfilled, lfill => //=.
       by rewrite List.app_nil_r. }
     destruct (lfilled_trans Hfill0 Hfill) as [lh0 Hfill1].
-    apply hfilled_to_lfilled in H5 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
+    apply hfilled_to_lfilled in H3 as [(k' & lh' & Hlh) | (k' & lh' & n & f' & LI'' & Hlh)].
     all: destruct (lfilled_trans Hlh Hfill1) as [lh2 Hfill'].
     all: rewrite_cats1_list.
-    rewrite separate1 -cat_app catA in Hfill'.
     all: specialize (lfilled_first_values H1 Hfill') as [Habs _] => //.
-    apply const_list_concat => //. 
-    
+        
   - (* contbind *)
     rewrite separate1 in Hfill.
     rewrite - cat_app in Hfill. rewrite catA in Hfill.

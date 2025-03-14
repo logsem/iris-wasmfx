@@ -560,15 +560,23 @@ with e_typing : store_record -> t_context -> seq administrative_instruction -> f
     List.nth_error (s_exns s) k = Some exn ->
     e_tag exn = i ->
     e_typing s C [:: AI_ref_exn k i] (Tf [::] [::T_ref T_exnref])
-| ety_suspend_desugared : forall s C x tf,
-    List.nth_error (s_tags s) x = Some tf ->
-    e_typing s C [::AI_suspend_desugared (Mk_tagidx x)] tf
-| ety_switch_desugared : forall s C tf tf' x ts t1s t2s,
+| ety_suspend_desugared : forall s C x vs t1s t2s,
+    List.nth_error (s_tags s) x = Some (Tf t1s t2s) ->
+    e_typing s C (v_to_e_list vs) (Tf [::] t1s) ->
+    e_typing s C [::AI_suspend_desugared vs (Mk_tagidx x)] (Tf [::] t2s)
+| ety_switch_desugared : forall s C vs k tf x ts t1s t2s cont,
     List.nth_error (s_tags s) x = Some (Tf [::] ts) ->
     tf = Tf (t1s ++ [::T_ref (T_contref (Tf t2s ts))]) ts ->
-    tf' = Tf (t1s ++ [:: T_ref (T_contref tf)]) t2s ->
-    e_typing s C [::AI_switch_desugared tf (Mk_tagidx x)] tf' 
-             
+    List.nth_error (s_conts s) k = Some cont ->
+    typeof_cont cont = tf ->
+    e_typing s C (v_to_e_list vs) (Tf [::] t1s) ->
+    e_typing s C [::AI_switch_desugared vs k tf (Mk_tagidx x)] (Tf [::] t2s)
+| ety_throw_ref_desugared : forall s C vs a i tf exn,
+    List.nth_error (s_exns s) a = Some exn ->
+    i = e_tag exn ->
+    vs = e_fields exn ->
+    e_typing s C [::AI_throw_ref_desugared vs a i] tf
+
 | ety_prompt : forall s C hs es ts,
     List.Forall (fun h => continuation_clause_typing s C h ts) hs ->
     e_typing s empty_context es (Tf [::] ts) -> 

@@ -470,9 +470,10 @@ Fixpoint pp_administrative_instruction (n : indentation) (e : administrative_ins
 
   | AI_ref f => indent n (with_fg ae_style "ref " ++ pp_immediate f ++ newline) 
 | AI_ref_exn e _ => indent n (with_fg ae_style "ref.exn " ++ pp_immediate e ++ newline)
-| AI_ref_cont f => indent n (with_fg ae_style "ref.cont " ++ pp_immediate f ++ newline) 
-  | AI_suspend_desugared (Mk_tagidx i) => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i)
-  | AI_switch_desugared tf (Mk_tagidx i) => indent n (with_fg ae_style "switch.desugared " ++ pp_function_type tf ++ pp_immediate i)
+  | AI_ref_cont f => indent n (with_fg ae_style "ref.cont " ++ pp_immediate f ++ newline)
+  | AI_throw_ref_desugared vs a (Mk_tagidx x) => indent n (with_fg ae_style "throw_ref.desugarde " ++ pp_immediate a ++ with_fg ae_style " with tagidx " ++ pp_immediate x ++  with_fg ae_style " with values " ++ pp_values_hint_empty vs)
+  | AI_suspend_desugared vs (Mk_tagidx i) => indent n (with_fg ae_style "suspend.desugared " ++ pp_immediate i ++ with_fg ae_style " with values " ++ pp_values_hint_empty vs) 
+  | AI_switch_desugared vs k tf (Mk_tagidx i) => indent n (with_fg ae_style "switch.desugared " ++ pp_function_type tf ++ pp_immediate i ++ with_fg ae_style " with continuation " ++ pp_immediate k ++ with_fg ae_style " and values " ++ pp_values_hint_empty vs)
   | AI_handler hs es =>
       indent n (with_fg ae_style "handler " ++ pp_exception_clauses hs) ++
         String.concat "" (List.map (pp_administrative_instruction (n.+1)) es) ++

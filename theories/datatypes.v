@@ -547,14 +547,24 @@ Inductive exception_clause : Type :=
   | DE_catch_all_ref : immediate -> exception_clause
 .
 
+
+Record exception : Type := {
+    e_tag : tagidx ;
+    e_fields : list value
+  } .
+
+
+
+
 Inductive administrative_instruction : Type := (* e *)
 | AI_basic : basic_instruction -> administrative_instruction
 | AI_trap
 | AI_ref : funcaddr -> administrative_instruction
 | AI_ref_exn : exnaddr -> tagidx -> administrative_instruction
 | AI_ref_cont : funcaddr -> administrative_instruction
-| AI_suspend_desugared : tagidx -> administrative_instruction
-| AI_switch_desugared : function_type -> tagidx -> administrative_instruction
+| AI_throw_ref_desugared : seq value -> exnaddr -> tagidx -> administrative_instruction
+| AI_suspend_desugared : seq value -> tagidx -> administrative_instruction
+| AI_switch_desugared : seq value -> funcaddr -> function_type -> tagidx -> administrative_instruction
 | AI_handler : list exception_clause -> list administrative_instruction -> administrative_instruction
 | AI_prompt : list value_type -> list continuation_clause -> list administrative_instruction -> administrative_instruction
 | AI_invoke : funcaddr -> administrative_instruction
@@ -608,10 +618,6 @@ Inductive continuation : Type :=
 | Cont_dagger : function_type -> continuation
 .
 
-Record exception : Type := {
-    e_tag : tagidx ;
-    e_fields : list value
-  } .
 
 (** std-doc:
 The store represents all global state that can be manipulated by WebAssembly

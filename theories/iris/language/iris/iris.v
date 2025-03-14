@@ -22,6 +22,7 @@ Inductive val : Type :=
 | callHostV : function_type -> hostfuncidx -> seq.seq value -> llholed -> val
 .
 
+
 Inductive eff : Type :=
 | susE (i : tagidx) (sh: susholed) : eff
 | swE (k: immediate) (tf: function_type) (i : tagidx) (sh: swholed) : eff
@@ -12177,3 +12178,4 @@ Proof. split; eauto using to_of_val, of_to_val, val_head_stuck. Qed.
 
 Definition wasm_lang := Language wasm_mixin.
 
+Canonical Structure valO := leibnizO val.
