@@ -24,9 +24,9 @@ Inductive val : Type :=
 
 
 Inductive eff : Type :=
-| susE (i : tagidx) (sh: susholed) : eff
-| swE (k: immediate) (tf: function_type) (i : tagidx) (sh: swholed) : eff
-| thrE (a : immediate) (i: tagidx) (sh: exnholed) : eff
+| susE (vs: list value) (i : tagidx) (sh: susholed) : eff
+| swE (vs: list value) (k: immediate) (tf: function_type) (i : tagidx) (sh: swholed) : eff
+| thrE (vs : list value) (a : immediate) (i: tagidx) (sh: exnholed) : eff
 .
 
 Definition val_eq_dec : forall v1 v2: val, {v1 = v2} + {v1 <> v2}.
@@ -53,28 +53,27 @@ Defined.
 Definition eff_eq_dec: forall e1 e2: eff, {e1 = e2} + {e1 <> e2}.
 Proof.
   intros e1 e2; destruct e1,e2; auto.
-  - destruct ((* (k == k0) &&  *) (i == i0)) eqn:Hi.
-    + (* remove_bools_options; subst. *)
-      move/eqP in Hi; subst.
+  - destruct ( (vs == vs0) &&  (i == i0)) eqn:Hi.
+    + remove_bools_options; subst. 
       destruct (susholed_eq_dec sh sh0).
       * subst. by left.
       * right. intros Habs; inversion Habs.
         done.
     + right. intros Habs; inversion Habs. subst.
       repeat rewrite eq_refl in Hi => //.
-  - destruct ((k == k0) && (tf == tf0) && (i == i0)) eqn:H.
+  - destruct ((vs == vs0) && (k == k0) && (tf == tf0) && (i == i0)) eqn:H.
     + remove_bools_options; subst i0 tf0. destruct (swholed_eq_dec sh sh0).
       * subst. by left.
       * right. intros Habs; inversion Habs.
         done.
     + right. intros Habs; inversion Habs. subst.
       repeat rewrite eq_refl in H => //.
-  - destruct ((a == a0) && (i == i0)) eqn:H.
+  - destruct ((vs == vs0) && (a == a0) && (i == i0)) eqn:H.
     + remove_bools_options; subst i0 a0. destruct (exnholed_eq_dec sh sh0).
       * subst. by left.
       * right. intros Habs; inversion Habs.
         done.
-    + right. intros Habs; inversion Habs. subst i0 a0.
+    + right. intros Habs; inversion Habs. subst.
       repeat rewrite eq_refl in H => //. 
 Defined.
 
@@ -101,9 +100,9 @@ Definition of_val (v : val) : expr :=
 
 Definition of_eff (e : eff) : expr :=
   match e with 
-  | susE i sh => susfill i sh [AI_suspend_desugared i]
-  | swE k tf i sh => swfill i sh [AI_ref_cont k; AI_switch_desugared tf i]
-  | thrE a i sh => exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref]
+  | susE vs i sh => susfill i sh [AI_suspend_desugared vs i]
+  | swE vs k tf i sh => swfill i sh [AI_switch_desugared vs k tf i]
+  | thrE vs a i sh => exnfill i sh [AI_throw_ref_desugared vs a i]
   end.
 
 Lemma of_val_imm (vs : list value) :
@@ -142,9 +141,6 @@ Inductive ValNotVal :=
   Val : val -> ValNotVal
 | Eff : eff -> ValNotVal
 | NotVal : expr -> ValNotVal
-| ThrowRef : expr -> ValNotVal
-(* | Suspend : tagidx -> expr -> ValNotVal *)
-| Switch : function_type -> tagidx -> expr -> ValNotVal
 .
 
 Definition expr_of_val_not_val x :=
@@ -152,9 +148,9 @@ Definition expr_of_val_not_val x :=
   | Val v => of_val v
   | Eff e => of_eff e
   | NotVal e => e
-  | ThrowRef es => AI_basic BI_throw_ref :: es
+(*  | ThrowRef es => AI_basic BI_throw_ref :: es
 (*  | Suspend i es => AI_suspend_desugared i :: es *)
-  | Switch tf i es => AI_switch_desugared tf i :: es
+  | Switch tf i es => AI_switch_desugared tf i :: es *)
   end.
 
 Lemma expr_of_val_of_val_not_val v :
@@ -184,10 +180,10 @@ Definition val_not_val_combine (v1 : ValNotVal) (v2 : ValNotVal) : ValNotVal :=
       | Val (brV i vh) => Val (brV (vh_push_const vh l))
       | Val (retV lh) => Val (retV (sh_push_const lh l))
       | Val (callHostV tf h vcs lh) => Val (callHostV tf h vcs (llh_push_const lh l))
-      | Eff (susE i sh) => Eff (susE i (sus_push_const sh l))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (sw_push_const sh l))
-      | Eff (thrE a i sh) => Eff (thrE a i (exn_push_const sh l))
-      | ThrowRef es =>
+      | Eff (susE vs i sh) => Eff (susE vs i (sus_push_const sh l))
+      | Eff (swE vs k tf i sh) => Eff (swE vs k tf i (sw_push_const sh l))
+      | Eff (thrE vs a i sh) => Eff (thrE vs a i (exn_push_const sh l))
+(*      | ThrowRef es =>
           match separate_last l with
           | Some (l, VAL_ref (VAL_ref_exn a i)) =>
               Eff (thrE a i (ExBase l es))
@@ -207,7 +203,7 @@ Definition val_not_val_combine (v1 : ValNotVal) (v2 : ValNotVal) : ValNotVal :=
               Eff (swE k tf i (SwBase l es))
           | None => Switch tf i es
           | _ => NotVal (v_to_e_list l ++ AI_switch_desugared tf i :: es)
-          end
+          end *)
       | NotVal e => NotVal (v_to_e_list l ++ e)
       end
   | Val trapV => match expr_of_val_not_val v2 with
@@ -220,18 +216,18 @@ Definition val_not_val_combine (v1 : ValNotVal) (v2 : ValNotVal) : ValNotVal :=
       Val (retV (sh_append lh (expr_of_val_not_val v2)))
   | Val (callHostV tf h vcs lh) =>
       Val (callHostV tf h vcs (llh_append lh (expr_of_val_not_val v2)))
-  | Eff (susE i sh) =>
-      Eff (susE i (sus_append sh (expr_of_val_not_val v2)))
-  | Eff (swE k tf i sh) =>
-      Eff (swE k tf i (sw_append sh (expr_of_val_not_val v2)))
-  | Eff (thrE a i sh) =>
-      Eff (thrE a i (exn_append sh (expr_of_val_not_val v2)))
-  | ThrowRef es =>
+  | Eff (susE vs i sh) =>
+      Eff (susE vs i (sus_append sh (expr_of_val_not_val v2)))
+  | Eff (swE vs k tf i sh) =>
+      Eff (swE vs k tf i (sw_append sh (expr_of_val_not_val v2)))
+  | Eff (thrE vs a i sh) =>
+      Eff (thrE vs a i (exn_append sh (expr_of_val_not_val v2)))
+(*  | ThrowRef es =>
       ThrowRef (es ++ expr_of_val_not_val v2)
 (*  | Suspend i es =>
       Suspend i (es ++ expr_of_val_not_val v2) *)
   | Switch tf i es =>
-      Switch tf i (es ++ expr_of_val_not_val v2)
+      Switch tf i (es ++ expr_of_val_not_val v2) *)
   | NotVal es =>
       NotVal (es ++ expr_of_val_not_val v2)
   end.
@@ -253,7 +249,7 @@ Fixpoint merge_values (v : val) (vs : list ValNotVal) : ValNotVal  :=
   end.
 *)
 (*
-Definition merge_values_list vs :=
+sDefinition merge_values_list vs :=
   match vs with
   | Val v :: vs => merge_values v vs
   | [] => Val (immV [])
@@ -747,9 +743,9 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
   | AI_trap => Val trapV
   | AI_basic (BI_br i) => Val (brV (VH_base i [] []))
   | AI_basic BI_return => Val (retV (SH_base [] []))
-  | AI_suspend_desugared i => Eff (susE i (SuBase [] []))
-  | AI_switch_desugared tf i => Switch tf i [::]
-  | AI_basic BI_throw_ref => ThrowRef [::]
+  | AI_suspend_desugared vs i => Eff (susE vs i (SuBase [] []))
+  | AI_switch_desugared vs k tf i => Eff (swE vs k tf i (SwBase [] []))
+  | AI_throw_ref_desugared vs a i => Eff (thrE vs a i (ExBase [] []))
   | AI_basic (BI_const v) => Val (immV [VAL_num v])
   | AI_basic (BI_ref_null r) => Val (immV [VAL_ref (VAL_ref_null r)])
   | AI_ref f => Val (immV [VAL_ref (VAL_ref_func f)])
@@ -764,18 +760,18 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
           end 
       | Val (retV lh) => Val (retV (SH_rec [] n labe lh []))
       | Val (callHostV tf h cvs lh) => Val (callHostV tf h cvs (LL_label [] n labe lh []))
-      | Eff (susE i sh) => Eff (susE i (SuLabel [] n labe sh []))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (SwLabel [] n labe sh []))
-      | Eff (thrE a i sh) => Eff (thrE a i (ExLabel [] n labe sh []))
+      | Eff (susE vs i sh) => Eff (susE vs i (SuLabel [] n labe sh []))
+      | Eff (swE vs k tf i sh) => Eff (swE vs k tf i (SwLabel [] n labe sh []))
+      | Eff (thrE vs a i sh) => Eff (thrE vs a i (ExLabel [] n labe sh []))
       | _ => NotVal [instr]
       end
  | AI_local n f es =>
       match merge_values (map to_val_instr es) with
       | Val (callHostV tf h cvs sh) =>
           Val (callHostV tf h cvs (LL_local [] n f sh []))
-      | Eff (susE i sh) => Eff (susE i (SuLocal [] n f sh []))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (SwLocal [] n f sh []))
-      | Eff (thrE a i sh) => Eff (thrE a i (ExLocal [] n f sh []))
+      | Eff (susE vs i sh) => Eff (susE vs i (SuLocal [] n f sh []))
+      | Eff (swE vs k tf i sh) => Eff (swE vs k tf i (SwLocal [] n f sh []))
+      | Eff (thrE vs a i sh) => Eff (thrE vs a i (ExLocal [] n f sh []))
       | _ => NotVal [instr]
       end 
   | AI_call_host tf h cvs => Val (callHostV tf h cvs (LL_base [] []))
@@ -784,15 +780,15 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
       | Val (brV i vh) => Val (brV (VH_prompt [] ts hs vh []))
       | Val (retV lh) => Val (retV (SH_prompt [] ts hs lh []))
       | Val (callHostV tf h cvs lh) => Val (callHostV tf h cvs (LL_prompt []  ts hs lh []))
-      | Eff (susE i sh) => match suselts_of_continuation_clauses hs i with
-                          | Some hs' => Eff (susE i (SuPrompt [] ts hs' sh []))
+      | Eff (susE vs i sh) => match suselts_of_continuation_clauses hs i with
+                          | Some hs' => Eff (susE vs i (SuPrompt [] ts hs' sh []))
                           | None => NotVal [instr]
                           end
-      | Eff (swE k tf i sh) => match swelts_of_continuation_clauses hs i with
-                            | Some hs' => Eff (swE k tf i (SwPrompt [] ts hs' sh []))
+      | Eff (swE vs k tf i sh) => match swelts_of_continuation_clauses hs i with
+                            | Some hs' => Eff (swE vs k tf i (SwPrompt [] ts hs' sh []))
                             | None => NotVal [instr]
                             end
-      | Eff (thrE a i sh) => Eff (thrE a i (ExPrompt [] ts hs sh []))
+      | Eff (thrE vs a i sh) => Eff (thrE vs a i (ExPrompt [] ts hs sh []))
       | _ => NotVal [instr]
       end
   | AI_handler hs es =>
@@ -800,10 +796,10 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
       | Val (brV i vh) => Val (brV (VH_handler [] hs vh []))
       | Val (retV lh) => Val (retV (SH_handler [] hs lh []))
       | Val (callHostV tf h cvs lh) => Val (callHostV tf h cvs (LL_handler [] hs lh []))
-      | Eff (susE i sh) => Eff (susE i (SuHandler [] hs sh []))
-      | Eff (swE k tf i sh) => Eff (swE k tf i (SwHandler [] hs sh []))
-      | Eff (thrE a i sh) => match exnelts_of_exception_clauses hs i with
-                            | Some hs' => Eff (thrE a i (ExHandler [] hs' sh []))
+      | Eff (susE vs i sh) => Eff (susE vs i (SuHandler [] hs sh []))
+      | Eff (swE vs k tf i sh) => Eff (swE vs k tf i (SwHandler [] hs sh []))
+      | Eff (thrE vs a i sh) => match exnelts_of_exception_clauses hs i with
+                            | Some hs' => Eff (thrE vs a i (ExHandler [] hs' sh []))
                             | None => NotVal [instr]
                             end
       | _ => NotVal [instr]
@@ -880,7 +876,7 @@ Lemma val_not_val_combine_assoc v1 v2 x :
     end. *)
 Proof.
   (* might this be simpler? *)
-(*  unfold val_not_val_combine.
+ (* unfold val_not_val_combine.
   destruct v1 => //=.
   - destruct v => //=.
     + destruct v2 => //=.
@@ -892,12 +888,94 @@ Proof.
                  --- destruct l => //=.
                      by rewrite cats0.
                  --- destruct l => //=.
-                     rewrite -v_to_e_cat. *)
-  
-  
-  destruct v1 as [[ vs1 | | n1 vh1 | sh1 | tf1 h1 vcs1 llh1] |[ (* k1 *) i1 sh1 | k1 tf1 i1 sh1 | a1 i1 sh1 ] | es1 | es1 (* | i1 es1 *) | tf1 i1 es1 ] ,
-      v2 as [[ vs2 | | n2 vh2 | sh2 | tf2 h2 vcs2 llh2 ]|[ (* k2 *) i2 sh2 | k2 tf2 i2 sh2 | a2 i2 sh2] | es2 | es2 (* | i2 es2 *) | tf2 i2 es2 ],
-        x as [[ vs0 | | n0 vh0 | sh0 | tf0 h0 vcs0 llh0] | [(* k0 *) i0 sh0 | k0 tf0 i0 sh0 | a0 i0 sh0 ] | es0 | es0 (* | i0 es0 *) | tf0 i0 es0 ].
+                     rewrite -v_to_e_cat.
+                     simpl. repeat rewrite -cat_app.
+                     rewrite -catA. done.
+              ** rewrite vh_push_const_app => //.
+              ** rewrite sh_push_const_app => //.
+              ** rewrite llh_push_const_app => //.
+           ++ destruct e => //=.
+              ** rewrite sus_push_const_app => //.
+              ** rewrite sw_push_const_app => //.
+              ** rewrite exn_push_const_app => //.
+           ++ rewrite -v_to_e_cat.
+              rewrite -cat_app catA. done.
+        -- destruct x => //=.
+           ++ destruct v => //=.
+              ** destruct l0 => //=.
+                 --- destruct l => //=.
+                     by rewrite app_nil_r.
+                 --- destruct l => //=.
+                     repeat rewrite -cat_app.
+                     rewrite -catA. done.
+              ** destruct l => //=.
+                 repeat rewrite -cat_app.
+                 rewrite -catA. done.
+              ** destruct (vfill _ _) eqn:Hfill => //=.
+                 --- apply vfill_is_nil in Hfill as [??] => //.
+                 --- destruct l => //=.
+                     repeat rewrite -cat_app.
+                     rewrite -catA. done.
+              ** destruct (sfill _ _) eqn:Hfill => //=.
+                 --- apply sfill_is_nil in Hfill as [??] => //.
+                 --- destruct l => //=.
+                     repeat rewrite -cat_app.
+                     by rewrite -catA.
+              ** destruct (llfill _ _) eqn:Hfill => //=.
+                 --- apply llfill_is_nil in Hfill as [??] => //.
+                 --- destruct l => //=.
+                     repeat rewrite -cat_app.
+                     by rewrite -catA.
+           ++ destruct e => //=.
+              ** destruct (susfill _ _) eqn:Hfill => //=.
+                 --- apply susfill_is_nil in Hfill as [??] => //.
+                 --- destruct l => //=.
+                     repeat rewrite -cat_app. by rewrite -catA.
+              ** destruct (swfill _ _) eqn:Hfill => //=.
+                 --- apply swfill_is_nil in Hfill as [??] => //.
+                 --- destruct l => //=.
+                     repeat rewrite -cat_app. by rewrite -catA.
+              ** destruct (exnfill _  ) eqn:Hfill => //=.
+                 --- apply exnfill_is_nil in Hfill as [??] => //.
+                 --- destruct l => //=.
+                     repeat rewrite -cat_app. by rewrite -catA.
+           ++ destruct e => //=.
+              ** destruct l => //=.
+                 by rewrite app_nil_r.
+              ** destruct l => //=.
+                 repeat rewrite -cat_app. by rewrite -catA.
+        -- rewrite vh_push_const_append => //.
+        -- rewrite sh_push_const_append => //.
+        -- rewrite llh_push_const_append => //.
+      * destruct e => //=.
+        -- rewrite sus_push_const_append => //.
+        -- rewrite sw_push_const_append => //.
+        -- rewrite exn_push_const_append => //.
+      * by rewrite app_assoc.
+    + destruct v2 => //=.
+      * destruct v => //=.
+        -- destruct x => //=.
+           ++ destruct v => //=.
+              ** destruct l => //=.
+                 by rewrite -v_to_e_cat.
+              ** destruct l => //=.
+              ** destruct l => //=. 
+                destruct (vfill _ _) eqn:Hfill.
+                 --- apply vfill_is_nil in Hfill as [??] => //.
+                 --- destruct l => //=.
+                     +++ 
+ *)
+
+  destruct v1
+    as [[ vs1 | | n1 vh1 | sh1 | tf1 h1 vcs1 llh1]
+       |[ vs1 i1 sh1 | vs1 k1 tf1 i1 sh1 | vs1 a1 i1 sh1 ]
+       | es1 ],
+      v2 as [[ vs2 | | n2 vh2 | sh2 | tf2 h2 vcs2 llh2 ]
+            |[ vs2 i2 sh2 | vs2 k2 tf2 i2 sh2 | vs2 a2 i2 sh2]
+            | es2 ],
+        x as [[ vs0 | | n0 vh0 | sh0 | tf0 h0 vcs0 llh0]
+             | [vs0 i0 sh0 | vs0 k0 tf0 i0 sh0 | vs0 a0 i0 sh0 ]
+             | es0 ].
 
   all: simpl ; try done.
   all: try (destruct (separate_last _) as [[??] |] eqn:Hlast => //=).
@@ -1039,7 +1117,7 @@ Proof.
 
   
   all : simpl ; try done.
-  all: try by destruct l.
+(*  all: try by destruct l. *)
 
   all : try by repeat rewrite cats0.
   all : try by repeat rewrite app_comm_cons ; rewrite app_assoc.
@@ -1073,7 +1151,7 @@ Proof.
   all : try by destruct vh2 => //= ; rewrite app_comm_cons app_assoc.
   all : try by destruct sh2 => //= ; rewrite app_comm_cons app_assoc.
   all : try by destruct llh2 => //= ; rewrite app_comm_cons app_assoc.
-  all: try by repeat f_equal; destruct sh2 ; simpl; repeat rewrite -catA; repeat rewrite -cat_app.
+(*  all: try by repeat f_equal; destruct sh2 ; simpl; repeat rewrite -catA; repeat rewrite -cat_app. *)
 (*   all: try by repeat f_equal; destruct vs2; 
     [ destruct v => //; destruct v => // 
     |  destruct (separate_last _) as [[??] |] eqn:Hlast;
@@ -1089,13 +1167,13 @@ Proof.
        |  apply separate_last_None in Hlast
        ]
     ]. *)
-  all: try by destruct v;
+(*  all: try by destruct v;
       (try destruct v);
       (destruct l;
        [ destruct vs2 ; inversion Hlast; subst => //=
        | inversion Hlast; subst; rewrite separate_last_trivial;
-         destruct l => //=]).
-  all: try by destruct v;
+         destruct l => //=]). *)
+(*  all: try by destruct v;
       [|destruct v];
     
     (destruct l;
@@ -1112,15 +1190,15 @@ Proof.
         rewrite (catA vs1 _ [::_]);
         rewrite separate_last_trivial;
         destruct vs1 => //=;
-        rewrite -catA; done]).
-  all: try by destruct v; [|destruct v]; simpl; (try done); by repeat rewrite app_nil_r.
-  all: try by destruct v; [|destruct v]; simpl; (try done); repeat rewrite -cat_app; by rewrite -catA.
-  all: try by destruct v => //=;
+        rewrite -catA; done]). *)
+(*  all: try by destruct v; [|destruct v]; simpl; (try done); by repeat rewrite app_nil_r. *)
+(*  all: try by destruct v; [|destruct v]; simpl; (try done); repeat rewrite -cat_app; by rewrite -catA. *)
+(*  all: try by destruct v => //=;
     destruct v => //=;
     destruct l => //=;
                   inversion Hlast; subst => //=;
       rewrite -v_to_e_cat => //=;
-      repeat rewrite -cat_app; by rewrite -catA.
+      repeat rewrite -cat_app; by rewrite -catA. *)
   all: try by destruct es2 => //=.
   all: try by destruct vh0; simpl;
       rewrite -v_to_e_cat;
@@ -1134,12 +1212,12 @@ Proof.
       rewrite -v_to_e_cat;
       repeat rewrite -cat_app;
       repeat rewrite -catA.
-  all: try by destruct v; [|destruct v]; simpl; (try done);
+(*  all: try by destruct v; [|destruct v]; simpl; (try done);
       repeat rewrite -cat_app; rewrite -catA;
       (try done);
     try (specialize (f_equal v_to_e_list Hlast) as H000;
          simpl in H000; rewrite H000;
-         rewrite -v_to_e_cat => //=; repeat rewrite -catA).
+         rewrite -v_to_e_cat => //=; repeat rewrite -catA). *)
   all: try by destruct vh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
   all: try by destruct sh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
   all: try by destruct llh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA. 
@@ -1176,9 +1254,9 @@ Proof.
   done.
 Qed.
 
-Lemma merge_suspend x (sh : susholed) es :
-  merge_values (Eff (susE x sh) :: es) =
-    Eff (susE x (sus_append sh (flatten (map expr_of_val_not_val es)))).
+Lemma merge_suspend vs x (sh : susholed) es :
+  merge_values (Eff (susE vs x sh) :: es) =
+    Eff (susE vs x (sus_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
   induction es => //=.
@@ -1190,9 +1268,9 @@ Proof.
   done.
 Qed.
 
-Lemma merge_switch k tf x (sh : swholed) es :
-  merge_values (Eff (swE k tf x sh) :: es) =
-    Eff (swE k tf x (sw_append sh (flatten (map expr_of_val_not_val es)))).
+Lemma merge_switch vs k tf x (sh : swholed) es :
+  merge_values (Eff (swE vs k tf x sh) :: es) =
+    Eff (swE vs k tf x (sw_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
   induction es => //=.
@@ -1203,9 +1281,9 @@ Proof.
   rewrite sw_push_const_append. done.
 Qed.
 
-Lemma merge_throw a x (sh : exnholed) es :
-  merge_values (Eff (thrE a x sh) :: es) =
-    Eff (thrE a x (exn_append sh (flatten (map expr_of_val_not_val es)))).
+Lemma merge_throw vs a x (sh : exnholed) es :
+  merge_values (Eff (thrE vs a x sh) :: es) =
+    Eff (thrE vs a x (exn_append sh (flatten (map expr_of_val_not_val es)))).
 Proof.
   generalize dependent sh.
   induction es => //=.
@@ -1232,7 +1310,7 @@ Proof.
 Qed.
 
 
-Lemma merge_ThrowRef es es':
+(* Lemma merge_ThrowRef es es':
   merge_values (ThrowRef es :: es') =
     ThrowRef (es ++ (flatten (map expr_of_val_not_val es'))).
 Proof.
@@ -1243,7 +1321,7 @@ Proof.
   - intros.
     rewrite IHes'.
     by rewrite app_assoc.
-Qed.
+Qed. *)
 
 
 (* Lemma merge_Suspend i es es':
@@ -1260,7 +1338,7 @@ Proof.
 Qed. *)
 
 
-Lemma merge_Switch tf i es es':
+(* Lemma merge_Switch tf i es es':
   merge_values (Switch tf i es :: es') =
     Switch tf i (es ++ (flatten (map expr_of_val_not_val es'))).
 Proof.
@@ -1271,7 +1349,7 @@ Proof.
   - intros.
     rewrite IHes'.
     by rewrite app_assoc.
-Qed. 
+Qed.  *)
 
 Lemma merge_call_host tf h cvs sh es :
   merge_values (Val (callHostV tf h cvs sh) :: es) =
@@ -1330,8 +1408,8 @@ Proof.
       * by rewrite sw_append_nil sw_push_const_nil.
       * by rewrite exn_append_nil exn_push_const_nil.
     + by rewrite app_nil_r.
-    + by rewrite app_nil_r.
-    + by rewrite app_nil_r.
+(*    + by rewrite app_nil_r.
+    + by rewrite app_nil_r. *)
 (*    + by rewrite app_nil_r. *)
   - destruct IHvs as [IHvs1 IHvs2].
     rewrite (IHvs1 a).
@@ -1359,7 +1437,7 @@ Lemma merge_flatten vs :
 Proof. by edestruct merge_prepend_flatten as [_ ?]. Qed.
 
 
-Lemma merge_is_ThrowRef0 a l e:
+(* Lemma merge_is_ThrowRef0 a l e:
   merge_values (map to_val_instr (a :: l)) = ThrowRef e ->
   l = expr_of_val_not_val (merge_values (map to_val_instr l)) ->
   a = AI_basic BI_throw_ref /\ l = e. 
@@ -1446,7 +1524,7 @@ Proof.
       destruct e => //.
 (*  - rewrite merge_Suspend => //. *)
   - rewrite merge_Switch => //. 
-Qed.
+Qed. *)
 
 
 
@@ -1540,7 +1618,7 @@ Proof.
 Qed. *)
 
 
-
+(*
 Lemma merge_is_Switch0 a l tf i e:
   merge_values (map to_val_instr (a :: l)) = Switch tf i e ->
   l = expr_of_val_not_val (merge_values (map to_val_instr l)) ->
@@ -1630,7 +1708,7 @@ Proof.
       destruct v => //.
       destruct e => //.
 
-Qed. 
+Qed. *)
 
 
 
@@ -1716,8 +1794,8 @@ Proof.
         destruct lh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
+(*      * (* Throw_ref *)
+        by rewrite merge_ThrowRef in Hmerge. *)
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -1769,13 +1847,15 @@ Proof.
         destruct lh0 => //. 
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
+      * (* Throw_ref *)
+        simpl in Hmerge. rewrite merge_throw in Hmerge. inversion Hmerge.
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge.
         inversion Hmerge.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge.
+        rewrite merge_switch in Hmerge.
         inversion Hmerge.
       * (* Handler *)
         rewrite map_cons in Hmerge.
@@ -1952,8 +2032,8 @@ Proof.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
+(*      * (* Throw_ref *)
+        by rewrite merge_ThrowRef in Hmerge. *)
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -1991,12 +2071,14 @@ Proof.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //. 
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -2150,8 +2232,8 @@ Proof.
         destruct l4 => //=. 
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
+(*      * (* Throw_ref *)
+        by rewrite merge_ThrowRef in Hmerge. *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -2189,12 +2271,14 @@ Proof.
         destruct l4 => //=. 
         specialize (length_cons_rec (AI_ref_cont f0) l0).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -2369,8 +2453,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -2432,7 +2516,8 @@ Proof.
            all: simpl.
            all: simpl in Hsize.
            all: lia. *)
-           
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
@@ -2450,7 +2535,7 @@ Proof.
         lia.   
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -2617,8 +2702,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -2662,7 +2747,7 @@ Proof.
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_cont f) l0).
            lia.
-        -- inversion Hmerge; subst.
+(*        -- inversion Hmerge; subst.
            destruct l0 => //. apply merge_is_Switch0 in Hmerge0 as [-> ->] => //.
            clear - IHn Hsize.
            induction l0 => //=.
@@ -2679,14 +2764,16 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
+        
         inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
@@ -2698,7 +2785,7 @@ Proof.
         simpl.
         rewrite -> IHl0 at 1 => //=.
         simpl in Hsize.
-        lia.   *)
+        lia.   
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -2870,8 +2957,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -2901,7 +2988,7 @@ Proof.
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l0).
            lia.
-        -- inversion Hmerge; subst. destruct l0 => //.
+        (* -- inversion Hmerge; subst. destruct l0 => //.
            apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
            clear - IHn Hsize.
            induction l0 => //=.
@@ -2918,7 +3005,7 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
       * (* Ref_cont *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
@@ -2933,12 +3020,24 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //.
+        inversion Hmerge => /=. subst.
+        rewrite map_map.
+        repeat f_equal.
+        clear - IHn Hsize.
+        induction l0 => //=.
+        rewrite IHn; last by simpl in Hsize; lia.
+        simpl.
+        rewrite -> IHl0 at 1 => //=.
+        simpl in Hsize.
+        lia.
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -3145,8 +3244,8 @@ Proof.
         destruct lh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
+(*      * (* Throw_ref *)
+        by rewrite merge_ThrowRef in Hmerge. *)
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3198,13 +3297,15 @@ Proof.
         destruct lh0 => //. 
         specialize (length_cons_rec (AI_ref_cont f) l1).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //.
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge.
         inversion Hmerge.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge.
+        rewrite merge_switch in Hmerge.
         inversion Hmerge.
       * (* Handler *)
         rewrite map_cons in Hmerge.
@@ -3379,8 +3480,8 @@ Proof.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3418,12 +3519,14 @@ Proof.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_ref_cont f) l1).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //. 
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge. 
@@ -3576,8 +3679,8 @@ Proof.
         destruct l5 => //=. 
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3615,12 +3718,14 @@ Proof.
         destruct l5 => //=. 
         specialize (length_cons_rec (AI_ref_cont f0) l1).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -3798,8 +3903,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -3860,7 +3965,8 @@ Proof.
            all: simpl.
            all: simpl in Hsize.
            all: lia. *)
-           
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
@@ -3878,7 +3984,7 @@ Proof.
         lia.  
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -4046,8 +4152,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4088,7 +4194,7 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l1).
         lia.
-        -- inversion Hmerge; subst.
+(*        -- inversion Hmerge; subst.
            destruct l1 => //.
            apply merge_is_Switch0 in Hmerge0 as [-> ->] => //.
              clear - IHn Hsize.
@@ -4106,27 +4212,26 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
            
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
         inversion Hmerge => /=.
         rewrite map_map.
-        replace (flatten
-                   (map (λ x, expr_of_val_not_val (to_val_instr x)) l1))
-          with l1 ; first done.
+        repeat f_equal.
         clear - IHn Hsize.
         induction l1 => //=.
         rewrite IHn ; last by simpl in Hsize ; lia.
         simpl.
         rewrite -> IHl1 at 1 => //=.
         simpl in Hsize.
-        lia.   *)
+        lia.  
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -4294,8 +4399,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l1).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4324,7 +4429,7 @@ Proof.
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l1).
            lia.
-        -- destruct l1 => //.
+(*        -- destruct l1 => //.
            inversion Hmerge; subst.
            apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
            clear - IHn Hsize.
@@ -4342,7 +4447,7 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
       * (* Ref_cont *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
@@ -4358,12 +4463,22 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l1).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //.
+        inversion Hmerge => /=.
+        subst; rewrite map_map.
+        repeat f_equal.
+        clear - IHn Hsize.
+        induction l1 => //=.
+        rewrite IHn; last by simpl in Hsize ; lia.
+        simpl. rewrite -> IHl1 at 1 => //=.
+        simpl in Hsize. lia.
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -4573,8 +4688,8 @@ Proof.
         destruct vh'' ; simpl in Hpush ; subst v => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //. *)
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4627,13 +4742,15 @@ Proof.
         destruct vh'' ; simpl in Hpush ; subst v => //=.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge.
         inversion Hmerge.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge.
+        rewrite merge_switch in Hmerge.
         inversion Hmerge.
       * (* Handler *)
         rewrite map_cons in Hmerge.
@@ -4818,8 +4935,8 @@ Proof.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *)
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -4857,12 +4974,14 @@ Proof.
         destruct s0 => //=.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //. 
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -5013,8 +5132,8 @@ Proof.
         destruct l4 => //=. 
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5052,12 +5171,15 @@ Proof.
         destruct l4 => //=. 
         specialize (length_cons_rec (AI_ref_cont f0) l0).
         lia.
+      * (* Throw_ref *)
+        simpl in Hmerge.
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -5232,8 +5354,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5295,6 +5417,8 @@ Proof.
            all: simpl.
            all: simpl in Hsize.
            all: lia. *)
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
@@ -5312,7 +5436,7 @@ Proof.
         lia.   
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -5477,8 +5601,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5519,7 +5643,7 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
-        -- inversion Hmerge; subst.
+(*        -- inversion Hmerge; subst.
            destruct l0 => //. apply merge_is_Switch0 in Hmerge0 as [-> ->] => //.
            clear - IHn Hsize.
            induction l0 => //=.
@@ -5536,14 +5660,15 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
         inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
@@ -5555,7 +5680,7 @@ Proof.
         simpl.
         rewrite -> IHl0 at 1 => //=.
         simpl in Hsize.
-        lia.  *)
+        lia.  
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -5724,8 +5849,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l0).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //.
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //. *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -5754,7 +5879,7 @@ Proof.
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l0).
            lia.
-        -- inversion Hmerge; subst. destruct l0 => //.
+(*        -- inversion Hmerge; subst. destruct l0 => //.
            apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
            clear - IHn Hsize.
            induction l0 => //=.
@@ -5771,7 +5896,7 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
 
       * (* Ref_cont *)
         simpl in Hmerge.
@@ -5785,12 +5910,22 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f) l0).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //.
+        inversion Hmerge; subst => /=.
+        rewrite map_map.
+        repeat f_equal.
+        clear - IHn Hsize.
+        induction l0 => //=.
+        rewrite IHn; last by simpl in Hsize; lia.
+        simpl. rewrite -> IHl0 at 1 => //=.
+        simpl in Hsize. lia.
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -5974,8 +6109,8 @@ Proof.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
       lia.
-    * (* Throw_ref *)
-      rewrite merge_ThrowRef in Hmerge => //. 
+(*    * (* Throw_ref *)
+      rewrite merge_ThrowRef in Hmerge => //.  *)
     * (* Trap *)
       simpl in Hmerge.
       rewrite merge_trap in Hmerge.
@@ -6013,12 +6148,14 @@ Proof.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_ref_cont f1) l).
       lia.
+    * (* Throw_ref *)
+      rewrite merge_throw in Hmerge => //. 
     * (* Suspend *)
       simpl in Hmerge.
       rewrite merge_suspend in Hmerge => //. 
     * (* Switch *)
       simpl in Hmerge.
-      rewrite merge_Switch in Hmerge => //. 
+      rewrite merge_switch in Hmerge => //. 
     * (* Handler *)
       rewrite map_cons in Hmerge.
       simpl in Hmerge.
@@ -6191,8 +6328,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //. 
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //.  *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -6254,6 +6391,8 @@ Proof.
            all: simpl.
            all: simpl in Hsize.
            all: lia. *)
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
@@ -6271,7 +6410,7 @@ Proof.
         lia.  
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -6436,8 +6575,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
         lia.
-      * (* Throw_ref *)
-        by rewrite merge_ThrowRef in Hmerge.
+(*      * (* Throw_ref *)
+        by rewrite merge_ThrowRef in Hmerge. *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -6478,7 +6617,7 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f0) l).
         lia.
-        -- inversion Hmerge; subst.
+(*        -- inversion Hmerge; subst.
            simpl.
            destruct l => //. 
            apply merge_is_Switch0 in Hmerge0 as [-> ->].
@@ -6498,14 +6637,16 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //. 
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
-(*
+        rewrite merge_switch in Hmerge => //. 
+
         inversion Hmerge => /=.
         rewrite map_map.
         replace (flatten
@@ -6517,7 +6658,7 @@ Proof.
         simpl.
         rewrite -> IHl at 1 => //=.
         simpl in Hsize.
-        lia.  *)
+        lia.  
       * (* Handler *)
         rewrite map_cons in Hmerge.
         simpl in Hmerge.
@@ -6685,8 +6826,8 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
         lia.
-      * (* Throw_ref *)
-        rewrite merge_ThrowRef in Hmerge => //.
+(*      * (* Throw_ref *)
+        rewrite merge_ThrowRef in Hmerge => //. *)
       * (* Trap *) 
         simpl in Hmerge.
         rewrite merge_trap in Hmerge.
@@ -6715,7 +6856,7 @@ Proof.
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l).
            lia.
-        -- inversion Hmerge; subst. destruct l => //.
+(*        -- inversion Hmerge; subst. destruct l => //.
            apply merge_is_ThrowRef0 in Hmerge0 as [-> ->] => //.
            clear - IHn Hsize.
            induction l => //=.
@@ -6732,7 +6873,7 @@ Proof.
            all: try done.
            all: simpl.
            all: simpl in Hsize.
-           all: lia.
+           all: lia. *)
       * (* Ref_cont *)
         simpl in Hmerge.
         rewrite merge_prepend in Hmerge.
@@ -6745,12 +6886,21 @@ Proof.
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f0) l).
         lia.
+      * (* Throw_ref *)
+        rewrite merge_throw in Hmerge => //.
+        inversion Hmerge; subst; rewrite map_map => //=.
+        repeat f_equal.
+        clear - IHn Hsize.
+        induction l => //=.
+        rewrite IHn; last by simpl in Hsize; lia.
+        simpl. rewrite -> IHl at 1 => //=.
+        simpl in Hsize. lia.
       * (* Suspend *)
         simpl in Hmerge.
         rewrite merge_suspend in Hmerge => //.
       * (* Switch *)
         simpl in Hmerge.
-        rewrite merge_Switch in Hmerge => //. 
+        rewrite merge_switch in Hmerge => //. 
 (*
         inversion Hmerge => /=.
         rewrite map_map.
@@ -6919,7 +7069,7 @@ Proof.
   by rewrite merge_to_val.
 Qed. *)
 
-Lemma merge_is_Switch l tf i e:
+(* Lemma merge_is_Switch l tf i e:
   merge_values (map to_val_instr (l)) = Switch tf i e ->
   l = AI_switch_desugared tf i :: e. 
 Proof.
@@ -6937,7 +7087,7 @@ Proof.
   intro H.
   apply merge_is_ThrowRef0 in H as [-> ->] => //.
   by rewrite merge_to_val.
-Qed.
+Qed. *)
   
 Lemma of_to_val es v : to_val es = Some v -> of_val v = es.
 Proof.
@@ -7182,8 +7332,9 @@ Proof.
   - unfold of_eff, to_eff => //=.
     induction sh => //=.
     + induction l => //=.
-      * rewrite merge_prepend merge_Switch.
-        rewrite flatten_simplify => //.
+      * rewrite merge_switch flatten_simplify => //.
+(*      * rewrite merge_prepend merge_Switch.
+        rewrite flatten_simplify => //. *)
       * rewrite to_val_instr_AI_const merge_prepend.
         destruct (merge_values _) => //=.
         inversion IHl ; subst => //.
@@ -7230,7 +7381,7 @@ Proof.
   - unfold of_eff, to_eff => //=.
     induction sh => //=.
     + induction l => //=.
-      * rewrite merge_prepend merge_ThrowRef.
+      * rewrite merge_throw. (* rewrite merge_prepend merge_ThrowRef. *)
         rewrite flatten_simplify => //.
       * rewrite to_val_instr_AI_const merge_prepend.
         destruct (merge_values _) => //=.
@@ -7316,7 +7467,6 @@ Proof.
     destruct (merge_values _) => //.
     destruct v => //.
     destruct e0 => //.
-  - rewrite merge_ThrowRef. done.
   - unfold to_val => //=.
     rewrite merge_trap => /=.
     rewrite flatten_simplify => /=.
@@ -7350,9 +7500,10 @@ Proof.
     unfold to_val in H.
     destruct (merge_values _) => //.
     destruct v => //.
-    destruct e0 => //. 
+    destruct e0 => //.
+  - unfold to_val => /=. rewrite merge_throw => //=. 
   - unfold to_val => /=. rewrite merge_suspend => //=.
-  - unfold to_val => /=. rewrite merge_Switch => //=.
+  - unfold to_val => /=. rewrite merge_switch => //=.
   - unfold to_val.
     simpl. 
     destruct l0; first by rewrite merge_notval.
@@ -7459,7 +7610,7 @@ Proof.
     destruct (merge_values _) => //=.
     destruct v => //.
     destruct e0 => //.
-  - rewrite merge_ThrowRef => //.
+(*  - rewrite merge_ThrowRef => //. *)
   - rewrite /to_val /= merge_trap.
     destruct e => //=. 
     rewrite of_to_val_instr => //=.
@@ -7474,10 +7625,11 @@ Proof.
   - unfold to_val => /=. rewrite merge_prepend.
     destruct (merge_values _) => //=.
     destruct v => //.
-    destruct e0 => //. 
+    destruct e0 => //.
+  - rewrite /to_val /= merge_throw => //. 
   - unfold to_val => //=.
     rewrite merge_suspend => //=.
-  - unfold to_val => /=; rewrite merge_Switch => //.
+  - unfold to_val => /=; rewrite merge_switch => //.
   - unfold to_val => /=.
     destruct (merge_values (map _ l0)) => //=.
     2: destruct e0.
@@ -7580,9 +7732,9 @@ Proof.
   unfold to_val in H ; simpl in H.
   destruct (to_val_instr a) eqn:Ha => //.
   3: by rewrite merge_notval in H.
-  3: by rewrite merge_ThrowRef in H.
+(*  3: by rewrite merge_ThrowRef in H. *)
 (*  3: by rewrite merge_Suspend in H. *)
-  3: by rewrite merge_Switch in H.
+(*  3: by rewrite merge_Switch in H. *)
   2: destruct e => //=.
   2: by rewrite merge_suspend in H.
   2: by rewrite merge_switch in H.
@@ -7625,14 +7777,14 @@ Proof.
       destruct (exnfill _ _ _) => //. 
   - destruct v => //.
     destruct e => //.
-  - destruct v => //=.
+(*  - destruct v => //=.
     unfold val_not_val_combine in H.
     destruct (separate_last l) as [[??]|] => //.
     destruct v => //.
     destruct v => //.
   - destruct v => //.
     simpl in H. destruct (separate_last _) as [[??]|] => //.
-    destruct v => //. destruct v => //.
+    destruct v => //. destruct v => //. *)
 (*  - destruct v => //.
     simpl in H. destruct (separate_last _) as [[??]|] => //.
     destruct v => //. destruct v => //. *)
@@ -7661,12 +7813,12 @@ Proof.
         -- destruct e => //.
         -- intro H ; inversion H.
            by erewrite IHes.
-        -- intro H; inversion H.
+(*        -- intro H; inversion H.
            apply merge_is_ThrowRef in Hmerge as -> => //.
 (*        -- intro H; inversion H.
            apply merge_is_Suspend in Hmerge as -> => //. *)
         -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //. 
+           apply merge_is_Switch in Hmerge as -> => //.  *)
       * rewrite merge_prepend.
          destruct (merge_values _) eqn:Hmerge => //=.
         -- destruct v => //=.
@@ -7676,12 +7828,12 @@ Proof.
         -- destruct e => //.
         -- intro H ; inversion H.
            by erewrite IHes.
-        -- intro H; inversion H.
+(*        -- intro H; inversion H.
            apply merge_is_ThrowRef in Hmerge as -> => //.
 (*        -- intro H; inversion H.
            apply merge_is_Suspend in Hmerge as -> => //. *)
         -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //.
+           apply merge_is_Switch in Hmerge as -> => //. *)
     + inversion Ha; subst v.
       rewrite merge_trap => //=.
       rewrite flatten_simplify.
@@ -7697,12 +7849,12 @@ Proof.
         -- destruct e => //.
         -- intro H ; inversion H.
            by erewrite IHes.
-        -- intro H; inversion H.
+(*        -- intro H; inversion H.
            apply merge_is_ThrowRef in Hmerge as -> => //.
 (*        -- intro H; inversion H.
            apply merge_is_Suspend in Hmerge as -> => //. *)
         -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //.
+           apply merge_is_Switch in Hmerge as -> => //. *)
     + inversion Ha; subst v.
       rewrite merge_prepend.
        destruct (merge_values _) eqn:Hmerge => //=.
@@ -7715,8 +7867,8 @@ Proof.
            by erewrite IHes.
 (*        -- intro H; inversion H.
            apply merge_is_Suspend in Hmerge as -> => //. *)
-        -- intro H; inversion H.
-           apply merge_is_Switch in Hmerge as -> => //.
+(*        -- intro H; inversion H.
+           apply merge_is_Switch in Hmerge as -> => //. *)
     + inversion Ha; subst v.
       rewrite merge_prepend.
       destruct (merge_values _) eqn:Hmerge => //=.
@@ -7727,8 +7879,8 @@ Proof.
         -- destruct e => //.
         -- intro H ; inversion H.
            by erewrite IHes.
-        -- intro H; inversion H.
-           apply merge_is_ThrowRef in Hmerge as -> => //.
+(*        -- intro H; inversion H.
+           apply merge_is_ThrowRef in Hmerge as -> => //. *)
     + destruct (merge_values (map _ l0)) eqn:Hmerge => //.
       2: destruct e => //.
       destruct v0 => //; try (inversion Ha; subst v).
@@ -7800,9 +7952,9 @@ Proof.
       all: try by inversion Ha; subst.
       * destruct v => //; inversion Ha; subst => //.
       * destruct e0 => //=. 
-  - rewrite merge_ThrowRef => //.
+(*  - rewrite merge_ThrowRef => //.
 (*  - rewrite merge_Suspend => //. *)
-  - rewrite merge_Switch => //. 
+  - rewrite merge_Switch => //.  *)
 Qed.     
 
 
@@ -7827,9 +7979,9 @@ Proof.
     unfold to_eff.
     by rewrite Hmerge.
   - by apply merge_is_NotVal in Hmerge ; subst.
-  - by apply merge_is_ThrowRef in Hmerge; subst.
+(*  - by apply merge_is_ThrowRef in Hmerge; subst.
 (*  - by apply merge_is_Suspend in Hmerge; subst. *)
-  - by apply merge_is_Switch in Hmerge; subst.
+  - by apply merge_is_Switch in Hmerge; subst. *)
 Qed.
 
 
@@ -7852,9 +8004,9 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
     ∨ (∃ i, e = AI_basic (BI_br i) ∧ to_val e1 = Some (brV (VH_base i vs es)))
     ∨ (e = AI_basic BI_return ∧ to_val e1 = Some (retV (SH_base vs es)))
     \/ (∃ tf h vcs, e = AI_call_host tf h vcs /\ to_val e1 = Some (callHostV tf h vcs ((LL_base vs es))))
-    \/ (∃ i, e = AI_suspend_desugared i /\ to_eff e1 = Some (susE i (SuBase vs es)))
-    \/ (∃ k tf i vs', e = AI_switch_desugared tf i /\ separate_last vs = Some (vs', VAL_ref $ VAL_ref_cont k) /\ to_eff e1 = Some (swE k tf i (SwBase vs' es)))
-    \/ (∃ a i vs', e = AI_basic BI_throw_ref /\ separate_last vs = Some (vs', VAL_ref (VAL_ref_exn a i)) /\ to_eff e1 = Some (thrE a i (ExBase vs' es)))
+    \/ (∃ bef i, e = AI_suspend_desugared bef i /\ to_eff e1 = Some (susE bef i (SuBase vs es)))
+    \/ (∃ bef k tf i, e = AI_switch_desugared bef k tf i /\ to_eff e1 = Some (swE bef k tf i (SwBase vs es)))
+    \/ (∃ bef a i, e = AI_throw_ref_desugared bef a i /\ to_eff e1 = Some (thrE bef a i (ExBase vs es)))
     \/ (∃ i n es' LI (vh : valid_holed i),
           e = AI_label n es' LI /\ to_val e1 = Some (brV (VH_rec vs n es' vh es))
           /\ vfill vh [AI_basic (BI_br (S i))] = LI)
@@ -7862,15 +8014,15 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
                       /\ sfill sh [AI_basic BI_return] = LI)
     \/ (∃ tf h vcs n es' LI sh, e = AI_label n es' LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_label vs n es' sh es)))
                                /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ i n es' LI sh,
-          e = AI_label n es' LI /\ to_eff e1 = Some (susE i (SuLabel vs n es' sh es)) /\
-            susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i n es' LI sh,
-          e = AI_label n es' LI /\ to_eff e1 = Some (swE k tf i (SwLabel vs n es' sh es)) /\
-            swfill i sh [AI_ref_cont k; AI_switch_desugared tf i] = LI)
-    \/ (∃ a i n es' LI sh,
-          e = AI_label n es' LI /\ to_eff e1 = Some (thrE a i (ExLabel vs n es' sh es)) /\
-            exnfill i sh [AI_ref_exn a i ; AI_basic BI_throw_ref] = LI)
+    \/ (∃ bef i n es' LI sh,
+          e = AI_label n es' LI /\ to_eff e1 = Some (susE bef i (SuLabel vs n es' sh es)) /\
+            susfill i sh [AI_suspend_desugared bef i] = LI)
+    \/ (∃ bef k tf i n es' LI sh,
+          e = AI_label n es' LI /\ to_eff e1 = Some (swE bef k tf i (SwLabel vs n es' sh es)) /\
+            swfill i sh [AI_switch_desugared bef k tf i] = LI)
+    \/ (∃ bef a i n es' LI sh,
+          e = AI_label n es' LI /\ to_eff e1 = Some (thrE bef a i (ExLabel vs n es' sh es)) /\
+            exnfill i sh [AI_throw_ref_desugared bef a i] = LI)
     \/ (∃ i es' LI (vh : valid_holed i),
           e = AI_handler es' LI /\ to_val e1 = Some (brV (VH_handler vs es' vh es))
           /\ vfill vh [AI_basic (BI_br i)] = LI)
@@ -7878,15 +8030,15 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
                       /\ sfill sh [AI_basic BI_return] = LI)
     \/ (∃ tf h vcs es' LI sh, e = AI_handler es' LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_handler vs es' sh es)))
                                /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ i es' LI sh,
-          e = AI_handler es' LI /\ to_eff e1 = Some (susE i (SuHandler vs es' sh es)) /\
-            susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i es' LI sh,
-          e = AI_handler es' LI /\ to_eff e1 = Some (swE k tf i (SwHandler vs es' sh es)) /\
-            swfill i sh [AI_ref_cont k; AI_switch_desugared tf i] = LI)
-    \/ (∃ a i es' LI sh,
-          e = AI_handler (map (exception_clause_of_exnelt i) es') LI /\ to_eff e1 = Some (thrE a i (ExHandler vs es' sh es)) /\
-            exnfill i sh [AI_ref_exn a i ; AI_basic BI_throw_ref] = LI)
+    \/ (∃ bef i es' LI sh,
+          e = AI_handler es' LI /\ to_eff e1 = Some (susE bef i (SuHandler vs es' sh es)) /\
+            susfill i sh [AI_suspend_desugared bef i] = LI)
+    \/ (∃ bef k tf i es' LI sh,
+          e = AI_handler es' LI /\ to_eff e1 = Some (swE bef k tf i (SwHandler vs es' sh es)) /\
+            swfill i sh [AI_switch_desugared bef k tf i] = LI)
+    \/ (∃ bef a i es' LI sh,
+          e = AI_handler (map (exception_clause_of_exnelt i) es') LI /\ to_eff e1 = Some (thrE bef a i (ExHandler vs es' sh es)) /\
+            exnfill i sh [AI_throw_ref_desugared bef a i] = LI)
     \/ (∃ i n es' LI (vh : valid_holed i),
           e = AI_prompt n es' LI /\ to_val e1 = Some (brV (VH_prompt vs n es' vh es))
           /\ vfill vh [AI_basic (BI_br i)] = LI)
@@ -7894,20 +8046,20 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
                       /\ sfill sh [AI_basic BI_return] = LI)
     \/ (∃ tf h vcs n es' LI sh, e = AI_prompt n es' LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_prompt vs n es' sh es)))
                                /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ i n es' LI sh,
-          e = AI_prompt n (map (continuation_clause_of_suselt i) es') LI /\ to_eff e1 = Some (susE i (SuPrompt vs n es' sh es)) /\
-            susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i n es' LI sh,
-          e = AI_prompt n (map (continuation_clause_of_swelt i) es') LI /\ to_eff e1 = Some (swE k tf i (SwPrompt vs n es' sh es)) /\
-            swfill i sh [AI_ref_cont k; AI_switch_desugared tf i] = LI)
-    \/ (∃ a i n es' LI sh,
-          e = AI_prompt n es' LI /\ to_eff e1 = Some (thrE a i (ExPrompt vs n es' sh es)) /\
-            exnfill i sh [AI_ref_exn a i ; AI_basic BI_throw_ref] = LI)
+    \/ (∃ bef i n es' LI sh,
+          e = AI_prompt n (map (continuation_clause_of_suselt i) es') LI /\ to_eff e1 = Some (susE bef i (SuPrompt vs n es' sh es)) /\
+            susfill i sh [AI_suspend_desugared bef i] = LI)
+    \/ (∃ bef k tf i n es' LI sh,
+          e = AI_prompt n (map (continuation_clause_of_swelt i) es') LI /\ to_eff e1 = Some (swE bef k tf i (SwPrompt vs n es' sh es)) /\
+            swfill i sh [AI_switch_desugared bef k tf i] = LI)
+    \/ (∃ bef a i n es' LI sh,
+          e = AI_prompt n es' LI /\ to_eff e1 = Some (thrE bef a i (ExPrompt vs n es' sh es)) /\
+            exnfill i sh [AI_throw_ref_desugared bef a i] = LI)
     \/ (∃ tf h vcs n f LI sh, e = AI_local n f LI /\ to_val e1 = Some (callHostV tf h vcs ((LL_local vs n f sh es)))
                              /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (susE i (SuLocal vs n f sh es)) /\ susfill i sh [AI_suspend_desugared i] = LI)
-    \/ (∃ k tf i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (swE k tf i (SwLocal vs n f sh es)) /\ swfill i sh [AI_ref_cont k; AI_switch_desugared tf i] = LI)
-    \/ (∃ a i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (thrE a i (ExLocal vs n f sh es)) /\ exnfill i sh [AI_ref_exn a i; AI_basic BI_throw_ref] = LI)
+    \/ (∃ bef i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (susE bef i (SuLocal vs n f sh es)) /\ susfill i sh [AI_suspend_desugared bef i] = LI)
+    \/ (∃ bef k tf i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (swE bef k tf i (SwLocal vs n f sh es)) /\ swfill i sh [AI_switch_desugared bef k tf i] = LI)
+    \/ (∃ bef a i n f LI sh, e = AI_local n f LI /\ to_eff e1 = Some (thrE bef a i (ExLocal vs n f sh es)) /\ exnfill i sh [AI_throw_ref_desugared bef a i] = LI)
 .
 Proof.
   intros e1.
@@ -7929,8 +8081,8 @@ Proof.
       rewrite merge_return flatten_simplify.
       (* right. right. *) right. right. right. left.
       eauto.
-    - (* Throw_ref *)
-      left. rewrite /to_val /to_eff /= merge_ThrowRef => //. 
+(*    - (* Throw_ref *)
+      left. rewrite /to_val /to_eff /= merge_ThrowRef => //.  *)
     - (* Trap *)
       destruct e1.
       + right;left;auto.
@@ -7939,14 +8091,20 @@ Proof.
         rewrite merge_trap => //=. 
         destruct (expr_of_val_not_val _) eqn:Ha => //.
         by rewrite of_to_val_instr in Ha.
+    - (* Throw_ref *)
+      right. right. right. right. right. right. right. left.
+      repeat eexists => //.
+      rewrite /to_eff /= merge_throw flatten_simplify => //. 
     - (* Suspend *)
       right. right. right. right. right. left.
-      eexists. split => //=.
+      do 2 eexists. split => //=.
       unfold to_eff => //=.
       rewrite merge_suspend => //=.
       rewrite flatten_simplify => //.
     - (* Switch *)
-      left. rewrite /to_val /to_eff /= merge_Switch => //. 
+       right. right. right. right. right. right. left.
+       repeat eexists => //.
+       rewrite /to_eff /= merge_switch flatten_simplify => //. 
     - (* Handler *)
       destruct (to_val (_ :: _)) eqn:Htv.
       + right. right. right. right.
@@ -8013,7 +8171,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; left.
           repeat eexists.
-          fold (of_eff (susE i sh)).
+          fold (of_eff (susE vs i sh)).
           apply of_to_eff.
           unfold to_eff.
           rewrite Hmerge => //.
@@ -8022,7 +8180,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; right; left.
           repeat eexists.
-          fold (of_eff (swE k tf i sh)).
+          fold (of_eff (swE vs k tf i sh)).
           apply of_to_eff.
           unfold to_eff.
           rewrite Hmerge => //.
@@ -8032,7 +8190,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; right; right; left.
           repeat eexists.
-          fold (of_eff (thrE a i sh)).
+          fold (of_eff (thrE vs a i sh)).
           apply exnelts_of_exception_clauses_inj in Helts.
           rewrite Helts.
           f_equal.
@@ -8114,7 +8272,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; left.
           repeat eexists.
-          fold (of_eff (susE i sh)).
+          fold (of_eff (susE vs i sh)).
           apply suselts_of_continuation_clauses_inj in Helts.
           rewrite Helts.
           symmetry.
@@ -8130,7 +8288,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; right; left.
           repeat eexists.
-          fold (of_eff (swE k tf i sh)).
+          fold (of_eff (swE vs k tf i sh)).
           apply swelts_of_continuation_clauses_inj in Helts.
           rewrite Helts.
           f_equal. symmetry.
@@ -8142,7 +8300,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; right; right; left.
           repeat eexists.
-          fold (of_eff (thrE a i sh)).
+          fold (of_eff (thrE vs a i sh)).
           apply of_to_eff.
           unfold to_eff.
           rewrite Hmerge => //.
@@ -8218,7 +8376,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; left.
           repeat eexists.
-          assert (to_eff l0 = Some (susE i sh)).
+          assert (to_eff l0 = Some (susE vs i sh)).
           unfold to_eff; by rewrite Hmerge.
           apply of_to_eff in H.
           unfold of_eff in H => //.
@@ -8227,7 +8385,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; right; left.
           repeat eexists.
-          assert (to_eff l0 = Some (swE k tf i sh)).
+          assert (to_eff l0 = Some (swE vs k tf i sh)).
           unfold to_eff; by rewrite Hmerge.
           apply of_to_eff in H.
           unfold of_eff in H => //.
@@ -8236,7 +8394,7 @@ Proof.
           inversion Hte; subst.
           right; right; right; right; right; left.
           repeat eexists.
-          assert (to_eff l0 = Some (thrE a i sh)).
+          assert (to_eff l0 = Some (thrE vs a i sh)).
           unfold to_eff; by rewrite Hmerge.
           apply of_to_eff in H.
           unfold of_eff in H => //. 
@@ -8291,7 +8449,7 @@ Proof.
           inversion Hte; subst.
           right; left.
           repeat eexists.
-          fold (of_eff (susE i sh)).
+          fold (of_eff (susE vs i sh)).
           apply of_to_eff.
           unfold to_eff.
           rewrite Hmerge => //.
@@ -8300,7 +8458,7 @@ Proof.
           inversion Hte; subst.
           right; right; left.
           repeat eexists.
-          fold (of_eff (swE k tf i sh)).
+          fold (of_eff (swE vs k tf i sh)).
           apply of_to_eff.
           unfold to_eff.
           rewrite Hmerge => //.
@@ -8309,7 +8467,7 @@ Proof.
           inversion Hte; subst.
           right; right; right.
           repeat eexists.
-          fold (of_eff (thrE a i sh)).
+          fold (of_eff (thrE vs a i sh)).
           apply of_to_eff.
           unfold to_eff.
           rewrite Hmerge => //.
@@ -8330,44 +8488,42 @@ Proof.
   destruct Heq as
       [(? & ?)|
          [(? & ?)|
-(*           [ (? & ?) |
-             [ (? & ? & ? & ? & ?) | *)
            [(? & ? & ?)|
              [(? & ?) |
                [(?&?&?&?&?)|
-                 [(?&?&?) |
-                   [(? & ? & ? & ? & ? & ? & ?)|
-                     [(? & ? & ? & ? & ? & ?)|
+                 [(?&?&?&?) |
+                   [(? & ? & ? & ? & ? & ?)|
+                     [(? & ? & ? & ? & ?)|
                        [(?&?&?&?&?&?&?&?)|
                          [(?&?&?&?&?&?&?)|
                            [(?&?&?&?&?&?&?&?&?&?)|
-                             [(? & ? & ? & ? & ? & ? & ? & ?) |
-                               [(? & ? & ? & ? & ? & ? & ? & ? & ? & ?) |
-                                 [(? & ? & ? & ? & ? & ? & ? & ? & ?) |
+                             [(? & ? & ? & ? & ? & ? & ? & ? & ?) |
+                               [(? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ?) |
+                                 [(? & ? & ? & ? & ? & ? & ? & ? & ? & ?) |
                                    [(?&?&?&?&?&?&?)|
                                      [(?&?&?&?&?&?)|
                                        [(?&?&?&?&?&?&?&?&?)|
-                                         [(? & ? & ? & ? & ? & ? & ?) |
-                                           [(? & ? & ? & ? & ? & ? & ? & ? & ?) |
-                                             [(? & ? & ? & ? & ? & ? & ? & ?) |
+                                         [(? & ? & ? & ? & ? & ? & ? & ?) |
+                                           [(? & ? & ? & ? & ? & ? & ? & ? & ? & ?) |
+                                             [(? & ? & ? & ? & ? & ? & ? & ? & ?) |
                                                [(?&?&?&?&?&?&?&?)|
                                                  [(?&?&?&?&?&?&?)|
                                                    [(?&?&?&?&?&?&?&?&?&?)|
-                                                     [(? & ? & ? & ? & ? & ? & ? & ?) |
-                                                       [(? & ? & ? & ? & ? & ? & ? & ? & ? & ?) |
-                                                         [(? & ? & ? & ? & ? & ? & ? & ?) |
+                                                     [(? & ? & ? & ? & ? & ? & ? & ? & ?) |
+                                                       [(? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ?) |
+                                                         [(? & ? & ? & ? & ? & ? & ? & ? & ?) |
                                                            
                                                            [(?&?&?&?&?&?&?&?&?&?) |
-                                                           [(? & ? & ? & ? & ? & ? & ? & ?)|
-                                                             [(? & ? & ? & ? & ? & ? & ? & ? & ? & ?)|
-                                                               (? & ? & ? & ? & ? & ? & ? & ? & ?)
+                                                           [(? & ? & ? & ? & ? & ? & ? & ? & ?)|
+                                                             [(? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ?)|
+                                                               (? & ? & ? & ? & ? & ? & ? & ? & ? & ?)
          ]]]]]]]]]]]]]]]]]]]]]]]]]]]]](* ]] *) ; 
       unfold to_val, to_eff => /= ; rewrite Ha merge_prepend.
   + (* Not Val *)
     unfold to_val in H.
     unfold to_eff in H0.
     destruct (merge_values _) eqn:Hmerge; try by left.
-    all: destruct v0; try by left.
+(*    all: destruct v0; try by left.
     all: destruct v0; try by left.
     all: simpl.
     all: inversion Hsplit; subst.
@@ -8380,7 +8536,7 @@ Proof.
       apply merge_is_Switch in Hmerge as ->.
       simpl in Hsome.
       inversion Hsome; subst.
-      repeat eexists.
+      repeat eexists. *)
   + (* Trap *)
     left. unfold to_val in H0.
     destruct (merge_values _) => //.
@@ -8400,7 +8556,14 @@ Proof.
     destruct (merge_values _) => //.
     inversion H0 => /=.
     right. right. right. right. left. repeat eexists.
-    by inversion Hsplit. by inversion Hsplit. 
+    by inversion Hsplit. by inversion Hsplit.
+(*  + (* Throw_ref *)
+    unfold to_eff in H0.
+    destruct (merge_values _) => //.
+    inversion H0 => /=.
+    right. right. right. right. right. right. right. left.
+    repeat eexists.
+    by inversion Hsplit. *)
   + (* Suspend *)
     unfold to_eff in H0.
     destruct (merge_values _) => //.
@@ -8408,23 +8571,20 @@ Proof.
     right. right. right. right. right. left. repeat eexists.
     by inversion Hsplit. by inversion Hsplit.
   + (* Switch *)
-    unfold to_eff in H1.
+    unfold to_eff in H0.
     destruct (merge_values _) => //.
-    inversion H1 => /=.
+    inversion H0 => /=.
     right; right; right; right; right; right; left.
     repeat eexists. done.
-    rewrite H0.
-    apply separate_last_spec in H0 as ->.
-    destruct x2; by inversion Hsplit.
+    by inversion Hsplit.
   + (* Throw *)
-    unfold to_eff in H1.
+    unfold to_eff in H0.
     destruct (merge_values _) => //.
-    inversion H1 => /=.
+    inversion H0 => /=.
     right; right; right; right; right; right; right; left.
     repeat eexists. done.
-    rewrite H0.
-    apply separate_last_spec in H0 as ->.
-    destruct x1; by inversion Hsplit.
+    by inversion Hsplit.
+
   + (* Label br *)
     unfold to_val in H0.
     destruct (merge_values _) => //.
@@ -8657,8 +8817,8 @@ Proof.
     + repeat right. subst. repeat eexists.
       instantiate (3:= VAL_ref (VAL_ref_null r) :: _).
       simpl. done.       *)
-  - unfold to_val => /=.
-    rewrite merge_ThrowRef => //=. by left.
+(*  - unfold to_val => /=.
+    rewrite merge_ThrowRef => //=. by left. *)
   - rewrite /to_val /= merge_trap => /=.
     rewrite flatten_simplify.
     destruct (es1 ++ es2) eqn:Habs => //.
@@ -8766,9 +8926,11 @@ Proof.
     + repeat right. subst. repeat eexists.
       instantiate (3:= VAL_ref (VAL_ref_cont f) :: _).
       simpl. done. *)
+  - rewrite /to_val /= merge_throw => //.
+    by left.
   - rewrite /to_val /= merge_suspend => //.
     by left.
-  - rewrite /to_val /= merge_Switch => //.
+  - rewrite /to_val /= merge_switch => //.
     by left.
 (*  - right; right; right; right; left.
     unfold to_val => /=. rewrite merge_suspend.
@@ -9026,14 +9188,14 @@ Proof.
       destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
-    + rewrite merge_prepend.
+(*    + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
     + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
+      destruct e0 => //. *)
   - rewrite merge_prepend.
     unfold to_val in IHes1.
     destruct (merge_values _) eqn:Hmerge => //=.
@@ -9052,17 +9214,17 @@ Proof.
       destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
-    + rewrite merge_prepend.
+(*    + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
     + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-  - rewrite /to_val /= merge_ThrowRef.
+      destruct e0 => //. *)
+(*  - rewrite /to_val /= merge_ThrowRef.
     rewrite merge_ThrowRef.
-    done.
+    done. *)
   - unfold to_val => /=.
     rewrite merge_trap => /=.
     rewrite flatten_simplify.
@@ -9087,14 +9249,14 @@ Proof.
       destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
-    + rewrite merge_prepend.
+(*    + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
     + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
+      destruct e0 => //. *)
   - rewrite /to_val /= merge_prepend.
     unfold to_val in IHes1.
     destruct (merge_values _) eqn:Hmerge => //=.
@@ -9114,15 +9276,15 @@ Proof.
       destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e1 => //.
-    + rewrite merge_prepend.
+(*    + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e1 => //.
     + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
-      destruct e1 => //.
-        - rewrite /to_val /= merge_prepend.
+      destruct e1 => //. *)
+  - rewrite /to_val /= merge_prepend.
     unfold to_val in IHes1.
     destruct (merge_values _) eqn:Hmerge => //=.
     + destruct v => //=.
@@ -9140,17 +9302,18 @@ Proof.
       destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
-    + rewrite merge_prepend.
+(*    + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
       destruct e0 => //.
     + rewrite merge_prepend.
       destruct (merge_values (map _ (_ ++ _)%list)) => //=.
       by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
+      destruct e0 => //. *)
+  - rewrite /to_val /= merge_throw merge_throw => //.
   - unfold to_val => //=.
     do 2 rewrite merge_suspend => //=.
-  - rewrite /to_val /= merge_Switch merge_Switch => //.
+  - rewrite /to_val /= merge_switch merge_switch => //.
   - unfold to_val => /=.
     destruct (merge_values (map _ _)) eqn:Hmerge => //.
     2: destruct e.
@@ -9210,13 +9373,13 @@ Lemma to_eff_None_prepend: forall es1 es2,
 (*    ∨ (∃ i (vh : valid_holed i), to_val es1 = Some (brV vh))
     ∨ (∃ sh, to_val es1 = Some (retV sh))
     \/ (∃ tf h cvs sh, to_val es1 = Some (callHostV tf h cvs sh)) *)
-    \/ (∃ i sh, to_eff es1 = Some (susE i sh))
-    \/ (∃ k tf i sh, to_eff es1 = Some (swE k tf i sh))
-    \/ (∃ a i sh, to_eff es1 = Some (thrE a i sh))
-    \/ (∃ vs a i es, es1 = v_to_e_list (vs ++ [::VAL_ref (VAL_ref_exn a i)]) /\
+    \/ (∃ vs i sh, to_eff es1 = Some (susE vs i sh))
+    \/ (∃ vs k tf i sh, to_eff es1 = Some (swE vs k tf i sh))
+    \/ (∃ vs a i sh, to_eff es1 = Some (thrE vs a i sh))
+(*    \/ (∃ vs a i es, es1 = v_to_e_list (vs ++ [::VAL_ref (VAL_ref_exn a i)]) /\
                       es2 = AI_basic BI_throw_ref :: es)
     \/ (∃ vs k tf i es, es1 = v_to_e_list (vs ++ [::VAL_ref (VAL_ref_cont k)]) /\
-                    es2 = AI_switch_desugared tf i :: es)
+                    es2 = AI_switch_desugared tf i :: es) *)
 .
 Proof.
   move => es1 es2 H.
@@ -9225,12 +9388,12 @@ Proof.
   destruct b; try by left; rewrite /to_eff /= merge_notval.
   - left; rewrite /to_eff /= merge_br => //. 
   - left; rewrite /to_eff /= merge_return => //. 
-  - destruct IHes1 as [?| [(?&?&?)|[(?&?&?&?&?)|[(?&?&?&?) | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] .
+  - destruct IHes1 as [?| [(?&?&?&?)|[(?&?&?&?&?&?)|(* [ *)(?&?&?&?&?) ]]]. (* | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] . *)
     + simpl. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0. destruct (merge_values _) => //=.
       destruct v0 => //=.
       all: try by left.
-    + right;left. eexists _, (sus_push_const _ _).
+    + right;left. eexists _, _, (sus_push_const _ _).
       unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) ; try done.
@@ -9239,74 +9402,74 @@ Proof.
       rewrite merge_prepend.  unfold to_eff in H0.
       destruct (merge_values _) => //.  inversion H0 => //=.
       by repeat eexists. 
-    + right;right; right; left .
+    + right;right; right .
       unfold to_eff => /=. rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) => //. inversion H0 => //=.
       by repeat eexists.
-    + right; right; right; right; left. subst.
+(*    + right; right; right; right; left. subst.
       repeat eexists. instantiate (3 := VAL_num v :: _).
       simpl. done.
     + repeat right. subst. repeat eexists.
       instantiate (2:= VAL_num v :: _).
-      simpl. done. 
-  - destruct IHes1 as [? | [(?&?&?)|[(?&?&?&?&?)|[(?&?&?&?) | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] .
+      simpl. done.  *)
+  - destruct IHes1 as [? | [(?&?&?&?)|[(?&?&?&?&?&?)|(* [ *) (?&?&?&?&?)]]]. (* | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] . *)
     + simpl. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0. destruct (merge_values _) => //=.
       destruct v.
       all: by left. 
-    + right;left. eexists _, (sus_push_const _ _). unfold to_eff => /=.
+    + right;left. eexists _, _, (sus_push_const _ _). unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0.
       destruct (merge_values _) => //.  inversion H0 => //=.
       by repeat eexists. 
-    + right;right; right ; left . unfold to_eff => /=.
+    + right;right; right . unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) => //. inversion H0 => //=.
       by repeat eexists.
-    + right; right; right; right; left.
+(*    + right; right; right; right; left.
       subst. repeat eexists.
       instantiate (3 := VAL_ref (VAL_ref_null r) :: _).
       done.
     + repeat right. subst. repeat eexists.
       instantiate (2 := VAL_ref (VAL_ref_null r) :: _).
-      simpl. done.       
-  - unfold to_eff => /=.
-    rewrite merge_ThrowRef => //=. by left.
+      simpl. done.        *)
+(*  - unfold to_eff => /=.
+    rewrite merge_ThrowRef => //=. by left. *)
   - rewrite /to_eff /= merge_trap => /=.
     rewrite flatten_simplify.
     destruct (es1 ++ es2) eqn:Habs => //.
     all: by left.
-  - destruct IHes1 as [? | [(?&?&?)|[(?&?&?&?&?)|[(?&?&?&?) | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] .
+  - destruct IHes1 as [? | [(?&?&?&?)|[(?&?&?&?&?&?)|(* [ *) (?&?&?&?&?)]]]. (* | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] . *)
     + simpl. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0. destruct (merge_values _) => //=.
       destruct v.
       all: by left. 
-    + right;left. eexists _, (sus_push_const _ _). unfold to_eff => /=.
+    + right;left. eexists _,_, (sus_push_const _ _). unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0.
       destruct (merge_values _) => //.  inversion H0 => //=.
       by repeat eexists. 
-    + right;right; right ; left . unfold to_eff => /=.
+    + right;right; right . unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) => //. inversion H0 => //=.
       by repeat eexists.
-    + right; right; right; right; left.
+(*    + right; right; right; right; left.
       subst. repeat eexists.
       instantiate (3 := VAL_ref (VAL_ref_func f) :: _).
       done.
     + repeat right. subst. repeat eexists.
       instantiate (2 := VAL_ref (VAL_ref_func f) :: _).
-      simpl. done.
-  - destruct IHes1 as [? | [(?&?&?)|[(?&?&?&?&?)|[(?&?&?&?) | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] .
+      simpl. done. *)
+  - destruct IHes1 as [? | [(?& ?&?&?)|[(?&?&?&?&?&?)|(* [ *) (?&?&?&?&?)]]]. (* | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] . *)
     + simpl. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0. destruct (merge_values _) eqn:Hmerge => //=.
       destruct v.
       all: try by left.
-      apply merge_is_ThrowRef in Hmerge.
+(*      apply merge_is_ThrowRef in Hmerge.
       destruct es1.
       * right; right; right; right; left.
         repeat eexists.
@@ -9316,31 +9479,31 @@ Proof.
         right; right; right. left.
         repeat eexists.
         simpl. rewrite merge_prepend. simpl.
-        rewrite merge_ThrowRef. done.
-    + right;left. eexists _, (sus_push_const _ _). unfold to_eff => /=.
+        rewrite merge_ThrowRef. done. *)
+    + right;left. eexists _, _, (sus_push_const _ _). unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0.
       destruct (merge_values _) => //.  inversion H0 => //=.
       by repeat eexists. 
-    + right;right; right ; left . unfold to_eff => /=.
+    + right;right; right . unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) => //. inversion H0 => //=.
       by repeat eexists.
-    + right; right; right; right; left.
+(*    + right; right; right; right; left.
       subst. repeat eexists.
       instantiate (3 := VAL_ref (VAL_ref_exn e t) :: _).
       done.
     + repeat right. subst. repeat eexists.
       instantiate (2 := VAL_ref (VAL_ref_exn e t) :: _).
-      simpl. done.
-  - destruct IHes1 as [? | [(?&?&?)|[(?&?&?&?&?)|[(?&?&?&?) | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] .
+      simpl. done. *)
+  - destruct IHes1 as [? | [(?&?&?&?)|[(?&?&?&?&?&?)|(* [ *) (?&?&?&?&?)]]]. (* | [(?&?&?&?&?&?) | (?&?&?&?&?&?&?)]]]]] . *)
     + simpl. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0. destruct (merge_values _) eqn:Hmerge => //=.
       destruct v.
       all: try by left.
-      apply merge_is_Switch in Hmerge.
+(*      apply merge_is_Switch in Hmerge.
       destruct es1.
       * right; right; right; right; right.
         repeat eexists.
@@ -9350,29 +9513,33 @@ Proof.
         right; right. left.
         repeat eexists.
         simpl. rewrite merge_prepend. simpl.
-        rewrite merge_Switch. done.
-    + right;left. eexists _, (sus_push_const _ _). unfold to_eff => /=.
+        rewrite merge_Switch. done. *)
+    + right;left. eexists _,_, (sus_push_const _ _). unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) ; try done. inversion H0 => //=. 
     + right;right. left. unfold to_eff => /=. rewrite merge_prepend.
       unfold to_eff in H0.
       destruct (merge_values _) => //.  inversion H0 => //=.
       by repeat eexists. 
-    + right;right; right ; left . unfold to_eff => /=.
+    + right;right; right. unfold to_eff => /=.
       rewrite merge_prepend. unfold to_eff in H0.
       destruct (merge_values _) => //. inversion H0 => //=.
       by repeat eexists.
-    + right; right; right; right; left.
+(*    + right; right; right; right; left.
       subst. repeat eexists.
       instantiate (3 := VAL_ref (VAL_ref_cont f) :: _).
       done.
     + repeat right. subst. repeat eexists.
       instantiate (2 := VAL_ref (VAL_ref_cont f) :: _).
-      simpl. done.   
+      simpl. done.    *)
+  - right; right; right.
+    unfold to_eff => /=. rewrite merge_throw.
+    repeat eexists.
   - right; left.
     unfold to_eff => /=. rewrite merge_suspend.
     repeat eexists.
-  - rewrite /to_eff /= merge_Switch; left => //. 
+  - right; right; left.
+    rewrite /to_eff /= merge_switch; repeat eexists => //. 
   - unfold to_eff => /=.
     destruct (merge_values (map _ l0)) eqn:Hmerge => //.
     2: destruct e.
@@ -9388,7 +9555,7 @@ Proof.
       rewrite merge_switch flatten_simplify.
       by repeat eexists.
     + destruct (exnelts_of_exception_clauses _ _) eqn:Helts.
-      * right; right; right; left.
+      * right; right; right.
         rewrite merge_throw flatten_simplify.
         by repeat eexists.
       * by left; rewrite merge_notval. 
@@ -9410,7 +9577,7 @@ Proof.
       right; right; left.
       rewrite merge_switch flatten_simplify.
       by repeat eexists.
-    + right; right; right; left.
+    + right; right; right.
       rewrite merge_throw flatten_simplify.
       by repeat eexists. 
   - unfold to_eff => /=.
@@ -9430,7 +9597,7 @@ Proof.
     + right; right; left.
       rewrite merge_switch flatten_simplify.
       by repeat eexists.
-    + right; right; right; left.
+    + right; right; right.
       rewrite merge_throw flatten_simplify.
       by repeat eexists. 
   - unfold to_eff => /=.
@@ -9443,7 +9610,7 @@ Proof.
       by rewrite merge_suspend flatten_simplify.
     + do 2 right; left; repeat eexists.
       by rewrite merge_switch flatten_simplify.
-    + do 3 right; left; repeat eexists.
+    + do 3 right; repeat eexists.
       by rewrite merge_throw flatten_simplify. 
   - unfold to_eff => /=.
     rewrite merge_call_host; left => //. 
@@ -9452,17 +9619,17 @@ Qed.
 Lemma to_eff_None_prepend_const : forall es1 es2,
     const_list es1 ->
     to_eff es2 = None ->
-    to_eff (es1 ++ es2) = None \/
+    to_eff (es1 ++ es2) = None (* \/
       (exists vs a i es',
           es1 = vs ++ [:: AI_ref_exn a i] /\
             es2 = AI_basic BI_throw_ref :: es') \/
       (exists vs k tf i es',
           es1 = vs ++ [:: AI_ref_cont k] /\
-            es2 = AI_switch_desugared tf i :: es')
+            es2 = AI_switch_desugared tf i :: es') *)
        .
 Proof.
   move => es1 es2 H H'.
-  eapply to_eff_None_prepend in H' as [ ? | [(?&sh&Hes1) | [(?&?&?&sh & Hes1) |[ (?&?&sh & Hes1) | [(?&?&?&?&Hes1&Hes2) | (?&?&?&?&?&Hes1&Hes2)]]]]]; first by left.
+  eapply to_eff_None_prepend in H' as [ ? | [(?&?&sh&Hes1) | [(?&?&?&?&sh & Hes1) |(* [ *)  (?& ?&?&sh & Hes1)]]]; (* | [(?&?&?&?&Hes1&Hes2) | (?&?&?&?&?&Hes1&Hes2)]]]]];*)  first done.
   - exfalso.
     generalize dependent sh. 
     induction es1 => //=.
@@ -9488,8 +9655,8 @@ Proof.
     all: unfold to_eff in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
     all: destruct (merge_values _) eqn:Hmerge => //.
-    11:{ apply merge_is_Switch in Hmerge as ->.
-         simpl in H. done. } 
+(*    11:{ apply merge_is_Switch in Hmerge as ->.
+         simpl in H. done. }  *)
     destruct v0 => //.
     all: try by destruct v => //.
     4: destruct e0 => //.
@@ -9507,8 +9674,8 @@ Proof.
     all: unfold to_eff in Hes1 ; simpl in Hes1.
     all: rewrite merge_prepend in Hes1.
     all: destruct (merge_values _) eqn:Hmerge => //.
-    9:{ apply merge_is_ThrowRef in Hmerge as ->.
-        simpl in H. done. } 
+(*    9:{ apply merge_is_ThrowRef in Hmerge as ->.
+        simpl in H. done. }  *)
     destruct v0 => //.
     all: try by destruct v => //.
     4: destruct e0 => //.
@@ -9517,12 +9684,12 @@ Proof.
     all: apply (IHes1 H sh0) => //.
     all: unfold to_eff.
     all: by rewrite Hmerge.
-  - subst. right. left.
+(*  - subst. right. left.
     repeat eexists.
     rewrite -v_to_e_cat => //.
   - subst. right. right.
     repeat eexists.
-    rewrite -v_to_e_cat => //. 
+    rewrite -v_to_e_cat => //.  *)
 Qed.
 
        (*
@@ -9852,7 +10019,7 @@ Proof.
     intro H ; inversion H ; subst.
     by eapply IH.
     destruct e => //=.
-  - rewrite merge_ThrowRef => //=. 
+(*  - rewrite merge_ThrowRef => //=.  *)
   - rewrite merge_trap flatten_simplify => /=.
     destruct es' => //=.
   - rewrite /to_val /= merge_prepend.
@@ -9875,9 +10042,10 @@ Proof.
     destruct v => //=.
     intro H ; inversion H ; subst.
     by eapply IH.
-    destruct e => //. 
+    destruct e => //.
+  - rewrite /to_val /= merge_throw => //. 
   - rewrite /to_val /= merge_suspend => //.
-  - rewrite /to_val /= merge_Switch => //.
+  - rewrite /to_val /= merge_switch => //.
   - unfold to_val => /=.
     destruct (merge_values (map _ _)) eqn:Hmerge => //.
     2: destruct e.
@@ -10159,21 +10327,21 @@ Proof.
   all: done.
 Qed.
 
-Lemma llfill_switch sh k tf i es:
-  llfill sh [AI_ref_cont k; AI_switch_desugared tf i] = es ->
-  (exists sh, to_eff es = Some $ swE k tf i sh) \/
+Lemma llfill_switch sh vs k tf i es:
+  llfill sh [AI_switch_desugared vs k tf i] = es ->
+  (exists sh, to_eff es = Some $ swE vs k tf i sh) \/
     merge_values (map to_val_instr es) = NotVal es.
 Proof.
   generalize dependent es.
   induction sh; intros es <- => //=.
   - left. exists (SwBase l l0).
-    replace (v_to_e_list l ++ [:: AI_ref_cont k, AI_switch_desugared tf i & l0]) with (of_eff (swE k tf i (SwBase l l0))) => //.
+    replace (v_to_e_list l ++ [:: AI_switch_desugared vs k tf i & l0]) with (of_eff (swE vs k tf i (SwBase l l0))) => //.
     apply to_of_eff.
   - edestruct IHsh as [[sh' Hsw] | Hnv] => //.
     + left. apply of_to_eff in Hsw.
       unfold of_eff in Hsw.
       rewrite -Hsw.
-      replace (v_to_e_list l ++ (AI_label n l0 (swfill i sh' [AI_ref_cont k; AI_switch_desugared tf i]) :: l1)%SEQ) with (of_eff (swE k tf i (SwLabel l n l0 sh' l1))) => //.
+      replace (v_to_e_list l ++ (AI_label n l0 (swfill i sh' [AI_switch_desugared vs k tf i]) :: l1)%SEQ) with (of_eff (swE vs k tf i (SwLabel l n l0 sh' l1))) => //.
       rewrite to_of_eff.
       by eexists.
     + right. repeat rewrite map_app. repeat rewrite merge_app.
@@ -10181,7 +10349,7 @@ Proof.
       rewrite Hnv. rewrite merge_notval. simpl.
       rewrite flatten_simplify.
       specialize (v_to_e_is_const_list l) as Hl.
-      apply const_list_to_val in Hl as (vs & Hvs & Heq).
+      apply const_list_to_val in Hl as (vs' & Hvs & Heq).
       apply v_to_e_inj in Heq as ->.
       unfold to_val in Hvs.
       destruct (merge_values $ map _ $ v_to_e_list l) => //.
@@ -10191,7 +10359,7 @@ Proof.
     + left. apply of_to_eff in Hsw.
       unfold of_eff in Hsw.
       rewrite -Hsw.
-      replace (v_to_e_list l ++ (AI_local n f (swfill i sh' [AI_ref_cont k; AI_switch_desugared tf i]) :: l0)%SEQ) with (of_eff (swE k tf i (SwLocal l n f sh' l0))) => //.
+      replace (v_to_e_list l ++ (AI_local n f (swfill i sh' [AI_switch_desugared vs k tf i]) :: l0)%SEQ) with (of_eff (swE vs k tf i (SwLocal l n f sh' l0))) => //.
       rewrite to_of_eff.
       by eexists.
     + right. repeat rewrite map_app. repeat rewrite merge_app.
@@ -10199,7 +10367,7 @@ Proof.
       rewrite Hnv. rewrite merge_notval. simpl.
       rewrite flatten_simplify.
       specialize (v_to_e_is_const_list l) as Hl.
-      apply const_list_to_val in Hl as (vs & Hvs & Heq).
+      apply const_list_to_val in Hl as (vs' & Hvs & Heq).
       apply v_to_e_inj in Heq as ->.
       unfold to_val in Hvs.
       destruct (merge_values $ map _ $ v_to_e_list l) => //.
@@ -10210,7 +10378,7 @@ Proof.
       * left. apply of_to_eff in Hsw.
         unfold of_eff in Hsw.
         rewrite -Hsw.
-        replace (v_to_e_list l ++ (AI_prompt l0 l1 (swfill i sh' [AI_ref_cont k; AI_switch_desugared tf i]) :: l2)%SEQ) with (of_eff (swE k tf i (SwPrompt l l0 l3 sh' l2))) => //.
+        replace (v_to_e_list l ++ (AI_prompt l0 l1 (swfill i sh' [AI_switch_desugared vs k tf i]) :: l2)%SEQ) with (of_eff (swE vs k tf i (SwPrompt l l0 l3 sh' l2))) => //.
         rewrite to_of_eff.
         by eexists. simpl.
         apply swelts_of_continuation_clauses_inj in Helts.
@@ -10222,7 +10390,7 @@ Proof.
         rewrite Helts.
         rewrite merge_notval flatten_simplify.
         specialize (v_to_e_is_const_list l) as Hl.
-        apply const_list_to_val in Hl as (vs & Hvs & Heq).
+        apply const_list_to_val in Hl as (vs' & Hvs & Heq).
         apply v_to_e_inj in Heq as ->.
         unfold to_val in Hvs.
         destruct (merge_values $ map _ $ v_to_e_list l) => //.
@@ -10233,7 +10401,7 @@ Proof.
       rewrite Hnv. rewrite merge_notval. simpl.
       rewrite flatten_simplify.
       specialize (v_to_e_is_const_list l) as Hl.
-      apply const_list_to_val in Hl as (vs & Hvs & Heq).
+      apply const_list_to_val in Hl as (vs' & Hvs & Heq).
       apply v_to_e_inj in Heq as ->.
       unfold to_val in Hvs.
       destruct (merge_values $ map _ $ v_to_e_list l) => //.
@@ -10243,7 +10411,7 @@ Proof.
     + left. apply of_to_eff in Hsw.
       unfold of_eff in Hsw.
       rewrite -Hsw.
-      replace (v_to_e_list l ++ (AI_handler l0 (swfill i sh' [AI_ref_cont k; AI_switch_desugared tf i]) :: l1)%SEQ) with (of_eff (swE k tf i (SwHandler l l0 sh' l1))) => //.
+      replace (v_to_e_list l ++ (AI_handler l0 (swfill i sh' [AI_switch_desugared vs k tf i]) :: l1)%SEQ) with (of_eff (swE vs k tf i (SwHandler l l0 sh' l1))) => //.
       rewrite to_of_eff.
       by eexists.
     + right. repeat rewrite map_app. repeat rewrite merge_app.
@@ -10251,7 +10419,7 @@ Proof.
       rewrite Hnv. rewrite merge_notval. simpl.
       rewrite flatten_simplify.
       specialize (v_to_e_is_const_list l) as Hl.
-      apply const_list_to_val in Hl as (vs & Hvs & Heq).
+      apply const_list_to_val in Hl as (vs' & Hvs & Heq).
       apply v_to_e_inj in Heq as ->.
       unfold to_val in Hvs.
       destruct (merge_values $ map _ $ v_to_e_list l) => //.
@@ -10262,14 +10430,16 @@ Qed.
 Lemma reduce_not_val s1 f1 e1 s2 f2 e2 :
   reduce s1 f1 e1 s2 f2 e2 ->
   merge_values (map to_val_instr e1) = NotVal e1 \/
-    exists k tf tf' i sh hh,
-      to_eff e1 = Some (swE k tf i sh) /\
+    exists vs k tf tf' i sh hh,
+      to_eff e1 = Some (swE vs k tf i sh) /\
         List.nth_error (s_conts s1) k = Some (Cont_dagger tf') /\
         s2 = s1 /\ f2 = f1 /\ hfilled No_var hh [::AI_trap] e2.
 Proof.
   intros H; induction H; subst; try by left.
   all: try rewrite map_app merge_app.
-  all: try specialize (v_to_e_is_const_list vcs) as H1.
+  all: try specialize (v_to_e_is_const_list vcs) as H1'.
+  all: try specialize (v_to_e_is_const_list vs) as H1'.
+  all: try apply const_list_to_val in H1' as (? & Hvs & Hes).
   all: try apply const_list_to_val in H1 as (? & Hvs & Hes).
   all: try (remember H as H'; clear HeqH'; apply const_list_to_val in H' as (? & Hvs & Hes)).
   all: try unfold to_val in Hvs.
@@ -10324,11 +10494,11 @@ Proof.
            exact H1.
            all : try done.
       * destruct e => //=.
-         -- assert (to_eff LI = Some (susE i0 sh));
+         -- assert (to_eff LI = Some (susE vs0 i0 sh));
              first by unfold to_eff; rewrite Hmerge.
            apply of_to_eff in H1.
            unfold of_eff in H1.
-           specialize (susfill_to_hfilled i0 sh [AI_suspend_desugared i0]) as Hfill.
+           specialize (susfill_to_hfilled i0 sh [AI_suspend_desugared vs0 i0]) as Hfill.
            rewrite H1 in Hfill.
            apply hfilled_to_llfill in Hfill as [llh Hfill].
            edestruct lfilled_llfill_first_values as [Habs _].
@@ -10336,28 +10506,28 @@ Proof.
            instantiate (2 := [::]).
            exact Hfill.
            all: done.
-        -- assert (to_eff LI = Some (swE k tf i0 sh));
+        -- assert (to_eff LI = Some (swE vs0 k tf i0 sh));
              first by unfold to_eff; rewrite Hmerge.
            apply of_to_eff in H1.
            unfold of_eff in H1.
-           specialize (swfill_to_hfilled i0 sh [AI_ref_cont k; AI_switch_desugared tf i0]) as Hfill.
+           specialize (swfill_to_hfilled i0 sh [AI_switch_desugared vs0 k tf i0]) as Hfill.
            rewrite H1 in Hfill.
            apply hfilled_to_llfill in Hfill as [llh Hfill].
            edestruct lfilled_llfill_first_values as [Habs _].
            exact H2.
-           instantiate (2 := [:: _]).
+           instantiate (2 := [::]).
            exact Hfill.
            all: done.
-        -- assert (to_eff LI = Some (thrE a i0 sh));
+        -- assert (to_eff LI = Some (thrE vs0 a i0 sh));
              first by unfold to_eff; rewrite Hmerge.
            apply of_to_eff in H1.
            unfold of_eff in H1.
-           specialize (exnfill_to_hfilled i0 sh [AI_ref_exn a i0; AI_basic BI_throw_ref]) as Hfill.
+           specialize (exnfill_to_hfilled i0 sh [AI_throw_ref_desugared vs0 a i0]) as Hfill.
            rewrite H1 in Hfill.
            apply hfilled_to_llfill in Hfill as [llh Hfill].
            edestruct lfilled_llfill_first_values as [Habs _].
            exact H2.
-           instantiate (2 := [:: _]).
+           instantiate (2 := [::]).
            exact Hfill.
            all: done.
     + destruct (merge_values $ map _ _) eqn:Hmerge => //.
@@ -10371,10 +10541,10 @@ Proof.
         exact H1.
         all : try done.
       * destruct e => //=.
-        -- assert (to_eff es = Some (susE i0 sh));
+        -- assert (to_eff es = Some (susE vs i0 sh));
              first by unfold to_eff; rewrite Hmerge.
            apply of_to_eff in H1. unfold of_eff in H1.
-           specialize (susfill_to_hfilled i0 sh [AI_suspend_desugared i0]) as Hfill.
+           specialize (susfill_to_hfilled i0 sh [AI_suspend_desugared vs i0]) as Hfill.
            rewrite H1 in Hfill.
            apply hfilled_to_llfill in Hfill as [llh Hfill].
            edestruct lfilled_llfill_first_values as [Habs _].
@@ -10382,26 +10552,26 @@ Proof.
            instantiate (2 := [::]).
            exact Hfill.
            all: done.
-        -- assert (to_eff es = Some (swE k tf i0 sh));
+        -- assert (to_eff es = Some (swE vs k tf i0 sh));
              first by unfold to_eff; rewrite Hmerge.
            apply of_to_eff in H1. unfold of_eff in H1.
-           specialize (swfill_to_hfilled i0 sh [AI_ref_cont k; AI_switch_desugared tf i0]) as Hfill.
+           specialize (swfill_to_hfilled i0 sh [AI_switch_desugared vs k tf i0]) as Hfill.
            rewrite H1 in Hfill.
            apply hfilled_to_llfill in Hfill as [llh Hfill].
            edestruct lfilled_llfill_first_values as [Habs _].
            exact H2.
-           instantiate (2 := [:: _]).
+           instantiate (2 := [::]).
            exact Hfill.
            all: done.
-        -- assert (to_eff es = Some (thrE a i0 sh));
+        -- assert (to_eff es = Some (thrE vs a i0 sh));
              first by unfold to_eff; rewrite Hmerge.
            apply of_to_eff in H1. unfold of_eff in H1.
-           specialize (exnfill_to_hfilled i0 sh [AI_ref_exn a i0; AI_basic BI_throw_ref]) as Hfill.
+           specialize (exnfill_to_hfilled i0 sh [AI_throw_ref_desugared vs a i0]) as Hfill.
            rewrite H1 in Hfill.
            apply hfilled_to_llfill in Hfill as [llh Hfill].
            edestruct lfilled_llfill_first_values as [Habs _].
            exact H2.
-           instantiate (2 := [:: _]).
+           instantiate (2 := [::]).
            exact Hfill.
            all: done.
     + destruct v => //=. destruct b => //=.
@@ -10439,196 +10609,194 @@ Proof.
            econstructor => //.
            by apply/lfilledP.
   - left. simpl.
-    destruct (merge_values $ map _ _) eqn:Hmerge => //=.
+    destruct (merge_values $ map _ LI) eqn:Hmerge => //=.
     + destruct v => //=.
-       * exfalso.
+      * exfalso.
         assert (to_val LI = Some $ brV lh);
           first by unfold to_val; rewrite Hmerge.
-        apply of_to_val in H2.
-        unfold of_val in H2.
-        apply hfilled_to_llfill in H0 as [llh Hllh].
-        destruct (vfill_to_lfilled lh [AI_basic (BI_br i)]).
-        rewrite H2 in H3.
+        apply of_to_val in H1.
+        unfold of_val in H1.
+        apply hfilled_to_llfill in H as [llh Hllh].
+        destruct (vfill_to_lfilled lh [AI_basic (BI_br i0)]).
+        rewrite H1 in H2.
         edestruct lfilled_llfill_first_values as [Habs _].
-        instantiate (3 := []).
-        exact H3.
-        instantiate (2 := [_]).
-        exact Hllh.
-        all: try done.
-      * exfalso.
-        assert (to_val LI = Some $ retV s0);
-          first by unfold to_val; rewrite Hmerge.
-        apply of_to_val in H2.
-        unfold of_val in H2.
-        apply hfilled_to_llfill in H0 as [llh Hllh].
-        specialize (sfill_to_lfilled s0 [AI_basic BI_return]) as Hsh.
-        rewrite H2 in Hsh.
-        edestruct lfilled_llfill_first_values as [Habs _].
-        instantiate (3 := []).
-        exact Hsh.
-        instantiate (2 := [_]).
-        exact Hllh.
-        all: try done.
-      * exfalso.
-        assert (to_val LI = Some $ callHostV f0 h l0 l1);
-          first by unfold to_val; rewrite Hmerge.
-        apply of_to_val in H2.
-        unfold of_val in H2.
-        apply hfilled_to_llfill in H0 as [llh Hllh].
-        edestruct llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact H2.
-        instantiate (2 := [_]).
-        exact Hllh.
-        all: try done.
-    + destruct e => //=.
-       * exfalso.
-        assert (to_eff LI = Some $ susE i sh);
-          first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H2.
-        unfold of_eff in H2.
-        specialize (susfill_to_hfilled i sh [AI_suspend_desugared i]) as Hfill.
-        apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H0 as [llh Hllh].
-        rewrite H2 in Hfill.
-        edestruct llfill_first_values as [Habs _].
-        instantiate (3 := []).
-        exact Hfill.
-        instantiate (2 := [_]).
-        exact Hllh.
-        all: try done.
-      * exfalso.
-        assert (to_eff LI = Some $ swE k tf i sh);
-          first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H2.
-        unfold of_eff in H2.
-        specialize (swfill_to_hfilled i sh [AI_ref_cont k; AI_switch_desugared tf i]) as Hfill.
-        apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H0 as [llh Hllh].
-        rewrite H2 in Hfill.
-        edestruct llfill_first_values as [Habs _].
-        instantiate (3 := [_]).
-        exact Hfill.
-        instantiate (2 := [_]).
-        exact Hllh.
-        all: try done.
-      * destruct (exnelts_of_exception_clauses _ _) eqn:Helts => //.
-        exfalso.
-        assert (to_eff LI = Some $ thrE a0 i sh);
-          first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H2.
-        unfold of_eff in H2.
-        specialize (exnfill_to_hfilled i sh [AI_ref_exn a0 i; AI_basic BI_throw_ref]) as Hfill.
-        apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H0 as [llh Hllh].
-        rewrite H2 in Hfill.
-        edestruct llfill_first_values as (_ & Hres).
-        instantiate (3 := [_]).
-        exact Hfill.
-        instantiate (2 := [_]).
-        exact Hllh.
-        all: try done.
-        destruct Hres as [Heq ->] => //.
-        inversion Heq; subst.
-        erewrite exnelts_firstx in H1 => //.
-  - left. simpl.
-    destruct (merge_values $ map _ _) eqn:Hmerge => //=.
-    + destruct v => //=.
-       * exfalso.
-        assert (to_val LI = Some $ brV lh);
-          first by unfold to_val; rewrite Hmerge.
-        apply of_to_val in H0.
-        unfold of_val in H0.
-        apply hfilled_to_llfill in H1 as [llh Hllh].
-        destruct (vfill_to_lfilled lh [AI_basic (BI_br i)]).
-        rewrite H0 in H3.
-        edestruct lfilled_llfill_first_values as [Habs _].
-        instantiate (3 := []).
-        exact H3.
-        instantiate (2 := [_]).
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
       * exfalso.
         assert (to_val LI = Some $ retV s0);
           first by unfold to_val; rewrite Hmerge.
-        apply of_to_val in H0.
-        unfold of_val in H0.
-        apply hfilled_to_llfill in H1 as [llh Hllh].
+        apply of_to_val in H1.
+        unfold of_val in H1.
+        apply hfilled_to_llfill in H as [llh Hllh].
         specialize (sfill_to_lfilled s0 [AI_basic BI_return]) as Hsh.
-        rewrite H0 in Hsh.
+        rewrite H1 in Hsh.
         edestruct lfilled_llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Hsh.
-        instantiate (2 := [_]).
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
       * exfalso.
         assert (to_val LI = Some $ callHostV f0 h l0 l1);
           first by unfold to_val; rewrite Hmerge.
-        apply of_to_val in H0.
-        unfold of_val in H0.
-        apply hfilled_to_llfill in H1 as [llh Hllh].
+        apply of_to_val in H1.
+        unfold of_val in H1.
+        apply hfilled_to_llfill in H as [llh Hllh].
         edestruct llfill_first_values as [Habs _].
         instantiate (3 := []).
-        exact H0.
-        instantiate (2 := [_]).
+        exact H1.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
     + destruct e => //=.
        * exfalso.
-        assert (to_eff LI = Some $ susE i sh);
+        assert (to_eff LI = Some $ susE vs0 i0 sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H0.
-        unfold of_eff in H0.
-        specialize (susfill_to_hfilled i sh [AI_suspend_desugared i]) as Hfill.
+        apply of_to_eff in H1.
+        unfold of_eff in H1.
+        specialize (susfill_to_hfilled i0 sh [AI_suspend_desugared vs0 i0]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H1 as [llh Hllh].
-        rewrite H0 in Hfill.
+        apply hfilled_to_llfill in H as [llh Hllh].
+        rewrite H1 in Hfill.
         edestruct llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Hfill.
-        instantiate (2 := [_]).
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
       * exfalso.
-        assert (to_eff LI = Some $ swE k tf i sh);
+        assert (to_eff LI = Some $ swE vs0 k tf i0 sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H0.
-        unfold of_eff in H0.
-        specialize (swfill_to_hfilled i sh [AI_ref_cont k; AI_switch_desugared tf i]) as Hfill.
+        apply of_to_eff in H1.
+        unfold of_eff in H1.
+        specialize (swfill_to_hfilled i0 sh [AI_switch_desugared vs0 k tf i0]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H1 as [llh Hllh].
-        rewrite H0 in Hfill.
+        apply hfilled_to_llfill in H as [llh Hllh].
+        rewrite H1 in Hfill.
         edestruct llfill_first_values as [Habs _].
-        instantiate (3 := [_]).
+        instantiate (3 := []).
         exact Hfill.
-        instantiate (2 := [_]).
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
       * destruct (exnelts_of_exception_clauses _ _) eqn:Helts => //.
         exfalso.
-        assert (to_eff LI = Some $ thrE a0 i sh);
+        assert (to_eff LI = Some $ thrE vs0 a0 i0 sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H0.
-        unfold of_eff in H0.
-        specialize (exnfill_to_hfilled i sh [AI_ref_exn a0 i; AI_basic BI_throw_ref]) as Hfill.
+        apply of_to_eff in H1.
+        unfold of_eff in H1.
+        specialize (exnfill_to_hfilled i0 sh [AI_throw_ref_desugared vs0 a0 i0]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H1 as [llh Hllh].
-        rewrite H0 in Hfill.
-        edestruct llfill_first_values as (_ & Hres).
-        instantiate (3 := [_]).
+        apply hfilled_to_llfill in H as [llh Hllh].
+        rewrite H1 in Hfill.
+        edestruct llfill_first_values as (Hres & _).
+        instantiate (3 := []).
         exact Hfill.
-        instantiate (2 := [_]).
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
-        destruct Hres as [Heq ->] => //.
-        inversion Heq; subst.
-        erewrite exnelts_firstx in H2 => //.
+        inversion Hres; subst.
+        erewrite exnelts_firstx in H0 => //.
+  - left. simpl.
+    destruct (merge_values $ map _ LI) eqn:Hmerge => //=.
+    + destruct v => //=.
+       * exfalso.
+        assert (to_val LI = Some $ brV lh);
+          first by unfold to_val; rewrite Hmerge.
+        apply of_to_val in H1.
+        unfold of_val in H1.
+        apply hfilled_to_llfill in H as [llh Hllh].
+        destruct (vfill_to_lfilled lh [AI_basic (BI_br i0)]).
+        rewrite H1 in H2.
+        edestruct lfilled_llfill_first_values as [Habs _].
+        instantiate (3 := []).
+        exact H2.
+        instantiate (2 := []).
+        exact Hllh.
+        all: try done.
+      * exfalso.
+        assert (to_val LI = Some $ retV s0);
+          first by unfold to_val; rewrite Hmerge.
+        apply of_to_val in H1.
+        unfold of_val in H1.
+        apply hfilled_to_llfill in H as [llh Hllh].
+        specialize (sfill_to_lfilled s0 [AI_basic BI_return]) as Hsh.
+        rewrite H1 in Hsh.
+        edestruct lfilled_llfill_first_values as [Habs _].
+        instantiate (3 := []).
+        exact Hsh.
+        instantiate (2 := []).
+        exact Hllh.
+        all: try done.
+      * exfalso.
+        assert (to_val LI = Some $ callHostV f0 h l0 l1);
+          first by unfold to_val; rewrite Hmerge.
+        apply of_to_val in H1.
+        unfold of_val in H1.
+        apply hfilled_to_llfill in H as [llh Hllh].
+        edestruct llfill_first_values as [Habs _].
+        instantiate (3 := []).
+        exact H1.
+        instantiate (2 := []).
+        exact Hllh.
+        all: try done.
+    + destruct e => //=.
+       * exfalso.
+        assert (to_eff LI = Some $ susE vs0 i0 sh);
+          first by unfold to_eff; rewrite Hmerge.
+        apply of_to_eff in H1.
+        unfold of_eff in H1.
+        specialize (susfill_to_hfilled i0 sh [AI_suspend_desugared vs0 i0]) as Hfill.
+        apply hfilled_to_llfill in Hfill as [llh' Hfill].
+        apply hfilled_to_llfill in H as [llh Hllh].
+        rewrite H1 in Hfill.
+        edestruct llfill_first_values as [Habs _].
+        instantiate (3 := []).
+        exact Hfill.
+        instantiate (2 := []).
+        exact Hllh.
+        all: try done.
+      * exfalso.
+        assert (to_eff LI = Some $ swE vs0 k tf i0 sh);
+          first by unfold to_eff; rewrite Hmerge.
+        apply of_to_eff in H1.
+        unfold of_eff in H1.
+        specialize (swfill_to_hfilled i0 sh [AI_switch_desugared vs0 k tf i0]) as Hfill.
+        apply hfilled_to_llfill in Hfill as [llh' Hfill].
+        apply hfilled_to_llfill in H as [llh Hllh].
+        rewrite H1 in Hfill.
+        edestruct llfill_first_values as [Habs _].
+        instantiate (3 := []).
+        exact Hfill.
+        instantiate (2 := []).
+        exact Hllh.
+        all: try done.
+      * destruct (exnelts_of_exception_clauses _ _) eqn:Helts => //.
+        exfalso.
+        assert (to_eff LI = Some $ thrE vs0 a0 i0 sh);
+          first by unfold to_eff; rewrite Hmerge.
+        apply of_to_eff in H1.
+        unfold of_eff in H1.
+        specialize (exnfill_to_hfilled i0 sh [AI_throw_ref_desugared vs0 a0 i0]) as Hfill.
+        apply hfilled_to_llfill in Hfill as [llh' Hfill].
+        apply hfilled_to_llfill in H as [llh Hllh].
+        rewrite H1 in Hfill.
+        edestruct llfill_first_values as (Habs & _).
+        instantiate (3 := []).
+        exact Hfill.
+        instantiate (2 := []).
+        exact Hllh.
+        all: try done.
+        inversion Habs; subst.
+        erewrite exnelts_firstx in H0 => //.
 (*  - left. simpl.
     destruct (merge_values _) => //.
     inversion Hvs; subst.
     simpl. done. *)
-  - left. simpl.
+  - left. simpl. 
     destruct (merge_values $ map _ LI) eqn:Hmerge => //=.
     + destruct v => //=.
        * exfalso.
@@ -10636,12 +10804,13 @@ Proof.
           first by unfold to_val; rewrite Hmerge.
         apply of_to_val in Htv.
         unfold of_val in Htv.
-        apply hfilled_to_llfill in H4 as [llh Hllh].
+        apply hfilled_to_llfill in H2 as [llh Hllh].
         destruct (vfill_to_lfilled lh [AI_basic (BI_br i)]) as [_ Hvh].
         rewrite Htv in Hvh.
         edestruct lfilled_llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Hvh.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
       * exfalso.
@@ -10649,12 +10818,13 @@ Proof.
           first by unfold to_val; rewrite Hmerge .
         apply of_to_val in Htv.
         unfold of_val in Htv.
-        apply hfilled_to_llfill in H4 as [llh Hllh].
+        apply hfilled_to_llfill in H2 as [llh Hllh].
         specialize (sfill_to_lfilled s0 [AI_basic BI_return]) as Hsh.
         rewrite Htv in Hsh.
         edestruct lfilled_llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Hsh.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
       * exfalso.
@@ -10662,56 +10832,60 @@ Proof.
           first by unfold to_val; rewrite Hmerge.
         apply of_to_val in Htv.
         unfold of_val in Htv.
-        apply hfilled_to_llfill in H4 as [llh Hllh].
+        apply hfilled_to_llfill in H2 as [llh Hllh].
         edestruct llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Htv.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
     + destruct e => //.
         * destruct (suselts_of_continuation_clauses _ _) eqn:Helts => //. 
         exfalso.
-        assert (to_eff LI = Some $ susE i sh);
+        assert (to_eff LI = Some $ susE vs0 i sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H0.
-        unfold of_eff in H0.
-        specialize (susfill_to_hfilled i sh [AI_suspend_desugared i]) as Hfill.
+        apply of_to_eff in H.
+        unfold of_eff in H.
+        specialize (susfill_to_hfilled i sh [AI_suspend_desugared vs0 i]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H4 as [llh Hllh].
-        rewrite H0 in Hfill.
+        apply hfilled_to_llfill in H2 as [llh Hllh].
+        rewrite H in Hfill.
         edestruct llfill_first_values as [Hres _].
         instantiate (3 := []).
         exact Hfill.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
         inversion Hres; subst.
-        erewrite suselts_firstx in H3 => //. 
+        erewrite suselts_firstx in H1 => //. 
       * exfalso.
-        assert (to_eff LI = Some $ swE k tf i sh);
+        assert (to_eff LI = Some $ swE vs0 k tf i sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H0.
-        unfold of_eff in H0.
-        specialize (swfill_to_hfilled i sh [AI_ref_cont k; AI_switch_desugared tf i]) as Hfill.
+        apply of_to_eff in H.
+        unfold of_eff in H.
+        specialize (swfill_to_hfilled i sh [AI_switch_desugared vs0 k tf i]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H4 as [llh Hllh].
-        rewrite H0 in Hfill.
+        apply hfilled_to_llfill in H2 as [llh Hllh].
+        rewrite H in Hfill.
         edestruct llfill_first_values as [Habs _].
-        instantiate (3 := [_]).
+        instantiate (3 := []).
         exact Hfill.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
       * exfalso.
-        assert (to_eff LI = Some $ thrE a0 i sh);
+        assert (to_eff LI = Some $ thrE vs0 a0 i sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H0.
-        unfold of_eff in H0.
-        specialize (exnfill_to_hfilled i sh [AI_ref_exn a0 i; AI_basic BI_throw_ref]) as Hfill.
+        apply of_to_eff in H.
+        unfold of_eff in H.
+        specialize (exnfill_to_hfilled i sh [AI_throw_ref_desugared vs0 a0 i]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H4 as [llh Hllh].
-        rewrite H0 in Hfill.
+        apply hfilled_to_llfill in H2 as [llh Hllh].
+        rewrite H in Hfill.
         edestruct llfill_first_values as [Habs _].
-        instantiate (3 := [_]).
+        instantiate (3 := []).
         exact Hfill.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
   - left. simpl.
@@ -10722,106 +10896,94 @@ Proof.
           first by unfold to_val; rewrite Hmerge.
         apply of_to_val in Htv.
         unfold of_val in Htv.
-        apply hfilled_to_llfill in H4 as [llh Hllh].
+        apply hfilled_to_llfill in H2 as [llh Hllh].
         destruct (vfill_to_lfilled lh [AI_basic (BI_br i)]) as [_ Hvh].
         rewrite Htv in Hvh.
         edestruct lfilled_llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Hvh.
-        instantiate (2 := _ ++ [_]).
-        rewrite -cat_app -catA.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
-        by apply const_list_concat.
       * exfalso.
         assert (to_val LI = Some $ retV s0) as Htv;
           first by unfold to_val; rewrite Hmerge.
         apply of_to_val in Htv.
         unfold of_val in Htv.
-        apply hfilled_to_llfill in H4 as [llh Hllh].
+        apply hfilled_to_llfill in H2 as [llh Hllh].
         specialize (sfill_to_lfilled s0 [AI_basic BI_return]) as Hsh.
         rewrite Htv in Hsh.
         edestruct lfilled_llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Hsh.
-        instantiate (2 := _ ++ [_]).
-        rewrite -cat_app -catA.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
-        by apply const_list_concat.
       * exfalso.
         assert (to_val LI = Some $ callHostV f0 h l l0) as Htv;
           first by unfold to_val; rewrite Hmerge.
         apply of_to_val in Htv.
         unfold of_val in Htv.
-        apply hfilled_to_llfill in H4 as [llh Hllh].
+        apply hfilled_to_llfill in H2 as [llh Hllh].
         edestruct llfill_first_values as [Habs _].
         instantiate (3 := []).
         exact Htv.
-        instantiate (2 := _ ++ [_]).
-        rewrite -cat_app -catA.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
-        by apply const_list_concat.
     + destruct e => //=.
       * exfalso.
-        assert (to_eff LI = Some $ susE i sh);
+        assert (to_eff LI = Some $ susE vs0 i sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H1.
-        unfold of_eff in H1.
-        specialize (susfill_to_hfilled i sh [AI_suspend_desugared i]) as Hfill.
+        apply of_to_eff in H0.
+        unfold of_eff in H0.
+        specialize (susfill_to_hfilled i sh [AI_suspend_desugared vs0 i]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H4 as [llh Hllh].
-        rewrite H1 in Hfill.
+        apply hfilled_to_llfill in H2 as [llh Hllh].
+        rewrite H0 in Hfill.
         edestruct llfill_first_values as [Hres _].
         instantiate (3 := []).
         exact Hfill.
-        instantiate (2 := _ ++ [_]).
-        rewrite -cat_app -catA.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
-        apply const_list_concat => //. 
       * destruct (swelts_of_continuation_clauses _ _) eqn:Helts => //. 
         exfalso.
-        assert (to_eff LI = Some $ swE k0 tf i sh);
+        assert (to_eff LI = Some $ swE vs0 k0 tf i sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H1.
-        unfold of_eff in H1.
-        specialize (swfill_to_hfilled i sh [AI_ref_cont k0; AI_switch_desugared tf i]) as Hfill.
+        apply of_to_eff in H0.
+        unfold of_eff in H0.
+        specialize (swfill_to_hfilled i sh [AI_switch_desugared vs0 k0 tf i]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H4 as [llh Hllh].
-        rewrite H1 in Hfill.
+        apply hfilled_to_llfill in H2 as [llh Hllh].
+        rewrite H0 in Hfill.
         edestruct llfill_first_values as [Habs _].
-        instantiate (3 := [_]).
+        instantiate (3 := []).
         exact Hfill.
-        instantiate (2 := _ ++ [_]).
-        rewrite -cat_app -catA.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
-        apply const_list_concat => //.
         inversion Habs; subst.
-        erewrite swelts_firstx in H0 => //. 
+        erewrite swelts_firstx in H => //. 
       * exfalso.
-        assert (to_eff LI = Some $ thrE a i sh);
+        assert (to_eff LI = Some $ thrE vs0 a i sh);
           first by unfold to_eff; rewrite Hmerge.
-        apply of_to_eff in H1.
-        unfold of_eff in H1.
-        specialize (exnfill_to_hfilled i sh [AI_ref_exn a i; AI_basic BI_throw_ref]) as Hfill.
+        apply of_to_eff in H0.
+        unfold of_eff in H0.
+        specialize (exnfill_to_hfilled i sh [AI_throw_ref_desugared vs0 a i]) as Hfill.
         apply hfilled_to_llfill in Hfill as [llh' Hfill].
-        apply hfilled_to_llfill in H4 as [llh Hllh].
-        rewrite H1 in Hfill.
+        apply hfilled_to_llfill in H2 as [llh Hllh].
+        rewrite H0 in Hfill.
         edestruct llfill_first_values as [Habs _].
-        instantiate (3 := [_]).
+        instantiate (3 := []).
         exact Hfill.
-        instantiate (2 := _ ++ [_]).
-        rewrite -cat_app -catA.
+        instantiate (2 := []).
         exact Hllh.
         all: try done.
-        apply const_list_concat => //.
   - right. repeat eexists. exact H.
     instantiate (1 := HH_base [] []).
     unfold hfilled, hfill => //=. 
-  - destruct IHreduce as [Hes | (k' & tf & tf' & i & sh & hh & Hes & Hcont & -> & -> & Htrap)].
+  - destruct IHreduce as [Hes | (vs' & k' & tf & tf' & i & sh & hh & Hes & Hcont & -> & -> & Htrap)].
     + destruct lh ; unfold lfilled, lfill in H0 ; fold lfill in H0 => //.
       1-2: destruct k => //. 
       all: destruct (const_list l) eqn:Hl => //.
@@ -10886,13 +11048,13 @@ Proof.
               done.
         -- destruct e => //=.
            ++ exfalso.
-              assert (to_eff l2 = Some (susE i sh));
+              assert (to_eff l2 = Some (susE vs0 i sh));
                 first by unfold to_eff; rewrite Hmerge.
               apply of_to_eff in H0. unfold of_eff in H0.
               eapply susfill_suspend_and_reduce.
               exact H. exact H0.
               done. 
-           ++ assert (to_eff l2 = Some (swE k0 tf i sh));
+           ++ assert (to_eff l2 = Some (swE vs0 k0 tf i sh));
                 first by unfold to_eff; rewrite Hmerge.
               remember H0 as H0'; clear HeqH0'.
               apply of_to_eff in H0. unfold of_eff in H0.
@@ -10924,7 +11086,7 @@ Proof.
                  rewrite Hnv in H0'. done.
 
          ++ exfalso.
-            assert (to_eff l2 = Some $ thrE a i sh);
+            assert (to_eff l2 = Some $ thrE vs0 a i sh);
               first by unfold to_eff; rewrite Hmerge.
             apply of_to_eff in H0. unfold of_eff in H0.
             eapply exnfill_throw_ref_and_reduce.
@@ -10976,13 +11138,13 @@ Proof.
               done.
         -- destruct e => //=.
                 ++ exfalso.
-              assert (to_eff l2 = Some (susE i sh));
+              assert (to_eff l2 = Some (susE vs0 i sh));
                 first by unfold to_eff; rewrite Hmerge.
               apply of_to_eff in H0. unfold of_eff in H0.
               eapply susfill_suspend_and_reduce.
               exact H. exact H0.
               done. 
-           ++ assert (to_eff l2 = Some (swE k0 tf i sh));
+           ++ assert (to_eff l2 = Some (swE vs0 k0 tf i sh));
                 first by unfold to_eff; rewrite Hmerge.
               remember H0 as H0'; clear HeqH0'.
               apply of_to_eff in H0. unfold of_eff in H0.
@@ -11014,7 +11176,7 @@ Proof.
                  rewrite Hnv in H0'. done.
 
          ++ exfalso.
-            assert (to_eff l2 = Some $ thrE a i sh);
+            assert (to_eff l2 = Some $ thrE vs0 a i sh);
               first by unfold to_eff; rewrite Hmerge.
             apply of_to_eff in H0. unfold of_eff in H0.
             eapply exnfill_throw_ref_and_reduce.
@@ -11067,7 +11229,7 @@ Proof.
               done.
         -- destruct e => //=.
            ++ exfalso.
-              assert (to_eff l3 = Some (susE i sh));
+              assert (to_eff l3 = Some (susE vs0 i sh));
                 first by unfold to_eff; rewrite Hmerge.
               apply of_to_eff in H0. unfold of_eff in H0.
               eapply susfill_suspend_and_reduce.
@@ -11075,7 +11237,7 @@ Proof.
               done. 
            ++ destruct (swelts_of_continuation_clauses _ _) eqn:Helts;
                 last by left; rewrite merge_notval flatten_simplify.
-             assert (to_eff l3 = Some (swE k0 tf i sh));
+             assert (to_eff l3 = Some (swE vs0 k0 tf i sh));
                 first by unfold to_eff; rewrite Hmerge.
               remember H0 as H0'; clear HeqH0'.
               apply of_to_eff in H0. unfold of_eff in H0.
@@ -11108,14 +11270,14 @@ Proof.
                  rewrite Hnv in H0'. done.
 
          ++ exfalso.
-            assert (to_eff l3 = Some $ thrE a i sh);
+            assert (to_eff l3 = Some $ thrE vs0 a i sh);
               first by unfold to_eff; rewrite Hmerge.
             apply of_to_eff in H0. unfold of_eff in H0.
             eapply exnfill_throw_ref_and_reduce.
             exact H. exact H0. done.
     + apply of_to_eff in Hes.
       unfold of_eff in Hes.
-      specialize (swfill_to_hfilled i sh [AI_ref_cont k'; AI_switch_desugared tf i]) as Hfill.
+      specialize (swfill_to_hfilled i sh [AI_switch_desugared vs' k' tf i]) as Hfill.
       rewrite Hes in Hfill.
       apply hfilled_to_llfill in Hfill as [llh Hllh].
       apply lfilled_implies_llfill in H0 as (llh' & _ & Hllh').
@@ -11128,7 +11290,7 @@ Proof.
       * left. done.
         
 
-  - destruct IHreduce as [Hes | (k & tf & tfk & i & sh & hh & Hes & Hcont & -> & -> & Htrap)].
+  - destruct IHreduce as [Hes | (vs & k & tf & tfk & i & sh & hh & Hes & Hcont & -> & -> & Htrap)].
     + left. simpl. rewrite Hes. done.
     + right. 
       unfold to_eff => /=.
@@ -11159,7 +11321,7 @@ Proof.
   apply reduce_not_val in H.
   unfold to_val.
   unfold to_eff in H.
-  destruct H as [Hes | (k & tf & tf' & i & sh & hh & Hes & _)].
+  destruct H as [Hes | (vs & k & tf & tf' & i & sh & hh & Hes & _)].
   by rewrite Hes.
   by destruct (merge_values _).
 Qed. 
@@ -11651,7 +11813,7 @@ Proof.
 
 Lemma eff_head_stuck_reduce : ∀ s1 f1 e1 s2 f2 e2,
     reduce s1 f1 e1 s2 f2 e2 ->
-    to_eff e1 = None \/ exists k tf tf' i sh hh, to_eff e1 = Some (swE k tf i sh) /\ List.nth_error (s_conts s1) k = Some (Cont_dagger tf') /\ s2 = s1 /\ f2 = f1 /\ hfilled No_var hh [::AI_trap] e2.
+    to_eff e1 = None \/ exists vs k tf tf' i sh hh, to_eff e1 = Some (swE vs k tf i sh) /\ List.nth_error (s_conts s1) k = Some (Cont_dagger tf') /\ s2 = s1 /\ f2 = f1 /\ hfilled No_var hh [::AI_trap] e2.
 Proof.
   move => s1 f1 e1 s2 f2 e2 HRed.
   apply reduce_not_val in HRed.
@@ -12179,3 +12341,4 @@ Proof. split; eauto using to_of_val, of_to_val, val_head_stuck. Qed.
 Definition wasm_lang := Language wasm_mixin.
 
 Canonical Structure valO := leibnizO val.
+
