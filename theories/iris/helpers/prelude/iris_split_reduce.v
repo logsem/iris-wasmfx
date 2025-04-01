@@ -3,12 +3,21 @@ From stdpp Require Import base list.
 From Wasm Require Export stdpp_aux.
 Require Export iris_reduce_properties.
 
+Set Bullet Behavior "Strict Subproofs".
 
-Ltac solve_prim_step_split_reduce_r H objs Heqf0 :=
-  left ; subst ;
-  apply Logic.eq_sym, app_eq_nil in H as [? ?] ;
-  exists objs ; subst ; rewrite app_nil_r ;
-  repeat split => //= ; rewrite Heqf0.
+Ltac solve_prim_step_split_reduce_r (* Heqf0 *) :=
+  lazymatch goal with
+    | H : [] = _ ++ _ |- _ =>
+  lazymatch goal with
+  | _ : length ?objs < _ |- _ =>
+      left ; subst ;
+      apply Logic.eq_sym, app_eq_nil in H as [? ?] ;
+      exists objs ; subst ; rewrite app_nil_r ;
+      repeat split => //= ; (* rewrite Heqf0; *)
+                     (try by econstructor);
+                     try by econstructor; econstructor
+  end
+  end.
 
 
 Section split_reduce_properties.
@@ -49,299 +58,194 @@ Section split_reduce_properties.
     remember (es1 ++ es2) as es.
     remember {| f_locs := l ; f_inst := i |} as f.
     remember {| f_locs := l0 ; f_inst := i0 |} as f0.
-    induction Hstep ; do 5 try (destruct es1 ; first (by inversion Heqes ; subst ;
-                                                      inversion Hes1)) ;
+    induction Hstep.
+    destruct H.
+    all: repeat (destruct es1 ; first (by inversion Heqes ; subst ; try destruct v; try destruct v1,v2; try destruct v; try destruct v0; inversion Hes1)) ;
       inversion Heqes.
-    { destruct H ;
-        repeat (destruct es1 ; first (by inversion Heqes ; subst ; inversion Hes1)) ;
-        inversion Heqes.
-      - solve_prim_step_split_reduce_r H3 [AI_basic (BI_const (app_unop op v))]
-                                       Heqf0 ; by apply r_simple, rs_unop.
-      - solve_prim_step_split_reduce_r H5 [AI_basic (BI_const v)] Heqf0 ;
-          by apply r_simple, rs_binop_success.
-      - solve_prim_step_split_reduce_r H5 [AI_trap] Heqf0 ; by apply r_simple,
-            rs_binop_failure.
-      - solve_prim_step_split_reduce_r
-          H3 [AI_basic (BI_const (VAL_int32 (wasm_bool (app_testop_i (e:=i32t) testop c))))]
-          Heqf0 ; by apply r_simple, rs_testop_i32.
-      - solve_prim_step_split_reduce_r
-          H3 [AI_basic (BI_const (VAL_int32 (wasm_bool (app_testop_i (e:=i64t) testop c))))]
-          Heqf0 ; by apply r_simple, rs_testop_i64.
-      - solve_prim_step_split_reduce_r
-          H4 [AI_basic (BI_const (VAL_int32 (wasm_bool (app_relop op v1 v2))))]
-          Heqf0 ; by apply r_simple,  rs_relop.
-      - solve_prim_step_split_reduce_r H5 [AI_basic (BI_const v')] Heqf0 ;
-          by apply r_simple, rs_convert_success.
-      - solve_prim_step_split_reduce_r H5 [AI_trap] Heqf0 ;
-          by apply r_simple, rs_convert_failure.
-      - solve_prim_step_split_reduce_r
-          H4 [AI_basic (BI_const (wasm_deserialise (bits v) t2))] Heqf0 ;
-          by apply r_simple, rs_reinterpret.
-      - solve_prim_step_split_reduce_r H2 [AI_trap] Heqf0 ;
-          by apply r_simple, rs_unreachable.
-      - solve_prim_step_split_reduce_r H2 ([] : seq.seq administrative_instruction)
-                                       Heqf0 ; by apply r_simple, rs_nop.
-      - solve_prim_step_split_reduce_r H3 ([] : seq.seq administrative_instruction)
-                                       Heqf0 ; by apply r_simple, rs_drop.
-      - solve_prim_step_split_reduce_r H6 [AI_basic (BI_const v2)] Heqf0 ;
-          by apply r_simple, rs_select_false.
-      - solve_prim_step_split_reduce_r H6 [AI_basic (BI_const v1)] Heqf0 ;
-          by apply r_simple, rs_select_true.
-      - left ; destruct (first_non_value _ Hes1) as (vs1 & e1 & es'1 & Hvs1 & He1 & Hes'1).
-        rewrite Hes'1 in Heqes. rewrite <- app_assoc in Heqes.
-        rewrite <- app_comm_cons in Heqes.
-        apply first_values in Heqes as (Hvs & He & Hnil) => //= ;try (intros ; destruct He1 as [? | ?] ; done).
-        apply Logic.eq_sym, app_eq_nil in Hnil as [Hn1 Hn2].
-        exists [AI_label m [] (vs ++ to_e_list es)].
-        repeat (split => //= ; try by subst). rewrite Hes'1. rewrite <- Hvs.
-        rewrite <- He. rewrite <- Heqf. rewrite <- Heqf0. rewrite Hn1.
-        apply r_simple. apply (rs_block es H H1 H2 H3).
-        destruct He1 as [? | ?] => //.
-        destruct e1 => //. destruct b => //.
-        destruct e1 => //. 
-      - left ; destruct (first_non_value _ Hes1) as (vs1 & e1 & es'1 & Hvs1 & He1 & Hes'1).
-        rewrite Hes'1 in Heqes. rewrite <- app_assoc in Heqes.
-        rewrite <- app_comm_cons in Heqes.
-        apply first_values in Heqes as (Hvs & He & Hnil) => //=;try (intros [? ?];done).
-        apply Logic.eq_sym, app_eq_nil in Hnil as [Hn1 Hn2].
-        exists [AI_label n [AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)].
-        repeat (split => //= ; try by subst). rewrite Hes'1. rewrite <- Hvs.
-        rewrite <- He. rewrite <- Heqf. rewrite <- Heqf0. rewrite Hn1.
-        apply r_simple. apply (rs_loop es H H1 H2 H3).
-        intros ; unfold to_val in He1.
-        destruct He1 as [?| ?].
-        destruct e1 => //. destruct b => //. destruct e1 => //. 
-      - solve_prim_step_split_reduce_r H4 [AI_basic (BI_block tf e2s)] Heqf0 ;
-          by apply r_simple, rs_if_false.
-      - solve_prim_step_split_reduce_r H4 [AI_basic (BI_block tf e1s)] Heqf0 ;
-          by apply r_simple, rs_if_true.
-      - solve_prim_step_split_reduce_r H3 vs Heqf0 ; by apply r_simple, rs_label_const.
-      - solve_prim_step_split_reduce_r H2 [AI_trap] Heqf0 ;
-          by apply r_simple, rs_label_trap.
-      - left ; apply Logic.eq_sym, app_eq_nil in H5 as [Hn1 Hn2].
-        exists (vs ++ es). repeat ( split => //= ; try by subst ; rewrite app_nil_r).
-        rewrite <- Heqf. rewrite <- Heqf0. apply r_simple. rewrite Hn1.
-        apply (rs_br es H H1 H2).
-      - solve_prim_step_split_reduce_r H4 ([] : seq.seq administrative_instruction)
-                                       Heqf0 ; by apply r_simple , rs_br_if_false.
-      - solve_prim_step_split_reduce_r H4 [AI_basic (BI_br i1)] Heqf0 ;
-          by apply r_simple, rs_br_if_true.
-      - solve_prim_step_split_reduce_r H5 [AI_basic (BI_br j)] Heqf0 ;
-          by apply r_simple, rs_br_table.
-      - solve_prim_step_split_reduce_r H4 [AI_basic (BI_br i1)] Heqf0 ;
-          by apply r_simple, rs_br_table_length.
-      - solve_prim_step_split_reduce_r H4 es Heqf0 ; by apply r_simple, rs_local_const.
-      - solve_prim_step_split_reduce_r H2 [AI_trap] Heqf0 ;
-          by apply r_simple, rs_local_trap.
-      - left ; apply Logic.eq_sym, app_eq_nil in H5 as [Hn1 Hn2].
-        exists vs. repeat (split => //= ; try by subst ; rewrite app_nil_r).
-        rewrite <- Heqf. rewrite Heqf0. apply r_simple. rewrite Hn1.
-        apply (rs_return f0 H H1 H2).
-      - destruct es1. subst. destruct a ; try by inversion H.
-        destruct b ; try by inversion H. inversion H3. subst.
-        solve_prim_step_split_reduce_r H5 [a; a; AI_basic (BI_set_local i1)]
-                                       Heqf0 ;
-          by apply r_simple , rs_tee_local.
-      - right. exists 0, (length (a :: es1 ++ es2)). rewrite take_0. rewrite drop_all.
-        rewrite Heqf in Heqf0 ; inversion Heqf0. 
-        destruct (first_non_value _ Hes1) as (vs1 & e1 & es'1 & Hvs1 & He1 & Hes'1).
-        rewrite Hes'1 in Heqes. unfold lfilled, lfill in H1.
-        destruct lh ; last by false_assumption.
-        remember (const_list l1) as b eqn:Hl1. destruct b ; last by false_assumption.
-        move/eqP in H1. rewrite H1 in Heqes.
-        rewrite <- app_assoc in Heqes. rewrite <- app_comm_cons in Heqes.
-        apply first_values in Heqes as (Hvs & He & Hnil) => //= ; try (intros [? ?];done).
-        rewrite <- He in Hes'1. rewrite Hes'1.
-        exists (LH_base vs1 es'1). repeat (split => //=). lia.
-        by unfold lfilled, lfill ; rewrite Hvs1.
-        intros ; unfold to_val in He1.
-        destruct He1 as [?| ?].
-        destruct e1 => // ; destruct b => //. destruct e1 => //. }
-    - solve_prim_step_split_reduce_r H2 [AI_invoke a] Heqf0 ; apply r_call ;
-        by rewrite Heqf0 in H.
-    - solve_prim_step_split_reduce_r H5 [AI_invoke a] Heqf0.
-      apply (r_call_indirect_success (cl:=cl)) => //=.
-      by rewrite Heqf0 in H. by rewrite Heqf0 in H1.
-    - solve_prim_step_split_reduce_r H5 [AI_trap] Heqf0.
-      apply (r_call_indirect_failure1 (a:=a) (cl:=cl)) => //=.
-      by rewrite Heqf0 in H. by rewrite Heqf0 in H1.
-    - solve_prim_step_split_reduce_r H3 [AI_trap] Heqf0.
-      apply r_call_indirect_failure2 => //=. 
-      by rewrite Heqf0 in H.
-    - left ; destruct (first_non_value _ Hes1) as (vs1 & e1 & es'1 & Hvs1 & He1 & Hes'1).
-      rewrite Hes'1 in Heqes. rewrite <- app_assoc in Heqes.
-      rewrite <- app_comm_cons in Heqes.
-      apply first_values in Heqes as (Hvs & He & Hnil) => //=;try (intros [? ?];done).
-      apply Logic.eq_sym, app_eq_nil in Hnil as [Hn1 Hn2].
-      exists [AI_local m f' [AI_basic (BI_block (Tf [] t2s) es)]].
-      rewrite Hn2.
-      repeat split => //=. rewrite <- Heqf0. rewrite <- Heqf. rewrite Hes'1.
-      rewrite Hn1. rewrite <- He. rewrite <- Hvs.
-      by apply (r_invoke_native f H H0 H1 H2 H3 H4 H5 H6).
-      intros ; unfold to_val in He1.
-      destruct He1 as [?| ?].
-      destruct e1 => // ; destruct b => //. destruct e1 => //. 
-      rewrite H1. by apply v_to_e_is_const_list.
-    - left ; destruct (first_non_value _ Hes1) as (vs1 & e1 & es'1 & Hvs1 & He1 & Hes'1).
-      rewrite Hes'1 in Heqes. rewrite <- app_assoc in Heqes.
-      rewrite <- app_comm_cons in Heqes.
-      apply first_values in Heqes as (Hvs & He & Hnil) => //=;try (intros [? ?];done).
-      apply Logic.eq_sym, app_eq_nil in Hnil as [Hn1 Hn2].
-      eexists [AI_call_host (Tf t1s t2s) h _].
-      rewrite Hn2.
-      repeat split => //=. rewrite <- Heqf0. rewrite <- Heqf. rewrite Hes'1.
-      rewrite Hn1. rewrite <- He. rewrite <- Hvs.
-      by eapply (r_invoke_host). 
-      intros ; unfold to_val in He1.
-      destruct He1 as [?| ?].
-      destruct e1 => // ; destruct b => //. destruct e1 => //. 
-      rewrite H1. by apply v_to_e_is_const_list. 
-    - solve_prim_step_split_reduce_r H2 [AI_basic (BI_const v)] Heqf0.
-      apply r_get_local. by rewrite <- Heqf0.
-    - apply Logic.eq_sym, app_eq_nil in H5 as [Hn1 Hn2] ; rewrite Hn1 ; rewrite Hn2.
-      left ; exists []. repeat split => //=. subst.
-      by apply (r_set_local s H H0 H1).
-    - solve_prim_step_split_reduce_r H2 [AI_basic (BI_const v)] Heqf0.
-      apply r_get_global. by rewrite <- Heqf0.
-    - solve_prim_step_split_reduce_r H3 ([] : seq.seq administrative_instruction)
-                                     Heqf0.
-      by apply r_set_global ; rewrite <- Heqf0.
-    - solve_prim_step_split_reduce_r H5 [AI_basic (BI_const (wasm_deserialise bs t))]
-                                     Heqf0.
-      rewrite <- Heqf0.
-      by apply (r_load_success a H H0).
-    - solve_prim_step_split_reduce_r H5 [AI_trap] Heqf0.
-      rewrite <- Heqf0.
-      by apply (r_load_failure a H H0).
-    - solve_prim_step_split_reduce_r H5 [AI_basic (BI_const (wasm_deserialise bs t))]
-                                     Heqf0.
-      rewrite <- Heqf0 ;
-        by apply (r_load_packed_success a H H0).
-    - solve_prim_step_split_reduce_r H5 [AI_trap] Heqf0 ;
-        rewrite <- Heqf0 ; by apply (r_load_packed_failure a H H0).
-    - solve_prim_step_split_reduce_r H7 ([] : seq.seq administrative_instruction) Heqf0.
-      by rewrite <- Heqf0 ; apply (r_store_success a H H0 H1 H2).
-    - solve_prim_step_split_reduce_r H7 [AI_trap] Heqf0 ;
-        by rewrite <- Heqf0 ; apply (r_store_failure a H H0 H1 H2).
-    - solve_prim_step_split_reduce_r H7 ([] : seq.seq administrative_instruction) Heqf0 ;
-        by rewrite <- Heqf0 ; apply (r_store_packed_success a H H0 H1 H2).
-    - solve_prim_step_split_reduce_r H7 [AI_trap] Heqf0 ;
-        by rewrite <- Heqf0 ; apply (r_store_packed_failure a H H0 H1 H2).
-    - apply Logic.eq_sym, app_eq_nil in H4 as [Hn1 Hn2] ; rewrite Hn1 ; rewrite Hn2.
-      left ;
-        exists [AI_basic (BI_const (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat (ssrnat.nat_of_bin n)))))].
-      repeat split => //=. rewrite <- Heqf0. rewrite <- Heqf.
-      by apply (r_current_memory H H0 H1).
-    - apply Logic.eq_sym, app_eq_nil in H6 as [Hn1 Hn2] ; rewrite Hn1 ; rewrite Hn2.
-      left ;
-        exists [AI_basic (BI_const (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat (ssrnat.nat_of_bin n)))))].
-      repeat split => //=. rewrite <- Heqf0. rewrite <- Heqf.
-      by apply (r_grow_memory_success H H0 H1).
-    - apply Logic.eq_sym, app_eq_nil in H5 as [Hn1 Hn2] ; rewrite Hn1 ; rewrite Hn2.
-      left ; exists [AI_basic (BI_const (VAL_int32 int32_minus_one))].
-      repeat split => //=. rewrite <- Heqf0. rewrite <- Heqf.
-      by apply (r_grow_memory_failure (n := n) _ H H0).
+    all: try (rewrite Heqf in Heqf0; inversion Heqf0; subst).
+    all: try solve_prim_step_split_reduce_r.
+    all: try (left; destruct (first_non_value _ Hes1) as (vs1 & e1 & es'1 & Hvs1 & He1 & Hes'1);
+      rewrite Hes'1 in Heqes; rewrite <- app_assoc in Heqes;
+              rewrite <- app_comm_cons in Heqes;
+              try (repeat rewrite cat_app in Heqes; rewrite (separate1 (AI_ref_cont _)) app_assoc in Heqes);
+      apply first_values in Heqes as (<- & <- & Hnil) => //=;
+      try (by destruct He1; destruct e1 => //=; destruct b);  subst; try apply const_list_concat; try apply v_to_e_is_const_list;
+      destruct es'1, es2 => //;
+      eexists _; repeat split => //=; [by rewrite app_nil_r |
+      rewrite Hes'1; try rewrite -app_assoc; try (by econstructor); try by apply r_simple; econstructor]).
+    - destruct ref.
+      all: destruct es1; first (by inversion Heqes ; subst ; inversion Hes1).
+      all: inversion H2.
+      all: solve_prim_step_split_reduce_r.
+      all: constructor.
+      exfalso; by eapply H.
+      fold (AI_const (VAL_ref (VAL_ref_func f))).
+      2: fold (AI_const (VAL_ref $ VAL_ref_cont f)).
+      3: fold (AI_const (VAL_ref (VAL_ref_exn e t))).
+      all: by apply rs_ref_is_null_false.
+    - destruct es1. subst. destruct a ; try by inversion H.
+      destruct b ; try by inversion H. inversion H2. subst.
+      solve_prim_step_split_reduce_r.
+    - right. exists 0, (length (a :: es1 ++ es2)). rewrite take_0. rewrite drop_all.
+      destruct (first_non_value _ Hes1) as (vs1 & e1 & es'1 & Hvs1 & He1 & Hes'1).
+      unfold lfilled, lfill in H0.
+      destruct lh => //; fold lfill in H0.
+      all: destruct (const_list l) eqn:Hl1 => //.
+      2-3: destruct (lfill _ _ _) eqn:Hfill => //.
+      all: move/eqP in H0.
+      all: rewrite Hes'1 in H0.
+      all: rewrite (separate1 e1) in H0. 
+      all: repeat rewrite -app_assoc in H0.
+      all: apply first_values in H0 as (-> & -> & <-) => //=. 
+      all: try by destruct He1; destruct e1 => //=; destruct b => //=.
+      + exists (LH_base l es'1). repeat split => //=. lia.
+        unfold lfilled, lfill; subst; rewrite Hl1 Hes'1. done.
+      + exists (LH_handler l l1 lh es'1). repeat split => //=. lia.
+        unfold lfilled, lfill; fold lfill; subst; rewrite Hl1 Hfill Hes'1 //.
+      + exists (LH_prompt l l1 l2 lh es'1). repeat split => //=. lia.
+        unfold lfilled, lfill; fold lfill; subst; rewrite Hl1 Hfill Hes'1 //.
     - unfold lfilled, lfill in H.
-      destruct k.
-      { destruct lh as [bef aft|] ; last by false_assumption.
-        remember (const_list bef) as b eqn:Hbef ; destruct b ; last by false_assumption.
-        move/eqP in H. rewrite H in Heqes.
-        unfold lfilled, lfill in H0. rewrite <- Hbef in H0. move/eqP in H0.
-        rewrite H0.       
-        destruct bef.
-        { destruct aft.
-          { rewrite app_nil_l app_nil_r in Heqes.
-            rewrite app_nil_l app_nil_r.
-            rewrite H0 app_nil_l app_nil_r in Hlen.
-            by apply IHHstep. }
-          destruct es2. { left. exists (es' ++ (a0 :: aft)). repeat split => //=.
-                          by rewrite app_nil_r. rewrite app_nil_r in Heqes.
-                          rewrite <- Heqes.
-                          apply (r_label (es:=es) (es':=es') (k:=0)
-                                         (lh:=LH_base [] (a0::aft))).
-                          by subst. unfold lfilled, lfill => //=.
-                          unfold lfilled, lfill => //=. }
-          get_tail a0 aft aft' ult Hult.
-          get_tail a1 es2 es2' ult' Hult'.
-          rewrite Hult in Heqes. rewrite Hult' in Heqes.
-          rewrite app_nil_l in Heqes. do 2 rewrite app_assoc in Heqes.
-          apply app_inj_tail in Heqes as [Heqes Hults].
-          assert (prim_step ((a :: es1) ++ es2') (s,l,i) [] (es' ++ aft')
-                            (s',l0,i0) []) as Hstep'.
-          { repeat split => //=.
-            simpl in Heqes. rewrite <- Heqes.
-            apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base [] aft')) ;
-              try by unfold lfilled, lfill ; simpl.
-            by subst. } 
-          assert (length (es' ++ aft') < len) as Hlen'.
-          { rewrite H0 in Hlen. rewrite Hult in Hlen. rewrite app_nil_l in Hlen.
-            rewrite app_assoc in Hlen. rewrite length_app in Hlen. simpl in Hlen.
-            rewrite Nat.add_comm in Hlen. rewrite Nat.add_1_l in Hlen.
-            apply Nat.succ_lt_mono. assumption. } 
-          destruct (IHlen es2' _ Hes1 (es' ++ aft') Hstep' Hlen')
-            as [(es'' & Heq & Hred) | (n & m & lh & Hn & Hm & Hfill & Hcontext)].
-          { left. rewrite Hult. rewrite Hult'. rewrite Hults.
-            exists es''. repeat split => //=. rewrite app_assoc ; rewrite Heq.
-            by rewrite app_assoc. }
-          { right. rewrite Hult. rewrite Hult'. exists n, m.
-            unfold lfilled, lfill. unfold lfilled, lfill in Hfill.
-            destruct (const_list (take n (a :: es1))) ; last by false_assumption.
-            simpl.
-            move/eqP in Hfill ; rewrite app_assoc Hfill.
-            rewrite <- app_assoc. rewrite <- (app_assoc [AI_trap]).
-            rewrite Hults. exists lh.
-            repeat split => //=. do 2 rewrite length_app. simpl in Hm.
-            rewrite length_app in Hm. lia.
-            cut (forall es0, m <= length es0 -> drop m es0 ++ [ult'] =
-                                           drop m (es0 ++ [ult'])).
-            intro Hdrop. rewrite (Hdrop ((a :: es1) ++ es2') Hm).
-            rewrite <- app_assoc. rewrite app_comm_cons. done.
-            clear Hm Hfill.
-            induction m ; intros es0 Hm => //=.
-            destruct es0 ; first by inversion Hm.
-            simpl. apply IHm. simpl in Hm ; lia. }
-        }
-        inversion Heqes.
-        remember (iris.to_val es1) as tv.
-        destruct tv.
-        { rewrite H3 in Hbef ; simpl in Hbef.
-          apply Logic.eq_sym, andb_true_iff in Hbef as [Ha Hbef].
-          destruct a ; try by inversion Ha.
-          destruct b ; try by inversion Ha.
-          unfold iris.to_val in Hes1. simpl in Hes1.
-          rewrite merge_prepend in Hes1.
-          unfold iris.to_val in Heqtv.
-          destruct (merge_values_list _) eqn:Hmerge => //.
-          inversion Heqtv ; subst v1.
-          destruct v ; first by inversion Hes1.
-          assert (to_val es1 = Some trapV) ;
-            first by unfold to_val, iris.to_val ; rewrite Hmerge.
+      destruct lh; fold lfill in H.
+      1-2: destruct k => //.
+      all: destruct (const_list l1) eqn:Hl1 => //.
+      2-4: destruct (lfill _ _ _) eqn:Hfill => //.
+      all: move/eqP in H; subst les.
+      + unfold lfilled, lfill in H0.
+        rewrite Hl1 in H0. move/eqP in H0; subst les'.
+        destruct l1.
+        * destruct (separate_last l2) as [[??]|] eqn:Hlast; last first.
+          -- apply separate_last_None in Hlast as ->.
+             rewrite app_nil_l app_nil_r in H.
+             rewrite app_nil_l app_nil_r.
+             rewrite app_nil_l app_nil_r in Hlen.
+             by apply IHHstep. 
+          -- apply separate_last_spec in Hlast as ->.
+             destruct (separate_last es2) as [[??]|] eqn:Hlast; last first.
+             ++ apply separate_last_None in Hlast as ->.
+                left. exists (es' ++ l1 ++ [a0]).
+                repeat split => //=.
+                by rewrite app_nil_r. rewrite app_nil_r in H.
+                rewrite H.
+                apply (r_label (es:=es) (es':=es') (k:=0)
+                         (lh:=LH_base [] (l1 ++ [a0]))).
+                by subst. unfold lfilled, lfill => //=.
+                unfold lfilled, lfill => //=. 
+             ++ apply separate_last_spec in Hlast as ->.
+                simpl in H. rewrite separate1 in H.
+                repeat rewrite app_assoc in H.
+                apply app_inj_tail in H as [Heqes ->].
+                assert (prim_step ((a :: es1) ++ l2) (s,l,i) [] (es' ++ l1)
+                          (s',l0,i0) []) as Hstep'.
+                { repeat split => //=.
+                  simpl in Heqes. rewrite Heqes.
+                  apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base [] l1)) ;
+                    try by unfold lfilled, lfill ; simpl.
+                  by subst. } 
+                assert (length (es' ++ l1) < len) as Hlen'.
+                { simpl in Hlen. repeat rewrite length_app /= in Hlen.
+                  rewrite length_app. lia. }
+                destruct (IHlen l2 _ Hes1 (es' ++ l1) Hstep' Hlen')
+                  as [(es'' & Heq & Hred) | (n & m & lh & Hn & Hm & Hfill & Hcontext)].
+                ** left. 
+                   exists es''. repeat split => //=.
+                   rewrite app_assoc ; rewrite Heq.
+                   by rewrite app_assoc. 
+                ** right. exists n, m.
+                   unfold lfilled, lfill; fold lfill.
+                   unfold lfilled, lfill in Hfill.
+                   destruct (const_list (take n (a :: es1))) => //=. 
+                   move/eqP in Hfill ; rewrite app_assoc Hfill.
+                   rewrite <- app_assoc. rewrite <- (app_assoc [AI_trap]).
+                   exists lh.
+                   repeat split => //=. do 2 rewrite length_app. simpl in Hm.
+                   rewrite length_app in Hm. lia.
+                   cut (forall es0, m <= length es0 -> drop m es0 ++ [a0] =
+                                                  drop m (es0 ++ [a0])).
+                   intro Hdrop. rewrite (Hdrop ((a :: es1) ++ l2) Hm).
+                   rewrite <- app_assoc. rewrite app_comm_cons. done.
+                   clear Hm Hfill.
+                   induction m ; intros es0 Hm => //=.
+                   destruct es0 ; first by inversion Hm.
+                   simpl. apply IHm. simpl in Hm ; lia. 
+        * inversion H; subst.
+          simpl in Hl1; remove_bools_options.
+(*          edestruct IHlen as [(es'' & Hes' & Hstep') | (n & m & lh & Hn & Hm & Htrap & Htrap' & Hstate)].
+          3:{ instantiate (1 := l1 ++ es' ++ l2).
+              simpl in Hlen. lia. }
+          2:{ repeat split => //.
+              eapply r_label. exact Hstep.
+              instantiate (3 := LH_base l1 l2).
+              instantiate (3 := 0).
+              all: unfold lfilled, lfill.
+              rewrite app_assoc.
+              all: rewrite H2 => //. }
+          apply to_val_cat_None2 => //. *)
+          apply to_val_cons_None_inv in Hes1 as [?| -> ] => //.
+          2:{ destruct l1; last by inversion H3; subst.
+              destruct es; first by empty_list_no_reduce.
+              inversion H3; subst.
+              destruct es; first by exfalso; eapply AI_trap_irreducible.
+              clear IHHstep.
+              edestruct trap_reduce_length as (n1 & n2 & (Hlen1 & Hn1 & Hn2) & Hes' & Hσ).
+              2: exact Hstep.
+              instantiate (1 := a :: es).
+              instantiate (1 := []).
+              apply/lfilledP; constructor => //.
+              inversion Hσ; subst.
+              right.
+              destruct n1; last by simpl in Hn1; lia.
+              move/lfilledP in Hes'. inversion Hes'; subst.
+              simpl in Hlen1.
+              destruct n2; first lia.
+              simpl. simpl in Hn2.
+              exists 1, (S $ S $ S n2), (LH_base [a0] []).
+              repeat split => //=; last first.
+              apply/lfilledP; constructor => //.
+              simpl. by rewrite H0.
+              unfold lfilled, lfill => //=.
+              rewrite H0 => /=.
+              rewrite drop_app_le.
+              done. lia. rewrite length_app. lia. lia.
+
+              } 
+(*
           
-          apply to_val_trap_is_singleton in H2.
-          rewrite H2 in H4.
-          destruct bef ; last by inversion H4 as [[ Hhd Htl ]] ;
-            simpl in Hbef ; apply andb_true_iff in Hbef as [Htrap _] ;
-            rewrite Hhd in Htrap ; inversion Htrap.
-          destruct es ; first by empty_list_no_reduce.
-          inversion H4. subst a es2 es1 les' a0 les.
-          right.
-          remember (AI_trap :: es) as es0. clear IHHstep IHlen.
-          exists 1. simpl.
-          cut (forall n, (length es0 < n ->
-                     exists m, 1 <= 2
-                          /\ m <= S (S (length (es ++ aft)%list))
-                          /\ lfilled 0
-                                    (LH_base [AI_basic (BI_const v0)]
-                                             (drop m ([AI_basic (BI_const v0) ; AI_trap]
-                                                        ++ (es ++ aft))))
-                                    [AI_trap] (AI_basic (BI_const v0) :: (es' ++ aft)%list)
-                          /\ (s', l0, i0) = (s, l, i)
-                          /\ opsem.reduce s
-                                         {| f_locs := l ; f_inst := i |}
-                                         [AI_basic (BI_const v0); AI_trap] s
-                                         {| f_locs := l ; f_inst := i |} [AI_trap] /\
-                            ([] : seq.seq administrative_instruction) = [] /\
-                            ([] : seq.seq administrative_instruction) = [])).
+          -- destruct a0 => //.
+             destruct b => //. 
+             all: unfold iris.to_val in Hes1.
+             all: simpl in Hes1.
+             all: rewrite merge_prepend in Hes1.
+             all: unfold iris.to_val in Heqtv.
+             all: destruct (merge_values _) eqn:Hmerge => //.
+             all: symmetry in Heqtv; inversion Heqtv ; subst.
+             all: simpl in Hes1.
+             all: destruct v ; first by inversion Hes1.
+             all: assert (to_val es1 = Some trapV) as Htrap;
+               first by unfold to_val, iris.to_val ; rewrite Hmerge.
+             all: apply to_val_trap_is_singleton in Htrap as ->.
+             all: destruct l1 ; last by inversion H3; subst.
+             all: destruct es ; first by empty_list_no_reduce.
+             all: inversion H3; subst. 
+             all: right.
+             all: remember (AI_trap :: es) as es0.
+             all: clear IHHstep IHlen.
+             all: eexists 1.
+             all: simpl.
+             all: cut (forall n, (length es0 < n ->
+                        exists m, 1 <= 2
+                             /\ m <= S (S (length (es ++ l2)%list))
+                             /\ lfilled 0
+                                 (LH_base [AI_basic (BI_const v0)]
+                                    (drop m ([AI_basic (BI_const v0) ; AI_trap]
+                                               ++ (es ++ l2))))
+                                 [AI_trap] (AI_basic (BI_const v0) :: (es' ++ l2)%list)
+                             /\ (s', l0, i0) = (s, l, i)
+                             /\ opsem.reduce s
+                                            {| f_locs := l ; f_inst := i |}
+                                            [AI_basic (BI_const v0); AI_trap] s
+                                            {| f_locs := l ; f_inst := i |} [AI_trap] /\
+                               ([] : seq.seq administrative_instruction) = [] /\
+                               ([] : seq.seq administrative_instruction) = [])).
           { intro Hn. assert (length es0 < S (length es0)) ; first lia.
             destruct (Hn _ H0) as (m & Hs1 & Hs2 & Hs3 & Hs4 & Hs5 & Hs6 & Hs7).
             exists m. repeat split => //=. exists (LH_base [AI_basic (BI_const v0)] []).
@@ -432,80 +336,119 @@ Section split_reduce_properties.
             rewrite <- H2 in Hl1 ; simpl in Hl1 ; inversion Hl1. }
           { simplify_eq. }
           { simplify_eq. }
-          { simplify_eq. } }
+          { simplify_eq. } } *)
         clear IHHstep.
-        simpl in Hbef ; apply Logic.eq_sym, andb_true_iff in Hbef as [Ha Hbef].
-        assert (prim_step (es1 ++ es2) (s, l, i) [] (bef ++ es' ++ aft)
+        assert (prim_step (es1 ++ es2) (s, l, i) [] (l1 ++ es' ++ l2)
                           (s', l0, i0) []).
         { repeat split => //=.
-          apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base bef aft)) ;
-            try by unfold lfilled, lfill ; rewrite Hbef ; try rewrite H4.
+          apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base l1 l2)) ;
+            try by unfold lfilled, lfill ; rewrite H2 ; try rewrite H3.
           by subst. }
-        assert (length (bef ++ es' ++ aft) < len).
-        { rewrite H0 in Hlen ; simpl in Hlen. by apply Nat.succ_lt_mono. }
-        destruct (IHlen es2 es1 (Logic.eq_sym Heqtv) (bef ++ es' ++ aft) H2 H5)
+        assert (length (l1 ++ es' ++ l2) < len).
+        { simpl in Hlen. by apply Nat.succ_lt_mono. }
+        edestruct IHlen (* (IHlen es2 es1 H4 (l1 ++ es' ++ l2) H2 H5) *)
           as [(es'' & Heq & Hred) | (n & m & lh & Hn & Hm & Hfill & Hcontext & Hσ)].
-        { left. exists (a :: es''). repeat split => //=. by rewrite Heq.
-          apply (r_label (es:= es1) (es':=es'') (k:=0) (lh:=LH_base [a] [])).
-          by destruct Hred as (? & _ & _).
-          unfold lfilled, lfill. simpl. subst. rewrite Ha => //=.
-          by rewrite app_nil_r.
-          unfold lfilled, lfill. simpl ; subst ; rewrite Ha => //=.
-          by rewrite app_nil_r. }
-        { right. exists (S n), (S m). 
-          unfold lfilled, lfill. unfold lfilled, lfill in Hfill.
-          subst. 
-          simpl. rewrite Ha. destruct (const_list (take n es1)) ; last by false_assumption.
-          simpl. move/eqP in Hfill.
-          unfold lfilled, lfill in Hcontext.
-          destruct lh ; last by false_assumption.
-          exists (LH_base (a :: l1) l2).
-          repeat split => //= ; try lia. by rewrite Hfill. unfold lfilled, lfill.
-          simpl ; subst ; rewrite Ha. destruct (const_list l1) ; last by false_assumption.
-          simpl. move/eqP in Hcontext ; by rewrite Hcontext. }
-      }          
-      clear IHHstep. fold lfill in H. destruct lh ; first by false_assumption.
-      remember (const_list l1) as b eqn:Hl1 ; destruct b ; last by false_assumption.
-      remember (lfill k lh es) as lfilledk ;
-        destruct lfilledk ; last by false_assumption.
-      move/eqP in H. rewrite H1 in H.
-      destruct (first_non_value _ Hes1) as (vs & e & ult & Hvs & He & Hult).
-      rewrite Hult in H. rewrite <- app_assoc in H. rewrite <- app_comm_cons in H.
-      apply first_values in H as (Hvsl1 & Hlab & Hlast) => //= ; try by left.
-      unfold lfilled, lfill in H0 ; fold lfill in H0.
-      rewrite <- Hl1 in H0.
-      remember (lfill k lh es') as lfilledk' ;
-        destruct lfilledk' ; last by false_assumption.
-      move/eqP in H0.
-      left ; exists (l1 ++ AI_label n l2 l5 :: ult).
-      repeat split => //=.
-      rewrite <- app_assoc. rewrite <- app_comm_cons. by rewrite Hlast.
-      rewrite Hult. rewrite Hlab. rewrite Hvsl1.
-      apply (r_label (es:=es) (es':=es') (k:=S k) (lh:=LH_rec l1 n l2 lh ult)) ;
-        first (by subst) ;
-        unfold lfilled, lfill ; fold lfill ; rewrite <- Hl1.
-      by rewrite <- Heqlfilledk.
-      by rewrite <- Heqlfilledk'.
-      intros ; unfold to_val in He.
-      destruct He as [? | ?].
-      destruct e => //. destruct b => //. destruct e => //. 
-      unfold iris.to_val => /=.
-    - solve_prim_step_split_reduce_r H1 [AI_local n f' es'] Heqf0.
-      by apply r_local.
+        exact H4. exact H5. exact H6.
+          -- left. exists (a0 :: es''). repeat split => //=. by rewrite Heq.
+             apply (r_label (es:= es1) (es':=es'') (k:=0) (lh:=LH_base [a0] [])).
+             by destruct Hred as (? & _ & _).
+             unfold lfilled, lfill. simpl. subst. rewrite H0 => //=.
+             by rewrite app_nil_r.
+             unfold lfilled, lfill. simpl ; subst ; rewrite H0 => //=.
+             by rewrite app_nil_r. 
+          -- right. exists (S n), (S m). 
+             unfold lfilled, lfill; fold lfill.
+             unfold lfilled, lfill in Hfill.
+             subst. 
+             simpl. rewrite H0.
+             destruct (const_list (take n es1)) => //.
+             simpl. move/eqP in Hfill.
+             move/lfilledP in Hcontext.
+             inversion Hcontext; subst.
+             exists (LH_base (a0 :: vs) es'0).
+             2: eexists (LH_handler (a0 :: bef) hs lh' aft).
+             3: eexists (LH_prompt (a0 :: bef) ts hs lh' aft).
+             all: repeat split => //=.
+             all: try by simpl in Hn; lia.
+             all: try by simpl in Hm; lia.
+             all: try by rewrite Hfill.
+             all: try by rewrite H0 H7 /= //.
+             all: rewrite H0 H7 /=.
+             all: move/lfilledP in H8.
+             all: unfold lfilled in H8.
+             all: destruct (lfill _ _ _) => //.
+             all: move/eqP in H8; by subst.
+      + clear IHHstep. 
+        destruct (first_non_value _ Hes1) as (vs & e & ult & Hvs & He & Hult).
+        rewrite Hult in H. rewrite <- app_assoc in H.
+        rewrite <- app_comm_cons in H.
+        apply first_values in H as (Hvsl1 & Hlab & Hlast) => //= ; try by left.
+        2: by destruct He; destruct e => //; destruct b.
+        unfold lfilled, lfill in H0 ; fold lfill in H0.
+        rewrite Hl1 in H0.
+        destruct (lfill k lh es') eqn:Hfill' => //.  
+        move/eqP in H0; subst les'.
+        left ; exists (l1 ++ AI_label n l2 l5 :: ult).
+        repeat split => //=.
+        rewrite <- app_assoc. rewrite <- app_comm_cons. by rewrite Hlast.
+        rewrite Hult. rewrite Hlab. rewrite Hvsl1.
+        apply (r_label (es:=es) (es':=es') (k:=S k) (lh:=LH_rec l1 n l2 lh ult)) ;
+          first (by subst) ;
+          unfold lfilled, lfill ; fold lfill ; rewrite Hl1.
+        by rewrite Hfill.
+        by rewrite Hfill'.
+      + clear IHHstep. 
+        destruct (first_non_value _ Hes1) as (vs & e & ult & Hvs & He & Hult).
+        rewrite Hult in H. rewrite <- app_assoc in H.
+        rewrite <- app_comm_cons in H.
+        apply first_values in H as (Hvsl1 & Hlab & Hlast) => //= ; try by left.
+        2: by destruct He; destruct e => //; destruct b.
+        unfold lfilled, lfill in H0 ; fold lfill in H0.
+        rewrite Hl1 in H0.
+        destruct (lfill k lh es') eqn:Hfill' => //.  
+        move/eqP in H0; subst les'.
+        left ; exists (l1 ++ AI_handler l2 l5 :: ult).
+        repeat split => //=.
+        rewrite <- app_assoc. rewrite <- app_comm_cons. by rewrite Hlast.
+        rewrite Hult. rewrite Hlab. rewrite Hvsl1.
+        apply (r_label (es:=es) (es':=es') (k:=k) (lh:=LH_handler l1 l2 lh ult)) ;
+          first (by subst) ;
+          unfold lfilled, lfill ; fold lfill ; rewrite Hl1.
+        by rewrite Hfill.
+        by rewrite Hfill'.
+      + clear IHHstep. 
+        destruct (first_non_value _ Hes1) as (vs & e & ult & Hvs & He & Hult).
+        rewrite Hult in H. rewrite <- app_assoc in H.
+        rewrite <- app_comm_cons in H.
+        apply first_values in H as (Hvsl1 & Hlab & Hlast) => //= ; try by left.
+        2: by destruct He; destruct e => //; destruct b.
+        unfold lfilled, lfill in H0 ; fold lfill in H0.
+        rewrite Hl1 in H0.
+        destruct (lfill k lh es') eqn:Hfill' => //.  
+        move/eqP in H0; subst les'.
+        left ; exists (l1 ++ AI_prompt l2 l3 l6 :: ult).
+        repeat split => //=.
+        rewrite <- app_assoc. rewrite <- app_comm_cons. by rewrite Hlast.
+        rewrite Hult. rewrite Hlab. rewrite Hvsl1.
+        apply (r_label (es:=es) (es':=es') (k:=k) (lh:=LH_prompt l1 l2 l3 lh ult)) ;
+          first (by subst) ;
+          unfold lfilled, lfill ; fold lfill ; rewrite Hl1.
+        by rewrite Hfill.
+        by rewrite Hfill'.
   Qed.
 
   
   Lemma reduce_ves: forall v es es' σ σ' efs obs,
       reducible es σ ->
-      prim_step ([AI_basic (BI_const v)] ++ es) σ obs es' σ' efs ->
-      (es' = [AI_basic (BI_const v)] ++ drop 1 es' /\ prim_step es σ obs (drop 1 es') σ' efs)
+      prim_step ([AI_const v] ++ es) σ obs es' σ' efs ->
+      (es' = [AI_const v] ++ drop 1 es' /\ prim_step es σ obs (drop 1 es') σ' efs)
       \/ (exists lh lh', lfilled 0 lh [AI_trap] es' /\ lfilled 0 lh' [AI_trap] es /\ σ = σ'). 
   Proof.
     cut (forall n v es es' σ σ' efs obs,
             length es < n ->
             reducible es σ ->
-            prim_step ([AI_basic (BI_const v)] ++ es) σ obs es' σ' efs ->
-            (es' = [AI_basic (BI_const v)] ++ drop 1 es' /\
+            prim_step ([AI_const v] ++ es) σ obs es' σ' efs ->
+            (es' = [AI_const v] ++ drop 1 es' /\
                prim_step es σ obs (drop 1 es') σ' efs)
             \/ (exists lh lh', lfilled 0 lh [AI_trap] es' /\
                            lfilled 0 lh' [AI_trap] es /\ σ = σ')).
@@ -515,257 +458,493 @@ Section split_reduce_properties.
     intros v es es' σ σ' efs obs Hlen Hes Hves.
     destruct Hes as (obs0 & es0 & σ0 & efs0 & H).
     unfold prim_step, iris.prim_step in Hves.
-    destruct σ as [[[??]?]?].
-    destruct σ' as [[[??]?]?]. 
+    destruct σ as [[??]?].
+    destruct σ' as [[??]?]. 
     destruct Hves as (Hred & Hobs & Hefs).
-    remember ([AI_basic (BI_const v)] ++ es)%list as ves.
+    remember ([AI_const v] ++ es)%list as ves.
     remember {| f_locs := l ; f_inst := i |} as f.
     remember {| f_locs := l0 ; f_inst := i0 |} as f0.
-    induction Hred as [e e' s f Hredsimpl | | | | |
-                        a cl t1s t2s ts es' ves vcs n m k zs s f f' i' Hlistcl Hcl Hves
-                          Hvcs Hts Ht1s Ht2s Hzts Hinst Hlocs |
-                        a cl h t1s t2s ves vcs m n s f Hlistcl Hcl Hves Hvcs
-                          Ht1s Ht2s |
-                      | | | | | | | | | | | | | | | 
-                        s f ces les s' f' ces' les' k lh Hred IHreduce Hles Hles' | ] ;
-      (try by inversion Heqves );
-      (try by exfalso ; unfold language.prim_step, wasm_lang, iris.prim_step in H ;
-       destruct σ0 as [[[??]?]?] ; destruct H as (Hred0 & Hobs0 & Hefs0) ;
-       inversion Heqves as [[ Hhd Htl ]] ; no_reduce Htl Hred0 ).
-    {  unfold language.prim_step, wasm_lang, iris.prim_step in H ;
-         destruct σ0 as [[[??]?]?] ; destruct H as (Hred0 & Hobs0 & Hefs0).
-       destruct Hredsimpl as [ | | | | | | | | | | | | | |
-                               vs es' n m t1s t2s Hconst Hlenvs Ht1s Ht2s |
-                               vs es' n m t1s t2s Hconst Hlenvs Ht1s Ht2s |
-                             | | | | | | | | | | | | | ] ;
-         inversion Heqves as [[ Hhd Htl ]] ;
-         (try by exfalso ; no_reduce Htl Hred0).
-       { destruct es. { rewrite app_nil_r in Heqves ;
-                          rewrite <- app_nil_l in Heqves ; apply app_inj_tail in Heqves ;
-                          destruct Heqves as [_ Habs] ; inversion Habs. }
-         get_tail a es b l' Htail ; rewrite Htail in Heqves ;
-           rewrite app_assoc in Heqves ; apply app_inj_tail in Heqves ;
-           destruct Heqves as [Hvs Hl'] ; rewrite Htail in Hred0 ;
-           rewrite <- Hl' in Hred0.
-         remember {| f_locs := l0 ; f_inst := i0 |} as f'.
-         exfalso.
-         apply (block_not_enough_arguments_no_reduce _ _ _ _ _ _ _ _ _ Hred0).
-         - rewrite Hvs in Hconst ; unfold const_list in Hconst ;
-             rewrite forallb_app in Hconst ; apply andb_true_iff in Hconst ;
-             destruct Hconst as [_ Hconst] ; exact Hconst.
-         - rewrite Hvs in Hlenvs ; simpl in Hlenvs ; lia.
-       }
-       { destruct es. { rewrite app_nil_r in Heqves ; rewrite <- app_nil_l in Heqves ;
-                          apply app_inj_tail in Heqves ; destruct Heqves as [_ Habs ] ;
-                          inversion Habs. }
-         get_tail a es b l' Htail ; rewrite Htail in Heqves ;
-           rewrite app_assoc in Heqves ; apply app_inj_tail in Heqves ;
-           destruct Heqves as [Hvs Hl'] ; rewrite Htail in Hred0 ;
-           rewrite <- Hl' in Hred0 ; exfalso ;
-           apply (loop_not_enough_arguments_no_reduce _ _ _ _ _ _ _ _ _ Hred0).
-         - rewrite Hvs in Hconst ; unfold const_list in Hconst ;
-             rewrite forallb_app in Hconst ; apply andb_true_iff in Hconst ;
-             destruct Hconst as [_ Hconst] ; exact Hconst.
-         - rewrite Hvs in Hlenvs ; simpl in Hlenvs ; lia.
-       }
-       { right. exists (LH_base [] []).
-         unfold lfilled, lfill in H0. destruct lh ; last by false_assumption.
-         remember (const_list l2) as b eqn:Hl2.
-         destruct b ; last by false_assumption.
-         move/eqP in H0.
-         destruct l2 ; rewrite H0 in Heqves ; inversion Heqves as [[ Ha Hes ]].
-         exists (LH_base l2 l3). split => //=.
-         unfold lfilled, lfill.
-         simpl in Hl2 ; apply Logic.eq_sym, andb_true_iff in Hl2 as [_ Hl2] ; rewrite Hl2; subst; split => //.
-         by inversion Heqf0.
-       }
-    }
-    { exfalso. destruct es. { rewrite app_nil_r in Heqves ;
-                                rewrite <- app_nil_l in Heqves ;
-                                apply app_inj_tail in Heqves ;
-                                destruct Heqves as [_ Habs] ; inversion Habs. }
-      get_tail a0 es b l' Htail. rewrite Htail in Heqves.
-      rewrite app_assoc in Heqves. apply app_inj_tail in Heqves.
-      destruct Heqves as [Hvs Hl'].
-      unfold language.prim_step, wasm_lang, iris.prim_step in H ;
-        destruct σ0 as [[[??]?]?] ;
-        destruct H as (Hred0 & Hobs0 & Hefs0). rewrite Htail in Hred0.
-      rewrite <- Hl' in Hred0. rewrite Hcl in Hlistcl.
-      apply (invoke_not_enough_arguments_no_reduce_native
-               _ _ _ _ _ _ _ _ _ _ _ _ Hlistcl Hred0).
-      + assert (const_list ves). rewrite Hves. apply v_to_e_is_const_list.
-        rewrite Hvs in H. unfold const_list in H. rewrite forallb_app in H.
-        apply andb_true_iff in H. destruct H as [ _ H ] ; exact H.
-      + rewrite Ht1s. assert (length vcs = length ves).
-        rewrite Hves. rewrite v_to_e_length. trivial.
-        rewrite Hvs in H. rewrite length_app in H. simpl in H. lia.
-    }
-       { exfalso. destruct es. { rewrite app_nil_r in Heqves ;
-                                rewrite <- app_nil_l in Heqves ;
-                                apply app_inj_tail in Heqves ;
-                                destruct Heqves as [_ Habs] ; inversion Habs. }
-      get_tail a0 es b l' Htail. rewrite Htail in Heqves.
-      rewrite app_assoc in Heqves. apply app_inj_tail in Heqves.
-      destruct Heqves as [Hvs Hl'].
-      unfold language.prim_step, wasm_lang, iris.prim_step in H ;
-        destruct σ0 as [[[??]?]?] ;
-        destruct H as (Hred0 & Hobs0 & Hefs0). rewrite Htail in Hred0.
-      rewrite <- Hl' in Hred0. rewrite Hcl in Hlistcl.
-      apply (invoke_not_enough_arguments_no_reduce_host
-               _ _ _ _ _ _ _ _ _ _ Hlistcl Hred0).
-      + assert (const_list ves). rewrite Hves. apply v_to_e_is_const_list.
-        rewrite Hvs in H. unfold const_list in H. rewrite forallb_app in H.
-        apply andb_true_iff in H. destruct H as [ _ H ] ; exact H.
-      + rewrite Ht1s. assert (length vcs = length ves).
-        rewrite Hves. rewrite v_to_e_length. trivial.
-        rewrite Hvs in H. rewrite length_app in H. simpl in H. lia.
-    }
-    unfold lfilled, lfill in Hles.
-    destruct k. {
-      destruct lh as [bef aft|] ; [| exfalso ; false_assumption ].
-      remember (const_list bef) as b eqn:Hbef.
-      destruct b ; [| exfalso ; false_assumption].
-      move/eqP in Hles.
-      unfold lfilled, lfill in Hles'. rewrite <- Hbef in Hles'.
-      move/eqP in Hles'.
-      rewrite Hles in Heqves.
-      destruct bef.
-      { destruct ces ; first by empty_list_no_reduce.
-        inversion Heqves as [[ Ha Hes ]].
-        destruct aft. { subst. repeat rewrite app_nil_r.
-                        repeat rewrite app_nil_r in IHreduce.
-                        rewrite app_nil_r in H.
-                        apply IHreduce => //=. }
-        remember (to_val ces) as tv.
-        destruct tv.
-        { destruct v0. { apply Logic.eq_sym, to_val_const_list in Heqtv.
-                         exfalso ; values_no_reduce.
-                         simpl. apply andb_true_iff ; split => //=.
-                         by rewrite Ha. }
-          apply Logic.eq_sym, to_val_trap_is_singleton in Heqtv.
-          subst => //=.
-          right. exists (LH_base [] (a0 :: aft)), (LH_base [] (a0 :: aft)).
-          split ; unfold lfilled, lfill => //=.
-          remember [AI_basic (BI_const v) ; AI_trap] as ces.
-          remember {| f_locs := l ; f_inst := i |} as f.
-          remember {| f_locs := l0 ; f_inst := i0 |} as f'.
-          replace [AI_basic (BI_const v) ; AI_trap] with
-            ([AI_basic (BI_const v)] ++ [AI_trap]) in Heqces => //=.
-          induction Hred ; try by inversion Heqces ;
-            try by apply app_inj_tail in Heqces as [_ Habs] ; inversion Habs.
-          { destruct H0 ; try by inversion Heqces ;
-              try by apply app_inj_tail in Heqces as [_ Habs] ; inversion Habs. }
-          rewrite Heqces in H0. simple_filled H0 k lh bef0 aft0 n0 ll0 ll0'.
-          destruct bef0. { destruct es ; first by empty_list_no_reduce.
-                           inversion H0.
-                           apply Logic.eq_sym, app_eq_unit in H4 as [[Hes Haft]|[Hes Haft]].
-                           subst. remember [AI_basic (BI_const v)] as ev.
-                           apply Logic.eq_sym in Heqev.
-                           exfalso ; no_reduce Heqev Hred.
-                           unfold lfilled, lfill in H1.
-                           simpl in H1. move/eqP in H1. subst.
-                           rewrite app_nil_r. 
-                           apply IHHred => //=. }
-          inversion H0.
-          apply Logic.eq_sym, app_eq_unit in H4 as [[ Hb Hes ]|[Hb Hes]].
-          apply app_eq_unit in Hes as [[ Hes _ ]|[Hes _]].
-          subst ; empty_list_no_reduce.
-          subst ; remember [AI_trap] as ev ; apply Logic.eq_sym in Heqev ;
-            exfalso ; no_reduce Heqev Hred.
-          apply app_eq_nil in Hes as [ Hes _].
-          subst ; empty_list_no_reduce.
-          split => //.
-          apply AI_trap_reduce_det in Hred.
-          by inversion Hred; subst.
-          { simplify_eq. exfalso. unfold to_val, iris.to_val in Heqtv.
-            apply reduce_val_false in Hred;[done|].
-            unfold iris.to_val => /=.
-            rewrite merge_prepend.
-            destruct (merge_values_list _) => //.
-            inversion Heqtv => //=. }
-          { simplify_eq. exfalso. unfold to_val, iris.to_val in Heqtv.
-            apply reduce_val_false in Hred;[done|].
-            unfold iris.to_val => /=.
-            rewrite merge_prepend.
-            destruct (merge_values_list _) => //.
-            inversion Heqtv => //=. }
-              { simplify_eq. exfalso. unfold to_val, iris.to_val in Heqtv.
-            apply reduce_val_false in Hred;[done|].
-            unfold iris.to_val => /=.
-            rewrite merge_prepend.
-            destruct (merge_values_list _) => //.
-            inversion Heqtv => //=. }
-        }
-        rewrite <- Hes in H.
-        destruct (prim_step_split_reduce_r _ _ _ _ _ _ _ (Logic.eq_sym Heqtv) H) as
-          [ (es' & H1 & H2) | (n & m & lh & H1 & H2 & Hσ) ].
-        { assert (reducible ces (s,l,i)).
-          unfold reducible, language.reducible. exists obs0, es', σ0, efs0 => //=.
-          assert (prim_step ([AI_basic (BI_const v)] ++ ces) (s,l,i) [] ces'
-                            (s',l0,i0) []).
-          repeat split => //=. by subst.
-          assert (length ces < len) as Hlences.
-          rewrite <- Hes in Hlen. rewrite length_app in Hlen. simpl in Hlen ; lia.
-          destruct (IHlen v ces ces' (s,l,i) _ _ _ Hlences H0 H3) as
-            [[Hdrop Hstep] | (lh & lh' & Hfill & Hfill' & Hσ) ].
-          { left. subst. repeat split => //=.
-            rewrite Hdrop. rewrite <- app_assoc => //=.
-            replace (drop 1 (ces' ++ (a0 :: aft)%SEQ)%list) with ((drop 1 ces') ++ a0 :: aft).
-            apply (r_label (es:=ces) (es':= drop 1 ces') (k:=0)
-                           (lh:=LH_base [] (a0 :: aft))) => //=.
-            by destruct Hstep as (? & _ & _).
-            unfold lfilled, lfill => //=. unfold lfilled, lfill => //=.
-            destruct ces' => //=. }
-          { right. subst. unfold lfilled, lfill in Hfill, Hfill'.
-            destruct lh ; last by false_assumption.
-            destruct lh'; last by false_assumption.
-            remember (const_list l1) as b eqn:Hl1 ; destruct b ; last by false_assumption.
-            remember (const_list l3) as b eqn:Hl3 ; destruct b ; last by false_assumption.
-            move/eqP in Hfill. move/eqP in Hfill'.
-            exists (LH_base l1 (l2 ++ a0 :: aft)), (LH_base l3 (l4 ++ a0 :: aft)).
-            split => //= ; unfold lfilled, lfill => //=.
-            rewrite <- Hl1 ; rewrite Hfill ; by rewrite <- app_assoc.
-            rewrite <- Hl3 ; rewrite Hfill' ; by rewrite <- app_assoc. }
-        }
-        right. unfold lfilled, lfill in H2.
-        destruct lh as [bef0 aft0|] ; last by false_assumption.
-        remember (const_list bef0) as b eqn:Hbef0 ; destruct b ; last by false_assumption.
-        move/eqP in H2.
-        assert (lfilled 0 (LH_base (a :: bef0) aft0) [AI_trap] (a::ces)) as Htrap.
-        { subst. unfold lfilled, lfill => //=. by rewrite <- Hbef0. }
-        destruct (trap_reduce _ _ (a :: ces) _ _ ces' _ Htrap Hred) as (lh' & Hfill' & Hσ').
-        unfold lfilled, lfill in Hfill'. destruct lh' ; last by false_assumption.
-        remember (const_list l1) as b eqn:Hl1 ; destruct b ; last by false_assumption.
-        move/eqP in Hfill'.
-        exists (LH_base l1 (l2 ++ a0 :: aft)), (LH_base bef0 (aft0 ++ a0 :: aft)).
-        split ; unfold lfilled, lfill => //=. rewrite <- Hl1. rewrite Hles'.
-        rewrite Hfill'. simpl. by rewrite <- app_assoc.
-        rewrite <- Hbef0. rewrite H2. rewrite <- app_assoc. split => //.
-        inversion Hσ'; subst. by inversion H4.
-      }
-      inversion Heqves ; subst. left. repeat split => //=.
-      unfold drop.
-      apply (r_label (es:=ces) (es':=ces') (k:=0) (lh:=LH_base bef aft)) ; (try done) ;
-        unfold lfilled, lfill ; simpl in Hbef ; rewrite <- Hbef => //=. }
-    fold lfill in Hles. destruct lh ; first by false_assumption.
-    remember (const_list l1) as b ; destruct b ; last by false_assumption.
-    remember (lfill k lh ces) as filled ;
-      destruct filled ; last by false_assumption.
-    move/eqP in Hles. unfold lfilled, lfill in Hles'. fold lfill in Hles'.
-    rewrite <- Heqb in Hles'. remember (lfill k lh ces') as filled'.
-    destruct filled' ; last by false_assumption.
-    move/eqP in Hles'. rewrite Hles in Heqves.
-    destruct l1 ; inversion Heqves as [[ Ha Hes ]].
-    rewrite Hles'. rewrite Ha. simpl. unfold drop.
-    left ; repeat split => //=.
-    rewrite Heqf in Hred ; rewrite Heqf0 in Hred.
-    simpl in Heqb ; apply Logic.eq_sym in Heqb ;
-      apply andb_true_iff in Heqb ; destruct Heqb as [_ Heqb].
-    apply (r_label (lh := LH_rec l1 n l2 lh l3) (k := S k) Hred) ;
-      unfold lfilled, lfill ; rewrite Heqb ; fold lfill.
-    rewrite <- Heqfilled ; trivial.
-    rewrite <- Heqfilled' ; trivial.
-  Qed.
+    unfold language.prim_step, wasm_lang, iris.prim_step in H.
+    destruct σ0 as [[[??]?]?] ; destruct H as (Hred0 & Hobs0 & Hefs0).
+    induction Hred.
+    destruct H.
+    43:{ right. exists (LH_base [] []).
+         move/lfilledP in H0.
+         inversion H0; subst.
+         all: (destruct vs + destruct bef); first by destruct v; try destruct v.
+         all: simpl in H1; remove_bools_options.
+         inversion H5; subst.
+         2,3: inversion H6; subst.
+         exists (LH_base vs es').
+         2: eexists (LH_handler bef hs lh' aft).
+         3: eexists (LH_prompt bef ts hs lh' aft).
+         all: inversion Heqf0; subst.
+         all: repeat split => //.
+         all: apply/lfilledP.
+         all: constructor => //.  } 
+    83:{ move/lfilledP in H.
+         move/lfilledP in H0.
+         inversion H; subst; inversion H0; subst.
+         - destruct vs.
+           + destruct es1 ; first by empty_list_no_reduce.
+             inversion H5; subst.
+             destruct es'0.
+             * rewrite cats0. rewrite cats0 in IHHred.
+                repeat rewrite cats0 /=.
+                rewrite cats0 in Hred0.
+                apply IHHred => //.
+             * clear IHHred. destruct (to_val es1) eqn:Htv.
+               -- destruct v0.
+                  ++ exfalso ; values_no_reduce.
+                     rewrite const_const => //=.
+                     apply to_val_const_list in Htv => //.
+                  ++ apply to_val_trap_is_singleton in Htv as ->.
+                     lazymatch goal with
+                     | _ : reduce s ?f ?es s' ?f' es' |- _ => remember f as ff; remember es as estrap ; remember f' as ff'
+                     end .
+                     right.
+                     exists (LH_base [] (a :: es'0)), (LH_base [] (a :: es'0)).
+                     induction Hred.
+                     destruct H2.
+                     all: try by inversion Heqestrap.
+                     all: try by do 3 destruct vs => //.
+                     all: try by do 3 destruct ves => //. 
+                     ** move/lfilledP in H3. inversion H3; subst.
+                        all: try by destruct v; try destruct v; do 3 destruct bef => //.
+                        destruct vs; first by destruct v; try destruct v.
+                        destruct vs; last by destruct vs; inversion H10.
+                        inversion H10; subst.
+                        split ; unfold lfilled, lfill => //=.
+                        split => //.
+                        inversion Heqff'; subst. done.
+                     ** move/lfilledP in H2; move/lfilledP in H3.
+                        inversion H2; subst; inversion H3; subst.
+                        all: try by destruct v; try destruct v; do 3 destruct vs => //.
+                        all: try by destruct v; try destruct v; do 3 destruct bef => //.
+                        destruct vs.
+                        --- destruct es; first by empty_list_no_reduce.
+                            destruct es.
+                            +++ exfalso; eapply values_no_reduce.
+                                exact Hred.
+                                inversion H10; subst.
+                                rewrite /= const_const //.
+                            +++ inversion H10; subst.
+                                destruct es, es'1 => //=.
+                                rewrite cats0.
+                                apply IHHred => //.
+                                constructor => //.
+                        --- inversion H10.
+                            destruct vs; last by inversion H11; destruct vs, es, es'1 => //; empty_list_no_reduce.
+                            destruct es; first by empty_list_no_reduce.
+                            inversion H11; subst. destruct es, es'1 => //.
+                            apply AI_trap_irreducible in Hred => //.
+                  ++ exfalso. unfold to_val, iris.to_val in Htv.
+                     apply reduce_val_false in Hred;[done|].
+                     unfold iris.to_val => /=.
+                     rewrite merge_prepend.
+                     destruct (merge_values _) => //.
+                     inversion Htv => //=. destruct v => //.
+                     destruct v => //.
+                  ++ exfalso. unfold to_val, iris.to_val in Htv.
+                     apply reduce_val_false in Hred;[done|].
+                     unfold iris.to_val => /=.
+                     rewrite merge_prepend.
+                     destruct (merge_values _) => //.
+                     inversion Htv => //=. destruct v => //.
+                     destruct v => //.
+                  ++ exfalso. unfold to_val, iris.to_val in Htv.
+                     apply reduce_val_false in Hred;[done|].
+                     unfold iris.to_val => /=.
+                     rewrite merge_prepend.
+                     destruct (merge_values _) => //.
+                     inversion Htv => //=. destruct v => //.
+                     destruct v => //. 
+               -- edestruct prim_step_split_reduce_r as
+                    [ (es'' & H01 & H2) | (n & m & lh & H01 & H2 & Hσ) ].
+                  exact Htv. unfold prim_step.
+                  instantiate (5 := (_, _, _)).
+                  instantiate (8 := (_, _, _)).
+                  simpl. split; first exact Hred0. split => //.
+                  ++ subst.
+                     edestruct IHlen as [[Hdrop Hstep] | (lh & lh' & Hfill & Hfill' & Hσ)].
+                     2:{ unfold reducible, language.reducible.
+                         repeat eexists.
+                         unfold language.prim_step. simpl.
+                         exact H2. }
+                     rewrite length_app /= in Hlen. lia.
+                     unfold prim_step. instantiate (5 := (_,_,_)) => /=.
+                     split; first exact Hred. split => //.
+                     ** left. repeat split => //=.
+                        rewrite Hdrop. rewrite <- app_assoc.
+                        simpl. rewrite drop_0 //.
+                        eapply r_label.
+                        destruct Hstep as (Hres & _ & _); exact Hres.
+                        instantiate (1 := LH_base [] (a :: es'0)).
+                        instantiate (1 := 0).
+                        unfold lfilled, lfill => //=.
+                        unfold lfilled, lfill => //=.
+                        rewrite Hdrop => //=.
+                     ** right.
+                        move/lfilledP in Hfill.
+                        move/lfilledP in Hfill'.
+                        inversion Hfill; subst.
+                        exists (LH_base vs (es'1 ++ a :: es'0)).
+                        2: eexists (LH_handler bef hs lh'0 (aft ++ a :: es'0)).
+                        3: eexists (LH_prompt bef ts hs lh'0 (aft ++ a :: es'0)).
+                        all: inversion Hfill'; subst.
+                        all: eexists.
+                        all: repeat split => //=.
+                        all: unfold lfilled, lfill; fold lfill => //=.
+                        all: try rewrite /= H3.
+                        all: try rewrite /= H6.
+                        all: try rewrite -cat_app -catA //.
+                        all: try by move/lfilledP in H6; unfold lfilled in H6; destruct (lfill _ _ _) => //; move/eqP in H6; subst; rewrite -catA //.
+                        --- instantiate (1 := LH_base vs0 (es' ++ a :: es'0)).
+                            rewrite /= H6 -cat_app -catA //.
+                        --- instantiate (1 := LH_handler bef hs lh'0 (aft ++ a :: es'0)).
+                            rewrite /= H6.
+                            move/lfilledP in H7.
+                            unfold lfilled in H7.
+                            destruct (lfill _ _ _) => //.
+                            move/eqP in H7; subst l2.
+                            rewrite -catA //.
+                        --- instantiate (1 := LH_prompt bef ts hs lh'0 (aft ++ a :: es'0)).
+                            rewrite /= H6.
+                            move/lfilledP in H7. unfold lfilled in H7.
+                            destruct (lfill _ _ _) => //.
+                            move/eqP in H7; subst l2.
+                            rewrite -catA //.
+                        --- instantiate (1 := LH_base vs (es' ++ a :: es'0)).
+                            rewrite /= H7 -cat_app -catA //.
+                        --- instantiate (1 := (LH_handler bef0 hs0 lh'1 (aft0 ++ a :: es'0))).
+                            rewrite /= H7. move/lfilledP in H8.
+                            unfold lfilled in H8.
+                            destruct (lfill _ _ _) => //.
+                            move/eqP in H8; subst l2.
+                            rewrite -catA //.
+                        --- instantiate (1 := (LH_prompt bef0 ts hs0 lh'1 (aft0 ++ a :: es'0))).
+                            rewrite /= H7.
+                            move/lfilledP in H8.
+                            unfold lfilled in H8.
+                            destruct (lfill _ _ _) => //.
+                            move/eqP in H8; subst l2.
+                            rewrite -catA //.
+                        --- instantiate (1 := (LH_base vs (es' ++ a :: es'0))).
+                            rewrite /= H7 -cat_app -catA //.
+                        --- instantiate (1 := (LH_handler bef0 hs0 lh'1 (aft0 ++ a :: es'0))).
+                            rewrite /= H7.
+                            move/lfilledP in H8. unfold lfilled in H8.
+                            destruct (lfill _ _ _) => //.
+                            move/eqP in H8; subst l2.
+                            rewrite -catA //.
+                        --- instantiate (1 := (LH_prompt bef0 ts0 hs0 lh'1 (aft0 ++ a :: es'0))).
+                            rewrite /= H7.
+                            move/lfilledP in H8. unfold lfilled in H8.
+                            destruct (lfill _ _ _) => //.
+                            move/eqP in H8; subst l2.
+                            rewrite -catA //.
+                  ++ right.
+                     edestruct lfilled_prepend_append as [? Hfillres].
+                     instantiate (1 := [AI_const v]).
+                     rewrite /= const_const //.
+                     exact H2.
+                     edestruct trap_reduce as (lh' & Hfill' & Hσ').
+                     exact Hfillres.
+                     instantiate (4 := []).
+                     rewrite cats0.
+                     exact Hred.
+                     inversion Hσ'; subst.
+                     edestruct lfilled_prepend_append as [? Hres].
+                     instantiate (1 := []) => //.
+                     exact Hfill'.
+                     edestruct lfilled_prepend_append as [? Hres'].
+                     instantiate (1 := []) => //.
+                     exact H2.
+                     do 2 eexists.
+                     repeat split => //.
+           + clear IHHred. inversion H5; subst.
+             simpl in H1; remove_bools_options.
+             left. repeat split => //=.
+             rewrite drop_0.
+             eapply r_label.
+             exact Hred.
+             instantiate (1 := LH_base vs es'0).
+             instantiate (1 := 0).
+             apply/lfilledP. constructor => //.
+             apply/lfilledP. constructor => //. 
+         - destruct vs; first by destruct v; try destruct v; inversion H6.
+           simpl in H1; remove_bools_options.
+           inversion H6; subst.
+           left. repeat split => //=.
+           rewrite drop_0. eapply r_label.
+           exact Hred.
+           instantiate (1 := LH_rec vs n es'0 lh' es'').
+           instantiate (1 := S k0).
+           apply/lfilledP. constructor => //.
+           apply/lfilledP. constructor => //.
+         - destruct bef; first by destruct v; try destruct v; inversion H6.
+           simpl in H1; remove_bools_options.
+           inversion H6; subst.
+           left. repeat split => //=.
+           rewrite drop_0. eapply r_label.
+           exact Hred.
+           instantiate (1 := LH_handler bef hs lh' aft).
+           instantiate (1 := k).
+           apply/lfilledP. constructor => //.
+           apply/lfilledP. constructor => //.
+         - destruct bef; first by destruct v; try destruct v; inversion H6.
+           simpl in H1; remove_bools_options.
+           inversion H6; subst.
+           left. repeat split => //=.
+           rewrite drop_0. eapply r_label.
+           exact Hred.
+           instantiate (1 := LH_prompt bef ts hs lh' aft).
+           instantiate (1 := k).
+           apply/lfilledP. constructor => //.
+           apply/lfilledP. constructor => //. 
+    }                         
+                     
+    all: try by destruct v; try destruct v; inversion Heqves; subst.
+    20, 21: destruct v1, v2; destruct v0, v1.
+    all: try subst vs.
+      
+    all: try (exfalso; clear Hlen IHlen; induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H00; inversion H00; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es => //; apply IHHred0 => //
+           )]).
+    all: try (clear IHHred0 H00 H01; inversion Heqves; subst => //).
+    all: try (destruct vs; last by inversion Heqves; destruct vs, es => //; apply empty_no_reduce in Hred0).
+    all: try (destruct vs; last (destruct vs; last by inversion Heqves; destruct vs, es => //; apply empty_no_reduce in Hred0)).
+    all: try (induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'1, es'0 => //; apply IHHred0 => // ) 
+          ]).
+    all: try (clear IHHred0 H02 H03; inversion Heqves; subst => //).
+    all: try (destruct vs; last by inversion Heqves; destruct vs, es => //; apply empty_no_reduce in Hred0).
+     all: try (induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'1, es'0, es'2 => //; apply IHHred0 => // ) 
+            ]).
+     all: try (clear IHHred0 H02 H03; inversion Heqves; subst => //).
+    - (* block *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      exfalso; eapply block_not_enough_arguments_no_reduce.
+      exact Hred0. simpl in H; remove_bools_options => //.
+      simpl in H0. lia.
+    - (* loop *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      exfalso; eapply loop_not_enough_arguments_no_reduce.
+      exact Hred0. simpl in H; remove_bools_options => //.
+      simpl in H0. lia.
+    - (* invoke *)
+      destruct ves; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      destruct vcs => //.
+      inversion H1; subst.
+      exfalso; eapply invoke_not_enough_arguments_no_reduce_native.
+      all: try exact Hred0. exact H. 
+      apply v_to_e_is_const_list.
+      rewrite v_to_e_length. simpl in H4. lia.
+    - (* invoke *)
+      destruct ves; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      destruct vcs => //.
+      inversion H1; subst.
+      exfalso; eapply invoke_not_enough_arguments_no_reduce_host.
+      all: try exact Hred0. exact H. 
+      apply v_to_e_is_const_list.
+      rewrite v_to_e_length. simpl in H3. lia.
+    - (* try_table *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      exfalso; eapply try_table_not_enough_arguments_no_reduce.
+      all: try exact Hred0. subst. exact H.
+      simpl in H1. remove_bools_options. done.
+      simpl in H2. lia.
+    - (* throw *)
+      destruct ves; first by destruct v; try destruct v; inversion Heqves.
+      subst.
+      inversion Heqves; subst es.
+      destruct vcs => //. inversion H1; subst.
+      exfalso; eapply throw_not_enough_arguments_no_reduce.
+      all: try exact Hred0. exact H. exact H0.
+      apply v_to_e_is_const_list.
+      simpl in H2. lia.
+    - (* resume *)
+      destruct vs.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H11; subst.
+        rewrite H8; done.
+        inversion H11; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        exfalso; eapply resume_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H0. exact H2.
+        simpl in H. remove_bools_options. done.
+        simpl in H1. lia.
+    - (* suspend *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      subst.
+      inversion Heqves; subst es.
+      exfalso; eapply suspend_not_enough_arguments_no_reduce.
+      all: try exact Hred0. exact H. exact H0.
+      apply v_to_e_is_const_list.
+      rewrite length_map.
+      simpl in H1. lia.
+    - (* switch *)
+       destruct vs.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H11; subst.
+        rewrite H8; done.
+        inversion H11; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        exfalso; eapply switch_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H2. exact H3.
+        apply v_to_e_is_const_list.
+        rewrite length_map. simpl in H4. lia.
+    - (* contbind *)
+      destruct vs.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H10; subst.
+        rewrite H7; done.
+        inversion H10; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        exfalso; eapply contbind_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H0. exact H1. exact H3.
+        simpl in H. remove_bools_options. done.
+        simpl in H2. lia.
+    - (* resume_throw *)
+      destruct ves.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H15; subst.
+        rewrite H4; done.
+        inversion H15; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        destruct vcs => //. inversion H1; subst.
+        exfalso; eapply resume_throw_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H. exact H0. exact H5.
+        apply v_to_e_is_const_list.
+        simpl in H2. lia.
+Qed.
 
   
 

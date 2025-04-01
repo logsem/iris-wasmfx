@@ -5,7 +5,7 @@ From Wasm Require Export stdpp_aux.
 Require Export iris_wasm_lang_properties iris_lfilled_properties.
 
 Open Scope list_scope.
-
+Set Bullet Behavior "Strict Subproofs".
 
 Section reduce_properties.
   
@@ -19,24 +19,19 @@ Section reduce_properties.
   Lemma values_no_reduce s f vs s' f' es' :
     reduce s f vs s' f' es' -> const_list vs -> False.
   Proof.
-    intros H Hvs. induction H ; try by inversion Hvs ; unfold const_list in Hvs ;
+    intros H Hvs.
+    induction H ; try by inversion Hvs ; unfold const_list in Hvs ;
                     rewrite forallb_app in Hvs ; move/andP in Hvs ;
-                    destruct Hvs as [_ Hvs] ; inversion Hvs.
+      destruct Hvs as [_ Hvs] ; inversion Hvs.
+    all: try by simpl in Hvs; remove_bools_options.
     { destruct H; try by inversion Hvs ;
         unfold const_list in Hvs ; rewrite forallb_app in Hvs;
         move/andP in Hvs ; destruct Hvs as [_ Hvs] ; 
         inversion Hvs.
-      - inversion Hvs. move/andP in H1. by destruct H1.
-      - filled_trap H0 Hxl1.
-        unfold const_list in Hvs. rewrite H0 in Hvs.
-        rewrite forallb_app in Hvs. move/andP in Hvs. destruct Hvs as [_ Hvs].
-        by inversion Hvs. 
+      all: try by simpl in Hvs; remove_bools_options.
+      apply lfilled_const in H0 as [??] => //.
     }
-    simple_filled H0 k lh bef aft n l l' ; rewrite H0 in Hvs ; unfold const_list in Hvs ;
-      rewrite forallb_app in Hvs ; move/andP in Hvs ; destruct Hvs as [_ Hvs].
-    + rewrite forallb_app in Hvs. move/andP in Hvs. destruct Hvs as [Hvs _].
-      by apply (IHreduce Hvs).
-    + by inversion Hvs.
+    apply IHreduce. eapply lfilled_const; eauto.
   Qed.
 
 End reduce_properties.
@@ -46,7 +41,7 @@ End reduce_properties.
 Ltac values_no_reduce :=
   eapply values_no_reduce => //=.
   
-
+(*
 (* From hyopthesis "Heqes : [ some explicit list of instructions ] = es" and 
    "Hred : es reduces to es'", attempts to prove False. 
    Defined recursively. Examples below show how compilation time gets noticeably
@@ -104,11 +99,11 @@ Ltac no_reduce Heqes Hred :=
   [ destruct H as [ | | | | | | | | | | | | | | 
                     vs es n' m t1s' t2s Hconst Hvs Ht1s Ht2s |
                     vs es n' m t1s' t2s Hconst Hvs Ht1s Ht2s |
-                  | | | | | | | | | | | | | 
+                  | | | | | | | | | | | | | | | | | | | | | | | | | | 
                     es' lh Htrap' H0 ]; (try by inversion Heqes) ;
     first found_intruse (AI_basic (BI_block (Tf t1s' t2s) es)) Heqes Hxl1 ;
     first found_intruse (AI_basic (BI_loop (Tf t1s' t2s) es)) Heqes Hxl1 ;
-    try rewrite <- Heqes in H0 ; filled_trap H0 Hxl1
+    try rewrite <- Heqes in H0 (* ; filled_trap H0 Hxl1 *)
   | rewrite <- Heqes in H0 ;
     (* The tactic simple_filled will destruct hypothesis "H0 : lfilled es les".
        In this case, it will completely solve the case k > 0, and for the case
@@ -183,7 +178,7 @@ Ltac no_reduce Heqes Hred :=
               auxb H1 )
         ]
       ) in auxb H0
-  ].
+  ].  *)
 
 Section reduce_properties_lemmas.
 
@@ -198,14 +193,23 @@ Section reduce_properties_lemmas.
   Proof.
     intro Hred.
     remember [] as es in Hred.
-    apply Logic.eq_sym in Heqes.
-    no_reduce Heqes Hred.
+    induction Hred => //.
+    inversion H => //.
+    all: try subst e => //.
+    all: try by destruct vs.
+    move/lfilledP in H1; inversion H1;
+      try by destruct vs + destruct bef.
+    all: try by destruct ves.
+    apply IHHred.
+    move/lfilledP in H; inversion H; subst;
+      try by destruct vs + destruct bef.
+    destruct vs, es => //.
   Qed.
 
   Ltac empty_list_no_reduce :=
     exfalso ; eapply empty_no_reduce => //=.
 
-  Lemma test_no_reduce1 s f v s' f' es' :
+(*  Lemma test_no_reduce1 s f v s' f' es' :
     reduce s f [AI_basic (BI_const v)] s' f' es' -> False.
   Proof.
     intro Hred.
@@ -242,6 +246,10 @@ Section reduce_properties_lemmas.
     apply Logic.eq_sym in Heqes.
     no_reduce Heqes Hred.
   Qed.
+ *)
+
+  (* Are these still useful? *)
+  (*
   
   Lemma reduce_load_false s0 f s' f' es es' x0 x1 x2 x3 :
     es = [AI_basic (BI_load x0 x1 x2 x3)] ->
@@ -268,7 +276,7 @@ Section reduce_properties_lemmas.
     intros Heq Hred.
     apply Logic.eq_sym in Heq.
     no_reduce Heq Hred.
-  Qed.
+  Qed. *)
 
   Lemma reduce_val_false s0 f s' f' es es' :
     is_Some (iris.to_val es) ->
@@ -317,7 +325,7 @@ Ltac intruse_among_values vs Hin Hvs :=
   destruct (forallb_forall is_const vs) as [x _] ;
   apply (x Hvs) in Hin ; inversion Hin.
 
-
+(*
 
 (* attempts to prove that vs ++ [obj] entails false when list vs is shorter 
    than list t1s. Some subgoals may be left for user to prove *)
@@ -453,7 +461,7 @@ Ltac not_enough_arguments s f vs obj t1s s' f' es' :=
           ]
         ]
   )).
-
+*)
 Section reduce_properties_lemmas.
    Let reducible := @iris.program_logic.language.reducible wasm_lang.
 
@@ -462,24 +470,52 @@ Section reduce_properties_lemmas.
   Let to_val := iris.to_val.
 
   Lemma block_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
-        t1s t2s esb s' f' es'  :
+    t1s t2s esb s' f' es'  :
     reduce s f (vs ++ [AI_basic (BI_block (Tf t1s t2s) esb)]) s' f' es' ->
     const_list vs ->
     length vs < length t1s ->
     False.
   Proof.
-    not_enough_arguments s f vs (AI_basic (BI_block (Tf t1s t2s) esb)) t1s s' f' es'.
-    - apply app_inj_tail in Heqes. destruct Heqes as [Hvs' Hbl].
-      inversion Hbl as [[ Ht1s Ht2s Hes ]]. rewrite Hvs' in Hvs0.
-      rewrite Hvs0 in Hlen. rewrite <- Ht1s0 in Hlen. rewrite Ht1s in Hlen. lia.
-    - assert ([v;AI_basic (BI_tee_local i)] = [v] ++ [AI_basic (BI_tee_local i)]).
-      simpl ; trivial. rewrite H0 in Heqes ; apply app_inj_tail in Heqes.
-      destruct Heqes as [_ Habs] ; inversion Habs.
-    - filled_trap H0 Hxl1. rewrite H0 in Heqes. apply Logic.eq_sym in Heqes.
-      found_intruse AI_trap Heqes Hxl2. apply in_app_or in Hxl2.
-      destruct Hxl2 as [Hxl2 | Hxl2].
-      intruse_among_values vs Hxl2 Hconst.
-      destruct Hxl2 as [Hxl2 | Hxl2] ; inversion Hxl2.
+    intros Hred Hvs Hlen.
+    remember (cat vs [AI_basic (BI_block (Tf t1s t2s) esb)]) as es.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by destruct vs' => //; destruct vs'.
+    - apply concat_cancel_last in H00 as [??].
+      inversion H3; subst. lia.
+    - move/lfilledP in H1; inversion H1.
+      all: rewrite - (app_nil_r [_]) in H2.
+      all: apply first_values in H2 as (? & ? & ?) => //.
+    - move/lfilledP in H; inversion H; subst.
+      2-4: rewrite - (app_nil_r [_]) in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      separate_last es'0.
+      + rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        subst vs'. apply const_list_split in Hvs as [? _].
+        apply const_list_split in H1 as [_ ?] => //.
+      + separate_last es.
+        * rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [<- ->].
+          eapply IHHred. done. apply const_list_split in Hvs as [??] => //.
+          rewrite length_app in Hlen. lia.
+        * empty_list_no_reduce.
   Qed. 
 
   
@@ -490,21 +526,515 @@ Section reduce_properties_lemmas.
     length vs < length t1s ->
     False.
   Proof.
-    not_enough_arguments s f vs (AI_basic (BI_loop (Tf t1s t2s) esb)) t1s s' f'
-                         es'.
-    - apply app_inj_tail in Heqes. destruct Heqes as [Hvs' Hlp].
-      inversion Hlp as [[ Ht1s Ht2s Hes ]].
-      rewrite Ht1s in Ht1s0. rewrite Ht1s0 in Hlen. rewrite Hvs' in Hvs0.
-      lia.
-    - assert ([v;AI_basic (BI_tee_local i)] = [v] ++ [AI_basic (BI_tee_local i)]).
-      simpl ; trivial. rewrite H0 in Heqes. apply app_inj_tail in Heqes.
-      destruct Heqes as [ _ Habs ] ; inversion Habs.
-    - filled_trap H0 Hxl1. rewrite H0 in Heqes. apply Logic.eq_sym in Heqes.
-      found_intruse AI_trap Heqes Hxl2. apply in_app_or in Hxl2.
-      destruct Hxl2 as [Hxl2 | Hxl2].
-      intruse_among_values vs Hxl2 Hconst. destruct Hxl2 as [Hxl2 | Hxl2].
-      inversion Hxl2. inversion Hxl2.
+    intros Hred Hvs Hlen.
+    remember (cat vs [AI_basic (BI_loop (Tf t1s t2s) esb)]) as es.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by destruct vs' => //; destruct vs'.
+    - apply concat_cancel_last in H00 as [??].
+      inversion H3; subst. lia.
+    - move/lfilledP in H1; inversion H1.
+      all: rewrite - (app_nil_r [_]) in H2.
+      all: apply first_values in H2 as (? & ? & ?) => //.
+    - move/lfilledP in H; inversion H; subst.
+      2-4: rewrite - (app_nil_r [_]) in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      separate_last es'0.
+      + rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        subst vs'. apply const_list_split in Hvs as [? _].
+        apply const_list_split in H1 as [_ ?] => //. 
+      + separate_last es.
+        * rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [<- ->].
+          eapply IHHred. done. apply const_list_split in Hvs as [??] => //.
+          rewrite length_app in Hlen. lia.
+        * empty_list_no_reduce.
   Qed.
+
+
+
+    Lemma resume_throw_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
+      x a ts k hs tf hh i s' f' es'  :
+      nth_error (inst_tags (f_inst f)) x = Some a ->
+      nth_error (datatypes.s_tags s) a = Some (Tf ts []) ->
+      nth_error (s_conts s) k = Some (Cont_hh tf hh) ->
+    reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]) s' f' es' ->
+    const_list vs ->
+    length vs < length ts ->
+    False.
+  Proof.
+    intros Hx Ha Hcont Hred Hvs Hlen.
+    lazymatch goal with _ : reduce _ _ ?es0 _ _ _ |- _ => remember es0 as es end.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try (symmetry in H00; rewrite cat_app separate1 app_assoc in H00; symmetry in H00).
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by do 3 destruct vs' => //. 
+    - move/lfilledP in H1; inversion H1.
+      all: try (symmetry in H2; rewrite cat_app separate1 app_assoc in H2; symmetry in H2).
+      all: apply first_values in H2 as (? & ? & ?) => //.
+      all: apply const_list_concat => //.
+    - rewrite cat_app separate1 app_assoc in H00.
+      apply first_values in H00 as (? & ? & ?) => //=.
+      inversion H3; subst.
+      rewrite H in Hx. inversion Hx; subst a0.
+      rewrite H0 in Ha. inversion Ha; subst ts0.
+      apply concat_cancel_last in H1 as [<- Heq].
+      lia. all: apply const_list_concat => //. apply v_to_e_is_const_list.
+    - repeat (destruct vs' => //).
+      inversion H00; subst. rewrite H in Hcont. done.
+    - move/lfilledP in H; inversion H; subst.
+      all: symmetry in H1; rewrite cat_app separate1 app_assoc in H1; symmetry in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      2-4: apply const_list_concat => //.
+      separate_last es'0.
+      + rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        assert (const_list (app vs' [AI_ref_cont k])); first by apply const_list_concat.
+        rewrite -H1 in H3.
+        apply const_list_split in H3 as [? _].
+        apply const_list_split in H3 as [_ ?] => //. 
+      + separate_last es.
+        * rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [Hvsl ->].
+          separate_last l.
+          -- rewrite cat_app app_assoc in Hvsl.
+             apply concat_cancel_last in Hvsl as [<- ->].
+             eapply IHHred. done. done. done.
+             rewrite -app_assoc. done.
+             apply const_list_split in Hvs as [??] => //.
+             rewrite length_app in Hlen. lia.
+          -- simpl in Hred. clear - Hred.
+             remember [_] as es0.
+             induction Hred.
+             destruct H.
+             all: try by inversion Heqes0.
+             all: try by do 2 destruct vs => //.
+             all: try by do 2 destruct ves => //. 
+             ++ subst es. move/lfilledP in H0. inversion H0.
+                do 2 destruct vs => //.
+                all: do 2 destruct bef => //.
+             ++ subst. move/lfilledP in H. inversion H; subst.
+                all: try by do 2 destruct vs => //.
+                all: try by do 2 destruct bef => //.
+                destruct vs; last by inversion H1; subst.
+                destruct es; first empty_list_no_reduce.
+                inversion H1; subst.
+                destruct es => //.
+        * empty_list_no_reduce.
+  Qed.
+ 
+  Lemma contbind_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
+    t1s t2s ts k tf hh i i' s' f' es'  :
+    stypes s (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
+    stypes s (f_inst f) i' = Some (Tf t1s t2s) ->
+    List.nth_error (s_conts s) k = Some (Cont_hh tf hh) -> 
+    reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_contbind i i')]) s' f' es' ->
+    const_list vs ->
+    length vs < length ts ->
+    False.
+  Proof.
+    intros Hi Hi' Hcont Hred Hvs Hlen.
+    lazymatch goal with _ : reduce _ _ ?es0 _ _ _ |- _ => remember es0 as es end.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try (symmetry in H00; rewrite cat_app separate1 app_assoc in H00; symmetry in H00).
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by do 3 destruct vs' => //. 
+    - move/lfilledP in H1; inversion H1.
+      all: try (symmetry in H2; rewrite cat_app separate1 app_assoc in H2; symmetry in H2).
+      all: apply first_values in H2 as (? & ? & ?) => //.
+      all: apply const_list_concat => //.
+    - rewrite cat_app separate1 app_assoc in H00.
+      apply first_values in H00 as (? & ? & ?) => //=.
+      inversion H5; subst.
+      rewrite H1 in Hi'. inversion Hi'; subst.
+      rewrite H0 in Hi. inversion Hi; subst.
+      apply concat_cancel_last_n in H8 => //.
+      remove_bools_options; subst.
+      apply concat_cancel_last in H4 as [-> _].
+      lia. all: apply const_list_concat => //. 
+    - repeat (destruct vs' => //).
+      inversion H00; subst. rewrite H in Hcont. done.
+    - move/lfilledP in H; inversion H; subst.
+      all: symmetry in H1; rewrite cat_app separate1 app_assoc in H1; symmetry in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      2-4: apply const_list_concat => //.
+      separate_last es'0.
+      + rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        assert (const_list (app vs' [AI_ref_cont k])); first by apply const_list_concat.
+        rewrite -H1 in H3.
+        apply const_list_split in H3 as [? _].
+        apply const_list_split in H3 as [_ ?] => //. 
+      + separate_last es.
+        * rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [Hvsl ->].
+          separate_last l.
+          -- rewrite cat_app app_assoc in Hvsl.
+             apply concat_cancel_last in Hvsl as [<- ->].
+             eapply IHHred. done. done. done.
+             rewrite -app_assoc. done.
+             apply const_list_split in Hvs as [??] => //.
+             rewrite length_app in Hlen. lia.
+          -- simpl in Hred. clear - Hred.
+             remember [_] as es0.
+             induction Hred.
+             destruct H.
+             all: try by inversion Heqes0.
+             all: try by do 2 destruct vs => //.
+             all: try by do 2 destruct ves => //. 
+             ++ subst es. move/lfilledP in H0. inversion H0.
+                do 2 destruct vs => //.
+                all: do 2 destruct bef => //.
+             ++ subst. move/lfilledP in H. inversion H; subst.
+                all: try by do 2 destruct vs => //.
+                all: try by do 2 destruct bef => //.
+                destruct vs; last by inversion H1; subst.
+                destruct es; first empty_list_no_reduce.
+                inversion H1; subst.
+                destruct es => //.
+        * empty_list_no_reduce.
+  Qed.
+
+  
+ Lemma switch_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
+   t1s t2s k cont i x s' f' es'  :
+   nth_error (datatypes.s_conts s) k = Some cont ->
+   typeof_cont cont = Tf t1s t2s ->
+    reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_switch i (Mk_tagident x))]) s' f' es' ->
+    const_list vs ->
+    S (length vs) < length t1s ->
+    False.
+ Proof.
+    intros Hcont Htcont Hred Hvs Hlen.
+    lazymatch goal with _ : reduce _ _ ?es0 _ _ _ |- _ => remember es0 as es end.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try (symmetry in H00; rewrite cat_app separate1 app_assoc in H00; symmetry in H00).
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by do 3 destruct vs' => //. 
+    - move/lfilledP in H1; inversion H1.
+      all: try (symmetry in H2; rewrite cat_app separate1 app_assoc in H2; symmetry in H2).
+      all: apply first_values in H2 as (? & ? & ?) => //.
+      all: apply const_list_concat => //.
+    - rewrite cat_app separate1 app_assoc in H00.
+      apply first_values in H00 as (? & ? & ?) => //=.
+      inversion H6; subst.
+      apply concat_cancel_last in H5 as [<- Hk].
+      inversion Hk; subst k0.
+      rewrite H2 in Hcont. inversion Hcont; subst cont0.
+      rewrite H3 in Htcont. inversion Htcont; subst.
+      rewrite length_map in Hlen.
+      lia. all: apply const_list_concat => //.
+      apply v_to_e_is_const_list.
+    - move/lfilledP in H; inversion H; subst.
+      all: symmetry in H1; rewrite cat_app separate1 app_assoc in H1; symmetry in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      2-4: apply const_list_concat => //.
+      separate_last es'0.
+      + rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        assert (const_list (app vs' [AI_ref_cont k])); first by apply const_list_concat.
+        rewrite -H1 in H3.
+        apply const_list_split in H3 as [? _].
+        apply const_list_split in H3 as [_ ?] => //. 
+      + separate_last es.
+        * rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [Hvsl ->].
+          separate_last l.
+          -- rewrite cat_app app_assoc in Hvsl.
+             apply concat_cancel_last in Hvsl as [<- ->].
+             eapply IHHred. done. 
+             rewrite -app_assoc. done.
+             apply const_list_split in Hvs as [??] => //.
+             rewrite length_app in Hlen. lia.
+          -- simpl in Hred. clear - Hred.
+             remember [_] as es0.
+             induction Hred.
+             destruct H.
+             all: try by inversion Heqes0.
+             all: try by do 2 destruct vs => //.
+             all: try by do 2 destruct ves => //. 
+             ++ subst es. move/lfilledP in H0. inversion H0.
+                do 2 destruct vs => //.
+                all: do 2 destruct bef => //.
+             ++ subst. move/lfilledP in H. inversion H; subst.
+                all: try by do 2 destruct vs => //.
+                all: try by do 2 destruct bef => //.
+                destruct vs; last by inversion H1; subst.
+                destruct es; first empty_list_no_reduce.
+                inversion H1; subst.
+                destruct es => //.
+        * empty_list_no_reduce.
+  Qed.
+
+  
+    Lemma resume_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
+      t1s t2s i k tf hh hs s' f' es'  :
+      stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+      List.nth_error (s_conts s) k = Some (Cont_hh tf hh) ->
+    reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_resume i hs)]) s' f' es' ->
+    const_list vs ->
+    length vs < length t1s ->
+    False.
+    Proof.
+      intros Hi Hk Hred Hvs Hlen.
+    lazymatch goal with _ : reduce _ _ ?es0 _ _ _ |- _ => remember es0 as es end.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try (symmetry in H00; rewrite cat_app separate1 app_assoc in H00; symmetry in H00).
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??]; try apply const_list_concat.
+    all: try by do 3 destruct vs' => //. 
+    - move/lfilledP in H1; inversion H1.
+      all: try (symmetry in H2; rewrite cat_app separate1 app_assoc in H2; symmetry in H2).
+      all: apply first_values in H2 as (? & ? & ?) => //.
+      all: apply const_list_concat => //.
+    - rewrite cat_app separate1 app_assoc in H00.
+      apply first_values in H00 as (? & ? & ?) => //=.
+      inversion H6; subst.
+      apply concat_cancel_last in H5 as [<- _].
+      rewrite H0 in Hi. inversion Hi; subst.
+      lia. all: apply const_list_concat => //.
+    - repeat destruct vs' => //.
+      inversion H00; subst. rewrite H in Hk => //. 
+    - move/lfilledP in H; inversion H; subst.
+      all: symmetry in H1; rewrite cat_app separate1 app_assoc in H1; symmetry in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      2-4: apply const_list_concat => //.
+      separate_last es'0.
+      + rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        assert (const_list (app vs' [AI_ref_cont k])); first by apply const_list_concat.
+        rewrite -H1 in H3.
+        apply const_list_split in H3 as [? _].
+        apply const_list_split in H3 as [_ ?] => //. 
+      + separate_last es.
+        * rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [Hvsl ->].
+          separate_last l.
+          -- rewrite cat_app app_assoc in Hvsl.
+             apply concat_cancel_last in Hvsl as [<- ->].
+             eapply IHHred. done. done.
+             rewrite -app_assoc. done.
+             apply const_list_split in Hvs as [??] => //.
+             rewrite length_app in Hlen. lia.
+          -- simpl in Hred. clear - Hred.
+             remember [_] as es0.
+             induction Hred.
+             destruct H.
+             all: try by inversion Heqes0.
+             all: try by do 2 destruct vs => //.
+             all: try by do 2 destruct ves => //. 
+             ++ subst es. move/lfilledP in H0. inversion H0.
+                do 2 destruct vs => //.
+                all: do 2 destruct bef => //.
+             ++ subst. move/lfilledP in H. inversion H; subst.
+                all: try by do 2 destruct vs => //.
+                all: try by do 2 destruct bef => //.
+                destruct vs; last by inversion H1; subst.
+                destruct es; first empty_list_no_reduce.
+                inversion H1; subst.
+                destruct es => //.
+        * empty_list_no_reduce.
+  Qed.
+
+
+    Lemma throw_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
+      x a ts s' f' es'  :
+      nth_error (inst_tags (f_inst f)) x = Some a ->
+      nth_error (datatypes.s_tags s) a = Some (Tf ts []) ->
+    reduce s f (vs ++ [AI_basic (BI_throw x)]) s' f' es' ->
+    const_list vs ->
+    length vs < length ts ->
+    False.
+  Proof.
+    intros Hx Ha Hred Hvs Hlen.
+    lazymatch goal with _ : reduce _ _ ?es0 _ _ _ |- _ => remember es0 as es end.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by destruct vs' => //; destruct vs'.
+    - move/lfilledP in H1; inversion H1.
+      all: rewrite - (app_nil_r [_]) in H2.
+      all: apply first_values in H2 as (? & ? & ?) => //.
+
+    - apply concat_cancel_last in H00 as [??].
+      inversion H3; subst.
+      rewrite H in Hx. inversion Hx; subst.
+      rewrite H0 in Ha. inversion Ha; subst.
+      lia.
+    - move/lfilledP in H; inversion H; subst.
+      2-4: rewrite - (app_nil_r [_]) in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      destruct (separate_last es'0) as [[??]|] eqn:Hlast.
+      + apply separate_last_spec in Hlast as ->.
+        rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        subst vs'. apply const_list_split in Hvs as [? _].
+        apply const_list_split in H1 as [_ ?] => //. 
+      + apply separate_last_None in Hlast as ->.
+        destruct (separate_last es) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [<- ->].
+          eapply IHHred. done. done. done.
+          apply const_list_split in Hvs as [??] => //.
+          rewrite length_app in Hlen. lia.
+        * apply separate_last_None in Hlast as ->.
+          empty_list_no_reduce.
+  Qed.
+  
+  
+   Lemma try_table_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
+     i cs esb t1s t2s s' f' es'  :
+     stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+    reduce s f (vs ++ [AI_basic (BI_try_table i cs esb)]) s' f' es' ->
+    const_list vs ->
+    length vs < length t1s ->
+    False.
+  Proof.
+    intros Hi Hred Hvs Hlen.
+    lazymatch goal with _ : reduce _ _ ?es0 _ _ _ |- _ => remember es0 as es end.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by destruct vs' => //; destruct vs'.
+    - move/lfilledP in H1; inversion H1.
+      all: rewrite - (app_nil_r [_]) in H2.
+      all: apply first_values in H2 as (? & ? & ?) => //.
+
+    - apply concat_cancel_last in H00 as [??].
+      inversion H4; subst. 
+      rewrite H in Hi. inversion Hi; subst.
+      lia.
+    - move/lfilledP in H; inversion H; subst.
+      2-4: rewrite - (app_nil_r [_]) in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      destruct (separate_last es'0) as [[??]|] eqn:Hlast.
+      + apply separate_last_spec in Hlast as ->.
+        rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        subst vs'. apply const_list_split in Hvs as [? _].
+        apply const_list_split in H1 as [_ ?] => //. 
+      + apply separate_last_None in Hlast as ->.
+        destruct (separate_last es) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [<- ->].
+          eapply IHHred. done. done.
+          apply const_list_split in Hvs as [??] => //.
+          rewrite length_app in Hlen. lia.
+        * apply separate_last_None in Hlast as ->.
+          empty_list_no_reduce.
+  Qed. 
 
   Lemma v_to_e_length: forall vs,
       length (v_to_e_list vs) = length vs.
@@ -521,58 +1051,120 @@ Section reduce_properties_lemmas.
     length vs < length t1s ->
     False.
   Proof.
-    intro Hs.
-  not_enough_arguments s f vs (AI_invoke a0) t1s s' f' es'.
-  - assert ([v ; AI_basic (BI_tee_local i)] = [v] ++ [AI_basic (BI_tee_local i)]).
-    trivial. rewrite H0 in Heqes ; apply app_inj_tail in Heqes.
-    destruct Heqes as [_ Habs] ; inversion Habs.
-  - filled_trap H0 Hxl1. rewrite H0 in Heqes. apply Logic.eq_sym in Heqes.
-    found_intruse AI_trap Heqes Hxl2. apply in_app_or in Hxl2.
-    destruct Hxl2 as [Hxl2 | Hxl2] ;
-      [ intruse_among_values vs Hxl2 Hconst |
-        destruct Hxl2 as [Hxl2 | Hxl2] ; inversion Hxl2 ].
-  - apply app_inj_tail in Heqes. destruct Heqes as [Hves  Hinvoke ].
-    inversion Hinvoke as [Ha]. rewrite Ha in H.
-    rewrite H in Hs. rewrite H0 in Hs. inversion Hs as [[ Hi Ht1s Ht2s Hts Hes ]].
-    rewrite Ht1s in H4. rewrite H4 in Hlen.
-    rewrite <- Hves in Hlen. rewrite H1 in Hlen. rewrite v_to_e_length in Hlen. lia.
-  - apply app_inj_tail in Heqes. destruct Heqes as [Hves Hinvoke].
-    inversion Hinvoke as [Ha]. rewrite Ha in H. rewrite H in Hs.
-    rewrite H0 in Hs. inversion Hs.
-(*  - apply app_inj_tail in Heqes. destruct Heqes as [Hves Hinvoke].
-    inversion Hinvoke as [Ha]. rewrite Ha in H. rewrite H in Hs.
-    rewrite H0 in Hs. inversion Hs.*)
-  - simple_filled H0 k lh bef aft n0 l l'.
-    destruct aft.
-    { destruct es. { empty_list_no_reduce. }
-      get_tail a es b l' Htail.
-      rewrite Htail in H0. rewrite app_assoc in H0. rewrite app_nil_r in H0.
-      rewrite app_assoc in H0. rewrite H0 in Heqes. apply app_inj_tail in Heqes.
-      destruct Heqes as [Hb Hl'].
-      rewrite Htail in Hred. rewrite Hl' in Hred.
-      destruct bef. { simpl in Hb. rewrite Hb in Hred. rewrite Hb in Htail.
-                      rewrite Hl' in Htail. apply IHreduce ; assumption. }
-      apply (IHn es' b).
-      + rewrite <- Hb in Hvs. rewrite length_app in Hvs. simpl in Hvs. lia.
-      + exact Hred.
-      + rewrite <- Hb in Hconst. unfold const_list in Hconst.
-        rewrite forallb_app in Hconst. apply andb_true_iff in Hconst.
-        destruct Hconst as [_ Hconst] ; exact Hconst.
-      + rewrite <- Hb in Hlen. rewrite length_app in Hlen. lia.
-    } get_tail a aft b l' Htail.
-    rewrite Htail in H0. rewrite H0 in Heqes. do 2 rewrite app_assoc in Heqes.
-    apply app_inj_tail in Heqes. destruct Heqes as [Heqes _].
-    values_no_reduce. rewrite <- Heqes in Hconst.
-    unfold const_list in Hconst. rewrite forallb_app in Hconst.
-    apply andb_true_iff in Hconst. destruct Hconst as [Hconst _].
-    rewrite forallb_app in Hconst. apply andb_true_iff in Hconst.
-    destruct Hconst as [_ Hconst]. exact Hconst.
-    rewrite Heqes in Hxl1. apply in_app_or in Hxl1.
-    destruct Hxl1 as [ Hxl1 | Hxl1 ] ;
-      [ intruse_among_values vs Hxl1 Hconst |
-        destruct Hxl1 as [ Hxl1 | Hxl1 ] ; inversion Hxl1 ].
+    intros Hfunc Hred Hvs Hlen.
+    
+    remember (cat vs [AI_invoke a0]) as es.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by destruct vs' => //; destruct vs'.
+    - move/lfilledP in H1; inversion H1.
+      all: rewrite - (app_nil_r [_]) in H2.
+      all: apply first_values in H2 as (? & ? & ?) => //.
+    - apply concat_cancel_last in H00 as [??].
+      inversion H1; subst.
+      rewrite Hfunc in H; inversion H; subst.
+      rewrite v_to_e_length -H4 in Hlen.
+      lia.
+    - apply concat_cancel_last in H00 as [??].
+      inversion H1; subst.
+      rewrite Hfunc in H; inversion H; subst.
+    - move/lfilledP in H; inversion H; subst.
+      2-4: rewrite - (app_nil_r [_]) in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      destruct (separate_last es'0) as [[??]|] eqn:Hlast.
+      + apply separate_last_spec in Hlast as ->.
+        rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        subst vs'. apply const_list_split in Hvs as [? _].
+        apply const_list_split in H1 as [_ ?] => //. 
+      + apply separate_last_None in Hlast as ->.
+        destruct (separate_last es) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [<- ->].
+          eapply IHHred. done. done.
+          apply const_list_split in Hvs as [??] => //.
+          rewrite length_app in Hlen. lia.
+        * apply separate_last_None in Hlast as ->.
+          empty_list_no_reduce.
   Qed.
 
+ Lemma suspend_not_enough_arguments_no_reduce
+   s f vs x a s' f' es' t1s t2s :
+    nth_error (inst_tags (f_inst f)) x = Some a ->
+    nth_error (datatypes.s_tags s) a = Some (Tf t1s t2s) ->
+    reduce s f (vs ++ [AI_basic (BI_suspend (Mk_tagident x))]) s' f' es' ->
+    const_list vs ->
+    length vs < length t1s ->
+    False.
+  Proof.
+    intros Hx Ha Hred Hvs Hlen.
+    lazymatch goal with _ : reduce _ _ ?es0 _ _ _ |- _ => remember es0 as es end.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by destruct vs' => //; destruct vs'.
+    - move/lfilledP in H1; inversion H1.
+      all: rewrite - (app_nil_r [_]) in H2.
+      all: apply first_values in H2 as (? & ? & ?) => //.
+    - apply concat_cancel_last in H00 as [??].
+      inversion H3; subst.
+      rewrite H in Hx; inversion Hx; subst.
+      rewrite H0 in Ha; inversion Ha; subst.
+      rewrite length_map in Hlen.
+      lia.
+    - move/lfilledP in H; inversion H; subst.
+      2-4: rewrite - (app_nil_r [_]) in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      destruct (separate_last es'0) as [[??]|] eqn:Hlast.
+      + apply separate_last_spec in Hlast as ->.
+        rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        subst vs'. apply const_list_split in Hvs as [? _].
+        apply const_list_split in H1 as [_ ?] => //. 
+      + apply separate_last_None in Hlast as ->.
+        destruct (separate_last es) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [<- ->].
+          eapply IHHred. done. done. done.
+          apply const_list_split in Hvs as [??] => //.
+          rewrite length_app in Hlen. lia.
+        * apply separate_last_None in Hlast as ->.
+          empty_list_no_reduce.
+  Qed.
+  
 
   Lemma invoke_not_enough_arguments_no_reduce_host
         s f vs a0 s' f' es' t1s t2s h :
@@ -582,53 +1174,58 @@ Section reduce_properties_lemmas.
     length vs < length t1s ->
     False.
   Proof.
-    intro Hs.
-    not_enough_arguments s f vs (AI_invoke a0) t1s s' f' es'.
-    - assert ([v ; AI_basic (BI_tee_local i)] = [v] ++ [AI_basic (BI_tee_local i)]).
-      trivial. rewrite H0 in Heqes ; apply app_inj_tail in Heqes.
-      destruct Heqes as [_ Habs] ; inversion Habs.
-    - filled_trap H0 Hxl1. rewrite H0 in Heqes. apply Logic.eq_sym in Heqes.
-      found_intruse AI_trap Heqes Hxl2. apply in_app_or in Hxl2.
-      destruct Hxl2 as [Hxl2 | Hxl2] ;
-        [ intruse_among_values vs Hxl2 Hconst |
-          destruct Hxl2 as [Hxl2 | Hxl2] ; inversion Hxl2 ].
-    - apply app_inj_tail in Heqes. destruct Heqes as [Hves Hinvoke].
-      inversion Hinvoke as [Ha]. rewrite Ha in H. rewrite H in Hs.
-      rewrite H0 in Hs. inversion Hs. 
-  - apply app_inj_tail in Heqes. destruct Heqes as [Hves  Hinvoke ].
-    inversion Hinvoke as [Ha]. rewrite Ha in H.
-    rewrite H in Hs. rewrite H0 in Hs. inversion Hs as [[ Ht1s Ht2s Hh ]].
-    rewrite Ht1s in H3. rewrite H3 in Hlen.
-    rewrite <- Hves in Hlen. rewrite H1 in Hlen. rewrite v_to_e_length in Hlen. lia. 
-    - simple_filled H0 k lh bef aft n0 l l'.
-      destruct aft.
-      { destruct es. { empty_list_no_reduce. }
-        get_tail a es b l' Htail.
-        rewrite Htail in H0. rewrite app_assoc in H0. rewrite app_nil_r in H0.
-        rewrite app_assoc in H0. rewrite H0 in Heqes. apply app_inj_tail in Heqes.
-        destruct Heqes as [Hb Hl'].
-        rewrite Htail in Hred. rewrite Hl' in Hred.
-        destruct bef. { simpl in Hb. rewrite Hb in Hred. rewrite Hb in Htail.
-                        rewrite Hl' in Htail. apply IHreduce ; assumption. }
-        apply (IHn es' b).
-        + rewrite <- Hb in Hvs. rewrite length_app in Hvs. simpl in Hvs. lia.
-        + exact Hred.
-        + rewrite <- Hb in Hconst. unfold const_list in Hconst.
-          rewrite forallb_app in Hconst. apply andb_true_iff in Hconst.
-          destruct Hconst as [_ Hconst] ; exact Hconst.
-        + rewrite <- Hb in Hlen. rewrite length_app in Hlen. lia.
-      } get_tail a aft b l' Htail.
-      rewrite Htail in H0. rewrite H0 in Heqes. do 2 rewrite app_assoc in Heqes.
-      apply app_inj_tail in Heqes. destruct Heqes as [Heqes _].
-      values_no_reduce. rewrite <- Heqes in Hconst.
-      unfold const_list in Hconst. rewrite forallb_app in Hconst.
-      apply andb_true_iff in Hconst. destruct Hconst as [Hconst _].
-      rewrite forallb_app in Hconst. apply andb_true_iff in Hconst.
-      destruct Hconst as [_ Hconst]. exact Hconst.
-      rewrite Heqes in Hxl1. apply in_app_or in Hxl1.
-      destruct Hxl1 as [ Hxl1 | Hxl1 ] ;
-        [ intruse_among_values vs Hxl1 Hconst |
-          destruct Hxl1 as [ Hxl1 | Hxl1 ] ; inversion Hxl1 ].
+       intros Hfunc Hred Hvs Hlen.
+    remember (cat vs [AI_invoke a0]) as es.
+    generalize dependent vs.
+    induction Hred.
+    all: intros vs' Heqes Hvs Hlen.
+    inversion H.
+    all: remember Heqes as H00; clear HeqH00 Heqes.
+    all: subst.
+    all: try by rewrite separate1 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate1 in H00;
+      rewrite -cat_app catA in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate2 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by rewrite separate3 in H00;
+      apply concat_cancel_last in H00 as [??].
+    all: try by destruct vs' => //; destruct vs'.
+    - move/lfilledP in H1; inversion H1.
+      all: rewrite - (app_nil_r [_]) in H2.
+      all: apply first_values in H2 as (? & ? & ?) => //.
+    - apply concat_cancel_last in H00 as [??].
+      inversion H1; subst.
+      rewrite Hfunc in H; inversion H; subst.
+    - apply concat_cancel_last in H00 as [??].
+      inversion H1; subst.
+      rewrite Hfunc in H; inversion H; subst.
+      rewrite v_to_e_length -H3 in Hlen.
+      lia.
+
+    - move/lfilledP in H; inversion H; subst.
+      2-4: rewrite - (app_nil_r [_]) in H1.
+      2-4: apply first_values in H1 as (? & ? & ?) => //.
+      destruct (separate_last es'0) as [[??]|] eqn:Hlast.
+      + apply separate_last_spec in Hlast as ->.
+        rewrite -cat_app in H1.
+        repeat rewrite catA in H1.
+        apply concat_cancel_last in H1 as [??].
+        eapply values_no_reduce.
+        exact Hred.
+        subst vs'. apply const_list_split in Hvs as [? _].
+        apply const_list_split in H1 as [_ ?] => //. 
+      + apply separate_last_None in Hlast as ->.
+        destruct (separate_last es) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          rewrite cats0 in H1. rewrite -cat_app catA in H1.
+          apply concat_cancel_last in H1 as [<- ->].
+          eapply IHHred. done. done.
+          apply const_list_split in Hvs as [??] => //.
+          rewrite length_app in Hlen. lia.
+        * apply separate_last_None in Hlast as ->.
+          empty_list_no_reduce.
   Qed.
 
   Lemma prim_step_obs_efs_empty es es' σ σ' obs efs:
@@ -702,10 +1299,13 @@ Section reduce_properties_lemmas.
     move => HReduce.
     remember ([AI_trap]) as e.
     induction HReduce => //=; subst; try by do 2 destruct vcs => //=.
+    all: try by do 2 destruct vs => //. 
     - subst. inversion H; subst; clear H => //; by do 3 destruct vs => //=.
     - move/lfilledP in H.
       move/lfilledP in H0.
-      inversion H => //; subst; clear H; last by do 3 destruct vs => //=.
+      inversion H => //; subst; clear H.
+      all: try by do 3 destruct vs => //=.
+      all: try by do 3 destruct bef => //=.
       inversion H0; subst; clear H0.
       destruct vs => /=; last by destruct vs, es, es'0 => //; inversion H1; subst.
       destruct es => /=; first by apply empty_no_reduce in HReduce.
@@ -713,24 +1313,28 @@ Section reduce_properties_lemmas.
   Qed.
     
   Lemma AI_trap_reduce_det v ws f ws' f' es':
-    reduce ws f ([AI_basic (BI_const v); AI_trap]) ws' f' es' ->
+    reduce ws f ([AI_const v; AI_trap]) ws' f' es' ->
     (ws', f', es') = (ws, f, [AI_trap]).
   Proof.
     move => HReduce.
-    remember ([AI_basic (BI_const v); AI_trap]) as es0.
+    remember ([AI_const v; AI_trap]) as es0.
     induction HReduce => //=; subst; try by do 3 destruct vcs => //=.
+    all: try by do 3 destruct vs => //=.
     - inversion H; subst; clear H => //; by do 3 destruct vs => //=.
     - move/lfilledP in H.
       move/lfilledP in H0.
-      inversion H => //; subst; clear H; last by do 3 destruct vs => //=.
+      inversion H => //; subst; clear H.
+      all: try by destruct v; (try destruct v); do 3 destruct vs => //=.
+      all: try by destruct v; (try destruct v); do 3 destruct bef => //=.
       inversion H0; subst; clear H0.
       destruct vs => /=.
       + destruct es => /=; first by apply empty_no_reduce in HReduce.
-        destruct es => /=; simpl in H1; inversion H1; subst; clear H1; first by apply test_no_reduce1 in HReduce.
+        destruct es => /=; simpl in H1; inversion H1; subst; clear H1; first apply values_no_reduce in HReduce => //.
+        simpl; rewrite const_const => //.
         destruct es, es'0 => //=.
         rewrite cats0.
         by apply IHHReduce.
-      + destruct vs => /=; last by destruct vs, es, es'0 => //; inversion H1; subst.
+      + destruct vs => /=; last by destruct v; (try destruct v); destruct vs, es, es'0 => //; inversion H1; subst.
         inversion H1; subst; clear H1.
         destruct es => /=; first by apply empty_no_reduce in HReduce.
         destruct es, es'0 => //.
@@ -796,49 +1400,83 @@ Section reduce_properties_lemmas.
   Qed.
 
   Lemma trap_reduce_length s f es s' f' es' vs1 es2 :
-    lfilled 0 (LH_base vs1 es2) [AI_trap] es -> reduce s f es s' f' es' ->
-    exists n1 n2, (n1 + (length es2 - n2) < length vs1 + length es2 ∧ n1 <= length vs1 ∧ n2 <= length es2) ∧
-               lfilled 0 (LH_base (take n1 vs1) (drop n2 es2)) [AI_trap] es' /\ (s, f) = (s', f').
+    lfilled 0 (LH_base vs1 es2) [AI_trap] es ->
+    reduce s f es s' f' es' ->
+    exists n1 n2,
+      (n1 + (length es2 - n2) < length vs1 + length es2 ∧
+         n1 <= length vs1 ∧ n2 <= length es2) ∧
+        lfilled 0 (LH_base (take n1 vs1) (drop n2 es2)) [AI_trap] es' /\
+        (s, f) = (s', f').
   Proof.
     intros Hfill%lfilled_Ind_Equivalent Hred.
     revert vs1 es2 Hfill.
     generalize dependent es.
     induction 1;intros vs1 es2 Hfill;[|inversion Hfill;simplify_eq..].
-    all: try do 2 destruct vs1 =>//.
-    all: try do 3 destruct vs1 =>//.
+    all: try do 2 destruct vs1 => //.
+    all: try do 3 destruct vs1 => //.
     2: try by apply first_values in H11 as [?[? ?]];auto;[|apply v_to_e_is_const_list].
     { revert vs1 es2 Hfill.
       generalize dependent e.
       induction 1;intros vs1 es2 Hfill;inversion Hfill;simplify_eq.
-      all: try do 2 destruct vs1 =>//.
-      all: try do 3 destruct vs1 =>//.
+      all: try do 2 destruct vs1 => //.
+      all: try do 3 destruct vs1 => //.
       all: try by apply first_values in H5 as [?[? ?]];auto.
-      destruct vs1 =>//. do 2 destruct es2 =>//. by inversion H2;simplify_eq.
-      do 2 destruct vs1 =>//.
-      (* base case *)
-      apply lfilled_Ind_Equivalent in H0.
-      inversion H0;simplify_eq.
-      apply first_values in H1;auto.
-      destruct H1 as [-> [_ ->]].
-      exists 0,(length es2). split.
-      { split;try lia. destruct vs1,es2 =>//.
-        all: simpl;lia. }
-      rewrite take_0 drop_all. split;auto. }
-    apply Logic.eq_sym in H7.
-    found_intruse AI_trap H7 Hxl1.
-    apply in_app_or in Hxl1 as [|[|]] => //.
-    assert (const_list (v_to_e_list vcs)) ; first by apply v_to_e_is_const_list.
-    intruse_among_values (v_to_e_list vcs) H0 H1.
-   
-    { apply lfilled_Ind_Equivalent in H.
-      inversion H;simplify_eq; [|by eapply first_values in H1 as [?[? ?]];auto].
+      all: try by destruct v; (try destruct v); do 3 destruct vs1 => //.
+      - destruct ref; do 3 destruct vs1 => //.
+      - destruct v1; (try destruct v);
+          destruct v2; (try destruct v);
+          do 5 destruct vs1 => //.
+      - destruct v1; (try destruct v);
+          destruct v2; (try destruct v);
+          do 5 destruct vs1 => //.
+      - apply lfilled_Ind_Equivalent in H0.
+        inversion H0;simplify_eq.
+        all: apply first_values in H1;auto.
+        all: destruct H1 as [-> [? ->]] => //.
+        exists 0,(length es2). split.
+        + split;try lia. destruct vs1,es2 => //.
+          all: simpl;lia. 
+        + rewrite take_0 drop_all. split;auto.
+    }
+    all: try by rewrite -(app_nil_r [_]) in H6;
+      apply first_values in H6 as (? & ? & ?) => //; try apply v_to_e_is_const_list.
+    all: try by rewrite -(app_nil_r [_]) in H4;
+      apply first_values in H4 as (? & ? & ?) => //; try apply v_to_e_is_const_list.
+    all: try by rewrite -(app_nil_r [_]) in H7;
+      apply first_values in H7 as (? & ? & ?) => //; try apply v_to_e_is_const_list.
+    - rewrite (separate1  _ [_]) in H7.
+      rewrite -cat_app catA in H7.
+      rewrite -(app_nil_r [_]) in H7.
+      apply first_values in H7 as (? & ? & ?) => //.
+      repeat apply const_list_concat => //.
+    - rewrite (separate1  _ [_]) in H7.
+      rewrite -cat_app catA in H7.
+      rewrite -(app_nil_r [_]) in H7.
+      apply first_values in H7 as (? & ? & ?) => //.
+      repeat apply const_list_concat => //.
+      apply v_to_e_is_const_list.
+    - rewrite (separate1  _ [_]) in H6.
+      rewrite -cat_app catA in H6.
+      rewrite -(app_nil_r [_]) in H6.
+      apply first_values in H6 as (? & ? & ?) => //.
+      repeat apply const_list_concat => //.
+    - rewrite (separate1  _ [_]) in H11.
+      rewrite -cat_app catA in H11.
+      rewrite -(app_nil_r [_]) in H11.
+      apply first_values in H11 as (? & ? & ?) => //.
+      repeat apply const_list_concat => //.
+      apply v_to_e_is_const_list.
+    - destruct v; (try destruct v); do 3 destruct vs1 => //.
+    - destruct v; (try destruct v); do 3 destruct vs1 => //.
+    - move/lfilledP in H.
+      inversion H; subst.
+      all: try by apply first_values in H1 as (? & ? & ?).
       apply lfilled_Ind_Equivalent in H0. inversion H0;simplify_eq.
       apply val_head_stuck_reduce in Hred as Hnv.
       apply const_list_snoc_eq3 in H1;auto.
       2: destruct es => //.
       2:{ destruct (const_list es) eqn:Habs => //.
-          apply const_list_to_val in Habs as [??] => //.
-          rewrite H2 in Hnv => //. } 
+          apply values_no_reduce in Hred => //. } 
       2: intros ->;done.
       destruct H1 as [? [? [? [? [? ?]]]]];simplify_eq.
       assert (lfilledInd 0 (LH_base x x0) [AI_trap] (x ++ [AI_trap] ++ x0)%list) as HH;[by constructor|].
@@ -854,19 +1492,282 @@ Section reduce_properties_lemmas.
       repeat erewrite app_assoc.
       erewrite <- app_assoc.
       erewrite <- (app_assoc _ _ (drop n2 x0 ++ es'0)).
-      constructor. apply const_list_app;auto. }
+      constructor. apply const_list_app;auto. 
   Qed.
 
+  Lemma lfilled_prepend_append k lh es LI vs es' :
+    const_list vs ->
+    lfilled k lh es LI -> exists lh', lfilled k lh' es (vs ++ LI ++ es').
+  Proof.
+    intros Hvs H; move/lfilledP in H; inversion H; subst.
+    - exists (LH_base (vs ++ vs0) (es'0 ++ es')).
+      unfold lfilled, lfill.
+      rewrite const_list_concat => //.
+      repeat rewrite -cat_app. repeat rewrite catA. done.
+    - exists (LH_rec (vs ++ vs0) n es'0 lh' (es'' ++ es')).
+      unfold lfilled, lfill; fold lfill.
+      rewrite const_list_concat => //.
+      move/lfilledP in H1. unfold lfilled in H1.
+      destruct (lfill _ _ _) => //.  move/eqP in H1; subst l.
+      repeat rewrite -cat_app. repeat rewrite -catA. done.
+    - exists (LH_handler (vs ++ bef) hs lh' (aft ++ es')).
+      unfold lfilled, lfill; fold lfill.
+      rewrite const_list_concat => //.
+      move/lfilledP in H1. unfold lfilled in H1.
+      destruct (lfill _ _ _) => //. move/eqP in H1; subst l.
+      repeat rewrite -cat_app. repeat rewrite -catA. done.
+    - exists (LH_prompt (vs ++ bef) ts hs lh' (aft ++ es')).
+      unfold lfilled, lfill; fold lfill.
+      rewrite const_list_concat => //.
+      move/lfilledP in H1. unfold lfilled in H1.
+      destruct (lfill _ _ _) => //. move/eqP in H1; subst l.
+      repeat rewrite -cat_app. repeat rewrite -catA. done.
+  Qed. 
+      
+
+  
   Lemma trap_reduce s f es s' f' es' lh :
     lfilled 0 lh [AI_trap] es -> reduce s f es s' f' es' ->
     exists lh', lfilled 0 lh' [AI_trap] es' /\ (s, f) = (s', f').
   Proof.
-    intros Hfill Hred.
-    destruct lh;try done.
-    eapply trap_reduce_length in Hfill;eauto.
-    destruct Hfill as [? [? [? ?]]].
-    eexists;eauto.
-  Qed.
+    remember (S (length_rec es)) as m.
+    assert (length_rec es < m); first lia.
+    clear Heqm.
+    generalize dependent es. generalize dependent es'. generalize dependent lh.
+    induction m; intros lh es' es Hlen Hfill Hred; first lia.
+    move/lfilledP in Hfill; inversion Hfill; subst.
+    (*revert es es'.
+    induction lh; intros es es' Hfill Hred; try done. *)
+    - move/lfilledP in Hfill. eapply trap_reduce_length in Hfill;eauto.
+      destruct Hfill as [? [? [? ?]]].
+      eexists;eauto.
+    - remember (cat bef $ cat [AI_handler hs LI] aft) as es.
+      induction Hred.
+      inversion H1.
+      all: remember Heqes as H00; clear Heqes HeqH00.
+      all: subst.
+      all: try by rewrite separate1 in H00;
+        apply first_values in H00 as (? & ? & ?);
+        try rewrite /= const_const.
+      all: try by rewrite separate2 in H00;
+        apply first_values in H00 as (? & ? & ?).
+      all: try by rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+        apply first_values in H00 as (? & ? & ?).
+      all: try by rewrite - (app_nil_r [_]) in H00;
+        apply first_values in H00 as (? & ? & ?);
+        try apply v_to_e_is_const_list.
+      all: try by rewrite separate2 separate1 in H00;
+        repeat rewrite -cat_app in H00;
+        repeat rewrite catA in H00;
+        rewrite -catA in H00;
+        rewrite -(catA bef) in H00;
+        apply first_values in H00 as (? & ? & ?);
+        (try apply const_list_concat);
+        try apply v_to_e_is_const_list
+      .  
+      + rewrite separate1 in H00;
+          apply first_values in H00 as (? & ? & ?) => //=.
+        destruct ref => //.
+      + rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        inversion H4; subst.
+        move/lfilledP in H0.
+        apply lfilled_const in H0 as [??] => //.
+      + exists (LH_base [] []). unfold lfilled, lfill => //=.
+      + rewrite separate3 in H00;
+          apply first_values in H00 as (? & ? & ?) => //=.
+        do 2 rewrite const_const => //.
+      + rewrite separate3 in H00;
+          apply first_values in H00 as (? & ? & ?) => //=.
+        do 2 rewrite const_const => //.
+      + rewrite separate1 in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        simpl; rewrite H2 => //.
+      + exists (LH_base [] []); unfold lfilled, lfill => //.
+      + rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        inversion H4; subst.
+        apply hfilled_to_llfill in H1 as [llh Hllh].
+        rewrite -(cat0s [_]) in Hllh.
+        rewrite -(cat0s [_]) in H0.
+        move/lfilledP in H0.
+        edestruct lfilled_llfill_first_values as (? & ?).
+        exact H0. exact Hllh. all: try done.
+      + rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        inversion H4; subst.
+        apply hfilled_to_llfill in H1 as [llh Hllh].
+        rewrite -(cat0s [_]) in Hllh.
+        rewrite -(cat0s [_]) in H0.
+        move/lfilledP in H0.
+        edestruct lfilled_llfill_first_values as (? & ?).
+        exact H0. exact Hllh. all: try done.
+      + move/lfilledP in H1; inversion H1; subst.
+        all: move/lfilledP in H2; inversion H2; subst.
+        all: try apply first_values in H3 as (? & ? & ?) => //.
+        * specialize (IHHred IHm).
+          apply const_list_snoc_eq3 in H3 as (vs2 & es2 & -> & -> & -> & Hvs2).
+          all: try done.
+          2: intros ->; empty_list_no_reduce.
+          2: destruct (const_list es) eqn:Hres => //; by exfalso; eapply values_no_reduce.
+          2: intros ->; by eapply AI_trap_irreducible.
+          destruct vs.
+          -- destruct es'0.
+             ++ rewrite app_nil_r in Hfill, Hlen, H1, IHHred.
+                rewrite cats0.
+                apply IHHred => //.
+             ++ eapply IHm in Hred as (lhres & Hfillres & Hσ).
+                edestruct lfilled_prepend_append as [lhres' Hfillres'].
+                instantiate (1 := []) => //.
+                exact Hfillres.
+                exists lhres'. split => //.
+                repeat rewrite cat_app in Hlen.
+                repeat rewrite length_app_rec in Hlen.
+                specialize (length_cons_rec a es'0) as Hsol.
+                repeat rewrite length_app_rec.
+                lia.
+                instantiate (1 := LH_handler vs2 hs lh' es2).
+                apply/lfilledP; constructor => //.
+          -- eapply IHm in Hred as (lhres & Hfillres & Hσ).
+             edestruct lfilled_prepend_append as [lhres' Hfillres'].
+             exact H6. exact Hfillres.
+             exists lhres'. split => //.
+             repeat rewrite cat_app in Hlen.
+             repeat rewrite length_app_rec in Hlen.
+             specialize (length_cons_rec a vs) as Hsol.
+             repeat rewrite length_app_rec.
+             lia.
+             instantiate (1 := LH_handler vs2 hs lh' es2).
+             apply/lfilledP; constructor => //.
+        * inversion H5; subst. clear IHHred.
+          edestruct IHm as (lhres & Hfillres & Hσ).
+          3:{ eapply r_label.
+              exact Hred.
+              apply/lfilledP. exact H8.
+              apply/lfilledP. exact H14. }
+          repeat rewrite cat_app in Hlen.
+          repeat rewrite length_app_rec in Hlen.
+          unfold length_rec.
+          rewrite /length_rec /= in Hlen.
+          lia.
+          apply/lfilledP. exact H0.
+          exists (LH_handler bef hs lhres aft).
+          split => //. apply/lfilledP. constructor => //.
+          apply/lfilledP => //.
+    - remember (cat bef $ cat [AI_prompt ts hs LI] aft) as es.
+      induction Hred.
+      inversion H1.
+      all: remember Heqes as H00; clear Heqes HeqH00.
+      all: subst.
+      all: try by rewrite separate1 in H00;
+        apply first_values in H00 as (? & ? & ?);
+        try rewrite /= const_const.
+      all: try by rewrite separate2 in H00;
+        apply first_values in H00 as (? & ? & ?).
+      all: try by rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+        apply first_values in H00 as (? & ? & ?).
+      all: try by rewrite - (app_nil_r [_]) in H00;
+        apply first_values in H00 as (? & ? & ?);
+        try apply v_to_e_is_const_list.
+      all: try by rewrite separate2 separate1 in H00;
+        repeat rewrite -cat_app in H00;
+        repeat rewrite catA in H00;
+        rewrite -catA in H00;
+        rewrite -(catA bef) in H00;
+        apply first_values in H00 as (? & ? & ?);
+        (try apply const_list_concat);
+        try apply v_to_e_is_const_list
+      .  
+      + rewrite separate1 in H00;
+          apply first_values in H00 as (? & ? & ?) => //=.
+        destruct ref => //.
+      + rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        inversion H4; subst.
+        move/lfilledP in H0.
+        apply lfilled_const in H0 as [??] => //.
+      + exists (LH_base [] []). unfold lfilled, lfill => //=.
+      + rewrite separate3 in H00;
+          apply first_values in H00 as (? & ? & ?) => //=.
+        do 2 rewrite const_const => //.
+      + rewrite separate3 in H00;
+          apply first_values in H00 as (? & ? & ?) => //=.
+        do 2 rewrite const_const => //.
+      + rewrite separate1 in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        simpl; rewrite H2 => //.
+      + exists (LH_base [] []); unfold lfilled, lfill => //.
+      + rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        inversion H5; subst.
+        apply hfilled_to_llfill in H4 as [llh Hllh].
+        rewrite -(cat0s [_]) in Hllh.
+        rewrite -(cat0s [_]) in H0.
+        move/lfilledP in H0.
+        edestruct lfilled_llfill_first_values as (? & ?).
+        exact H0. exact Hllh. all: try done.
+      + rewrite -(app_nil_l [_]) -(app_nil_r [_]) in H00;
+          apply first_values in H00 as (? & ? & ?) => //.
+        inversion H6; subst.
+        apply hfilled_to_llfill in H4 as [llh Hllh].
+        rewrite -(cat0s [_]) in Hllh.
+        rewrite -(cat0s [_]) in H0.
+        move/lfilledP in H0.
+        edestruct lfilled_llfill_first_values as (? & ?).
+        exact H0. exact Hllh. all: try done.
+      + move/lfilledP in H1; inversion H1; subst.
+        all: move/lfilledP in H2; inversion H2; subst.
+        all: try apply first_values in H3 as (? & ? & ?) => //.
+        * specialize (IHHred IHm).
+          apply const_list_snoc_eq3 in H3 as (vs2 & es2 & -> & -> & -> & Hvs2).
+          all: try done.
+          2: intros ->; empty_list_no_reduce.
+          2: destruct (const_list es) eqn:Hres => //; by exfalso; eapply values_no_reduce.
+          2: intros ->; by eapply AI_trap_irreducible.
+          destruct vs.
+          -- destruct es'0.
+             ++ rewrite app_nil_r in Hfill, Hlen, H1, IHHred.
+                rewrite cats0.
+                apply IHHred => //.
+             ++ eapply IHm in Hred as (lhres & Hfillres & Hσ).
+                edestruct lfilled_prepend_append as [lhres' Hfillres'].
+                instantiate (1 := []) => //.
+                exact Hfillres.
+                exists lhres'. split => //.
+                repeat rewrite cat_app in Hlen.
+                repeat rewrite length_app_rec in Hlen.
+                specialize (length_cons_rec a es'0) as Hsol.
+                repeat rewrite length_app_rec.
+                lia.
+                instantiate (1 := LH_prompt vs2 ts hs lh' es2).
+                apply/lfilledP; constructor => //.
+          -- eapply IHm in Hred as (lhres & Hfillres & Hσ).
+             edestruct lfilled_prepend_append as [lhres' Hfillres'].
+             exact H6. exact Hfillres.
+             exists lhres'. split => //.
+             repeat rewrite cat_app in Hlen.
+             repeat rewrite length_app_rec in Hlen.
+             specialize (length_cons_rec a vs) as Hsol.
+             repeat rewrite length_app_rec.
+             lia.
+             instantiate (1 := LH_prompt vs2 ts hs lh' es2).
+             apply/lfilledP; constructor => //.
+        * inversion H5; subst. clear IHHred.
+          edestruct IHm as (lhres & Hfillres & Hσ).
+          3:{ eapply r_label.
+              exact Hred.
+              apply/lfilledP. exact H8.
+              apply/lfilledP. exact H15. }
+          repeat rewrite cat_app in Hlen.
+          repeat rewrite length_app_rec in Hlen.
+          unfold length_rec.
+          rewrite /length_rec /= in Hlen.
+          lia.
+          apply/lfilledP. exact H0.
+          exists (LH_prompt bef ts hs lhres aft).
+          split => //. apply/lfilledP. constructor => //.
+          apply/lfilledP => //.
+Qed.          
 
   Lemma lfilled_reducible i lh e LI σ :
     lfilled i lh e LI ->
@@ -917,8 +1818,9 @@ Section reduce_properties_lemmas.
                          lfilled k lh (vs ++ [e]) es /\ 
                          lfilled k lh es'' es')
     \/
-      (exists k lh bef aft, const_list bef /\ (bef ++ aft <> []) /\
-                         lfilled k lh (bef ++ [AI_trap] ++ aft) es /\
+      (exists k lh lhtr LI, lhtr <> LH_base [] [] /\
+                         lfilled 0 lhtr [AI_trap] LI /\
+                         lfilled k lh LI es /\
                          lfilled k lh [AI_trap] es' /\
                          (s, f) = (s', f')).
   Proof.
@@ -926,131 +1828,243 @@ Section reduce_properties_lemmas.
     induction Hred ;
       (try by left ; eexists 0, (LH_base [] []), [] , _, _ ;
        repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-       (try by rewrite app_nil_r) ; constructor ) ;  
-      (try by left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)] , _, _ ;
+       (try by rewrite app_nil_r) ; (try by apply v_to_e_is_const_list); constructor ) ; 
+      (try by left ; eexists 0, (LH_base [] []), [_] , _, _ ;
        repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-       (try by rewrite app_nil_r) ; constructor) ; 
-      (try by left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _) ;
-                                                  AI_basic (BI_const _) ] , _, _ ;
+       (try by rewrite app_nil_r) ; (repeat rewrite const_const); (try by apply v_to_e_is_const_list); constructor).
+    (*; 
+      (try by left ; eexists 0, (LH_base [] []), [_ ; _] , _, _ ;
        repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-       (try by rewrite app_nil_r) ; constructor ).
-    { destruct H ;
-        last (by right ; unfold lfilled, lfill in H0 ;
-              destruct lh as [bef aft|] ; last (by false_assumption) ;
-              remember (const_list bef) as b eqn:Hbef ; destruct b ;
-              last (by false_assumption) ;
-              move/eqP in H0 ;
-              exists 0, (LH_base [] []), bef, aft ; repeat split ; (try by simpl) ;
-              [ intro Habs ; apply app_eq_nil in Habs as [-> ->] ;
-                rewrite app_nil_l app_nil_r in H0 ; by apply H
-              | unfold lfilled, lfill ; simpl ; subst ; rewrite app_nil_r]) ;
-        (try by left ; eexists 0, (LH_base [] []), [] , _, _ ;
-         repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ; 
-         (try by rewrite app_nil_r) ; constructor ;
-         ((by apply (rs_br _ H H0 H1)) +
-            (by apply (rs_return _ H H0 H1)) +
-            constructor)
-        ) ;
-        (try by left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)] , _, _ ;
-         repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-         (try by rewrite app_nil_r) ; constructor ; constructor
-        ); 
-        (try by left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _) ;
-                                                    AI_basic (BI_const _) ] , _, _ ;
-         repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-         (try by rewrite app_nil_r) ; constructor ; constructor
-        );
-        (try by left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _) ;
-                                                    AI_basic (BI_const _) ;
-                                                    AI_basic (BI_const _) ] , _, _ ;
-         repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-         (try by rewrite app_nil_r) ; constructor ; constructor
-        ) ;
-        left ; eexists 0, (LH_base [] []), _, _, _ ;
-        repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-        (try by rewrite app_nil_r) ;
-        try  constructor.
-      apply (rs_block _ H H0 H1 H2). apply (rs_loop _ H H0 H1 H2).
-      instantiate (1 := [v]) => //=. by rewrite H.
-      instantiate (1 := AI_basic (BI_tee_local i)) => //=.
-      by constructor. by rewrite app_nil_r. }
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_call_indirect_success H H0 H1).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_call_indirect_failure1 H H0 H1).
-    left ; eexists 0, (LH_base [] []), _, _, _ ; repeat split ;
-      (try unfold lfilled, lfill => //=) ; (try done) ; (try by rewrite app_nil_r).
-    rewrite H1 ; by apply v_to_e_is_const_list. done.
-    apply (r_invoke_native _ H H0 H1 H2 H3 H4 H5 H6 H7 H8).
-    left ; eexists 0, (LH_base [] []), _, _, _ ; repeat split ;
-    (try unfold lfilled, lfill => //=) ; (try done) ; (try by rewrite app_nil_r).
-    rewrite H1 ; by apply v_to_e_is_const_list. done.
-    apply (r_invoke_host _ H H0 H1 H2 H3 H4).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_set_local _ H H0 H1).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_load_success _ H H0 H1).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_load_failure _ H H0 H1).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_load_packed_success _ H H0 H1).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_load_packed_failure _ H H0 H1).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _) ;
-                                        AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_store_success _ H H0 H1 H2).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _) ;
-                                        AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_store_failure _ H H0 H1 H2).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _) ;
-                                        AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_store_packed_success _ H H0 H1 H2).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _) ;
-                                        AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_store_packed_failure _ H H0 H1 H2).
-    left ; eexists 0, (LH_base [] []), [], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_current_memory H H0 H1).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_grow_memory_success H H0 H1 H2).
-    left ; eexists 0, (LH_base [] []), [AI_basic (BI_const _)], _, _.
-    repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
-      (try by rewrite app_nil_r). 
-    apply (r_grow_memory_failure _ H H0 H1).
-    destruct IHHred as [ (k0 & lh0 & vs & e & es'' & Hvs & He & Hred' & Hes & Hes')
-                       | (k0 & lh0 & bef & aft & Hbef & Hba & Hfill & Hfill' & Hσ) ].
-    destruct (lfilled_trans2 _ _ _ _ _ _ _ _ _ _ Hes Hes' H H0) as (lh' & Hfill1 & Hfill2).
-    left ; exists (k0 + k), lh', vs, e, es'' => //=.  
-    destruct (lfilled_trans2 _ _ _ _ _ _ _ _ _ _ Hfill Hfill' H H0)
-      as (lh' & Hfill1 & Hfill2).
-    right ; exists (k0 + k), lh', bef, aft => //=.
+       (try by rewrite app_nil_r) ; (try by apply v_to_e_is_const_list); constructor );
+      (try by left ; eexists 0, (LH_base [] []), _ , _, _ ;
+       repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+       (try by rewrite app_nil_r) ; (try by apply v_to_e_is_const_list); constructor).
+    *)
+    { destruct H.
+      all: try by left; eexists 0, (LH_base [] []), [], _, _;
+        repeat split; unfold lfilled, lfill; simpl; (try done); (try done);
+        (try by rewrite app_nil_r);
+        constructor; econstructor.
+      all: try by left; eexists 0, (LH_base [] []), [_], _, _;
+        repeat split; unfold lfilled, lfill; simpl; (try done); (try done);
+        (try by rewrite app_nil_r); (try by rewrite const_const);
+        constructor; constructor.
+      all: try by left; eexists 0, (LH_base [] []), [_; _], _, _;
+        repeat split; unfold lfilled, lfill; simpl; (try done); (try done);
+        (try by rewrite app_nil_r);
+        constructor; constructor.
+      all: try by left; eexists 0, (LH_base [] []), [_; _; _], _, _;
+        repeat split; unfold lfilled, lfill; simpl; (try done); (try done);
+        (try by rewrite app_nil_r); (try by repeat rewrite const_const);
+        constructor; constructor.
+      all: try by left ; eexists 0, (LH_base [] []), _, _, _ ;
+        repeat split ; unfold lfilled, lfill ; simpl ;
+        (try done) ; (try done) ;
+        (try by rewrite app_nil_r) ; 
+        do 2 econstructor => //.
+      - left; eexists 0, (LH_base [] []), [_], _, _.
+        repeat split; unfold lfilled, lfill; simpl; (try done); (try done);
+          (try by rewrite app_nil_r).
+        destruct ref => //. 
+        constructor; constructor. done.
+      - left; eexists 0, (LH_base [] []), [_], _, _.
+        repeat split; unfold lfilled, lfill; simpl; (try done); (try done);
+          (try by rewrite app_nil_r).
+        rewrite H => //. 
+        constructor. econstructor => //.
+      - right. exists 0, (LH_base [] []), lh, es.
+        repeat split => //. intros ->.
+        rewrite /lfilled /lfill /= in H0. move/eqP in H0. by apply H.
+        rewrite /lfilled /lfill /= app_nil_r //. }
+    - left; eexists 0, (LH_base [] []), [_], _, _.
+        repeat split; unfold lfilled, lfill; simpl; (try done); (try done);
+          (try by rewrite app_nil_r).
+        eapply r_call_indirect_success => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r). 
+      eapply r_call_indirect_failure1 => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_call_reference => //.
+    - left; eexists 0, (LH_base [] []), _, _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      subst; apply v_to_e_is_const_list. done. eapply r_invoke_native => //. 
+    - left ; eexists 0, (LH_base [] []), _, _, _ ; repeat split ;
+        (try unfold lfilled, lfill => //=) ; (try done) ; (try by rewrite app_nil_r).
+      rewrite H1 ; by apply v_to_e_is_const_list. done.
+      eapply r_invoke_host => //.
+    - left ; eexists 0, (LH_base [] []), _, _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r). done.
+      eapply r_try_table => //.
+    - left ; eexists 0, (LH_base [] []), _, _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r). subst; apply v_to_e_is_const_list. done.
+      eapply r_throw => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_throw_ref_desugar => //.
+    - left ; eexists 0, (LH_base [] []), [], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_throw_ref => //.
+    - left ; eexists 0, (LH_base [] []), [], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_throw_ref_ref => //. 
+    - left ; eexists 0, (LH_base [] []), (_ ++ [_]), _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ;
+        (repeat rewrite -cat_app); (try by rewrite cats0 -catA /=); (try done) ; (try done); (try by rewrite cats0).
+      apply const_list_concat => //.
+      rewrite -catA.
+      eapply r_resume => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_resume_failure => //.
+    - left ; eexists 0, (LH_base [] []), _, _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      apply v_to_e_is_const_list. done.
+      eapply r_suspend_desugar => //.
+    - left ; eexists 0, (LH_base [] []), (_ ++ [_]), _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ;
+        (repeat rewrite -cat_app); (try by rewrite cats0 -catA /=); (try done) ; (try done); (try by rewrite cats0).
+      apply const_list_concat => //. apply v_to_e_is_const_list => //.
+      rewrite -catA. eapply r_switch_desugar => //.
+    - left ; eexists 0, (LH_base [] []), [], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_suspend => //.
+    - left ; eexists 0, (LH_base [] []), [], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_switch => //.
+    - left ; eexists 0, (LH_base [] []), [], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_switch_failure => //.
+    - left ; eexists 0, (LH_base [] []), (_ ++ [_]), _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ;
+        (repeat rewrite -cat_app); (try by rewrite cats0 -catA /=); (try done) ; (try done); (try by rewrite cats0).
+      apply const_list_concat => //.
+      rewrite -catA. eapply r_contbind => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_contbind_failure => //.
+    - left ; eexists 0, (LH_base [] []), (_ ++ [_]), _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ;
+        (repeat rewrite -cat_app); (try by rewrite cats0 -catA /=); (try done) ; (try done); (try by rewrite cats0).
+      apply const_list_concat => //. subst; apply v_to_e_is_const_list.
+      rewrite -catA. eapply r_resume_throw => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_resume_throw_failure => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r). rewrite const_const => //. 
+      eapply r_set_local => //. 
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_load_success => //.
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_load_failure => //. 
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_load_packed_success => //. 
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_load_packed_failure => //.
+    - left ; eexists 0, (LH_base [] []), [_;_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_store_success => //. 
+    - left ; eexists 0, (LH_base [] []), [_;_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_store_failure => //. 
+    - left ; eexists 0, (LH_base [] []), [_;_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_store_packed_success => //. 
+    - left ; eexists 0, (LH_base [] []), [_;_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_store_packed_failure => //. 
+    - left ; eexists 0, (LH_base [] []), [], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_current_memory => //. 
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_grow_memory_success => //. 
+    - left ; eexists 0, (LH_base [] []), [_], _, _.
+      repeat split ; unfold lfilled, lfill ; simpl ; (try done) ; (try done) ;
+        (try by rewrite app_nil_r).
+      eapply r_grow_memory_failure => //. 
+    - destruct IHHred as [ (k0 & lh0 & vs & e & es'' & Hvs & He & Hred' & Hes & Hes')
+                         | (k0 & lh0 & bef & aft & Hbef & Hba & Hfill & Hfill' & Hσ) ].
+      + destruct (lfilled_trans2 _ _ _ _ _ _ _ _ _ _ Hes Hes' H H0) as (lh' & Hfill1 & Hfill2).
+        left ; exists (k0 + k), lh', vs, e, es'' => //=.  
+      + destruct (lfilled_trans2 _ _ _ _ _ _ _ _ _ _ Hfill Hfill' H H0)
+          as (lh' & Hfill1 & Hfill2).
+        right ; exists (k0 + k), lh', bef, aft => //=.
   Qed.
 
+
+  Lemma lfilled_last k lh es LI x :
+    lfilled k lh [es] (LI ++ [::x]) ->
+    (exists lh', lfilled k lh' [es] LI) \/ const_list LI.
+  Proof.
+    destruct lh as [bef aft | bef n es' lh aft | bef hs lh aft | bef tf hs lh aft].
+    all: unfold lfilled, lfill; fold lfill.
+    1-2: destruct k => //.
+    all: destruct (const_list bef) eqn:Hbef => //.
+    2-4: destruct (lfill _ _ _) eqn:Hfill => //.
+    all: intros H.
+    all: move/eqP in H.
+    all: destruct (separate_last aft) as [[??]|] eqn:Hlast.
+    all: try (apply separate_last_spec in Hlast as -> ; left).
+    all: try (apply separate_last_None in Hlast as -> ; right).
+    all: try rewrite app_nil_r in H.
+    all: try rewrite cats0 in H.
+    all: try rewrite app_comm_cons in H.
+    all: repeat rewrite -cat_app in H. 
+    all: repeat rewrite catA in H.
+    all: apply concat_cancel_last in H as [-> ->].
+    all: try done.
+    exists (LH_base bef l).
+    2: eexists (LH_rec bef n es' lh l0).
+    3: eexists (LH_handler bef hs lh l0).
+    4: eexists (LH_prompt bef tf hs lh l0).
+    all: simpl.
+    all: rewrite Hbef.
+    2-4: rewrite Hfill.
+    all: try by rewrite -catA.
+    done.
+  Qed. 
+    
+  Lemma lfilled_is_nil k lh es :
+    lfilled k lh es [] -> k = 0 /\ lh = LH_base [] [] /\ es = [].
+  Proof.
+    intros H. move/lfilledP in H. inversion H; subst.
+    all: try destruct vs => //.
+    all: try destruct bef => //.
+    destruct es => //.
+    destruct es' => //.
+  Qed. 
   
   Lemma reduce_append: forall e es es' σ σ' efs obs,
       reducible es σ ->
@@ -1066,202 +2080,463 @@ Section reduce_properties_lemmas.
     destruct Hred as (obs & es1 & [[[??]?]?] & efs & (Hred & -> & ->)).
     destruct (reduce_focus _ _ _ _ _ _ Hstep) as [ (k & lh & vs & e0 & es'' &
                                                           Hvs & He & Hred' & Hes & Hes')
-                                                     | (k & lh & bef & aft & Hbef & Hba &
+                                                     | (k & lh & lhtr & LI & Hlhtr & Htrap &
                                                           Hfill & Hfill' & Hσ)].
-    { destruct k.
-      { unfold lfilled, lfill in Hes. destruct lh as [bef aft|]; last by false_assumption.
-        remember (const_list bef) as b eqn:Hbef ; destruct b ; last by false_assumption.
-        move/eqP in Hes.
-        destruct aft. { rewrite app_nil_r in Hes. rewrite app_assoc in Hes.
-                        apply app_inj_tail in Hes as [Hes _].
-                        exfalso ; eapply values_no_reduce ; first exact Hred. rewrite Hes.
-                        unfold const_list ; rewrite forallb_app.
-                        unfold const_list in Hvs ; rewrite Hvs.
-                        unfold const_list in Hbef ; rewrite <- Hbef.
-                        done. }
-        get_tail a aft ys y Htail. rewrite Htail in Hes. repeat rewrite app_assoc in Hes.
-        apply app_inj_tail in Hes as [Hes Hy]. left.
-        unfold lfilled, lfill in Hes'. rewrite <- Hbef in Hes'. move/eqP in Hes'.
-        rewrite Htail in Hes'. rewrite Hes'. repeat rewrite app_assoc.
-        rewrite length_app. simpl. rewrite Nat.add_sub.
-        rewrite take_app. repeat split => //=. repeat rewrite firstn_all.
-        subst. rewrite Nat.sub_diag. simpl. rewrite app_nil_r. done. subst.
-        apply (r_label (k:=0) (lh:=LH_base bef ys) (es:=vs++[e0]) (es':=es'')) ; (try done) ;
-          unfold lfilled, lfill ; rewrite <- Hbef ; repeat rewrite <- app_assoc => //=.
-        repeat rewrite firstn_all. rewrite Nat.sub_diag. rewrite app_nil_r. done.
-      }
-      unfold lfilled, lfill in Hes ; fold lfill in Hes.
-      destruct lh ; first by false_assumption.
-      remember (const_list l2) as b eqn:Hl2 ; destruct b ; last by false_assumption.
-      remember (lfill _ _ _) as fill ; destruct fill ; last by false_assumption.
-      move/eqP in Hes.
-      destruct l4. { apply app_inj_tail in Hes as [Hes _].
-                     exfalso ; eapply values_no_reduce ; first exact Hred. by subst. }
-      get_tail a l4 ys y Htail. rewrite Htail in Hes. rewrite app_comm_cons in Hes.
-      repeat rewrite app_assoc in Hes.
-      apply app_inj_tail in Hes as [Hes Hy]. left.
-      unfold lfilled, lfill in Hes' ; fold lfill in Hes'.
-      rewrite <- Hl2 in Hes'.
-      remember (lfill _ _ es'') as fill' ; destruct fill' ; last by false_assumption.
-      move/eqP in Hes'.
-      rewrite Htail in Hes'. rewrite Hes'. rewrite app_comm_cons. repeat rewrite app_assoc.
-      rewrite length_app. simpl. rewrite Nat.add_sub.
-      rewrite take_app. repeat split => //=. subst.
-      rewrite firstn_all Nat.sub_diag app_nil_r. done.
-      subst.
-      apply (r_label (k:=S k) (lh:=LH_rec l2 n l3 lh ys) (es:=vs++[e0]) (es':=es'')) ;
-        (try done) ;
-        unfold lfilled, lfill ; fold lfill ; rewrite <- Hl2.
-      by rewrite <- Heqfill.
-      rewrite <- Heqfill'. rewrite firstn_all Nat.sub_diag app_nil_r. done. }
-    destruct k. { unfold lfilled, lfill in Hfill.
-                  destruct lh as [bef0 aft0 |]; last by false_assumption.
-                  remember (const_list bef0) as b eqn:Hbef0 ; destruct b ;
-                    last by false_assumption.
-                  move/eqP in Hfill. destruct aft0. destruct aft.
-                  { rewrite app_nil_r in Hfill. repeat rewrite app_assoc in Hfill.
-                    replace ([AI_trap] ++ [])%SEQ with ([AI_trap] ++ [])%list in Hfill => //=.
-                    rewrite app_nil_r in Hfill.                    
-                    apply app_inj_tail in Hfill as [Hes _].
-                    subst ; exfalso ; values_no_reduce.
-                    unfold const_list ; rewrite forallb_app.
-                    unfold const_list in Hbef ; unfold const_list in Hbef0.
-                    by rewrite Hbef ; rewrite <- Hbef0. }
-                  rewrite app_nil_r in Hfill.
-                  replace (bef ++ [AI_trap] ++ a :: aft)%SEQ with
-                    (bef ++ [AI_trap] ++ a :: aft)%list in Hfill => //=.
-                  get_tail a aft ys y Htail.
-                  rewrite Htail in Hfill.
-                  repeat rewrite app_assoc in Hfill.
-                  apply app_inj_tail in Hfill as [Hes Hy].
-                  right ; exists (LH_base bef0 []), (LH_base (bef0 ++ bef) ys) ;
-                    repeat split => //=.
-                  unfold lfilled, lfill, const_list. rewrite forallb_app.
-                  unfold const_list in Hbef0 ; unfold const_list in Hbef.
-                  rewrite <- Hbef0 ; rewrite Hbef => //=. rewrite Hes.
-                  rewrite <- app_assoc => //=.
-                  by inversion Hσ.
-                  get_tail a aft0 ys y Htail.
-                  rewrite Htail in Hfill.
-                  repeat rewrite app_assoc in Hfill.
-                  apply app_inj_tail in Hfill as [Hes Hy].
-                  right ; exists (LH_base bef0 (a :: aft0)), (LH_base (bef0 ++ bef) (aft ++ ys)) ;
-                    repeat split => //=.
-                  unfold lfilled, lfill, const_list. rewrite forallb_app.
-                  unfold const_list in Hbef0 ; unfold const_list in Hbef.
-                  rewrite <- Hbef0 ; rewrite Hbef => //=. rewrite Hes.
-                  rewrite <- app_assoc => //=.
-                  by inversion Hσ.
-    }
-    unfold lfilled, lfill in Hfill ; fold lfill in Hfill.
-    destruct lh ; first by false_assumption.
-    remember (const_list l2) as b eqn:Hl2 ; destruct b ; last by false_assumption.
-    remember (lfill _ _ _) as fill ; destruct fill ; last by false_assumption.
-    move/eqP in Hfill. destruct l4. { apply app_inj_tail in Hfill as [Hes _].
-                                      exfalso ; eapply values_no_reduce ;
-                                        first exact Hred. by subst. }
-    get_tail a l4 ys y Htail. rewrite Htail in Hfill. rewrite app_comm_cons in Hfill.
-    repeat rewrite app_assoc in Hfill.
-    apply app_inj_tail in Hfill as [Hes Hy]. left.
-    unfold lfilled, lfill in Hfill' ; fold lfill in Hfill'.
-    rewrite <- Hl2 in Hfill'.
-    remember (lfill _ _ [AI_trap]) as fill' ; destruct fill' ; last by false_assumption.
-    move/eqP in Hfill'.
-    rewrite Htail in Hfill'. rewrite Hfill'. rewrite app_comm_cons. repeat rewrite app_assoc.
-    rewrite length_app. simpl. rewrite Nat.add_sub.
-    rewrite take_app. repeat split => //=. subst.
-    rewrite firstn_all Nat.sub_diag app_nil_r => //. 
-    subst.
-    apply (r_label (k:=S k) (lh:=LH_rec l2 n l3 lh ys) (es:=bef ++ [AI_trap] ++ aft)
-                   (es':=[AI_trap])) ;
-      unfold lfilled, lfill ; fold lfill.
-    inversion Hσ ; subst ; constructor.
-    apply (rs_trap (lh := LH_base bef aft)) ; unfold lfilled, lfill.
-    intro Habs ; apply app_eq_unit in Habs as [[-> Habs] | [_ Habs]] ; last by inversion Habs.
-    apply app_eq_unit in Habs as [[ Habs _] | [_ ->]] ; first by inversion Habs.
-    by apply Hba.
-    by rewrite Hbef.
-    rewrite <- Hl2. by rewrite <- Heqfill.
-    rewrite <- Hl2. rewrite <- Heqfill'.
-    rewrite firstn_all Nat.sub_diag app_nil_r => //. 
-  Qed.
+    - destruct lh.
+      all: unfold lfilled, lfill in Hes; fold lfill in Hes.
+      1-2: destruct k => //.
+      all: destruct (const_list l2) eqn:Hl2 => //. 
+      2-4: destruct (lfill _ _ _) eqn:Hfill => //.
+      all: move/eqP in Hes.
+      + destruct (separate_last l3) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          repeat rewrite -cat_app in Hes.
+          repeat rewrite catA in Hes.
+          apply concat_cancel_last in Hes as [-> ->].
+          unfold lfilled, lfill in Hes'.
+          rewrite Hl2 in Hes'. move/eqP in Hes'. subst es'.
+          repeat rewrite app_assoc. rewrite length_app /= Nat.add_sub take_app.
+          left. repeat split => //=.
+          repeat rewrite firstn_all. rewrite Nat.sub_diag /= app_nil_r. done.
+          eapply r_label. done.
+          instantiate (1 := LH_base l2 l4). instantiate (1 := 0).
+          rewrite /lfilled /lfill /= Hl2 /=.
+          repeat rewrite -cat_app. repeat rewrite catA. done.
+          rewrite Nat.sub_diag.
+          rewrite /lfilled /lfill /= Hl2 /=.
+          rewrite firstn_all app_nil_r app_assoc. done.
+        * apply separate_last_None in Hlast as ->.
+          rewrite app_nil_r app_assoc in Hes.
+          apply concat_cancel_last in Hes as [-> ->].
+          exfalso; eapply values_no_reduce; first exact Hred.
+          apply const_list_concat => //.
+      + destruct (separate_last l4) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          repeat rewrite -cat_app in Hes.
+          rewrite app_comm_cons in Hes.
+          rewrite -cat_app in Hes.
+          repeat rewrite catA in Hes.
+          apply concat_cancel_last in Hes as [-> ->].
+          left. unfold lfilled, lfill in Hes'; fold lfill in Hes'.
+          rewrite Hl2 in Hes'. destruct (lfill _ _ es'') eqn:Hfill' => //.
+          move/eqP in Hes'; subst es'.
+          rewrite app_comm_cons. repeat rewrite app_assoc.
+          rewrite length_app /= Nat.add_sub take_app.
+          repeat split => //=. rewrite firstn_all Nat.sub_diag app_nil_r //.
+          eapply r_label. done.
+          instantiate (1 := LH_rec l2 n l3 lh l6).
+          instantiate (1 := S k).
+          unfold lfilled, lfill; fold lfill; rewrite Hl2.
+          rewrite Hfill. done.
+          unfold lfilled, lfill; fold lfill; rewrite Hl2 Hfill'.
+          repeat rewrite firstn_all. rewrite Nat.sub_diag /= app_nil_r.
+          done.
+        * apply separate_last_None in Hlast as ->.
+          apply concat_cancel_last in Hes as [-> ->].
+          exfalso; eapply values_no_reduce. exact Hred. done.
+      + destruct (separate_last l4) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          repeat rewrite -cat_app in Hes.
+          repeat rewrite catA in Hes.
+          apply concat_cancel_last in Hes as [-> ->].
+          left. unfold lfilled, lfill in Hes'; fold lfill in Hes'.
+          rewrite Hl2 in Hes'. destruct (lfill _ _ es'') eqn:Hfill' => //.
+          move/eqP in Hes'; subst es'.
+          repeat rewrite catA.
+          rewrite length_app /= Nat.add_sub take_app.
+          repeat split => //=. rewrite firstn_all Nat.sub_diag app_nil_r //.
+          eapply r_label. done.
+          instantiate (1 := LH_handler l2 l3 lh l6).
+          instantiate (1 := k).
+          unfold lfilled, lfill; fold lfill; rewrite Hl2.
+          rewrite Hfill. rewrite catA. done.
+          unfold lfilled, lfill; fold lfill; rewrite Hl2 Hfill'.
+          repeat rewrite firstn_all. rewrite Nat.sub_diag /= app_nil_r.
+          rewrite -catA. done.
+        * apply separate_last_None in Hlast as ->.
+          apply concat_cancel_last in Hes as [-> ->].
+          exfalso; eapply values_no_reduce. exact Hred. done.
+      + destruct (separate_last l5) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          repeat rewrite -cat_app in Hes.
+          repeat rewrite catA in Hes.
+          apply concat_cancel_last in Hes as [-> ->].
+          left. unfold lfilled, lfill in Hes'; fold lfill in Hes'.
+          rewrite Hl2 in Hes'. destruct (lfill _ _ es'') eqn:Hfill' => //.
+          move/eqP in Hes'; subst es'.
+          repeat rewrite catA.
+          rewrite length_app /= Nat.add_sub take_app.
+          repeat split => //=. rewrite firstn_all Nat.sub_diag app_nil_r //.
+          eapply r_label. done.
+          instantiate (1 := LH_prompt l2 l3 l4 lh l7).
+          instantiate (1 := k).
+          unfold lfilled, lfill; fold lfill; rewrite Hl2.
+          rewrite Hfill. rewrite catA. done.
+          unfold lfilled, lfill; fold lfill; rewrite Hl2 Hfill'.
+          repeat rewrite firstn_all. rewrite Nat.sub_diag /= app_nil_r.
+          rewrite -catA. done.
+        * apply separate_last_None in Hlast as ->.
+          apply concat_cancel_last in Hes as [-> ->].
+          exfalso; eapply values_no_reduce. exact Hred. done.
+    - inversion Hσ; subst; clear Hσ.
+      destruct lh.
+      all: unfold lfilled, lfill in Hfill; fold lfill in Hfill.
+      1-2: destruct k => //.
+      all: destruct (const_list l) eqn:Hl => //.
+      2-4: destruct (lfill _ _ _) eqn:Hfillrec => //.
+      all: move/eqP in Hfill.
+      + right. destruct (separate_last l2) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          repeat rewrite app_assoc in Hfill.
+          apply concat_cancel_last in Hfill as [-> ->].
+          assert (lfilled 0 (LH_base l l3) LI ((l ++ LI) ++ l3)%list).
+          { rewrite /lfilled /lfill /= Hl app_assoc //. }
+          edestruct lfilled_trans as [lh' Hlh'].
+          exact Htrap. exact H.
+          simpl in Hlh'.
+          repeat eexists.
+          exact Hfill'. exact Hlh'.
+        * apply separate_last_None in Hlast as ->.
+          rewrite app_nil_r in Hfill.
+          destruct (separate_last LI) as [[??]|] eqn:Hlast.
+          -- apply separate_last_spec in Hlast as ->.
+             rewrite app_assoc in Hfill.
+             apply concat_cancel_last in Hfill as [-> ->].
+             apply lfilled_last in Htrap.
+             destruct Htrap as [[lh' Htrap] | Hl2].
+             ++ assert (lfilled 0 (LH_base l []) l2 (l ++ l2)%list).
+                rewrite /lfilled /lfill /= Hl app_nil_r //.
+                edestruct lfilled_trans.
+                exact Htrap. exact H.
+                repeat eexists.
+                exact Hfill'. exact H0.
+             ++ exfalso; eapply values_no_reduce.
+                exact Hred. apply const_list_concat => //.
+          -- apply separate_last_None in Hlast as ->.
+             apply lfilled_is_nil in Htrap as (? & ? & ?) => //.
+      + destruct (separate_last l3) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          rewrite app_comm_cons in Hfill.
+          rewrite app_assoc in Hfill.
+          apply concat_cancel_last in Hfill as [-> ->].
+          unfold lfilled, lfill in Hfill'; fold lfill in Hfill'.
+          rewrite Hl in Hfill'. destruct (lfill _ _ [_]) eqn:Hfilltrap => //.
+          move/eqP in Hfill'; subst es'. left.
+          rewrite app_comm_cons.
+          repeat rewrite app_assoc.
+          rewrite length_app /= Nat.add_sub take_app.
+          repeat split => //=.
+          rewrite firstn_all Nat.sub_diag app_nil_r //.
+          eapply r_label; last first. 
+          instantiate (2 := LH_rec l n l2 lh l5).
+          instantiate (2 := S k).
+          unfold lfilled, lfill; fold lfill => //=.
+          rewrite Hl.
+          erewrite Hfilltrap.
+          rewrite firstn_all Nat.sub_diag app_nil_r //.
+          unfold lfilled, lfill; fold lfill => /=.
+          rewrite Hl. erewrite Hfillrec. done.
+          constructor. econstructor.
+          intros ->. apply filled_trivial in Htrap as [_ ->]. done.
+          exact Htrap.
+        * apply separate_last_None in Hlast as ->.
+          apply concat_cancel_last in Hfill as [-> ->].
+          exfalso; eapply values_no_reduce.
+          exact Hred. done.
+      + destruct (separate_last l3) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          repeat rewrite -cat_app in Hfill.
+          repeat rewrite catA in Hfill.
+          apply concat_cancel_last in Hfill as [-> ->].
+          unfold lfilled, lfill in Hfill'; fold lfill in Hfill'.
+          rewrite Hl in Hfill'. destruct (lfill _ _ [_]) eqn:Hfilltrap => //.
+          move/eqP in Hfill'; subst es'. left.
+          repeat rewrite catA.
+          rewrite length_app /= Nat.add_sub take_app.
+          repeat split => //=.
+          rewrite firstn_all Nat.sub_diag app_nil_r //.
+          eapply r_label; last first. 
+          instantiate (2 := LH_handler l l2 lh l5).
+          instantiate (2 := k).
+          unfold lfilled, lfill; fold lfill => //=.
+          rewrite Hl.
+          erewrite Hfilltrap.
+          rewrite firstn_all Nat.sub_diag app_nil_r //.
+          by rewrite -catA.
+          unfold lfilled, lfill; fold lfill => /=.
+          rewrite Hl. erewrite Hfillrec. by rewrite -catA.
+          constructor. econstructor.
+          intros ->. apply filled_trivial in Htrap as [_ ->]. done.
+          exact Htrap.
+        * apply separate_last_None in Hlast as ->.
+          apply concat_cancel_last in Hfill as [-> ->].
+          exfalso; eapply values_no_reduce.
+          exact Hred. done.
+      + destruct (separate_last l4) as [[??]|] eqn:Hlast.
+        * apply separate_last_spec in Hlast as ->.
+          repeat rewrite -cat_app in Hfill.
+          repeat rewrite catA in Hfill.
+          apply concat_cancel_last in Hfill as [-> ->].
+          unfold lfilled, lfill in Hfill'; fold lfill in Hfill'.
+          rewrite Hl in Hfill'. destruct (lfill _ _ [_]) eqn:Hfilltrap => //.
+          move/eqP in Hfill'; subst es'. left.
+          repeat rewrite catA.
+          rewrite length_app /= Nat.add_sub take_app.
+          repeat split => //=.
+          rewrite firstn_all Nat.sub_diag app_nil_r //.
+          eapply r_label; last first. 
+          instantiate (2 := LH_prompt l l2 l3 lh l6).
+          instantiate (2 := k).
+          unfold lfilled, lfill; fold lfill => //=.
+          rewrite Hl.
+          erewrite Hfilltrap.
+          rewrite firstn_all Nat.sub_diag app_nil_r //.
+          by rewrite -catA.
+          unfold lfilled, lfill; fold lfill => /=.
+          rewrite Hl. erewrite Hfillrec. by rewrite -catA.
+          constructor. econstructor.
+          intros ->. apply filled_trivial in Htrap as [_ ->]. done.
+          exact Htrap.
+        * apply separate_last_None in Hlast as ->.
+          apply concat_cancel_last in Hfill as [-> ->].
+          exfalso; eapply values_no_reduce.
+          exact Hred. done.
+  Qed. 
 
   
   Lemma br_no_reduce s f lh i es s' f' es' :
     lfilled 0 lh [AI_basic (BI_br i)] es ->
     reduce s f es s' f' es' -> False.
   Proof.
-    cut (forall n, length es < n -> lfilled 0 lh [AI_basic (BI_br i)] es ->
+    cut (forall n, length_rec es < n -> lfilled 0 lh [AI_basic (BI_br i)] es ->
               reduce s f es s' f' es' -> False).
-    { intro Hn ; apply (Hn (S (length es))) ; lia. }
+    { intro Hn ; apply (Hn (S (length_rec es))) ; lia. }
     intro n. generalize dependent es. generalize dependent lh. generalize dependent es'.
     induction n ; intros es' lh es Hlen Hfill Hred ; first by inversion Hlen.
-    unfold lfilled, lfill in Hfill. destruct lh as [vs esf|] ; last by false_assumption.
-    remember (const_list vs) as b eqn:Hvs ; destruct b ; last by false_assumption.
-    move/eqP in Hfill.
-    induction Hred ; try by found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
-    { destruct H ; try by found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
-      - found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
-        apply in_app_or in Hxl1 as [Habs | Habs].
-        intruse_among_values vs0 Habs H. inversion Habs ; inversion H3.
-      - found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
-        apply in_app_or in Hxl1 as [Habs | Habs].
-        intruse_among_values vs0 Habs H. inversion Habs ; inversion H3.
-      - found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
-        rewrite Hxl1 in H ; inversion H.
-      - rewrite Hfill in H0. unfold lfilled, lfill in H0.
-        destruct lh ; last by false_assumption.
-        remember (const_list l) as b eqn:Hl ; destruct b ; last by false_assumption.
-        move/eqP in H0. apply first_values in H0 as (_ & Habs & _) ;
-                          (try done) ; try by intros [? ?]. }
-    - found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
-      apply in_app_or in Hxl1 as [Habs | Habs].
-      assert (const_list ves) as Hconst ; last by intruse_among_values ves Habs Hconst.
-      rewrite H1 ; by apply v_to_e_is_const_list. inversion Habs ; inversion H9.
-    - found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
-      apply in_app_or in Hxl1 as [Habs | Habs].
-      assert (const_list ves) as Hconst ; last by intruse_among_values ves Habs Hconst.
-      rewrite H1 ; by apply v_to_e_is_const_list. inversion Habs ; inversion H5.
-    - rewrite Hfill in H. unfold lfilled, lfill in H.
-      destruct k. { destruct lh ; last by false_assumption.
-                    remember (const_list l) as b eqn:Hl ; destruct b ;
-                      last by false_assumption.
-                    move/eqP in H.
-                    destruct l. { destruct l0. { rewrite app_nil_l app_nil_r in H. 
-                                                 unfold lfilled, lfill in H0.
-                                                 simpl in H0. move/eqP in H0.
-                                                 rewrite app_nil_r in H0. subst.
-                                                 apply IHHred => //=. }
-          destruct (first_non_value_reduce _ _ _ _ _ _ Hred) as
-            (vs0 & e0 & es0 & Hvs0 & He0 & Hes). rewrite Hfill H in Hlen.
-                                  rewrite Hes in H. simpl in H.
-                                  rewrite <- app_assoc in H. rewrite <- app_comm_cons in H.
-                                  apply first_values in H as (_ & He0' & _) ;
-                                    (try done) ; (try by intros Hconst ; apply const_list_singleton, const_list_to_val in Hconst as [??] ; unfold to_val in He0 ; destruct He0 as [?|?] ; [congruence | subst]).
-                                  apply (IHn es' (LH_base vs0 es0) es) => //=.
-                                  simpl in Hlen. rewrite length_app in Hlen. simpl in Hlen.
-                                  lia. unfold lfilled, lfill ; rewrite Hvs0 ; by subst. destruct He0 as [? | ->] => //.
-                                  destruct (is_const e0) eqn:Habs => //. assert (const_list [e0]). unfold const_list => /= ; by rewrite Habs. apply const_list_to_val in H2 as [? Habs'] => //.
-                                  unfold to_val in H1. rewrite Habs' in H1 => //. }
-        destruct (first_non_value_reduce  _ _ _ _ _ _ Hred) as
-          (vs0 & e0 & es0 & Hvs0 & He0 & Hes). rewrite Hfill H in Hlen.
-                    rewrite Hes in H. simpl in H.
-                    rewrite <- app_assoc in H. rewrite app_comm_cons in H.
-                    rewrite <- (app_comm_cons es0) in H. rewrite app_assoc in H.
-                    apply first_values in H as (_ & He0' & _) ;
-                      (try done) ; (try by (intros [? ?])).
-                    apply (IHn es' (LH_base vs0 es0) es) => //=.
-                    do 2 rewrite length_app in Hlen. simpl in Hlen.
-                    lia. unfold lfilled, lfill ; rewrite Hvs0 ; by subst.
-                    destruct e0 => // ; destruct b => //.
-                    unfold to_val, iris.to_val in He0 ; simpl in He0.
-                    destruct He0 as [? | ?] => //.
-                    by const_list_app. }
-      fold lfill in H. destruct lh ; first by false_assumption.
-      remember (const_list l) as b eqn:Hl ; destruct b ; last by false_assumption.
-      destruct (lfill _ _ _) ; last by false_assumption. move/eqP in H.
-      apply first_values in H as (_ & Habs & _) ; (try done) ; try by intros [? ?].
-  Qed.
+    destruct lh => //.
+    all: unfold lfilled, lfill in Hfill; fold lfill in Hfill.
+    all: destruct (const_list l) eqn:Hl => //.
+    2-3: destruct (lfill _ _ _) eqn:Hfill' => //.
+    all: move/eqP in Hfill.
+    all: induction Hred.
+    1, 44, 87: destruct H.
+    all: try by found_intruse (AI_basic (BI_br i)) Hfill Hxl1.
+    all: try by rewrite - (app_nil_r [_]) in Hfill;
+        apply first_values in Hfill as (? & ? & ?);
+      try (subst; apply v_to_e_is_const_list).
+    all: try by rewrite separate2 separate1 -app_assoc in Hfill;
+      (try destruct ref);
+      (try destruct v; try destruct v); apply first_values in Hfill as (? & ? & ?);
+      try rewrite /= H.
+    all: try by rewrite separate3 separate2 -app_assoc in Hfill;
+      apply first_values in Hfill as (? & ? & ?).
+    all: try by rewrite separate4 separate3 -app_assoc in Hfill;
+      destruct v1, v2; (try destruct v); (try destruct v0);
+      apply first_values in Hfill as (? & ? & ?).
+    all: try by destruct l => //; destruct l => //.
+    all: try by rewrite separate2 separate1 in Hfill;
+        repeat rewrite -cat_app in Hfill;
+        repeat rewrite catA in Hfill;
+        rewrite -catA -(catA l) in Hfill;
+        apply first_values in Hfill as (? & ? & ?);
+      (try apply const_list_concat);
+      try (subst; apply v_to_e_is_const_list).
+    all: try (move/lfilledP in H0; inversion H0;
+      remember Hfill as Hfillll; clear Hfill HeqHfillll;
+      subst;
+      apply first_values in Hfillll as (? & ? & ?); subst => //). 
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      assert (lfilled 0 lh [AI_basic (BI_br i)] l2); first by rewrite /lfilled Hfill'.
+      apply lfilled_const in H0 as [??] => //.
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      destruct lh; simpl in Hfill'.
+      all: destruct (const_list l) eqn:Hl' => //.
+      2-3: destruct (lfill _ _ _) => //. 
+      all: destruct l => //.
+      all: inversion Hfill'; subst => //.
+    - inversion H4; subst.
+      edestruct lfilled_first_values as (? & ?).
+      instantiate (3 := []).
+      unfold lfilled. simpl. erewrite Hfill'. done.
+      instantiate (2 := []).
+      apply/lfilledP. simpl. exact H2.
+      all: try done.
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      assert (lfilled 0 lh [AI_basic (BI_br i)] l3); first by rewrite /lfilled Hfill'.
+      apply lfilled_const in H0 as [??] => //.
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      destruct lh; simpl in Hfill'.
+      all: destruct (const_list l) eqn:Hl' => //.
+      2-3: destruct (lfill _ _ _) => //. 
+      all: destruct l => //.
+      all: inversion Hfill'; subst => //.
+    - inversion H4; subst.
+      edestruct lfilled_first_values as (? & ?).
+      instantiate (3 := []).
+      unfold lfilled. simpl. erewrite Hfill'. done.
+      instantiate (2 := []).
+      apply/lfilledP. simpl. exact H2.
+      all: try done.
+    - subst. move/lfilledP in H; inversion H; subst.
+      all: try by apply first_values in H1 as (? & ? & ?).
+      apply const_list_snoc_eq3 in H1 as (vs' & es'' & -> & -> & -> & Hvs') => //.
+      2:{ intros ->. empty_list_no_reduce. }
+      2:{ destruct (const_list es) eqn:Hes => //.
+          exfalso; eapply values_no_reduce => //. }
+      2:{ intros ->. eapply AI_trap_irreducible => //. }
+      specialize (IHHred IHn).
+      destruct vs.
+      + destruct es'0.
+        * apply IHHred. 
+          simpl in Hlen. rewrite app_nil_r in Hlen. done.
+          simpl. rewrite app_nil_r. done.
+        * eapply IHn.
+          3: exact Hred.
+          simpl in Hlen.
+          rewrite length_app_rec /= separate1 length_app_rec length_app_rec in Hlen.
+          rewrite length_app_rec length_app_rec.
+          specialize (length_cons_rec a es'0) as Hres.
+          lia.
+          instantiate (1 := LH_base vs' es'').
+          rewrite /lfilled /lfill /= Hvs' //.
+      + eapply IHn.
+        3: exact Hred.
+        simpl in Hlen.
+        specialize (length_cons_rec a ((vs ++ vs') ++ (AI_basic (BI_br i) :: (es'' ++ es'0)%list)%SEQ)%list) as Hres.
+        remember ( length_rec (a :: ((vs ++ vs') ++ (AI_basic (BI_br i) :: (es'' ++ es'0)%list)%SEQ)%list)) as x.
+        rewrite length_app_rec length_app_rec separate1 length_app_rec length_app_rec in Hres.
+        rewrite length_app_rec length_app_rec. lia.
+        instantiate (1 := LH_base vs' es'').
+        rewrite /lfilled /lfill /= Hvs' //.
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      apply hfilled_to_llfill in H as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). unfold lfilled.
+      simpl.
+      erewrite Hfill'. done.
+      instantiate (2 := []). exact Hllh. all: try done.
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      apply hfilled_to_llfill in H as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). unfold lfilled.
+      simpl.
+      erewrite Hfill'. done.
+      instantiate (2 := []). exact Hllh. all: try done.
+    - subst. move/lfilledP in H; inversion H; subst.
+      all: try by apply first_values in H1 as (? & ? & ?).
+      + apply const_list_snoc_eq3 in H1 as (vs' & es'' & -> & -> & -> & Hvs') => //.
+        2:{ intros ->. empty_list_no_reduce. }
+        2:{ destruct (const_list es) eqn:Hes => //.
+            exfalso; eapply values_no_reduce => //. }
+        2:{ intros ->. eapply AI_trap_irreducible => //. }
+        specialize (IHHred IHn).
+        destruct vs.
+        * destruct es'0.
+          -- apply IHHred. 
+             simpl in Hlen. rewrite app_nil_r in Hlen. done.
+             simpl. rewrite app_nil_r. done.
+          -- eapply IHn.
+             3: exact Hred.
+             simpl in Hlen.
+             rewrite length_app_rec /= separate1 length_app_rec length_app_rec in Hlen.
+             rewrite length_app_rec length_app_rec.
+             specialize (length_cons_rec a es'0) as Hres.
+             lia.
+             instantiate (1 := LH_handler vs' l0 lh es'').
+             unfold lfilled, lfill; fold lfill.
+             rewrite Hvs' Hfill'. done.
+        * eapply IHn.
+          3: exact Hred.
+          simpl in Hlen.
+          specialize (length_cons_rec a ((vs ++ vs')%list ++ AI_handler l0 l2 :: (es'' ++ es'0)%list)) as Hres.
+          remember (length_rec (a :: (vs ++ vs')%list ++ AI_handler l0 l2 :: (es'' ++ es'0)%list)) as x.
+          rewrite length_app_rec length_app_rec separate1 length_app_rec length_app_rec in Hres.
+          rewrite length_app_rec length_app_rec. lia.
+          instantiate (1 := LH_handler vs' l0 lh es'').
+          unfold lfilled, lfill; fold lfill.
+          rewrite Hvs' Hfill'. done.
+      + apply first_values in H1 as (? & ? & ?) => //.
+        inversion H3; subst.
+        move/lfilledP in H0; inversion H0; subst.
+        eapply IHn.
+        3:{ eapply r_label. exact Hred.
+            apply/lfilledP. exact H6.
+            apply/lfilledP. exact H12. }
+        repeat rewrite cat_app in Hlen.
+        rewrite length_app_rec length_app_rec in Hlen.
+        unfold length_rec in Hlen.
+        simpl in Hlen.
+        unfold length_rec. lia.
+        rewrite /lfilled. erewrite Hfill'. done.
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      apply hfilled_to_llfill in H2 as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). unfold lfilled.
+      simpl.
+      erewrite Hfill'. done.
+      instantiate (2 := []). exact Hllh. all: try done.
+    - destruct l; try by destruct l.
+      inversion Hfill; subst.
+      apply hfilled_to_llfill in H2 as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). unfold lfilled.
+      simpl.
+      erewrite Hfill'. done.
+      instantiate (2 := []). exact Hllh. all: try done.
+    - subst. move/lfilledP in H; inversion H; subst.
+      all: try by apply first_values in H1 as (? & ? & ?).
+      + apply const_list_snoc_eq3 in H1 as (vs' & es'' & -> & -> & -> & Hvs') => //.
+        2:{ intros ->. empty_list_no_reduce. }
+        2:{ destruct (const_list es) eqn:Hes => //.
+            exfalso; eapply values_no_reduce => //. }
+        2:{ intros ->. eapply AI_trap_irreducible => //. }
+        specialize (IHHred IHn).
+        destruct vs.
+        * destruct es'0.
+          -- apply IHHred. 
+             simpl in Hlen. rewrite app_nil_r in Hlen. done.
+             simpl. rewrite app_nil_r. done.
+          -- eapply IHn.
+             3: exact Hred.
+             simpl in Hlen.
+             rewrite length_app_rec /= separate1 length_app_rec length_app_rec in Hlen.
+             rewrite length_app_rec length_app_rec.
+             specialize (length_cons_rec a es'0) as Hres.
+             lia.
+             instantiate (1 := LH_prompt vs' l0 l1 lh es'').
+             unfold lfilled, lfill; fold lfill.
+             rewrite Hvs' Hfill'. done.
+        * eapply IHn.
+          3: exact Hred.
+          simpl in Hlen.
+          specialize (length_cons_rec a ((vs ++ vs')%list ++ AI_prompt l0 l1 l3 :: (es'' ++ es'0)%list)) as Hres.
+          remember (length_rec (a :: (vs ++ vs')%list ++ AI_prompt l0 l1 l3 :: (es'' ++ es'0)%list)) as x.
+          rewrite length_app_rec length_app_rec separate1 length_app_rec length_app_rec in Hres.
+          rewrite length_app_rec length_app_rec. lia.
+          instantiate (1 := LH_prompt vs' l0 l1 lh es'').
+          unfold lfilled, lfill; fold lfill.
+          rewrite Hvs' Hfill'. done.
+      + apply first_values in H1 as (? & ? & ?) => //.
+        inversion H3; subst.
+        move/lfilledP in H0; inversion H0; subst.
+        eapply IHn.
+        3:{ eapply r_label. exact Hred.
+            apply/lfilledP. exact H6.
+            apply/lfilledP. exact H13. }
+        repeat rewrite cat_app in Hlen.
+        rewrite length_app_rec length_app_rec in Hlen.
+        unfold length_rec in Hlen.
+        simpl in Hlen.
+        unfold length_rec. lia.
+        rewrite /lfilled. erewrite Hfill'. done.
+Qed. 
 
   Lemma lfilled_first_non_value s f es s' f' es' k lh les les':
     reduce s f es s' f' es' ->
@@ -1273,6 +2548,19 @@ Section reduce_properties_lemmas.
                     (s, f) = (s', f') /\
                       (const_list LI \/ LI = [AI_trap] \/
                          exists k lh vs i, lfilled k lh (vs ++ [AI_basic (BI_br i)]) LI)) /\
+        (forall hs LI, e = AI_handler hs LI ->
+                  f = f' /\
+                      (s = s' /\ const_list LI \/
+                         (s = s' /\ exists lh, lfilled 0 lh [AI_trap] LI) \/
+                         exists i hh vs a, hfilled (Var_handler i) hh [AI_throw_ref_desugared vs a i] LI)) /\
+            
+        (forall tf hs LI, e = AI_prompt tf hs LI ->
+                     f = f' /\ 
+                      (s = s' /\ const_list LI \/
+                         (s = s' /\ exists lh, lfilled 0 lh [AI_trap] LI) \/
+                         (exists x hh vs, hfilled (Var_prompt_suspend x) hh [AI_suspend_desugared vs x] LI) \/
+                         exists x hh vs k tf, hfilled (Var_prompt_switch x) hh [AI_switch_desugared vs k tf x] LI
+                         )) /\
         (is_const e = false ) /\ 
         reduce s f (vs ++ e :: esf) s' f' es' /\
         lfilled k0 lh0 (vs ++ e :: esf) les /\
@@ -1280,7 +2568,7 @@ Section reduce_properties_lemmas.
   Proof.
     intros Hred Hfill Hfill'.
     generalize dependent k ; generalize dependent lh.
-    induction Hred as [ | | | | |
+    induction Hred. (*as [ | | | | |
                         ? ? ? ? ? ? ? ? ? ? k0
                       | | | | | | 
                         ? ? ? ? ? k0
@@ -1299,174 +2587,79 @@ Section reduce_properties_lemmas.
                       |
                         ? ? ? ? ? ? k0
                       | | | |
-                        ? ? ? ? ? ? ? ? k0 lh0 ? ? ? ? | ];
-      intros lh k Hfill Hfill'.
-    { destruct H.
-      - exists [AI_basic (BI_const v)], (AI_basic (BI_unop t op)), [],
-          [AI_basic (BI_const (app_unop op v))], k, lh ; repeat split => //=.
-        by apply r_simple, rs_unop.
-      - exists [AI_basic (BI_const v1); AI_basic (BI_const v2)], (AI_basic (BI_binop t op)),
-          [], [AI_basic (BI_const v)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_binop_success.
-      - exists [AI_basic (BI_const v1); AI_basic (BI_const v2)], (AI_basic (BI_binop t op)),
-          [], [AI_trap], k, lh ; repeat split => //=.
-        by apply r_simple, rs_binop_failure.
-      - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic (BI_testop T_i32 testop)), [],
-          [AI_basic (BI_const (VAL_int32 (wasm_bool (app_testop_i (e:=i32t) testop c))))],
-          k, lh ; repeat split => //=.
-        by apply r_simple, rs_testop_i32.
-      - exists [AI_basic (BI_const (VAL_int64 c))], (AI_basic (BI_testop T_i64 testop)), [],
-          [AI_basic (BI_const (VAL_int32 (wasm_bool (app_testop_i (e:=i64t) testop c))))],
-          k, lh ; repeat split => //=.
-        by apply r_simple, rs_testop_i64.
-      - exists [AI_basic (BI_const v1) ; AI_basic (BI_const v2)], (AI_basic (BI_relop t op)), [],
-          [AI_basic (BI_const (VAL_int32 (wasm_bool (app_relop op v1 v2))))], k, lh ;
-          repeat split => //=. by apply r_simple, rs_relop.
-      - exists [AI_basic (BI_const v)], (AI_basic (BI_cvtop t2 CVO_convert t1 sx)), [],
-          [AI_basic (BI_const v')], k, lh ; repeat split => //=.
-        by apply r_simple, rs_convert_success.
-      - exists [AI_basic (BI_const v)], (AI_basic (BI_cvtop t2 CVO_convert t1 sx)), [],
-          [AI_trap], k, lh ; repeat split => //=.
-        by apply r_simple, rs_convert_failure.
-      - exists [AI_basic (BI_const v)], (AI_basic (BI_cvtop t2 CVO_reinterpret t1 None)), [],
-          [AI_basic (BI_const (wasm_deserialise (bits v) t2))], k, lh ; repeat split => //=.
-        by apply r_simple, rs_reinterpret.
-      - exists [], (AI_basic BI_unreachable), [], [AI_trap], k, lh ; repeat split => //=.
-        by apply r_simple, rs_unreachable.
-      - exists [], (AI_basic (BI_nop)), [], [], k, lh ; repeat split => //=.
-        by apply r_simple, rs_nop.
-      - exists [AI_basic (BI_const v)], (AI_basic BI_drop), [], [], k, lh ; repeat split => //=.
-        by apply r_simple, rs_drop.
-      - exists [AI_basic (BI_const v1) ; AI_basic (BI_const v2) ;
-           AI_basic (BI_const (VAL_int32 n))], (AI_basic BI_select), [],
-          [AI_basic (BI_const v2)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_select_false.
-      - exists [AI_basic (BI_const v1) ; AI_basic (BI_const v2) ;
-           AI_basic (BI_const (VAL_int32 n))], (AI_basic BI_select), [],
-          [AI_basic (BI_const v1)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_select_true.
-      - exists vs, (AI_basic (BI_block (Tf t1s t2s) es)), [],
-          [AI_label m [] (vs ++ to_e_list es)], k, lh ; repeat split => //=.
-        by apply r_simple, (rs_block _ H H0 H1 H2).
-      - exists vs, (AI_basic (BI_loop (Tf t1s t2s) es)), [],
-          [AI_label n [AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)],
-          k, lh ; repeat split => //=.
-        by apply r_simple, (rs_loop _ H H0 H1 H2).
-      - exists [AI_basic (BI_const (VAL_int32 n))], (AI_basic (BI_if tf e1s e2s)), [],
-          [AI_basic (BI_block tf e2s)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_if_false.
-      - exists [AI_basic (BI_const (VAL_int32 n))], (AI_basic (BI_if tf e1s e2s)), [],
-          [AI_basic (BI_block tf e1s)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_if_true.
-      - exists [], (AI_label n es vs), [], vs, k, lh ; repeat split => //=.
-        by inversion H0 ; subst ; left.
-        by apply r_simple, rs_label_const.
-      - exists [], (AI_label n es [AI_trap]), [], [AI_trap], k, lh ; repeat split => //=.
-        by inversion H ; right ; left.
-        by apply r_simple, rs_label_trap.
-      - exists [], (AI_label n es LI), [], (vs ++ es), k, lh ; repeat split => //=.
-        right ; right. inversion H2 ; subst. by exists i, lh0, vs, i.
-      by apply r_simple, (rs_br _ H H0 H1).
-      - exists [AI_basic (BI_const (VAL_int32 n))], (AI_basic (BI_br_if i)), [],
-          [], k, lh ; repeat split => //=.
-        by apply r_simple, rs_br_if_false.
-      - exists [AI_basic (BI_const (VAL_int32 n))], (AI_basic (BI_br_if i)), [],
-          [AI_basic (BI_br i)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_br_if_true.
-      - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic (BI_br_table iss i)),
-          [], [AI_basic (BI_br j)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_br_table.
-      - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic (BI_br_table iss i)),
-          [], [AI_basic (BI_br i)], k, lh ; repeat split => //=.
-        by apply r_simple, rs_br_table_length.
-      - exists [], (AI_local n f0 es), [], es, k, lh ; repeat split => //=.
-        by apply r_simple, rs_local_const.
-      - exists [], (AI_local n f0 [AI_trap]), [], [AI_trap], k, lh ; repeat split => //=.
-        by apply r_simple, rs_local_trap.
-      - exists [], (AI_local n f0 es), [], vs, k, lh ; repeat split => //=.
-        by apply r_simple, (rs_return _ H H0 H1).
-      - exists [v], (AI_basic (BI_tee_local i)), [], [v ; v; AI_basic (BI_set_local i)],
-          k, lh ; repeat split => //=. apply andb_true_iff ; split => //=.
-        by apply r_simple, rs_tee_local.
-      - unfold lfilled, lfill in H0. destruct lh0 as [bef aft|] ; last by false_assumption.
-        remember (const_list bef) as b eqn:Hbef ; destruct b ; last by false_assumption.
-        move/eqP in H0. subst.
-        exists bef, (AI_trap), aft, [AI_trap], k, lh ; repeat split => //=.
-        apply r_simple, (rs_trap (lh := (LH_base bef aft))) => //=.
-        unfold lfilled, lfill ; by rewrite <- Hbef. }
-    - exists [], (AI_basic (BI_call i)), [], [AI_invoke a], k, lh ; repeat split => //=.
-      by apply r_call.
-    - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic (BI_call_indirect i)), [],
-        [AI_invoke a], k, lh ; repeat split => //=.
-      by apply (r_call_indirect_success H H0 H1).
-    - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic (BI_call_indirect i)), [],
-        [AI_trap], k, lh ; repeat split => //=.
-      by apply (r_call_indirect_failure1 H H0 H1).
-    - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic (BI_call_indirect i)), [],
-        [AI_trap], k, lh ; repeat split => //=.
-      by apply (r_call_indirect_failure2 _ H).
-    - exists ves, (AI_invoke a), [], [AI_local m f' [AI_basic (BI_block (Tf [] t2s) es)]],
-        k, lh ; repeat split => //=.
-      rewrite H1 ; by apply v_to_e_is_const_list.
-      by apply (r_invoke_native _ H H0 H1 H2 H3 H4 H5 H6 H7 H8).
-    - eexists ves, (AI_invoke a), [], _,
-        k, lh ; repeat split => //=.
-      rewrite H1 ; by apply v_to_e_is_const_list.
-      by apply (r_invoke_host _ H H0 H1 H2 H3 H4).
-    - exists [], (AI_basic (BI_get_local j)), [], [AI_basic (BI_const v)], k, lh ;
-      repeat split => //=.
-      by apply r_get_local.
-    - exists [AI_basic (BI_const v)], (AI_basic (BI_set_local i)), [], [], k, lh ;
-        repeat split => //=.
-      by apply (r_set_local _ H H0 H1).
-    - exists [], (AI_basic (BI_get_global i)), [], [AI_basic (BI_const v)], k, lh ;
-        repeat split => //=.
-      by apply r_get_global.
-    - exists [AI_basic (BI_const v)], (AI_basic (BI_set_global i)), [], [], k, lh ;
-        repeat split => //=.
-      by apply r_set_global.
-    - exists [AI_basic (BI_const (VAL_int32 k0))], (AI_basic (BI_load t None a off)),
-        [], [AI_basic (BI_const (wasm_deserialise bs t))], k, lh ; repeat split => //=.
-      by apply (r_load_success _ H H0 H1).
-    - exists [AI_basic (BI_const (VAL_int32 k0))], (AI_basic (BI_load t None a off)),
-        [], [AI_trap], k, lh ; repeat split => //=.
-      by apply (r_load_failure _ H H0 H1).
-    - exists [AI_basic (BI_const (VAL_int32 k0))], (AI_basic (BI_load t (Some (tp, sx)) a off)),
-        [], [AI_basic (BI_const (wasm_deserialise bs t))], k, lh ; repeat split => //=.
-      by apply (r_load_packed_success _ H H0 H1).
-    - exists [AI_basic (BI_const (VAL_int32 k0))], (AI_basic (BI_load t (Some (tp, sx)) a off)),
-        [], [AI_trap], k, lh ; repeat split => //=.
-      by apply (r_load_packed_failure _ H H0 H1).
-    - exists [AI_basic (BI_const (VAL_int32 k0)); AI_basic (BI_const v)],
-        (AI_basic (BI_store t None a off)), [], [], k, lh ; repeat split => //=.
-      by apply (r_store_success _ H H0 H1 H2).
-    - exists [AI_basic (BI_const (VAL_int32 k0)); AI_basic (BI_const v)],
-        (AI_basic (BI_store t None a off)), [], [AI_trap], k, lh ; repeat split => //=.
-      by apply (r_store_failure _ H H0 H1 H2).
-    - exists [AI_basic (BI_const (VAL_int32 k0)); AI_basic (BI_const v)],
-        (AI_basic (BI_store t (Some tp) a off)), [], [], k, lh ; repeat split => //=.
-      by apply (r_store_packed_success _ H H0 H1 H2).
-    - exists [AI_basic (BI_const (VAL_int32 k0)); AI_basic (BI_const v)],
-        (AI_basic (BI_store t (Some tp) a off)), [], [AI_trap], k, lh ; repeat split => //=.
-      by apply (r_store_packed_failure _ H H0 H1 H2).
-    - exists [], (AI_basic BI_current_memory), [],
-        [AI_basic (BI_const (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat (ssrnat.nat_of_bin n)))))],
-        k, lh ; repeat split => //=.
-      by apply (r_current_memory H H0 H1).
-    - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic BI_grow_memory), [],
-        [AI_basic (BI_const (VAL_int32 (Wasm_int.int_of_Z i32m (Z.of_nat (ssrnat.nat_of_bin n)))))],
-        k, lh ; repeat split => //=.
-      by apply (r_grow_memory_success H H0 H1 H2).
-    - exists [AI_basic (BI_const (VAL_int32 c))], (AI_basic BI_grow_memory), [],
-        [AI_basic (BI_const (VAL_int32 int32_minus_one))],
-        k, lh ; repeat split => //=.
-      by apply (r_grow_memory_failure _ H H0 H1).
-    - destruct (lfilled_trans2 _ _ _ _ _ _ _ _ _ _ H H0 Hfill Hfill')
-        as (lh1 & Hfill1 & Hfill2).
-      apply (IHHred lh1 (k0 + k)) => //=.
-    - exists [], (AI_local n f es), [], [AI_local n f' es'], k, lh ; repeat split => //=.
-      by apply r_local.
-  Qed.
+                        ? ? ? ? ? ? ? ? k0 lh0 ? ? ? ? | ]; *)
+    all: intros lh0 k0 Hfill Hfill'.
+    destruct H.
+   
+    all: try by eexists [], _ , [], _ (* [_] *), k0, lh0;
+      (repeat split => //=); (try done);
+      (try by econstructor);
+      econstructor; econstructor.
+    all: try by eexists [_], _ , [], _ (* [_] *), k0, lh0;
+      (repeat split => //=); (try destruct ref => //); (try done);
+      (try by rewrite const_const); (try by rewrite H);
+      econstructor; try econstructor.
+    all: try by eexists [_; _], _ , [], _ (* [_] *), k0, lh0;
+      (repeat split => //=); (try done);
+      econstructor; try econstructor.
+    all: try by eexists [_; _; _], _ , [], [_], k0, lh0;
+      (repeat split => //=); (try done);
+      (try by do 2 rewrite const_const); econstructor; try econstructor.
+    all: try by eexists _, _ , [], _ (* [_] *), k0, lh0;
+      (repeat split => //=); (try done);
+      (try by subst; apply v_to_e_is_const_list);
+      (try by econstructor);
+      econstructor; econstructor.
+    all: try by eexists [], _ , [], _, k0, lh0;
+      (repeat (split ; [ try (intros ??? Heq + intros ?? Heq) |] => //=)); (try done);
+      [ inversion Heq; subst; eauto;
+        (try by right; left; split; try exists (LH_base [] []));
+        (try by right; right; right; repeat eexists);
+        (try by right; right; left; repeat eexists);
+        try by right; right; repeat eexists
+      |  econstructor; try econstructor].
+    all: try by eexists (_ ++ [_]), _ , [], _, k0, lh0;
+        split; last (split; last (split; last (split; last (split; last (split; last (split))))));
+        (try exact Hfill');
+        (try by rewrite -catA; exact Hfill);
+        (try by rewrite -catA; econstructor);
+      (try by apply const_list_concat; subst; try apply v_to_e_is_const_list).
+    - move/lfilledP in H0; inversion H0; subst.
+      + exists vs, AI_trap, es', [AI_trap], k0, lh0.
+        repeat split => //=. constructor. econstructor => //.
+        instantiate (1 := LH_base vs es').
+        apply/lfilledP; constructor => //.
+      + eexists bef, _, aft, [AI_trap], k0, lh0.
+        repeat split => //=. all: try done.
+        inversion H3; subst. right; left.
+        split => //. eexists; by apply/lfilledP.
+        constructor. econstructor => //.
+        apply/lfilledP. instantiate (1 := LH_handler bef hs lh' aft).
+        constructor => //.
+      + eexists bef, _, aft, [AI_trap], k0, lh0.
+        repeat split => //=. all: try done.
+        inversion H3; subst. right; left.
+        split => //. eexists; by apply/lfilledP. constructor. econstructor => //.
+        apply/lfilledP. instantiate (1 := LH_prompt bef ts hs lh' aft).
+        constructor => //.
+    - eexists [], _ , [], _, k0, lh0;
+        split; last (split; last (split; last (split; last (split; last (split; last (split)))))).
+      all: (try exact Hfill').
+      all: (try exact Hfill).
+      all: (try by econstructor).
+      repeat split => //=. inversion H3; subst.
+      right; right; left. repeat eexists. exact H2. 
+    - eexists [], _ , [], _, k0, lh0;
+        split; last (split; last (split; last (split; last (split; last (split; last (split)))))).
+      all: (try exact Hfill').
+      all: (try exact Hfill).
+      all: (try by econstructor).
+      repeat split => //=. inversion H4; subst.
+      right; right; right. repeat eexists. exact H2. 
+    - edestruct lfilled_trans2 as (lh1 & Hfill1 & Hfill2).
+      exact H. exact H0. exact Hfill. exact Hfill'.
+      apply (IHHred lh1 (k + k0)) => //=. 
+Qed.         
 
   Lemma reduce_return_trap_label es s' f' vs n es'0 es'' es' :
     reduce s' f' es s' f' es' ->
@@ -1475,72 +2668,77 @@ Section reduce_properties_lemmas.
     ∃ lh', lfilled 0 lh' [AI_trap] es'.
   Proof.
     intros Hred.
-    revert vs es''. induction Hred;[|intros vs es'' Hconst Heq..].
-    { induction H; intros vs' es'' Hconst Heq;subst.
-      all: try (do 2 destruct vs' =>//).
-      all: try (do 3 destruct vs' =>//).
-      all: try (apply const_list_concat_inv in Heq as [? [? ?]];auto; done).
-      destruct vs',es'' =>//.
-      rewrite app_nil_r app_nil_l in Heq. simplify_eq.
-      exists (LH_base [] []). by cbn.
-      1,2: destruct vs' =>//.
-      destruct vs',es'' =>//.
-      exists (LH_base [] []). by cbn.
-      1,2: destruct vs' =>//.
-      destruct vs'=>//;[|destruct vs'=>//].
-      destruct es''=>//.
-      { apply lfilled_Ind_Equivalent in H1. inversion H1;subst.
-        inversion Heq;subst.
-        do 3 (destruct vs0 || destruct vs || destruct es'0 || destruct es') =>//.
-        inversion Heq;subst.
-        do 2 destruct vs0 =>//. }
-      { destruct vs',es'' =>//. destruct es'' =>//.
-        rewrite app_nil_l in Heq. inversion Heq;subst. done.
-        1,2: do 2 destruct vs' =>//. }
-      { apply lfilled_Ind_Equivalent in H0. inversion H0;subst.
-        apply const_list_concat_inv in H1 as [? [? ?]];auto; done. }
-    }
-    all: try (subst; do 2 destruct vs =>//).
-    all: try (subst; do 3 destruct vs =>//).
-    subst. apply const_list_concat_inv in Heq as [? [? ?]];auto. done. apply v_to_e_is_const_list.
-    found_intruse (AI_label n es'0 [AI_trap]) Heq Hxl1.
-    apply in_app_or in Hxl1 as [|[|]] => //.
-    assert (const_list ves) as H' ; last by intruse_among_values ves H5 H'.
-    by subst ; apply v_to_e_is_const_list.
-    subst.
-    apply lfilled_one_depth_trap in H as Hk;auto.
-    destruct Hk as [-> | ->].
-    { apply lfilled_Ind_Equivalent in H. inversion H;subst.
-      apply const_list_snoc_eq3 in H1;auto.
-      2: eapply reduce_not_nil;eauto.
-      2:{ destruct (const_list es) eqn:Habs => //.
-          exfalso ; eapply values_no_reduce => //. }
-      2: intros -> ; eapply AI_trap_irreducible => //.
-      destruct H1 as [vs2 [es2 [Heq1 [Heq2 [Heq3 Hconst2]]]]].
-      subst.
-      edestruct IHHred as [lh' Hlh'];eauto.
-      apply lfilled_Ind_Equivalent in Hlh'.
-      inversion Hlh';subst.
-      apply lfilled_Ind_Equivalent in H0.
-      inversion H0;subst.
-      exists (LH_base (vs0 ++ vs) (es'2 ++ es'1)).
-      assert (vs0 ++ (vs ++ [AI_trap] ++ es'2) ++ es'1 = (vs0 ++ vs) ++ [AI_trap] ++ (es'2 ++ es'1))%SEQ as Heq.
-      { repeat erewrite app_assoc. auto. }
-      erewrite Heq. apply lfilled_Ind_Equivalent. constructor.
-      apply const_list_app. auto.
-    }
-    { apply lfilled_Ind_Equivalent in H.
-      inversion H;subst.
-      apply first_values in H2 as [Heq1 [Heq2 Heq3]];auto.
-      simplify_eq. apply lfilled_Ind_Equivalent in H6.
-      apply filled_singleton in H6 as [? [? ?]].
-      3: eapply reduce_not_nil;eauto.
-      2: intros;done.
-      subst.
-      apply val_head_stuck_reduce in Hred.
-      done. all: by intros [? ?].
-    }
-  Qed.
+    revert vs es''. induction Hred;[|intros vs' es'' Hconst Heq..].
+    induction H; intros vs' es'' Hconst Heq;subst.
+    all: try (do 2 destruct vs' => //).
+    all: try (do 3 destruct vs' => //).
+    all: try by destruct v; try destruct v; do 3 destruct vs' => //. 
+    all: try (by apply const_list_concat_inv in Heq as [? [? ?]];auto; subst; try apply v_to_e_is_const_list).
+    all: try by rewrite cat_app separate2 separate1 app_assoc app_assoc -app_assoc in Heq;
+      apply first_values in Heq as (? & ? & ?) => //; apply const_list_concat => //; subst; try apply v_to_e_is_const_list.
+(*    rewrite - (app_nil_r [_]) in Heq. apply first_values in Heq as (? & ? & ?) => //. 
+      subst; apply v_to_e_is_const_list. *)
+    - destruct ref; do 3 destruct vs' => //.
+    - destruct v1, v2; try destruct v; try destruct v0; do 5 destruct vs' => //.
+    - destruct v1, v2; try destruct v; try destruct v0; do 5 destruct vs' => //.
+    - destruct vs'; last by destruct vs'.
+      inversion Heq; subst. done. 
+    - destruct vs'; last by destruct vs'.
+      inversion Heq; subst. exists (LH_base [] []). eauto.
+    - destruct vs'; last by destruct vs'.
+      inversion Heq; subst.
+      move/lfilledP in H1; inversion H1; subst.
+      1-2: destruct vs0 => //; last by destruct vs0, vs => //.
+      destruct vs => //; last by destruct vs => //.
+      all: destruct bef; last by destruct bef.
+      all: done.
+    - move/lfilledP in H0. inversion H0 => //.
+      all: by apply first_values in H1 as (? & ? & ?).
+    - subst. apply lfilled_one_depth_trap in H as Hk => //.
+      destruct Hk as [-> | ->].
+      + apply lfilled_Ind_Equivalent in H. inversion H;subst.
+        2-3: apply first_values in H1 as (? & ? & ?) => //.
+        apply const_list_snoc_eq3 in H1;auto.
+        2: eapply reduce_not_nil;eauto.
+        2:{ destruct (const_list es) eqn:Habs => //.
+            exfalso ; eapply values_no_reduce => //. }
+        2: intros -> ; eapply AI_trap_irreducible => //.
+        destruct H1 as [vs2 [es2 [Heq1 [Heq2 [Heq3 Hconst2]]]]].
+        subst.
+        edestruct IHHred as [lh' Hlh'];eauto.
+        apply lfilled_Ind_Equivalent in Hlh'.
+        inversion Hlh';subst.
+        all: apply lfilled_Ind_Equivalent in H0.
+        all: inversion H0;subst.
+        * exists (LH_base (vs ++ vs0) (es'2 ++ es'1)).
+          unfold lfilled, lfill => //=.
+          rewrite const_list_concat => //.
+          repeat rewrite -cat_app.
+          repeat rewrite catA. 
+          repeat rewrite -catA. done.
+        * exists (LH_handler (vs ++ bef) hs lh'0 (aft ++ es'1)).
+          unfold lfilled, lfill; fold lfill.
+          rewrite const_list_concat => //.
+          move/lfilledP in H3. unfold lfilled in H3; destruct (lfill _ _ _) => //.
+          move/eqP in H3. subst. repeat rewrite catA. done.
+        * exists (LH_prompt (vs ++ bef) ts hs lh'0 (aft ++ es'1)).
+          unfold lfilled, lfill; fold lfill.
+          rewrite const_list_concat => //.
+          move/lfilledP in H3. unfold lfilled in H3; destruct (lfill _ _ _) => //.
+          move/eqP in H3. subst. repeat rewrite catA. done.
+      + apply lfilled_Ind_Equivalent in H.
+        inversion H;subst.
+        2-3: apply first_values in H1 as (? & ? & ?) => //. 
+        apply first_values in H2 as [Heq1 [Heq2 Heq3]];auto.
+        simplify_eq. apply lfilled_Ind_Equivalent in H6.
+        apply filled_singleton in H6 as [? [? ?]].
+        all: try by eapply reduce_not_nil;eauto.
+        all: try done.
+        subst.
+        apply val_head_stuck_reduce in Hred.
+        done. 
+Qed.  
+
 
   Lemma reduce_focus_one es1 s f s' f' vs n es'0 LI es'' es' :
     reduce s f es1 s' f' es' ->
@@ -1552,72 +2750,51 @@ Section reduce_properties_lemmas.
   Proof.
     intros Hred.
     revert vs n es'0 LI es''.
-    induction Hred;intros vs n' es'0 LI es'' Heq Hconst HLI Hnbr.
-    all: try (subst; do 2 destruct vs =>//).
-    all: try (subst; do 3 destruct vs =>//).
-    { induction H;subst.
-      all: try (do 2 destruct vs =>//).
-      all: try (do 3 destruct vs =>//).
-      all: try (apply const_list_concat_inv in Heq as [? [? ?]];auto; done).
-      { destruct vs,es'' =>//.
-        2: destruct vs =>//.
-        2: destruct vs,es'' =>//.
-        rewrite app_nil_l app_nil_r in Heq.
-        simplify_eq.
-        exfalso. apply const_list_to_val in H as [? ?].
-        congruence. }
-      { destruct vs,es'' =>//.
-        2: destruct vs =>//.
-        2: destruct vs,es'' =>//.
-        rewrite app_nil_l app_nil_r in Heq.
-        simplify_eq. }
-      { destruct vs,es'' =>//.
-        2: destruct vs =>//.
-        2: destruct vs,es'' =>//.
-        rewrite app_nil_l app_nil_r in Heq.
-        simplify_eq. 
-        apply Hnbr in H1. done. auto.
-      }
-      { destruct vs =>//.
-        { inversion Heq;subst. done. }
-        destruct vs =>//.
-        { inversion Heq;subst. simpl in Hconst.
-          apply andb_true_iff in Hconst as [? ?]. done. }
-      }
-      { apply lfilled_Ind_Equivalent in H0; inversion H0;subst.
-        apply first_values in H1 as [? [? ?]];auto. done. all: by intros [? ?].
-      }      
-    }
-    { subst. symmetry in Heq.
-      apply const_list_snoc_eq in Heq as [-> [vs2 [? [? ?]]]];auto;subst.
-      do 2 destruct vs2 =>//.
-      apply v_to_e_is_const_list.
-      unfold to_val, iris.to_val => /=.
-      unfold iris.to_val in HLI.
-      destruct (merge_values_list _) => //.
-    }
-    found_intruse (AI_label n' es'0 LI) Heq Hxl1.
-    apply in_app_or in Hxl1 as [|[|]] => //.
-    assert (const_list ves) as H' ; last by intruse_among_values ves H5 H'.
-    by subst ; apply v_to_e_is_const_list.    
-    { subst.
+    induction Hred;intros vs' n' es'0 LI'' es'' Heq Hconst HLI Hnbr.
+    induction H;subst.
+    all: try (subst; do 2 destruct vs' => //).
+    all: try (subst; do 3 destruct vs' => //).
+    all: try by destruct v; try destruct v; do 3 destruct vs' => //. 
+    all: try by apply const_list_concat_inv in Heq as [? [? ?]];auto; subst; try apply v_to_e_is_const_list.
+    all: try by rewrite cat_app separate2 separate1 app_assoc app_assoc -app_assoc in Heq;
+      apply first_values in Heq as (? & ? & ?) => //; apply const_list_concat => //; subst; try apply v_to_e_is_const_list.
+    - destruct ref; do 3 destruct vs' => //.
+    - destruct v1, v2; try destruct v; try destruct v0; do 5 destruct vs' => //.
+    - destruct v1, v2; try destruct v; try destruct v0; do 5 destruct vs' => //.
+    - destruct vs'; last by destruct vs'.
+      inversion Heq; subst. apply const_list_to_val in H as (vs & HLI' & _).
+      rewrite HLI' in HLI => //.
+    - destruct vs'; last by destruct vs'.
+      inversion Heq; subst. done. 
+    - destruct vs'; last by destruct vs'.
+      inversion Heq; subst.
+      apply const_es_exists in H as [vs' ->].
+      apply lh_pull_const_r_app in H1 as [lh' Hlh'].
+      eapply lfilled_to_vfill in Hlh' as (vh & Hlh & Hfill).
+      2: instantiate (1 := i); lia.
+      fold (of_val (brV vh)) in Hfill.
+      apply (f_equal to_val) in Hfill.
+      unfold to_val in Hfill. rewrite to_of_val in Hfill.
+      rewrite HLI in Hfill => //.
+    - move/lfilledP in H0. inversion H0; subst.
+      all: apply first_values in H1 as (? & ? & ?) => //.
+    - subst.
       apply reduce_not_nil in Hred as Hnil.
       apply val_head_stuck_reduce in Hred as Hnval.
       apply lfilled_Ind_Equivalent in H.
       inversion H;subst.
-      { apply const_list_snoc_eq3 in H1 as [? [? [? [? [? ?]]]]];auto;subst.
+      3-4: try by apply first_values in H1 as (? & ? & ?).
+      + apply const_list_snoc_eq3 in H1 as [? [? [? [? [? ?]]]]];auto;subst.
         eapply IHHred;eauto.
         destruct (const_list es) eqn:Habs => //.
         exfalso ; by eapply values_no_reduce.
-        by intros -> ; eapply AI_trap_irreducible. }
-      { apply first_values in H1 as [? [? ?]];auto. simplify_eq.
+        by intros -> ; eapply AI_trap_irreducible. 
+      + apply first_values in H1 as [? [? ?]];auto. simplify_eq.
         apply lfilled_Ind_Equivalent in H6.
         apply lfilled_swap with (es':=es') in H6 as Hfill'.
         destruct Hfill' as [LI' Hfill'].
         exists LI'. eapply r_label;eauto.
-      }
-    }
-  Qed.
+Qed. 
 
   Lemma trap_reduce_state_eq i lh es s f s' f' es' :
     reduce s f es s' f' es' ->
@@ -1627,190 +2804,122 @@ Section reduce_properties_lemmas.
     intros Hred. 
     revert i lh.
     induction Hred;auto.
-    all: try by subst ; intros i' lh Hfill%lfilled_Ind_Equivalent;
-      inversion Hfill ; 
-      subst ;
-      apply Logic.eq_sym in H2 ;
-    [ found_intruse (AI_trap) H2 Hxl1
-    | found_intruse (AI_label n es' LI) H2 Hxl1].
-    all: try by subst ; intros i' lh Hfill%lfilled_Ind_Equivalent;
-      inversion Hfill ; 
-      subst ;
-      apply Logic.eq_sym in H0 ;
-    [ found_intruse (AI_trap) H0 Hxl1
-    | found_intruse (AI_label n es' LI) H0 Hxl1].
-    all: try by subst ; intros i' lh Hfill%lfilled_Ind_Equivalent;
-      inversion Hfill ; 
-      subst ;
-      apply Logic.eq_sym in H3 ;
-    [ found_intruse (AI_trap) H3 Hxl1
-    | found_intruse (AI_label n es' LI) H3 Hxl1].
-    all: try by subst ; intros i' lh Hfill%lfilled_Ind_Equivalent;
-      inversion Hfill ; 
-      subst ;
-      apply Logic.eq_sym in H1 ;
-    [ found_intruse (AI_trap) H1 Hxl1
-    | found_intruse (AI_label n es' LI) H1 Hxl1].
-          
-    { intros i lh' Hlh'.
-      eapply lfilled_singleton in Hlh' as [? [? ?]];[..|apply H];auto.
+    all: intros j lhh Hfill%lfilled_Ind_Equivalent.
+    1-12,14: inversion Hfill as [ bef l' aft Hbef Hj Hllh Htrap Heq | j' bef n' es'' lh' aft ? ? Hbef Hrec Hj Hllh Htrap Heq | bef hs' lh' aft ? ? ? Hbef Hrec Hj Hllh Htrap Heq | bef ts' hs' lh' aft ? ? ? Hbef Hrec Hj Hllh Htrap Heq].
+    all: subst.
+    all: try by rewrite - (app_nil_r [_]) in Heq;
+      apply first_values in Heq as (? & ? & ?);
+      try apply v_to_e_is_const_list.
+    all: try by symmetry in Heq; rewrite separate2 separate1 -app_assoc in Heq;
+      apply first_values in Heq as (? & ? & ?);
+      try by (destruct v ; try destruct v).
+     all: try by symmetry in Heq; rewrite separate3 separate2 -app_assoc in Heq;
+       apply first_values in Heq as (? & ? & ?);
+      try by (destruct v ; try destruct v).
+    all: try by symmetry in Heq; rewrite separate2 separate1 in Heq;
+      repeat rewrite cat_app in Heq;
+      repeat rewrite app_assoc in Heq;
+      rewrite -app_assoc in Heq;
+      apply first_values in Heq as (? & ? & ?) => //;
+                                                   apply const_list_concat; subst; try apply v_to_e_is_const_list.
+    all: try by destruct bef; try destruct bef.
+    - destruct bef; last by destruct bef.
+      inversion Heq; subst.
+      move/lfilledP in Hrec.
+      apply hfilled_to_llfill in H2 as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). exact Hrec.
+      instantiate (2 := []). exact Hllh.
+      all: done.
+    - destruct bef; last by destruct bef.
+      inversion Heq; subst.
+      move/lfilledP in Hrec.
+      apply hfilled_to_llfill in H2 as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). exact Hrec.
+      instantiate (2 := []). exact Hllh.
+      all: done.
+    - move/lfilledP in Hfill.
+      eapply lfilled_singleton in Hfill as (? & ? & ? & ?);[..|apply H];auto.
       eapply IHHred. apply H1.
       eapply reduce_not_nil;eauto.
       destruct (const_list es) eqn:Habs => //.
       exfalso ; eapply values_no_reduce => //.
       intros -> ; eapply AI_trap_irreducible => //.
-    }
-    { intros i lh Hfill%lfilled_Ind_Equivalent.
-      inversion Hfill;subst.
-      all: do 2 destruct vs =>//. }
-  Qed.
+Qed. 
+
 
   Lemma trap_reduce_lfilled i lh es s f s' f' es' :
     reduce s f es s' f' es' ->
     lfilled i lh [AI_trap] es -> 
     exists lh' j, lfilled j lh' [AI_trap] es' ∧ j <= i.
   Proof.
-    intros Hred.
+    intros Hred. 
     revert i lh.
-    induction Hred;[|intros i' lh' Hfill%lfilled_Ind_Equivalent..].
-    2-24: inversion Hfill;
-    try done;
-    try by destruct vs => //;
-    try by do 2 destruct vs => //;
-    try by do 3 destruct vs => //;
-    try by do 4 destruct vs => //.
-    { induction H;intros i' lh' Hfill%lfilled_Ind_Equivalent.
-      all: inversion Hfill;
-        try by destruct vs =>//;
-        try by do 2 destruct vs =>//;
-        try by do 3 destruct vs =>//.
-      all: try apply first_values in H3 as [? [? ?]];auto;try done.
-      all: try by do 2 destruct vs0 =>//.
-      all: try by intros [? ?].
-      { simplify_eq.
-        destruct vs0,es'' =>//.
-        erewrite app_nil_l in H0. simplify_eq.
-        inversion H5;subst.
-        apply const_list_app in H as [_ [H _]%const_list_app];done.
-        2,3: destruct vs0 =>//.
-        exists (LH_rec vs0 n0 es' lh' es''),(S k0). split;[|lia].
-        apply lfilled_Ind_Equivalent;constructor;auto. }
-      { simplify_eq.
-        destruct vs,es'' =>//.
-        erewrite app_nil_l in H. simplify_eq.
-        inversion H4;subst.
-        destruct vs,es' =>//.
-        all: try by destruct vs =>//.
-        exists (LH_base [] []),0. split;[|lia]. by cbn.
-        do 2 destruct vs =>//. }
-      { exfalso. simplify_eq.
-        destruct vs0,es'' =>//.
-        2,3: try by destruct vs0 =>//.
-        erewrite app_nil_l in H2. simplify_eq.
-        apply lfilled_Ind_Equivalent in H7.
-        eapply lfilled_singleton in H7 ;[..|apply H1];auto.
-        2: destruct vs =>//.
-        destruct H7 as [? [? [Hcontr ?]]].
-        apply lfilled_Ind_Equivalent in Hcontr.
-        inversion Hcontr.
-        1,2: apply first_values in H2 as [? [? ?]];auto;try by intros [? ?]. done. done.
-        unfold const_list. rewrite forallb_app.
-        apply andb_false_iff ; right => //. 
-        do 2 destruct vs => //. }
-      { destruct vs => //;[|do 2 destruct vs => //].
-        inversion H0;subst. done. }
-      { destruct vs => //;[|do 2 destruct vs => //].
-        inversion H0;subst. done. }
-      { exists (LH_base [] []),0. by cbn. }
-      { exists (LH_base [] []),0. split;[|lia]. by cbn. }
-      
-    }
-    { apply first_values in H9 as [? [? ?]];auto. done.
-      subst. apply v_to_e_is_const_list. }
-    { apply first_values in H9 as [? [? ?]];auto. done.
-      subst. simplify_eq. apply v_to_e_is_const_list. }
-    apply Logic.eq_sym in H5. found_intruse AI_trap H5 Hxl1.
-    apply in_app_or in Hxl1 as [|[|]] => //.
-    assert (const_list ves) as Habs ; last by intruse_among_values ves H10 Habs.
-    by subst ; apply v_to_e_is_const_list.
-    apply Logic.eq_sym in H5. found_intruse (AI_label n0 es' LI) H5 Hxl1.
-    apply in_app_or in Hxl1 as [|[|]] => //.
-    assert (const_list ves) as Habs ; last by intruse_among_values ves H11 Habs.
-    by subst ; apply v_to_e_is_const_list.    
-    { subst.
-      apply lfilled_Ind_Equivalent in H.
-      inversion H.
-      { subst.
-        apply lfilled_Ind_Equivalent in H0.
-        inversion H0;subst.
-        apply const_list_snoc_eq3 in H2 as [? [? [? [? [? ?]]]]];auto.
-        2: eapply reduce_not_nil;eauto.
-        2: destruct (const_list es) eqn:Habs => // ; exfalso ; eapply values_no_reduce => //.
-        2: intros -> ; eapply AI_trap_irreducible => //.
-        subst.
-        assert (lfilled 0 (LH_base x x0) [AI_trap] (x ++ [AI_trap] ++ x0)) as Hf%IHHred.
-        { apply lfilled_Ind_Equivalent. constructor. auto. }
-        destruct Hf as [lh' [j [Hfill'%lfilled_Ind_Equivalent Hle]]].
-        inversion Hfill';subst.
-        { exists (LH_base (vs0++vs) (es'0 ++ es'1)),0.
-          assert (vs0 ++ (vs ++ [AI_trap] ++ es'0) ++ es'1 =
-                    (vs0 ++ vs) ++ [AI_trap] ++ (es'0 ++ es'1))%SEQ as Heq.
-          { repeat erewrite app_assoc. auto. }
-          rewrite Heq. split;[|lia]. apply lfilled_Ind_Equivalent. constructor.
-          apply const_list_app. auto. }
-        { exists (LH_rec (vs0 ++ vs) n es'0 lh'0 (es'' ++ es'1)),(S k).
-          assert (vs0 ++ (vs ++ [AI_label n es'0 LI] ++ es'') ++ es'1 =
-                 (vs0 ++ vs) ++ [AI_label n es'0 LI] ++ (es'' ++ es'1))%SEQ as ->.
-          { repeat erewrite app_assoc. auto. } inversion Hle.
-        }
-      }
-      { apply first_values in H2 as [? [? ?]];auto. done. }
-    }
-    { subst.
-      apply lfilled_Ind_Equivalent in H.
-      apply lfilled_Ind_Equivalent in H0.
-      inversion H;subst.
-      { apply const_list_snoc_eq3 in H3 as [? [? [? [? [? ?]]]]];auto.
-        2: eapply reduce_not_nil;eauto.
-        2: destruct (const_list es) eqn:Habs => // ; exfalso ; eapply values_no_reduce => //.
-        2: intros -> ; eapply AI_trap_irreducible => //.
-        subst.
-        inversion H0;subst.
-        destruct IHHred with (i := S k0) (lh:=LH_rec x n es'0 lh'0 x0) as [lh' [j [Hfill'%lfilled_Ind_Equivalent Hle]]].
-        { apply lfilled_Ind_Equivalent. constructor;auto. }
-        inversion Hfill';subst.
-        { exists (LH_base (vs0 ++ vs) (es'2 ++ es'1)),0.
-          assert (vs0 ++ (vs ++ [AI_trap] ++ es'2) ++ es'1 =
-                    (vs0 ++ vs) ++ [AI_trap] ++ (es'2 ++ es'1))%SEQ as Heq.
-          { repeat erewrite app_assoc. auto. }
-          rewrite Heq. split;[|lia]. apply lfilled_Ind_Equivalent. constructor.
-          apply const_list_app. auto. }
-        { exists (LH_rec (vs0 ++ vs) n0 es'2 lh'1 (es'' ++ es'1)),(S k).
-          assert (vs0 ++ (vs ++ [AI_label n0 es'2 LI0] ++ es'') ++ es'1 =
-                 (vs0 ++ vs) ++ [AI_label n0 es'2 LI0] ++ (es'' ++ es'1))%SEQ as ->.
-          { repeat erewrite app_assoc. auto. }
-          split;[|lia].
-          apply lfilled_Ind_Equivalent. constructor;auto.
-          apply const_list_app;auto.
-        }
-      }
-      { apply first_values in H3 as [? [? ?]];simplify_eq;auto.
-        apply lfilled_Ind_Equivalent in H2.
-        apply lfilled_Ind_Equivalent in H8.
-        eapply lfilled_singleton in H2 as [? [? [HH%IHHred Heq]]];[..|apply H8];auto.
-        2: eapply reduce_not_nil;eauto.
-        2: destruct (const_list es) eqn:Habs => // ; exfalso ; eapply values_no_reduce => //.
-        2: intros -> ; eapply AI_trap_irreducible => //.
-        inversion H0;subst.
-        destruct HH as [lh2 [j2 [Hlh2 Hle2]]].
-        apply lfilled_Ind_Equivalent in H13.
-        eapply lfilled_trans in H13 as [? ?];[|apply Hlh2].
-        exists (LH_rec vs n es'0 x1 es''),(S (j2 + k1)). split;[|lia].
-        apply lfilled_Ind_Equivalent;constructor;auto.
-        apply lfilled_Ind_Equivalent;auto.
-      }
-    }
-  Qed.
+    induction Hred;auto.
+    inversion H.
+    all: intros j' lhh Hfill%lfilled_Ind_Equivalent.
+    1-83,85: inversion Hfill as [ bef l' aft Hbef Hj Hllh Htrap Heq | j'' bef n' es'' lh' aft ? ? Hbef Hrec Hj Hllh Htrap Heq | bef hs' lh' aft ? ? ? Hbef Hrec Hj Hllh Htrap Heq | bef ts' hs' lh' aft ? ? ? Hbef Hrec Hj Hllh Htrap Heq].
+    all: subst.
+    all: try by rewrite - (app_nil_r [_]) in Heq;
+      apply first_values in Heq as (? & ? & ?);
+      try apply v_to_e_is_const_list.
+    all: try by symmetry in Heq; rewrite separate2 separate1 -app_assoc in Heq;
+      apply first_values in Heq as (? & ? & ?);
+      try by (destruct v ; try destruct v); try by rewrite /= H0.
+    all: try by symmetry in Heq; rewrite separate3 separate2 -app_assoc in Heq;
+       apply first_values in Heq as (? & ? & ?);
+      try by (destruct v ; try destruct v).
+    all: try by symmetry in Heq; rewrite separate4 separate3 -app_assoc in Heq;
+       apply first_values in Heq as (? & ? & ?);
+      try by (destruct v1, v2 ; try destruct v; try destruct v0).
+    all: try by symmetry in Heq; rewrite separate2 separate1 in Heq;
+      repeat rewrite cat_app in Heq;
+      repeat rewrite app_assoc in Heq;
+      rewrite -app_assoc in Heq;
+      apply first_values in Heq as (? & ? & ?) => //;
+                                                   apply const_list_concat; subst; try apply v_to_e_is_const_list.
+    all: try by destruct bef; try destruct bef.
+    all: try by destruct ref; do 3 (destruct bef => //).
+    all: try (destruct bef; last (by destruct bef); inversion Heq; subst).
+    all: try by move/lfilledP in Hrec; apply lfilled_const in Hrec as [??]. 
+    all: try by exists (LH_base [] []), 0; split; [eauto | lia].
+    - move/lfilledP in Hrec.
+      edestruct lfilled_first_values as [??].
+      exact H2. instantiate (2 := []). exact Hrec. all: done.
+    - move/lfilledP in Hrec.
+      apply hfilled_to_llfill in H as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). exact Hrec.
+      instantiate (2 := []). exact Hllh. all: done.
+    - move/lfilledP in Hrec.
+      apply hfilled_to_llfill in H as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). exact Hrec.
+      instantiate (2 := []). exact Hllh. all: done.
+    - move/lfilledP in Hrec.
+      apply hfilled_to_llfill in H2 as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). exact Hrec.
+      instantiate (2 := []). exact Hllh. all: done.
+    - move/lfilledP in Hrec.
+      apply hfilled_to_llfill in H2 as [llh Hllh].
+      edestruct lfilled_llfill_first_values as [??].
+      instantiate (3 := []). exact Hrec.
+      instantiate (2 := []). exact Hllh. all: done.
+    - move/lfilledP in Hfill.
+      eapply lfilled_singleton in Hfill as (? & ? & ? & ?);[..|apply H];auto.
+      eapply IHHred in H1 as (lh' & j & Hfill & Hj).
+      edestruct lfilled_trans as [lhn Hfilln].
+      exact Hfill. exact H0.
+      exists lhn, (j + k).
+      split => //. lia.
+      eapply reduce_not_nil;eauto.
+      destruct (const_list es) eqn:Habs => //.
+      exfalso ; eapply values_no_reduce => //.
+      intros -> ; eapply AI_trap_irreducible => //.
+Qed. 
+
     
   Lemma trap_reduce_nested s f es s' f' es' lh i :
     lfilled i lh [AI_trap] es -> reduce s f es s' f' es' ->
@@ -1825,43 +2934,75 @@ Section reduce_properties_lemmas.
     lfilled (S k) lh [AI_trap] LI ->
     ∃ e', reduce locs s LI locs s e'.
   Proof.
-    revert LI lh.
-    induction k;intros LI lh Hfill%lfilled_Ind_Equivalent.
-    { inversion Hfill;simplify_eq. inversion H1;simplify_eq.
-      destruct (decide (vs0 ++ [AI_trap] ++ es'0 = [AI_trap])).
-      { destruct vs0,es'0 =>//.
-        2: destruct vs0 =>//.
-        2: destruct vs0,es'0 =>//.
-        erewrite app_nil_l, app_nil_r.
-        exists (vs ++ [AI_trap] ++ es'').
-        eapply r_label.
-        2: instantiate (3:=0).
-        2,3: apply lfilled_Ind_Equivalent;constructor;auto.
-        apply r_simple. apply rs_label_trap. }
-      { exists (vs ++ [AI_label n es' ([AI_trap])] ++ es'').
-        eapply r_label.
-        2: instantiate (3:=1).
-        2,3: apply lfilled_Ind_Equivalent;constructor;auto.
-        2: instantiate (2:=LH_base [] []).
-        2,3: apply lfilled_Ind_Equivalent.
-        2,3: cbn;rewrite app_nil_r; by apply/eqseqP.
-        apply r_simple. eapply rs_trap. auto.
-        apply lfilled_Ind_Equivalent. eauto.
-      }
-    }
-    { inversion Hfill;simplify_eq.
-      apply lfilled_Ind_Equivalent in H1.
-      eapply IHk in H1 as Hred.
-      destruct Hred as [e' Hred].
+    revert LI k.
+    induction lh;intros LI k Hfill%lfilled_Ind_Equivalent.
+    all: inversion Hfill; simplify_eq.
+    - induction k.
+      + destruct lh.
+        all: inversion H8; simplify_eq.
+        * destruct (decide (l2 ++ [AI_trap] ++ l3 = [AI_trap])).
+          -- destruct l2, l3 => //.
+             2: destruct l2 => //.
+             2: destruct l2, l3 => //.
+             erewrite app_nil_l, app_nil_r.
+             exists (l ++ [AI_trap] ++ l1).
+             eapply r_label.
+             2: instantiate (3:=0).
+             2,3: apply lfilled_Ind_Equivalent;constructor;auto.
+             apply r_simple. apply rs_label_trap. 
+          -- exists (l ++ [AI_label n l0 ([AI_trap])] ++ l1).
+             eapply r_label.
+             2: instantiate (3:=1).
+             2: instantiate (2 := LH_rec l n l0 (LH_base [] []) l1).
+             2,3: apply lfilled_Ind_Equivalent;constructor 2;auto.
+             2,3: apply lfilled_Ind_Equivalent.
+             2,3: cbn;rewrite app_nil_r; by apply/eqseqP.
+             apply r_simple. eapply rs_trap. auto.
+             apply lfilled_Ind_Equivalent.
+             instantiate (1 := LH_base l2 l3). constructor => //.
+        * exists (l ++ [AI_label n l0 [AI_trap]] ++ l1).
+          eapply r_label.
+          2: instantiate (3 := 1).
+          2: instantiate (2 := LH_rec l n l0 (LH_base [] []) l1).
+          2,3: apply/lfilledP; constructor => //.
+          2,3: apply/lfilledP; cbn; rewrite app_nil_r; apply/eqseqP => //.
+          apply r_simple. eapply rs_trap. destruct l2 => //. destruct l2 => //.
+          apply/lfilledP. instantiate (1 := LH_handler l2 l3 lh l4).
+          constructor => //. 
+        * exists (l ++ [AI_label n l0 [AI_trap]] ++ l1).
+          eapply r_label.
+          2: instantiate (3 := 1).
+          2: instantiate (2 := LH_rec l n l0 (LH_base [] []) l1).
+          2,3: apply/lfilledP; constructor => //.
+          2,3: apply/lfilledP; cbn; rewrite app_nil_r; apply/eqseqP => //.
+          apply r_simple. eapply rs_trap. destruct l2 => //. destruct l2 => //.
+          apply/lfilledP. instantiate (1 := LH_prompt l2 l3 l4 lh l5).
+          constructor => //. 
+      + move/lfilledP in H8. apply IHlh in H8 as [e' He'].
+        eexists.
+        eapply r_label;[eauto|..].
+        instantiate (2:= 1).
+        instantiate (1 := LH_rec l n l0 (LH_base [] []) l1).
+        all: apply lfilled_Ind_Equivalent;constructor;auto.
+        all: apply lfilled_Ind_Equivalent.
+        all: cbn;rewrite app_nil_r;by apply/eqseqP.
+    - move/lfilledP in H7. apply IHlh in H7 as [e' He'].
       eexists.
       eapply r_label;[eauto|..].
-      instantiate (2:=1).
+      instantiate (2:= 0).
+      instantiate (1 := LH_handler l l0 (LH_base [] []) l1).
       all: apply lfilled_Ind_Equivalent;constructor;auto.
       all: apply lfilled_Ind_Equivalent.
-      instantiate (1:=LH_base [] []).
       all: cbn;rewrite app_nil_r;by apply/eqseqP.
-    }
-  Qed.
+    - move/lfilledP in H8. apply IHlh in H8 as [e' He'].
+      eexists.
+      eapply r_label;[eauto|..].
+      instantiate (2:= 0).
+      instantiate (1 := LH_prompt l l0 l1 (LH_base [] []) l2).
+      all: apply lfilled_Ind_Equivalent;constructor;auto.
+      all: apply lfilled_Ind_Equivalent.
+      all: cbn;rewrite app_nil_r;by apply/eqseqP.
+Qed.        
 
   Lemma to_val_trapV_lfilled_None es k lh LI :
     iris.to_val es = Some trapV ->
@@ -1874,8 +3015,8 @@ Section reduce_properties_lemmas.
     eapply val_head_stuck_reduce;eauto.
     Unshelve.
     
-    apply (Build_store_record [] [] [] []).
-    apply (Build_frame [] (Build_instance [] [] [] [] [])).
+    apply (Build_store_record [] [] [] [] [] [] []).
+    apply (Build_frame [] (Build_instance [] [] [] [] [] [])).
   Qed.
 
   Lemma lfilled_to_val_0 i lh e es v :
@@ -1901,37 +3042,34 @@ Section reduce_properties_lemmas.
     intros Hes1.
     remember [AI_local n f0 es1] as es.
     revert es2. induction 1;simplify_eq.
-    all: try destruct vcs =>//.
-    { remember [AI_local n f0 es1] as es.
-      revert e' H;induction 1;simplify_eq.
-      all: try do 2 destruct vs =>//.
-      { apply const_list_to_val in H as [? ?]. congruence. }
-      { apply const_es_exists in H as [? ?]. simplify_eq. 
-        apply lfilled_to_sfill in H1 as [sh Hsh].
-        rewrite -sfill_sh_pull_const_r in Hsh.
-        rewrite Hsh in Hes1.
-        assert (iris.of_val (retV (sh_pull_const_r sh x)) = es1);[rewrite Hsh;auto|].
-        rewrite Hsh in H. rewrite -H in Hes1.
-        rewrite to_of_val in Hes1. done. }
-      { apply lfilled_Ind_Equivalent in H0. inversion H0. do 2 destruct vs =>//. }
-    }
-    { apply lfilled_Ind_Equivalent in H0.
-      inversion H0;simplify_eq.
-      rewrite -(app_nil_l [AI_local n f0 es1]) in H2.
+    inversion H; subst.
+    all: try done.
+    all: try do 2 destruct vcs => //.
+    all: try do 2 destruct vs => //.
+    - apply const_list_to_val in H4 as (? & ? & ?). congruence.
+    - apply const_es_exists in H3 as [? ->].
+      apply lfilled_to_sfill in H6 as [sh Hsh].
+      rewrite -sfill_sh_pull_const_r in Hsh.
+      rewrite Hsh in Hes1.
+      fold (of_val (retV (sh_pull_const_r sh x))) in Hes1.
+      rewrite to_of_val in Hes1. done.
+    - move/lfilledP in H1.  inversion H1; subst.
+      destruct vs => //. destruct vs => //.
+      all: destruct bef => //. all: destruct bef => //.
+    - move/lfilledP in H0; inversion H0; simplify_eq.
+      2: by destruct vs; try destruct vs.
+      2-3: by destruct bef; try destruct bef.
+      rewrite - (app_nil_l [AI_local n f0 es1]) in H2.
       apply val_head_stuck_reduce in H as Hstuck.
-      apply const_list_snoc_eq3 in H2;auto.
-      2,4: intros ->;done.
-      2:{ destruct (const_list es) eqn:Habs => //.
-          apply const_list_to_val in Habs as [? ?].
-          rewrite H3 in Hstuck => //. } 
-      destruct H2 as [? [? [? [? [? ?]]]]].
-      simplify_eq. destruct vs,x,x0,es'0 =>//.
-      apply lfilled_Ind_Equivalent in H1.
-      inversion H1;simplify_eq. erewrite app_nil_l, app_nil_r.
-      apply IHreduce. auto.
-      rewrite -(app_nil_l [AI_local n f0 es1]) in H2.
-      apply first_values in H2 as [?[? ?]];auto. done. }
-    { eauto. }
+      apply const_list_snoc_eq3 in H2 as (vs2 & es2 & Hnil & -> & Hnil' & Hvs2).
+      destruct vs, vs2, es2, es'0 => //.
+      all: try done.
+      2, 4: intros ->; done.
+      2: by destruct (const_list es) eqn:Habs => //; exfalso; eapply values_no_reduce.
+      move/lfilledP in H1; simplify_eq.
+      inversion H1; simplify_eq. rewrite cats0 cat0s.
+      apply IHreduce. done.
+    - eauto.
   Qed.
 
   Lemma reduce_det_label ws f ws' f' es1 n es es'' es2 :
@@ -1943,66 +3081,42 @@ Section reduce_properties_lemmas.
               opsem.reduce ws f es1 ws' f' es2'.
   Proof.
     revert es2. induction 1.
-    2-24:intros l1 l2 Heqes'' Hconst Hes1; simplify_eq.
-    all: try by destruct l1 =>//.
-    all: try by do 2 destruct l1 =>//.
-    all: try by do 3 destruct l1 =>//.
-    { revert e' H;induction 1;simplify_eq;intros l1 l2 Heqes'' Hconst Hes1; simplify_eq.
-      all: try do 2 destruct l1 =>//.
-      all: try do 3 destruct l1 =>//.
-      all: try by apply first_values in Heqes'' as (?&?&?);auto.
-      { destruct l1 =>//;[|destruct l1 =>//].
-        destruct l2 =>//. erewrite app_nil_l, app_nil_r in Heqes''. simplify_eq.
-        apply const_list_to_val in H as [? ?]. congruence. }
-      { destruct l1 =>//;[|destruct l1 =>//].
-        destruct l2 =>//. erewrite app_nil_l, app_nil_r in Heqes''. simplify_eq. }
-      { destruct l1 =>//;[|destruct l1 =>//].
-        destruct l2 =>//. erewrite app_nil_l, app_nil_r in Heqes''. simplify_eq.
-        apply const_es_exists in H as [? ?]. simplify_eq.
-        apply lh_pull_const_r_app in H1 as [lh' Hlh'].        
-        apply lfilled_to_vfill with (i:=i) in Hlh';[|lia].
-        destruct Hlh' as [vh [Heq Hvh]].
-        assert (iris.of_val (brV vh) = es1);[auto|].
-        rewrite -H in Hes1.
-        rewrite to_of_val in Hes1. done. }
-      { assert ([v;AI_basic (BI_tee_local i)] = [v] ++ [AI_basic (BI_tee_local i)]) as Heq;[auto|].
-        rewrite Heq in Heqes''.
-        apply first_values in Heqes'' as (?&?&?);auto;[done|]. simpl. rewrite H;auto. }
-      { apply lfilled_Ind_Equivalent in H0. inversion H0.
-        apply first_values in H1 as (?&?&?);auto. done. }
-    }
-    { apply first_values in Heqes'' as (?&?&?);auto;[done|]; apply v_to_e_is_const_list. }
-    found_intruse (AI_label n es es1) Heqes'' Hxl1.
-    apply in_app_or in Hxl1 as [|[|]] => //.
-    assert (const_list (v_to_e_list vcs)) ; first by apply v_to_e_is_const_list.
-    intruse_among_values (v_to_e_list vcs) H0 H1.
-    { erewrite <-(take_drop 2 [_;_;_]) in Heqes'';simpl take in Heqes'';simpl drop in Heqes''.
-      apply first_values in Heqes'' as (?&?&?);auto. done. }
-    all: try (erewrite <-(take_drop 2 [_;_;_]) in Heqes'';simpl take in Heqes'';simpl drop in Heqes'').
-    all: try by (apply first_values in Heqes'' as (?&?&?);auto).
-    { apply lfilled_Ind_Equivalent in H0.
-      inversion H0;simplify_eq.
-      { apply val_head_stuck_reduce in H as Hstuck.
-        apply const_list_snoc_eq3 in H2;auto.
-        2,4: intros ->;done.
-        2:{ destruct (const_list es0) eqn:Habs => //.
-            apply const_list_to_val in Habs as [? Habs] ;
-              rewrite Habs in Hstuck => //. } 
-        destruct H2 as [vs2 [es2 [Heq1 [Heq2 [Heq3 Hconst']]]]].
-        apply IHreduce in Heq2;auto.
+    destruct H. 
+    all:intros l1 l2 Heqes'' Hconst Hes1; simplify_eq.
+    all: try destruct ref.
+    all: try by do 2 destruct l1 => //.
+    all: try by try (destruct v; try destruct v); do 3 destruct l1 => //.
+    all: try by do 4 destruct l1 => //.
+    all: try by try (destruct v1, v2; try destruct v; try destruct v0); do 5 destruct l1 => //.
+    all: try by rewrite - (app_nil_r [_]) in Heqes''; apply first_values in Heqes'' as (? & ? & ?); subst; try apply v_to_e_is_const_list.
+    all: try by repeat rewrite cat_app in Heqes''; rewrite separate2 separate1 app_assoc app_assoc - app_assoc in Heqes''; apply first_values in Heqes'' as (? & ? & ?); try apply const_list_concat; subst; try apply v_to_e_is_const_list => //.
+    all: try (destruct l1; last (by destruct l1); inversion Heqes''; subst).
+    - apply const_list_to_val in H as (? & ? & ?); congruence.
+    - done.
+    - apply const_es_exists in H as [? ->].
+      apply lh_pull_const_r_app in H1 as [lh' Hlh'].
+      apply lfilled_to_vfill with (i:=i) in Hlh' as (vh' & Heq & Hvh); last lia.
+      rewrite -Hvh in Hes1. fold (of_val (brV vh')) in Hes1.
+      rewrite to_of_val in Hes1 => //.
+    - move/lfilledP in H0. inversion H0; subst.
+      all: apply first_values in H1 as (?&?&?) => //.
+    - move/lfilledP in H0; inversion H0; subst.
+      2-4: apply first_values in H2 as (? & Hres & ?) => //; inversion Hres; subst.
+      + apply val_head_stuck_reduce in H as Hstuck.
+        apply const_list_snoc_eq3 in H2; eauto.
+        2,4: by intros ->.
+        2: by destruct (const_list es0) eqn:Habs => //; exfalso; eapply values_no_reduce.
+        destruct H2 as (vs2 & es2 & Heq1 & Heq2 & Heq3 & Hcons').
+        apply IHreduce in Heq2; eauto.
         simplify_eq.
-        apply lfilled_Ind_Equivalent in H1. inversion H1. simplify_eq.
-        destruct Heq2 as [es2' [-> Hstep]].
+        move/lfilledP in H1. inversion H1. simplify_eq.
+        destruct Heq2 as (es2' & -> & Hstep).
         repeat erewrite <- app_assoc;erewrite app_assoc.
-        eexists. split;eauto. }
-      { apply first_values in H2 as (?&?&?);auto. simplify_eq.
-        apply lfilled_Ind_Equivalent in H1. inversion H1. simplify_eq.
-        eexists. split;eauto.
-        apply lfilled_Ind_Equivalent in H7.
-        apply lfilled_Ind_Equivalent in H13.
+        eexists. split;eauto. 
+      + move/lfilledP in H1. inversion H1. eexists. split;eauto.
+        move/lfilledP in H7.
+        move/lfilledP in H13.
         eapply r_label;eauto. 
-      }
-    }
   Qed.
 
   Lemma reduce_det_label_nil ws f ws' f' es1 es2 n es :

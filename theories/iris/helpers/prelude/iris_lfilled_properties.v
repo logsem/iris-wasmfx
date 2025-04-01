@@ -6,7 +6,7 @@ From Wasm.iris.helpers.lfill_prelude Require Export lfill_prelude.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Ltac false_assumption := exfalso ; apply ssrbool.not_false_is_true ; assumption.
+(* Ltac false_assumption := exfalso ; apply ssrbool.not_false_is_true ; assumption. *)
 
 Lemma found_intruse l1 l2 (x : administrative_instruction) :
   l1 = l2 -> (In x l1 -> False) -> In x l2 -> False.
@@ -24,36 +24,48 @@ Ltac found_intruse x H Hxl1 :=
                           assumption  ) |
     try by (apply in_or_app ; right ; left ; trivial) ].
 
-
+(*
 
 (* Attempts to prove False from hypothesis H, which states that an lholed is filled
    with AI_trap. If attempt fails, user is given a hypothesis Hxl1 to end proof manually *)
 Ltac filled_trap H Hxl1 :=
   exfalso ;
-  unfold lfilled, lfill in H ;
-  destruct (_:lholed) in H ; [|false_assumption] ;
-  destruct (const_list _) in H ; [|false_assumption] ;
+  unfold lfilled, lfill in H ; 
+  destruct (_:lholed) in H => //;
+                               fold lfill in H;
+                               destruct (const_list _) in H => //;
+                               (try destruct (lfill _ _ _) eqn:Hfill => //);
   move/eqP in H ; found_intruse AI_trap H Hxl1.
 
 (* Given hypothesis H, which states that an lholed lh is filled at level k, 
    unfolds the definition of lfilled. Attempts to prove a contradiction when k > 0.
    If attempts fail, user is given that filled expression is 
    vs ++ (AI_label n l1 l3) :: l0 *)
-Ltac simple_filled H k lh vs l0 n l1 l3 :=
+Ltac simple_filled H k lh l0 n l1 l3 :=
   let l2 := fresh "l" in
   let lh' := fresh "lh" in
   let Hxl1 := fresh "Hxl1" in
   let les := fresh "les" in
   let Hvs := fresh "Hvs" in
   unfold lfilled, lfill in H ;
-  destruct k ;
-  [ destruct lh as [vs l0|] ; [| false_assumption] ;
-    destruct (const_list vs) eqn:Hvs ; [| false_assumption] ; move/eqP in H |
-    fold lfill in H ; destruct lh as [|vs n l1 lh' l2] ; [false_assumption |] ;
-    destruct (const_list vs) eqn:Hvs ; [| false_assumption ] ;
-    remember (lfill k lh' _) as les ;
-    destruct les as [l3|] ; [| false_assumption ] ;
-    move/eqP in H ; found_intruse (AI_label n l1 l3) H Hxl1].
+  destruct lh ;
+  [ destruct k => //;
+                   destruct (const_list _) eqn:Hvs => //; move/eqP in H
+  | destruct k => //;
+    fold lfill in H ; 
+                 destruct (const_list _) eqn:Hvs => //;
+                                                     destruct (lfill _ _ _) eqn:Hfill => //;
+                                                                                          move/eqP in H ; found_intruse (AI_label n l1 l3) H Hxl1
+  | fold lfill in H ; 
+    destruct (const_list _) eqn:Hvs => //;
+                                        destruct (lfill _ _ _) eqn:Hfill => //;
+                                                                             move/eqP in H ; found_intruse (AI_label n l1 l3) H Hxl1
+  | fold lfill in H ; 
+    destruct (const_list _) eqn:Hvs => //;
+                                        destruct (lfill _ _ _) eqn:Hfill => //;
+                                                                             move/eqP in H ; found_intruse (AI_label n l1 l3) H Hxl1
+
+  ].
 
 (* Like simple_filled, but does not attempt to solve case k > 0 *)
 Ltac simple_filled2 H k lh vs l0 n l1 l3 :=
@@ -63,14 +75,25 @@ Ltac simple_filled2 H k lh vs l0 n l1 l3 :=
   let les := fresh "les" in
   let Hvs := fresh "Hvs" in
   unfold lfilled, lfill in H ;
-  destruct k ;
-  [ destruct lh as [vs l0|] ; [| false_assumption] ;
-    destruct (const_list vs) eqn:Hvs ; [| false_assumption] ; move/eqP in H |
-    fold lfill in H ; destruct lh as [|vs n l1 lh' l2] ; [false_assumption |] ;
-    destruct (const_list vs) eqn:Hvs ; [| false_assumption ] ;
-    remember (lfill k lh' _) as les ;
-    destruct les as [l3|] ; [| false_assumption ] ;
-    move/eqP in H ; try by found_intruse (AI_label n l1 l3) H Hxl1].
+   destruct lh ;
+  [ destruct k => //;
+                   destruct (const_list vs) eqn:Hvs => //; move/eqP in H
+  | destruct k => //;
+    fold lfill in H ; destruct lh => //;
+                                      destruct (const_list vs) eqn:Hvs => //;
+                                                                           destruct (lfill _ _ _) eqn:Hfill => //;
+                                                                                                                move/eqP in H ; try by found_intruse (AI_label n l1 l3) H Hxl1
+  | fold lfill in H ; destruct lh => //;
+                                      destruct (const_list vs) eqn:Hvs => //;
+                                                                           destruct (lfill _ _ _) eqn:Hfill => //;
+                                                                                                                move/eqP in H ; try by found_intruse (AI_label n l1 l3) H Hxl1
+  | fold lfill in H ; destruct lh => //;
+                                      destruct (const_list vs) eqn:Hvs => //;
+                                                                           destruct (lfill _ _ _) eqn:Hfill => //;
+                                                                                                                move/eqP in H ; try by found_intruse (AI_label n l1 l3) H Hxl1
+
+  ].
+*)
 
 Global Instance ai_eq_dec: EqDecision (administrative_instruction).
 Proof.

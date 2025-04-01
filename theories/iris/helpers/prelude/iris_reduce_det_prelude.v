@@ -7,7 +7,47 @@ Require Export iris_reduce_properties first_instr.
    with only the one possible desired case. Tactic will also attempt to trivially solve
    this one case, but may give it to user if attempt fails. *)
 
-Ltac only_one_reduction Heqes0 Hred :=
+Ltac only_one :=
+  let Hfill := fresh "Hfill" in
+  let Hfill' := fresh "Hfill" in
+  let IHHred := fresh "IHHred" in
+    lazymatch goal with
+    Hred : reduce _ _ ?es _ _ _ |- _ =>
+      remember es as esnew eqn:Heqesnew;
+      induction Hred as [? ? ? ? Hred | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ?? esnewest ??????? Hred IHHred Hfill Hfill' | ];
+      first destruct Hred as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? Hfill];
+      try (by inversion Heqesnew) ;
+      try (by lazymatch goal with
+                _ : (v_to_e_list ?vs ++ _)%SEQ = _ |- _ => do 4 destruct vs => //
+              end);
+      try (by lazymatch goal with
+                _ : (?vs ++ _)%SEQ = _ |- _ => do 4 destruct vs => //
+              end);
+      try (by inversion Heqesnew; subst; left);
+      try (move/lfilledP in Hfill; inversion Hfill; subst;
+            try (by lazymatch goal with
+                _ : (?vs ++ _)%SEQ = _ |- _ => do 4 destruct vs => //
+              end));
+      last (move/lfilledP in Hfill'; inversion Hfill'; subst ;
+      lazymatch goal with
+        _ : (?vs ++ ?esnewest ++ ?es'0)%SEQ = _ |- _ =>
+          destruct vs;
+          first (
+              destruct es'0 ;
+              [ repeat rewrite cats0 /=;
+                  lazymatch goal with H : ([] ++ _ ++ [])%SEQ = _ |- _ => rewrite cats0 /= in H; subst end;
+                apply IHHred => //
+              | lazymatch goal with
+                  H : ([] ++ _ ++ _ :: _)%SEQ = _ |- _ =>
+                    do 3 try (destruct esnewest; first by inversion H; subst;
+                              apply values_no_reduce in Hred);
+                    try (destruct esnewest; last by inversion H);
+                    inversion H
+                end] ) 
+      end)
+    end.
+
+(* Ltac only_one_reduction Heqes0 Hred :=
   let a := fresh "a" in
   let aft := fresh "aft" in
   let bef := fresh "bef" in
@@ -158,7 +198,7 @@ Ltac only_one objs Hred2 :=
   let Heqes := fresh "Heqes" in
   left ; remember objs as es eqn:Heqes ;
   apply Logic.eq_sym in Heqes ;
-  only_one_reduction Heqes Hred2.
+  only_one_reduction Heqes Hred2. *)
 
 Definition reduce_det_goal (ws1: store_record) (f1: frame) es1 ws2 f2 es2 es :=
       ((ws1, f1, es1) = (ws2, f2, es2) \/

@@ -3,6 +3,8 @@ From stdpp Require Import base list.
 Require Import iris_wasm_lang_properties.
 Require Import Coq.Program.Equality.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Fixpoint find_first_some {A : Type} (l : seq.seq (option A)) :=
   match l with
   | [] => None
@@ -12,12 +14,22 @@ Fixpoint find_first_some {A : Type} (l : seq.seq (option A)) :=
 Fixpoint first_instr_instr e :=
   match e with
   | AI_basic (BI_const _) => None
+  | AI_basic (BI_ref_null _) => None
+  | AI_ref _ => None
+  | AI_ref_exn _ _ => None
+  | AI_ref_cont _ => None
   | AI_label n es LI =>
     match find_first_some (List.map first_instr_instr LI)
     with Some (e',i) => Some (e',S i) | None => Some (e,0) end
   | AI_local n es LI =>
     match find_first_some (List.map first_instr_instr LI)
     with Some (e',i) => Some (e',S i) | None => Some (e,0) end
+  | AI_handler hs LI =>
+      match find_first_some (List.map first_instr_instr LI)
+      with Some (e', i) => Some (e', i) | None => Some (e, 0) end
+  | AI_prompt tf hs LI =>
+      match find_first_some (List.map first_instr_instr LI)
+      with Some (e', i) => Some (e', i) | None => Some (e, 0) end
   | _ => Some (e,0) end.
 
 Definition first_instr es :=
@@ -31,8 +43,9 @@ Proof.
   induction vs => //=.
   destruct a ; try by inversion Hvs.
   destruct b ; try by inversion Hvs.
-  simpl in Hvs. rewrite <- (IHvs Hvs).
-    by unfold first_instr.
+  all: simpl in Hvs.
+  all: rewrite <- (IHvs Hvs).
+  all: by unfold first_instr.
 Qed.
 
 Lemma first_instr_app e :
@@ -59,14 +72,28 @@ Proof.
   destruct (first_instr_instr a) eqn:Ha;[done|].
   intros H. apply IHes in H.
   unfold first_instr_instr in Ha.
-  destruct a =>//.
-  destruct b =>//.
-  destruct (first_instr l0) eqn:Hl0.
-  { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha. destruct p;done. }
-  { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha. done. }
-  destruct (first_instr l) eqn:Hl0.
-  { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha. destruct p;done. }
-  { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha. done. }
+  destruct a => //.
+  destruct b => //.
+  - destruct (first_instr l0) eqn:Hl0.
+    + unfold first_instr,first_instr_instr in Hl0.
+      rewrite Hl0 in Ha. destruct p;done. 
+    + unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha.
+      done. 
+  - destruct (first_instr l1) eqn:Hl0.
+    + unfold first_instr,first_instr_instr in Hl0.
+      rewrite Hl0 in Ha. destruct p;done. 
+    + unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha.
+      done.
+  - destruct (first_instr l0) eqn:Hl0.
+    + unfold first_instr,first_instr_instr in Hl0.
+      rewrite Hl0 in Ha. destruct p;done. 
+    + unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha.
+      done.
+  - destruct (first_instr l) eqn:Hl0.
+    + unfold first_instr,first_instr_instr in Hl0.
+      rewrite Hl0 in Ha. destruct p;done. 
+    + unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha.
+      done. 
 Qed.
 
 Lemma find_first_const_label es es1 n :
@@ -84,8 +111,10 @@ Proof.
     apply andb_true_iff in Hconst as [_ Hconst]. clear -Hconst.
     induction es;[done|].
     simpl. apply andb_true_iff in Hconst as [Ha Hconst].
-    destruct a;try done. destruct b;try done. simpl.
-    apply IHes. auto. }
+    destruct a;try done. destruct b;try done.
+    all: simpl.
+    all: apply IHes.
+    all: auto. }
   auto. 
 Qed.
 
@@ -117,8 +146,9 @@ Proof.
     apply andb_true_iff in Hconst as [_ Hconst]. clear -Hconst.
     induction es;[done|].
     simpl. apply andb_true_iff in Hconst as [Ha Hconst].
-    destruct a;try done. destruct b;try done. simpl.
-    apply IHes. auto. }
+    destruct a;try done. destruct b;try done.
+    all: simpl.
+    all: apply IHes. all: auto. }
   auto. 
 Qed.
 
@@ -131,10 +161,9 @@ Proof.
   move: Hf; move: e i.
   induction Hlf; move => e i Hf; rewrite first_instr_const => //; erewrite first_instr_app => //.
   { rewrite Hf; repeat f_equal; lia. }
-  { apply IHHlf in Hf.
-    unfold first_instr in * => /=.
-    rewrite Hf; repeat f_equal; lia.
-  }
+  all: apply IHHlf in Hf.
+  all: unfold first_instr in * => /=.
+  all: rewrite Hf; repeat f_equal; try lia.
 Qed.
 
 Lemma starts_implies_not_constant e es :
@@ -145,24 +174,31 @@ Proof.
   induction es ; try by inversion Hstart.
   destruct a ; try by inversion Hconst.
   destruct b ; try by inversion Hconst.
-  simpl in Hconst. unfold first_instr in Hstart.
-  unfold first_instr in IHes.
-  simpl in Hstart. by apply IHes.
+  all: simpl in Hconst.
+  all: unfold first_instr in Hstart.
+  all: unfold first_instr in IHes.
+  all: simpl in Hstart.
+  all: by apply IHes.
 Qed.
 
 Lemma lfilled_implies_starts k lh e es :
   (forall n es' LI, e <> AI_label n es' LI) ->
   (forall n es' LI, e <> AI_local n es' LI) ->
+  (forall n es' LI, e <> AI_prompt n es' LI) ->
+  (forall es' LI, e <> AI_handler es' LI) ->
   (is_const e -> False) ->
   lfilled k lh [e] es ->
   first_instr es = Some (e,k).
 Proof.
-  move => Hnlab Hnloc Hnconst Hlf.
+  move => Hnlab Hnloc Hnprompt Hnhandler Hnconst Hlf.
   eapply (starts_with_lfilled e 0) in Hlf => //.
   destruct e => //.
   { destruct b => //; exfalso; by apply Hnconst. }
-  { by specialize (Hnlab n l l0). }
-  { by specialize (Hnloc n f l). }
+  all: try by exfalso; apply Hnconst.
+  exfalso; by eapply Hnhandler.
+  exfalso; by eapply Hnprompt.
+  exfalso; by eapply Hnlab.
+  exfalso; by eapply Hnloc.
 Qed.
 
 
@@ -170,113 +206,524 @@ Inductive first_instr_Ind : list administrative_instruction -> administrative_in
 | first_instr_const_base vs es a i : const_list vs -> first_instr_Ind es a i -> first_instr_Ind (vs ++ es) a i
 | first_instr_trap es : first_instr_Ind (AI_trap :: es) AI_trap 0
 | first_instr_invoke es a : first_instr_Ind (AI_invoke a :: es) (AI_invoke a) 0
+| first_instr_throw_ref_desugared es vs a i : first_instr_Ind (AI_throw_ref_desugared vs a i :: es) (AI_throw_ref_desugared vs a i) 0
+| first_instr_suspend_desugared es vs i : first_instr_Ind (AI_suspend_desugared vs i :: es) (AI_suspend_desugared vs i) 0
+| first_instr_switch_desugared es vs k tf i : first_instr_Ind (AI_switch_desugared vs k tf i :: es) (AI_switch_desugared vs k tf i) 0
 | first_instr_call_host es tf h cvs : first_instr_Ind (AI_call_host tf h cvs :: es)
                                                       (AI_call_host tf h cvs) 0
 | first_instr_local_ind n f es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_local n f es :: es') a (S i)
 | first_instr_label n es1 es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_label n es1 es :: es') a (S i)
+| first_instr_prompt n es1 es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_prompt n es1 es :: es') a i
+| first_instr_handler es1 es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_handler es1 es :: es') a i
 | first_instr_local_base n f es es' : const_list es -> first_instr_Ind (AI_local n f es :: es') (AI_local n f es) 0
 | first_instr_label_base n es1 es es' : const_list es -> first_instr_Ind (AI_label n es1 es :: es') (AI_label n es1 es) 0
-| first_instr_basic bi es': (∀ b, bi ≠ BI_const b) -> first_instr_Ind (AI_basic bi :: es' ) (AI_basic bi) 0.
+| first_instr_prompt_base n es1 es es' : const_list es -> first_instr_Ind (AI_prompt n es1 es :: es') (AI_prompt n es1 es) 0
+| first_instr_handler_base es1 es es' : const_list es -> first_instr_Ind (AI_handler es1 es :: es') (AI_handler es1 es) 0
+| first_instr_basic bi es': (∀ b, bi ≠ BI_const b) -> (forall r, bi <> BI_ref_null r) -> first_instr_Ind (AI_basic bi :: es' ) (AI_basic bi) 0.
 
 Lemma first_instr_Ind_not_empty es a i :
   first_instr_Ind es a i -> es ≠ [].
 Proof.
   intros Hf. induction Hf;auto.
-  intros Hcontr. destruct vs,es =>//.
+  intros Hcontr. destruct vs,es => //.
 Qed.
 
 Lemma first_instr_Ind_Equivalent es a i :
   first_instr es = Some (a,i) <-> first_instr_Ind es a i.
 Proof.
-  revert es a.
-  induction i;intros es a.
-  { split.
-    { intros Hf.
-      destruct es;try done.
-      destruct a0;try done.
-      { all: cbn in Hf. rewrite separate1. destruct b; try done; simplify_eq; try by constructor.
-        constructor;auto.
-        induction es;try done.
-        simpl in Hf.
-        destruct (first_instr_instr a0) eqn:Ha0; simplify_eq.
-        { unfold first_instr_instr in Ha0.
-          destruct a0; try done; simplify_eq; try by constructor.
-          destruct b; try done; simplify_eq; try by constructor.
-          destruct (first_instr l0) eqn:Hl0.
-          { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0.
-            destruct p;done. }
-          { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0. simplify_eq.
-            constructor. apply first_instr_None_const. auto. }
-          destruct (first_instr l) eqn:Hl0.
-          { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0.
-            destruct p;done. }
-          { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0. simplify_eq.
-            constructor. apply first_instr_None_const. auto. } 
-          
-        }
-        
-        unfold first_instr_instr in Ha0. destruct a0 =>//.
-        destruct b  =>//.
-        rewrite separate1. apply first_instr_const_base;auto.
-        destruct (first_instr l0) eqn:Hl0.
-        { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0. destruct p;done. }
-        { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0. done. }
-        destruct (first_instr l) eqn:Hl0.
-        { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0. destruct p;done. }
-        { unfold first_instr,first_instr_instr in Hl0. rewrite Hl0 in Ha0. done. }
-      }
-      { cbn in Hf. simplify_eq. constructor. }
-      { cbn in Hf. simplify_eq. constructor. }
-      { cbn in Hf.
-        destruct (find_first_some (map first_instr_instr l0)) eqn:Hl0.
-        destruct p;try done. 
-        simplify_eq. constructor. apply first_instr_None_const. auto. }
-      { cbn in Hf.
-        destruct (find_first_some (map first_instr_instr l)) eqn:Hl0.
-        destruct p;try done. 
-        simplify_eq. constructor. apply first_instr_None_const. auto. }
-      { cbn in Hf.
-        inversion Hf ; subst. by constructor. } 
-    }
-    { intros Hi. induction Hi;subst;auto.
-      { rewrite first_instr_const;auto. }
-      { cbn. unfold first_instr in IHHi. by rewrite IHHi. }
-      { cbn. unfold first_instr in IHHi. by rewrite IHHi. }
-      { eapply find_first_const in H.
-        rewrite separate1. erewrite first_instr_app;eauto. }
-      { eapply find_first_const_label in H.
-        rewrite separate1. erewrite first_instr_app;eauto. }
-      { cbn. destruct bi;try done. specialize (H v). done. }
-    }
-  }
-  { split.
-    { intros Hf.
-      induction es;try done.
-      destruct a0;try done.
-      { destruct b; try done. cbn in Hf. apply IHes in Hf.
-        rewrite separate1. constructor;auto. }
-      { constructor. apply IHi.
-        cbn in Hf.
-        destruct (find_first_some (map first_instr_instr l0)) eqn:Hl0;try done.
-        destruct p;try done. simplify_eq. auto. }
-      { constructor. apply IHi.
-        cbn in Hf.
-        destruct (find_first_some (map first_instr_instr l)) eqn:Hl0;try done.
-        destruct p;try done. simplify_eq. auto. }
-    }
-    { intros Hf.
-      induction Hf;subst;try (by cbn).
-      { rewrite first_instr_const;auto. }
-      { cbn. unfold first_instr in IHHf. by rewrite IHHf. }
-      { cbn. unfold first_instr in IHHf. by rewrite IHHf. }
-      { eapply find_first_const in H.
-        rewrite separate1. erewrite first_instr_app;eauto. }
-      { eapply find_first_const_label in H.
-        rewrite separate1. erewrite first_instr_app;eauto. }
-      { cbn. destruct bi;try done. specialize (H v). done. }
-    }
-  }
-Qed.
+  revert a i.
+  remember (S (length_rec es)) as m.
+  assert (length_rec es < m); first lia.
+  clear Heqm.
+  generalize dependent es.
+  induction m;intros es Hm a i; first lia.
+  split.
+  - intros Hf.
+    destruct es;try done.
+    destruct a0;try done.
+    all: try by cbn in Hf; simplify_eq; constructor. 
+    * cbn in Hf.
+      rewrite separate1.
+      destruct b; try done; simplify_eq; try by constructor.
+      all: constructor;auto.
+      all: destruct es;try done. 
+      all: simpl in Hf.
+      all: destruct (first_instr_instr a0) eqn:Ha0; simplify_eq.
+      -- unfold first_instr_instr in Ha0.
+         destruct a0; try done; simplify_eq; try by constructor.
+         destruct b; try done; simplify_eq; try by constructor.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               fold first_instr_instr in Hl0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               apply first_instr_handler_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               apply first_instr_prompt_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr, first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               constructor.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               constructor.
+               apply first_instr_None_const. auto. 
+      -- unfold first_instr_instr in Ha0. destruct a0 => //.
+         destruct b  => //.
+         1-5: rewrite separate1.
+         1-5: apply first_instr_const_base;auto.
+         1-5: apply IHm => //.
+         1-5: rewrite /length_rec /= in Hm.
+         1-5: rewrite /length_rec.
+         1-5: lia.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+      -- unfold first_instr_instr in Ha0.
+         destruct a0; try done; simplify_eq; try by constructor.
+         destruct b; try done; simplify_eq; try by constructor.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               fold first_instr_instr in Hl0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               apply first_instr_handler_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               apply first_instr_prompt_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr, first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               constructor.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               constructor.
+               apply first_instr_None_const. auto. 
+      -- unfold first_instr_instr in Ha0. destruct a0 => //.
+         destruct b  => //.
+         1-5: rewrite separate1.
+         1-5: apply first_instr_const_base;auto.
+         1-5: apply IHm => //.
+         1-5: rewrite /length_rec /= in Hm.
+         1-5: rewrite /length_rec.
+         1-5: lia.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+    * (* AI_ref *)
+      rewrite separate1. constructor;auto.
+      destruct es;try done. 
+      unfold first_instr in Hf.
+      simpl in Hf.
+      destruct (first_instr_instr a0) eqn:Ha0; simplify_eq.
+      -- unfold first_instr_instr in Ha0.
+         destruct a0; try done; simplify_eq; try by constructor.
+         destruct b; try done; simplify_eq; try by constructor.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               fold first_instr_instr in Hl0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               apply first_instr_handler_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               apply first_instr_prompt_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr, first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               constructor.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               constructor.
+               apply first_instr_None_const. auto. 
+      -- unfold first_instr_instr in Ha0. destruct a0 => //.
+         destruct b  => //.
+         1-5: rewrite separate1.
+         1-5: apply first_instr_const_base;auto.
+         1-5: apply IHm => //.
+         1-5: rewrite /length_rec /= in Hm.
+         1-5: rewrite /length_rec.
+         1-5: lia.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+    * (* AI_ref *)
+      rewrite separate1. constructor;auto.
+      destruct es;try done. 
+      unfold first_instr in Hf.
+      simpl in Hf.
+      destruct (first_instr_instr a0) eqn:Ha0; simplify_eq.
+      -- unfold first_instr_instr in Ha0.
+         destruct a0; try done; simplify_eq; try by constructor.
+         destruct b; try done; simplify_eq; try by constructor.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               fold first_instr_instr in Hl0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               apply first_instr_handler_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               apply first_instr_prompt_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr, first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               constructor.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               constructor.
+               apply first_instr_None_const. auto. 
+      -- unfold first_instr_instr in Ha0. destruct a0 => //.
+         destruct b  => //.
+         1-5: rewrite separate1.
+         1-5: apply first_instr_const_base;auto.
+         1-5: apply IHm => //.
+         1-5: rewrite /length_rec /= in Hm.
+         1-5: rewrite /length_rec.
+         1-5: lia.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+    * (* AI_ref *)
+      rewrite separate1. constructor;auto.
+      destruct es;try done. 
+      unfold first_instr in Hf.
+      simpl in Hf.
+      destruct (first_instr_instr a0) eqn:Ha0; simplify_eq.
+      -- unfold first_instr_instr in Ha0.
+         destruct a0; try done; simplify_eq; try by constructor.
+         destruct b; try done; simplify_eq; try by constructor.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               fold first_instr_instr in Hl0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               apply first_instr_handler_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               apply first_instr_prompt_base.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr, first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               unfold length_rec in Hm; simpl in Hm.
+               unfold length_rec. lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               fold first_instr_instr in Hl0.
+               constructor.
+               apply first_instr_None_const. auto. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0.
+               destruct p; inversion Ha0; subst.
+               apply IHm in Hl0. constructor => //.
+               rewrite /length_rec /= in Hm; rewrite /length_rec.
+               lia.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. simplify_eq.
+               constructor.
+               apply first_instr_None_const. auto. 
+      -- unfold first_instr_instr in Ha0. destruct a0 => //.
+         destruct b  => //.
+         1-5: rewrite separate1.
+         1-5: apply first_instr_const_base;auto.
+         1-5: apply IHm => //.
+         1-5: rewrite /length_rec /= in Hm.
+         1-5: rewrite /length_rec.
+         1-5: lia.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l1) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+         ++ destruct (first_instr l0) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done. 
+         ++ destruct (first_instr l) eqn:Hl0.
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. destruct p;done. 
+            ** unfold first_instr,first_instr_instr in Hl0.
+               rewrite Hl0 in Ha0. done.
+    * cbn in Hf.
+      destruct (find_first_some (map first_instr_instr l0)) eqn:Hl0.
+      -- destruct p. simplify_eq.
+         apply IHm in Hl0. constructor => //.
+         rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+      -- simplify_eq. apply first_instr_handler_base.
+         apply first_instr_None_const. auto.
+    * cbn in Hf.
+      destruct (find_first_some (map first_instr_instr l1)) eqn:Hl0.
+      -- destruct p. simplify_eq.
+         apply IHm in Hl0. constructor => //.
+         rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+      -- simplify_eq. apply first_instr_prompt_base.
+         apply first_instr_None_const. auto.
+    * cbn in Hf.
+      destruct (find_first_some (map first_instr_instr l0)) eqn:Hl0.
+      -- destruct p. simplify_eq.
+         apply IHm in Hl0. constructor => //.
+         rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+      -- simplify_eq. constructor.
+         apply first_instr_None_const. auto.
+    * cbn in Hf.
+      destruct (find_first_some (map first_instr_instr l)) eqn:Hl0.
+      -- destruct p. simplify_eq.
+         apply IHm in Hl0. constructor => //.
+         rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+      -- simplify_eq. constructor.
+         apply first_instr_None_const. auto.
+  - intros H. induction H; subst => //=.
+    + rewrite first_instr_const => //.
+      destruct vs.
+      * apply IHfirst_instr_Ind => //.
+      * apply IHm => //.
+        unfold length_rec in Hm.
+        rewrite cat_app in Hm.
+        rewrite map_app /= in Hm.
+        unfold length_rec.
+        rewrite list_sum_app in Hm.
+        destruct a0; try by simpl in Hm; lia.
+    + apply IHm in H.
+      unfold first_instr => /=.
+      unfold first_instr in H. rewrite H. done.
+      rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+    + apply IHm in H.
+      unfold first_instr => /=.
+      unfold first_instr in H. rewrite H. done.
+      rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+    + apply IHm in H.
+      unfold first_instr => /=.
+      unfold first_instr in H. rewrite H. done.
+      rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+    + apply IHm in H.
+      unfold first_instr => /=.
+      unfold first_instr in H. rewrite H. done.
+      rewrite /length_rec /= in Hm. rewrite /length_rec. lia.
+    + unfold first_instr => /=.
+      destruct (find_first_some _) eqn:Hsome => //.
+      exfalso; eapply starts_implies_not_constant; eauto.
+    + unfold first_instr => /=.
+      destruct (find_first_some _) eqn:Hsome => //.
+      exfalso; eapply starts_implies_not_constant; eauto.
+    + unfold first_instr => /=.
+      destruct (find_first_some _) eqn:Hsome => //.
+      exfalso; eapply starts_implies_not_constant; eauto.
+    + unfold first_instr => /=.
+      destruct (find_first_some _) eqn:Hsome => //.
+      exfalso; eapply starts_implies_not_constant; eauto.
+    + destruct bi => //=.
+      by exfalso; eapply H.
+      by exfalso; eapply H0.
+Qed. 
+
 
 Lemma llfill_prepend llh vs es lles:
   llfill llh es = lles ->
@@ -286,35 +733,43 @@ Proof.
   move => Hllf Hconst.
   apply const_es_exists in Hconst as [vs0 ->].
   destruct llh.
-  { eexists (LL_base (vs0 ++ l) l0); simpl in *.
+  - eexists (LL_base (vs0 ++ l) l0); simpl in *.
     unfold v_to_e_list; rewrite map_cat -Hllf.
     repeat rewrite cat_app.
     by rewrite - app_assoc.
-  }
-  { eexists (LL_label (vs0 ++ l) n l0 llh l1); simpl in *.
-    unfold v_to_e_list; rewrite map_cat -Hllf.
-    repeat rewrite cat_app.
-    by rewrite - app_assoc.
-  }
-  { eexists (LL_local (vs0 ++ l) n f llh l0); simpl in *.
-    unfold v_to_e_list; rewrite map_cat -Hllf.
-    repeat rewrite cat_app.
-    by rewrite - app_assoc.
-  }
-Qed.
   
+  - eexists (LL_label (vs0 ++ l) n l0 llh l1); simpl in *.
+    unfold v_to_e_list; rewrite map_cat -Hllf.
+    repeat rewrite cat_app.
+    by rewrite - app_assoc.
+  
+  - eexists (LL_local (vs0 ++ l) n f llh l0); simpl in *.
+    unfold v_to_e_list; rewrite map_cat -Hllf.
+    repeat rewrite cat_app.
+    by rewrite - app_assoc.
+  - eexists (LL_prompt (vs0 ++ l) l0 l1 llh l2); simpl in *.
+    unfold v_to_e_list; rewrite map_cat -Hllf.
+    repeat rewrite cat_app.
+    by rewrite - app_assoc.
+  - eexists (LL_handler (vs0 ++ l) l0 llh l1); simpl in *.
+    unfold v_to_e_list; rewrite map_cat -Hllf.
+    repeat rewrite cat_app.
+    by rewrite - app_assoc.
+  
+Qed.
+
 Lemma first_instr_Ind_llfill es a i:
   first_instr_Ind es a i ->
   (exists llh, llfill llh [a] = es).
 Proof.
   move => Hf.
   dependent induction Hf; (try by exists (LL_base [] es)); (try by exists (LL_base [] es')).
-  { destruct IHHf as [llh Hllf].
-    by eapply llfill_prepend. }
-  { destruct IHHf as [llh Hllf]; subst.
-    by exists (LL_local [] n f llh es'). }
-  { destruct IHHf as [llh Hllf]; subst.
-    by exists (LL_label [] n es1 llh es'). }
+  all: destruct IHHf as [llh Hllf]; subst.
+  - by eapply llfill_prepend. 
+  - by eexists (LL_local [] n f llh es'). 
+  - by eexists (LL_label [] n es1 llh es').
+  - by eexists (LL_prompt [] _ _ _ _).
+  - by eexists (LL_handler [] _ _ _).
 Qed.
 
 Lemma first_instr_llfill es a i:

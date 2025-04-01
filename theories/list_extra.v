@@ -92,6 +92,13 @@ Proof.
     + reflexivity.
 Qed.
 
+Ltac separate_last l :=
+  let H := fresh "H" in
+  destruct (separate_last l) as [[??]|] eqn:H;
+  [ apply separate_last_spec in H as ->
+  | apply separate_last_None in H as ->]
+.
+
 Lemma separate_last_app {A} (l1 l2 : list A) l x :
   separate_last l2 = Some (l, x) ->
   separate_last (l1 ++ l2) = Some (l1 ++ l, x).
