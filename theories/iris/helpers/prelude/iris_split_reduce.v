@@ -468,7 +468,184 @@ Section split_reduce_properties.
     destruct σ0 as [[[??]?]?] ; destruct H as (Hred0 & Hobs0 & Hefs0).
     induction Hred.
     destruct H.
-    43:{ right. exists (LH_base [] []).
+    28:{ (* block *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      exfalso; eapply block_not_enough_arguments_no_reduce.
+      exact Hred0. simpl in H; remove_bools_options => //.
+      simpl in H0. lia. }
+    28:{ (* loop *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      exfalso; eapply loop_not_enough_arguments_no_reduce.
+      exact Hred0. simpl in H; remove_bools_options => //.
+      simpl in H0. lia. } 
+    48:{ (* invoke *)
+      destruct ves; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      destruct vcs => //.
+      inversion H1; subst.
+      exfalso; eapply invoke_not_enough_arguments_no_reduce_native.
+      all: try exact Hred0. exact H. 
+      apply v_to_e_is_const_list.
+      rewrite v_to_e_length. simpl in H4. lia. } 
+    48:{ (* invoke *)
+      destruct ves; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      destruct vcs => //.
+      inversion H1; subst.
+      exfalso; eapply invoke_not_enough_arguments_no_reduce_host.
+      all: try exact Hred0. exact H. 
+      apply v_to_e_is_const_list.
+      rewrite v_to_e_length. simpl in H3. lia. } 
+    48:{ (* try_table *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      inversion Heqves; subst es.
+      exfalso; eapply try_table_not_enough_arguments_no_reduce.
+      all: try exact Hred0. subst. exact H.
+      simpl in H1. remove_bools_options. done.
+      simpl in H2. lia. } 
+    48:{ (* throw *)
+      destruct ves; first by destruct v; try destruct v; inversion Heqves.
+      subst.
+      inversion Heqves; subst es.
+      destruct vcs => //. inversion H1; subst.
+      exfalso; eapply throw_not_enough_arguments_no_reduce.
+      all: try exact Hred0. exact H. exact H0.
+      apply v_to_e_is_const_list.
+      simpl in H2. lia. }
+    52:{ (* resume *)
+      destruct vs.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H11; subst.
+        rewrite H8; done.
+        inversion H11; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        exfalso; eapply resume_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H0. exact H2.
+        simpl in H. remove_bools_options. done.
+        simpl in H1. lia. } 
+    53:{ (* suspend *)
+      destruct vs; first by destruct v; try destruct v; inversion Heqves.
+      subst.
+      inversion Heqves; subst es.
+      exfalso; eapply suspend_not_enough_arguments_no_reduce.
+      all: try exact Hred0. exact H. exact H0.
+      apply v_to_e_is_const_list.
+      rewrite length_map.
+      simpl in H1. lia. } 
+    53:{ (* switch *)
+       destruct vs.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H11; subst.
+        rewrite H8; done.
+        inversion H11; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        exfalso; eapply switch_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H2. exact H3.
+        apply v_to_e_is_const_list.
+        rewrite length_map. simpl in H4. lia. } 
+    56:{ (* contbind *)
+      destruct vs.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H10; subst.
+        rewrite H7; done.
+        inversion H10; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        exfalso; eapply contbind_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H0. exact H1. exact H3.
+        simpl in H. remove_bools_options. done.
+        simpl in H2. lia. } 
+    57:{ (* resume_throw *)
+      destruct ves.
+      + inversion Heqves.
+        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+
+              inversion Heqves; subst;
+              destruct es, es'0 => //; apply IHHred0 => // ) 
+        ].
+        inversion H15; subst.
+        rewrite H4; done.
+        inversion H15; subst => //. 
+      + subst.
+        inversion Heqves; subst es.
+        destruct vcs => //. inversion H1; subst.
+        exfalso; eapply resume_throw_not_enough_arguments_no_reduce.
+        all: try exact Hred0. exact H. exact H0. exact H5.
+        apply v_to_e_is_const_list.
+        simpl in H2. lia. }
+    41:{ (* lfilled trap *)
+      right. exists (LH_base [] []).
          move/lfilledP in H0.
          inversion H0; subst.
          all: (destruct vs + destruct bef); first by destruct v; try destruct v.
@@ -482,7 +659,8 @@ Section split_reduce_properties.
          all: repeat split => //.
          all: apply/lfilledP.
          all: constructor => //.  } 
-    83:{ move/lfilledP in H.
+    72:{ (* lfilled *)
+      move/lfilledP in H.
          move/lfilledP in H0.
          inversion H; subst; inversion H0; subst.
          - destruct vs.
@@ -705,10 +883,211 @@ Section split_reduce_properties.
     }                         
                      
     all: try by destruct v; try destruct v; inversion Heqves; subst.
-    20, 21: destruct v1, v2; destruct v0, v1.
+
+    20:{ (* select *)
+      exfalso; clear Hlen IHlen; induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
+        destruct v1, v2; destruct v0, v1; do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
+          try (by destruct v1, v2; destruct v0, v1; do 4 destruct bef => //);
+          destruct vs;
+          first (
+              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0; try rewrite /= const_const);
+
+              inversion Heqves; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+      apply const_inj in H1 as -> => //.
+      inversion Heqves; subst.
+      destruct vs.
+      - destruct es; first empty_list_no_reduce.
+        inversion H3; subst.
+        destruct es; first by apply values_no_reduce in Hred0.
+        inversion H4; subst.
+        destruct es, es'0 => //.
+        clear - Hred0.
+        lazymatch goal with
+        | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
+        induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by do 4 destruct vs => //);
+        do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred0; try rewrite /= const_const) ;
+
+              inversion H3; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+        inversion H3; subst.
+        destruct vs; last by destruct vs, es, es'0 => //; empty_list_no_reduce.
+        destruct es; first by empty_list_no_reduce.
+        inversion H2; destruct es, es'0 => //; subst.
+        clear - Hred0.
+             lazymatch goal with
+        | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
+        induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by do 4 destruct vs => //);
+        do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred0; try rewrite /= const_const) ;
+
+              inversion H3; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+        inversion H3; subst => //.
+      - inversion H3; subst => //.
+          destruct vs; last by destruct vs, es, es'0 => //; empty_list_no_reduce.
+        destruct es; first by empty_list_no_reduce.
+        inversion H4; destruct es, es'0 => //; subst.
+        clear - Hred0.
+             lazymatch goal with
+        | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
+        induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by do 4 destruct vs => //);
+        do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred0; try rewrite /= const_const) ;
+
+              inversion H3; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+        inversion H3; subst => //. }
+   20:{ (* select *)
+      exfalso; clear Hlen IHlen; induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
+        destruct v1, v2; destruct v0, v1; do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
+          try (by destruct v1, v2; destruct v0, v1; do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0; try rewrite /= const_const);
+
+              inversion Heqves; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+      apply const_inj in H2 as -> => //.
+      inversion Heqves; subst.
+      destruct vs.
+      - destruct es; first empty_list_no_reduce.
+        inversion H4; subst.
+        destruct es; first by apply values_no_reduce in Hred0.
+        inversion H5; subst.
+        destruct es, es'0 => //.
+        clear - Hred0.
+        lazymatch goal with
+        | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
+        induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by do 4 destruct vs => //);
+        do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred0; try rewrite /= const_const) ;
+
+              inversion H3; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+        inversion H3; subst.
+        destruct vs; last by destruct vs, es, es'0 => //; empty_list_no_reduce.
+        destruct es; first by empty_list_no_reduce.
+        inversion H2; destruct es, es'0 => //; subst.
+        clear - Hred0.
+             lazymatch goal with
+        | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
+        induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by do 4 destruct vs => //);
+        do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred0; try rewrite /= const_const) ;
+
+              inversion H3; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+        inversion H3; subst => //.
+      - inversion H4; subst => //.
+          destruct vs; last by destruct vs, es, es'0 => //; empty_list_no_reduce.
+        destruct es; first by empty_list_no_reduce.
+        inversion H5; destruct es, es'0 => //; subst.
+        clear - Hred0.
+             lazymatch goal with
+        | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
+        induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+      [ by move/lfilledP in H01; inversion H01; subst ;
+          try (by do 4 destruct vs => //);
+        do 4 destruct bef => // 
+      |  move/lfilledP in H00; inversion H00; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred0; try rewrite /= const_const) ;
+
+              inversion H3; subst;
+              destruct es => //; apply IHHred0 => //
+      )].
+        inversion H3; subst => //. }
+    
     all: try subst vs.
       
-    all: try (exfalso; clear Hlen IHlen; induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
+    all: (exfalso; clear Hlen IHlen; induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
         first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
         try (by inversion Heqves);
         try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
@@ -721,15 +1100,15 @@ Section split_reduce_properties.
           try (by do 4 destruct bef => //);
           destruct vs;
           first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+              do 4 try (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
 
               inversion Heqves; subst;
               destruct es => //; apply IHHred0 => //
            )]).
-    all: try (clear IHHred0 H00 H01; inversion Heqves; subst => //).
+    all: (clear IHHred0 H00 H01; inversion Heqves; subst => //).
     all: try (destruct vs; last by inversion Heqves; destruct vs, es => //; apply empty_no_reduce in Hred0).
     all: try (destruct vs; last (destruct vs; last by inversion Heqves; destruct vs, es => //; apply empty_no_reduce in Hred0)).
-    all: try (induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+    all: (induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
         first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
         try (by inversion Heqves);
         try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
@@ -742,208 +1121,12 @@ Section split_reduce_properties.
           try (by do 4 destruct bef => //);
           destruct vs;
           first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
+              do 4 try (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
 
               inversion Heqves; subst;
               destruct es, es'1, es'0 => //; apply IHHred0 => // ) 
           ]).
-    all: try (clear IHHred0 H02 H03; inversion Heqves; subst => //).
-    all: try (destruct vs; last by inversion Heqves; destruct vs, es => //; apply empty_no_reduce in Hred0).
-     all: try (induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
-
-              inversion Heqves; subst;
-              destruct es, es'1, es'0, es'2 => //; apply IHHred0 => // ) 
-            ]).
-     all: try (clear IHHred0 H02 H03; inversion Heqves; subst => //).
-    - (* block *)
-      destruct vs; first by destruct v; try destruct v; inversion Heqves.
-      inversion Heqves; subst es.
-      exfalso; eapply block_not_enough_arguments_no_reduce.
-      exact Hred0. simpl in H; remove_bools_options => //.
-      simpl in H0. lia.
-    - (* loop *)
-      destruct vs; first by destruct v; try destruct v; inversion Heqves.
-      inversion Heqves; subst es.
-      exfalso; eapply loop_not_enough_arguments_no_reduce.
-      exact Hred0. simpl in H; remove_bools_options => //.
-      simpl in H0. lia.
-    - (* invoke *)
-      destruct ves; first by destruct v; try destruct v; inversion Heqves.
-      inversion Heqves; subst es.
-      destruct vcs => //.
-      inversion H1; subst.
-      exfalso; eapply invoke_not_enough_arguments_no_reduce_native.
-      all: try exact Hred0. exact H. 
-      apply v_to_e_is_const_list.
-      rewrite v_to_e_length. simpl in H4. lia.
-    - (* invoke *)
-      destruct ves; first by destruct v; try destruct v; inversion Heqves.
-      inversion Heqves; subst es.
-      destruct vcs => //.
-      inversion H1; subst.
-      exfalso; eapply invoke_not_enough_arguments_no_reduce_host.
-      all: try exact Hred0. exact H. 
-      apply v_to_e_is_const_list.
-      rewrite v_to_e_length. simpl in H3. lia.
-    - (* try_table *)
-      destruct vs; first by destruct v; try destruct v; inversion Heqves.
-      inversion Heqves; subst es.
-      exfalso; eapply try_table_not_enough_arguments_no_reduce.
-      all: try exact Hred0. subst. exact H.
-      simpl in H1. remove_bools_options. done.
-      simpl in H2. lia.
-    - (* throw *)
-      destruct ves; first by destruct v; try destruct v; inversion Heqves.
-      subst.
-      inversion Heqves; subst es.
-      destruct vcs => //. inversion H1; subst.
-      exfalso; eapply throw_not_enough_arguments_no_reduce.
-      all: try exact Hred0. exact H. exact H0.
-      apply v_to_e_is_const_list.
-      simpl in H2. lia.
-    - (* resume *)
-      destruct vs.
-      + inversion Heqves.
-        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
-
-              inversion Heqves; subst;
-              destruct es, es'0 => //; apply IHHred0 => // ) 
-        ].
-        inversion H11; subst.
-        rewrite H8; done.
-        inversion H11; subst => //. 
-      + subst.
-        inversion Heqves; subst es.
-        exfalso; eapply resume_not_enough_arguments_no_reduce.
-        all: try exact Hred0. exact H0. exact H2.
-        simpl in H. remove_bools_options. done.
-        simpl in H1. lia.
-    - (* suspend *)
-      destruct vs; first by destruct v; try destruct v; inversion Heqves.
-      subst.
-      inversion Heqves; subst es.
-      exfalso; eapply suspend_not_enough_arguments_no_reduce.
-      all: try exact Hred0. exact H. exact H0.
-      apply v_to_e_is_const_list.
-      rewrite length_map.
-      simpl in H1. lia.
-    - (* switch *)
-       destruct vs.
-      + inversion Heqves.
-        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
-
-              inversion Heqves; subst;
-              destruct es, es'0 => //; apply IHHred0 => // ) 
-        ].
-        inversion H11; subst.
-        rewrite H8; done.
-        inversion H11; subst => //. 
-      + subst.
-        inversion Heqves; subst es.
-        exfalso; eapply switch_not_enough_arguments_no_reduce.
-        all: try exact Hred0. exact H2. exact H3.
-        apply v_to_e_is_const_list.
-        rewrite length_map. simpl in H4. lia.
-    - (* contbind *)
-      destruct vs.
-      + inversion Heqves.
-        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
-
-              inversion Heqves; subst;
-              destruct es, es'0 => //; apply IHHred0 => // ) 
-        ].
-        inversion H10; subst.
-        rewrite H7; done.
-        inversion H10; subst => //. 
-      + subst.
-        inversion Heqves; subst es.
-        exfalso; eapply contbind_not_enough_arguments_no_reduce.
-        all: try exact Hred0. exact H0. exact H1. exact H3.
-        simpl in H. remove_bools_options. done.
-        simpl in H2. lia.
-    - (* resume_throw *)
-      destruct ves.
-      + inversion Heqves.
-        induction Hred0 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0);
-
-              inversion Heqves; subst;
-              destruct es, es'0 => //; apply IHHred0 => // ) 
-        ].
-        inversion H15; subst.
-        rewrite H4; done.
-        inversion H15; subst => //. 
-      + subst.
-        inversion Heqves; subst es.
-        destruct vcs => //. inversion H1; subst.
-        exfalso; eapply resume_throw_not_enough_arguments_no_reduce.
-        all: try exact Hred0. exact H. exact H0. exact H5.
-        apply v_to_e_is_const_list.
-        simpl in H2. lia.
+    all: (clear IHHred0 H02 H03; inversion Heqves; subst => //).
 Qed.
 
   

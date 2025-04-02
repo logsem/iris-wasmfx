@@ -21,6 +21,20 @@ Proof.
   destruct v => //=.
 Qed.
 
+Lemma const_const_inv v :
+  is_const v -> exists iv, v = AI_const iv.
+Proof.
+  destruct v => //.
+  destruct b => //.
+  all: intros _.
+  by eexists (VAL_num v).
+  by eexists (VAL_ref (VAL_ref_null r)).
+  by eexists (VAL_ref (VAL_ref_func f)).
+  by eexists (VAL_ref (VAL_ref_exn e t)).
+  by eexists (VAL_ref (VAL_ref_cont f)).
+Qed. 
+       
+
 Lemma const_inj v1 v2 :
   AI_const v1 = AI_const v2 -> v1 = v2.
 Proof.
