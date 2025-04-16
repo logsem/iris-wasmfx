@@ -129,13 +129,13 @@ Section lfilled_properties.
 
   Fixpoint empty_base lh :=
     match lh with
-    | LH_base bef aft => (LH_base [] [], LH_base bef aft)
-    | LH_rec a b c lh d => let '( lh', lh0) := empty_base lh in
-                          (LH_rec a b c lh' d, lh0)
-    | LH_prompt a b c lh d => let '( lh', lh0) := empty_base lh in
-                             (LH_prompt a b c lh' d, lh0)
-    | LH_handler a b lh c => let '( lh', lh0) := empty_base lh in
-                            (LH_handler a b lh' c, lh0)
+    | LH_base bef aft => (LH_base [] [], bef, aft)
+    | LH_rec a b c lh d => let '( lh', bef, aft) := empty_base lh in
+                          (LH_rec a b c lh' d, bef, aft)
+    | LH_prompt a b c lh d => let '( lh', bef, aft) := empty_base lh in
+                             (LH_prompt a b c lh' d, bef, aft)
+    | LH_handler a b lh c => let '( lh', bef, aft) := empty_base lh in
+                            (LH_handler a b lh' c, bef, aft)
     end.
 
   Fixpoint get_layer lh i :=
@@ -156,7 +156,7 @@ Section lfilled_properties.
     end.
 
   Definition lh_delete_inner lh :=
-    let '(lh',_) := empty_base lh in lh'.
+    let '(lh',_,_) := empty_base lh in lh'.
 
   Fixpoint sh_pull_const_r sh vs :=
     match sh with
@@ -193,15 +193,16 @@ Section lfilled_properties.
     induction l;auto.
   Qed.
 
-  Lemma can_empty_base k lh es LI lh' lh0 :
-    empty_base lh = (lh', lh0) -> 
+  Lemma can_empty_base k lh es LI lh' bef aft :
+    empty_base lh = (lh', bef, aft) -> 
     lfilled k lh es LI ->
-    exists es', lfilled 0 lh0 es es' /\ lfilled k lh' es' LI /\ base_is_empty lh'.
+    exists es', lfilled 0 (LH_base bef aft) es es' /\ lfilled k lh' es' LI /\ base_is_empty lh'.
   Proof.
     intros.
     generalize dependent lh'.
-    generalize dependent lh0. generalize dependent LI. generalize dependent k. 
-    induction lh ; intros k LI Hfill lh0 lh' Hempty.
+    generalize dependent bef. generalize dependent aft.
+    generalize dependent LI. generalize dependent k. 
+    induction lh ; intros k LI Hfill aft beft lh' Hempty.
     all: unfold lfilled, lfill in Hfill; fold lfill in Hfill.
     1,2: destruct k => //.
     all: try specialize (IHlh k).
@@ -210,10 +211,10 @@ Section lfilled_properties.
     all: try (destruct (lfill _ _ _) eqn:Hfill'; last done).
     all: move/eqP in Hfill; subst LI.
     all: simpl in Hempty.
-    2-4: destruct (empty_base lh) eqn:Hlh.
+    2-4: destruct (empty_base lh) as [[??]?] eqn:Hlh.
     all: inversion Hempty; subst.
     all: try edestruct IHlh as (es' & Hres0 & Hres' & Hbase) => //=.
-    exists (l ++ es ++ l0).
+    exists (beft ++ es ++ aft).
     all: try eexists es'.
     all: repeat split => //=.
     all: unfold lfilled, lfill; fold lfill => //=.
@@ -224,15 +225,15 @@ Section lfilled_properties.
   Qed.
   
 
-  Lemma can_fill_base k lh es es' LI lh' lh0 :
-    empty_base lh = (lh', lh0) ->
-    lfilled 0 lh0 es es' -> lfilled k lh' es' LI -> lfilled k lh es LI.
+  Lemma can_fill_base k lh es es' LI lh' bef aft:
+    empty_base lh = (lh', bef, aft) ->
+    lfilled 0 (LH_base bef aft) es es' -> lfilled k lh' es' LI -> lfilled k lh es LI.
   Proof.
     generalize dependent LI ; generalize dependent k.
-    generalize dependent lh' ; generalize dependent lh0.
-    induction lh ; intros lh0 lh' k LI Hempty ; simpl.
+    generalize dependent lh' ; generalize dependent aft; generalize dependent bef.
+    induction lh ; intros bef aft lh' k LI Hempty ; simpl.
     all: simpl in Hempty.
-    2-4: destruct (empty_base lh) eqn:Hlh.
+    2-4: destruct (empty_base lh) as [[??]?] eqn:Hlh.
     all: inversion Hempty; subst.
     all: intros Hfill0 Hfill.
     all: apply/lfilledP.
@@ -403,6 +404,97 @@ Section lfilled_properties.
     | LH_prompt _ _ _ lh _ => S (lh_true_depth lh)
     end.
 
+  Lemma true_depth_leq_filled lh1 lh2 k1 k2 es1 es2 LI:
+    lh_true_depth lh1 <= lh_true_depth lh2 ->
+    lfilled k1 lh1 es1 LI ->
+    lfilled k2 lh2 es2 LI ->
+    k1 <= k2.
+  Proof.
+    intros Hleq Hfill1.
+    generalize dependent lh2. generalize dependent k2.
+    move/lfilledP in Hfill1.
+    induction Hfill1 => //=.
+    { lia. } 
+    all: intros k2 lh2 Hleq Hfill2.
+    all: move/lfilledP in Hfill2.
+    all: inversion Hfill2; subst.
+    all: try lazymatch goal with
+           | H : (_ ++ _ :: _)%SEQ = (_ ++ _ :: _)%SEQ |- _ =>
+               apply first_values in H as (? & ? & ?) => //
+           end. 
+    all: simpl in Hleq; try lia.
+    all: inversion H2; subst.
+    all: move/lfilledP in H5.
+    all: apply IHHfill1 in H5 => //.
+    all: lia.
+  Qed.
+
+   Lemma true_depth_lt_minus lh1 lh2 lh1' bef1 aft1 bef2 aft2:
+     lh_true_depth lh1 < lh_true_depth lh2 ->
+     empty_base lh1 = (lh1', bef1, aft1) ->
+     lh_minus lh2 lh1' = Some (LH_base bef2 aft2) ->
+     False.
+  Proof.
+    intros Hleq Hempty Hminus.
+    generalize dependent lh2. generalize dependent lh1'.
+    induction lh1; intros lh'1 Hempty lh2 Hleq Hminus.
+    - inversion Hempty; subst.
+      destruct lh2 => //.
+      simpl in Hleq. lia.
+    - simpl in Hempty.
+      destruct (empty_base lh1) as [[??]?].
+      inversion Hempty; subst.
+      destruct lh2 => //.
+      simpl in Hminus.
+      destruct (_ && _) eqn:Heq => //.
+      remove_bools_options.
+      apply Nat.eqb_eq in H2. subst.
+      simpl in Hleq.
+      eapply IHlh1. done.
+      2: exact Hminus.
+      lia.
+    - simpl in Hempty.
+      destruct (empty_base lh1) as [[??]?].
+      inversion Hempty; subst.
+      destruct lh2 => //.
+      simpl in Hminus.
+      destruct (_ && _) eqn:Heq => //.
+      remove_bools_options.
+      subst.
+      simpl in Hleq.
+      eapply IHlh1. done.
+      2: exact Hminus.
+      lia.
+    - simpl in Hempty.
+      destruct (empty_base lh1) as [[??]?].
+      inversion Hempty; subst.
+      destruct lh2 => //.
+      simpl in Hminus.
+      destruct (_ && _) eqn:Heq => //.
+      remove_bools_options.
+      subst.
+      simpl in Hleq.
+      eapply IHlh1. done.
+      2: exact Hminus.
+      lia.
+  Qed. 
+
+    
+
+  Lemma empty_base_same_true_depth lh lh' x y :
+    empty_base lh = (lh', x, y) -> lh_true_depth lh = lh_true_depth lh'.
+  Proof.
+    generalize dependent lh'.
+    induction lh => //=.
+    all: intros lh' Heq.
+    by inversion Heq; subst => //=.
+    all: destruct (empty_base lh) as [[??]?] eqn:Hlh.
+    all: inversion Heq; subst => //=.
+    all: by erewrite IHlh.
+  Qed. 
+    
+    
+
   
   Lemma lh_minus_depth lh0 lh1 lh2 :
     lh_minus lh0 lh1 = Some lh2 ->
@@ -437,7 +529,53 @@ Section lfilled_properties.
     all: simpl.
     all: apply IHlh1 => //.
   Qed.
-  
+
+
+  Lemma lh_minus_minus2 k0 k1 k2 lh0 lh1 lh2 es0 es1 es2 :
+    lh_minus lh0 lh1 = Some lh2 ->
+    lfilled k0 lh0 es0 es2 ->
+    lfilled k1 lh2 es0 es1 ->
+    k2 = k0 - k1 ->
+    lfilled k2 lh1 es1 es2.
+  Proof.
+    intros ??? ->.
+    generalize dependent lh0. generalize dependent es2.
+    generalize dependent k0. generalize dependent k1.
+    induction lh1 ; intros k1 Hfill2 k0 es2 lh0 Hminus Hfill0.
+    
+    { rewrite lh_minus_LH_base in Hminus.
+      destruct l => //. 
+      destruct l0 => //.
+      inversion Hminus; subst.
+      specialize (lfilled_same_index _ _ _ _ _ _ _  Hfill0 Hfill2) ; intro.
+      rewrite H in Hfill0.
+      eapply lfilled_inj in Hfill0 ; last exact Hfill2.
+      rewrite Hfill0.
+      rewrite H Nat.sub_diag.
+      by unfold lfilled, lfill => //= ; rewrite app_nil_r. }
+    all: destruct lh0; simpl in Hminus; try by inversion Hminus.
+    all: destruct (_ && _) eqn:Heq => //.
+    all: remove_bools_options; subst.
+    apply Nat.eqb_eq in H2; subst n0.
+    all: move/lfilledP in Hfill0.
+    all: inversion Hfill0; subst.
+    all: apply/lfilledP.
+    destruct (S k - k1) eqn:Hk.
+    { move/lfilledP in H8.
+      apply lfilled_depth in Hfill2, H8.
+      apply lh_minus_depth in Hminus.
+      rewrite H8 Hfill2 in Hminus.
+      lia. } 
+
+    all: constructor => //.
+    all: apply/lfilledP.
+    replace n0 with (k - k1); last lia.
+    all: eapply IHlh1 => //.
+    all: by apply/lfilledP.
+  Qed.
+
+  (* Old version *)
+  (*
   Lemma lh_minus_minus2 k0 k1 lh0 lh1 lh2 es0 es1 es2 :
     lh_minus lh0 lh1 = Some lh2 ->
     k0 >= k1 ->
@@ -479,14 +617,16 @@ Section lfilled_properties.
     all: eapply IHlh1 => //.
     lias.
     all: by apply/lfilledP.
-  Qed.
+  Qed. *)
+
+
   
-  (* Is this true with prompt and handler ? *)
-  (*
+
   Lemma filled_twice k0 k1 lh0 lh1 es0 es1 LI :
     lfilled k0 lh0 es0 LI ->
     lfilled k1 lh1 es1 LI ->
-    k0 >= k1 ->
+    (*    k0 >= k1 -> *)
+    lh_true_depth lh0 >= lh_true_depth lh1 ->
     base_is_empty lh1 ->
     exists lh2, lh_minus lh0 lh1 = Some lh2.
   Proof.
@@ -503,39 +643,22 @@ Section lfilled_properties.
       exists lh0. destruct lh0 => //. }
     all: move/lfilledP in Hfill0.
     all: destruct lh0; inversion Hfill0; subst.
+    all: try by simpl in Hk; lia.
+    all: lazymatch goal with
+         | H4 : (_ ++ _ :: _)%SEQ = (_ ++ _ :: _)%SEQ |- _ =>
+             apply first_values in H4 as (? & ? & ?)
+         | H4 : (_ ++ _ :: _)%SEQ = _ ++ (_ :: _)%SEQ |- _ =>
+             apply first_values in H4 as (? & ? & ?)
+         end => //.
+    all: inversion H0; subst.
+    all: repeat rewrite /= eq_refl.
+    rewrite Nat.eqb_refl /=.
     all: eapply IHlh1 in Hempty => //.
-    { unfold lfilled, lfill in Hfill1.
-      destruct lh1 as [bef1 aft1 |] ; last by false_assumption.
-      inversion Hempty ; subst bef1 aft1.
-      unfold lh_minus.
-      destruct lh0 ; by eexists. }
-    unfold lfilled, lfill in Hfill1 ; fold lfill in Hfill1.
-    destruct lh1 as [| bef1 n1 nes1 lh1 aft1 ] ; first by false_assumption.
-    destruct (const_list bef1) eqn:Hbef1 ; last by false_assumption.
-    destruct (lfill k1 lh1 es1) eqn:Hfill'1 ; last by false_assumption.
-    move/eqP in Hfill1.
-    destruct k0 ; first lia.
-    unfold lfilled, lfill in Hfill0 ; fold lfill in Hfill0.
-    destruct lh0 as [| bef0 n0 nes0 lh0 aft0 ] ; first by false_assumption.
-    destruct (const_list bef0) eqn:Hbef0 ; last by false_assumption.
-    destruct (lfill k0 lh0 es0) eqn:Hfill'0 ; last by false_assumption.
-    move/eqP in Hfill0.
-    unfold lh_minus.
-    rewrite Hfill1 in Hfill0.
-    apply first_values in Hfill0 as (-> & Hlab & ->) => //= ; try by left.
-    inversion Hlab ; subst.
-    repeat rewrite eq_refl.
-    rewrite Nat.eqb_refl.
-    simpl.
-    fold lh_minus.
-    unfold base_is_empty in Hempty.
-    fold base_is_empty in Hempty.
-    assert (lfilled k0 lh0 es0 l0) ; first by unfold lfilled ; rewrite Hfill'0.
-    assert (lfilled k1 lh1 es1 l0) ; first by unfold lfilled ; rewrite Hfill'1.
-    eapply IHk1 => //=.
-    lia. all: intros [? ?];done.
+    all: try by apply/lfilledP.
+    all: try by unfold lfilled; erewrite Hfill'.
+    all: simpl in Hk; lia.
   Qed.
-*)
+
 
   
   Lemma length_lfilled_rec_or_same k lh es LI :
@@ -580,6 +703,18 @@ Section lfilled_properties.
     all: done.
   Qed.
 
+  Lemma hfilled_const x lh es LI :
+    hfilled x lh es LI ->
+    const_list LI ->
+    const_list es.
+  Proof.
+    intros Hfill HLI.
+    move/hfilledP in Hfill.
+    inversion Hfill; subst.
+    all: apply const_list_split in HLI as [_ HLI].
+    all: apply const_list_split in HLI as [? _] => //.
+  Qed. 
+
   Lemma filled_singleton k lh es e :
     lfilled k lh es [e] ->
     (forall a b c, e = AI_label a b c -> False) ->
@@ -603,6 +738,28 @@ Section lfilled_properties.
     by eapply H2.
     by eapply H1.
   Qed.
+
+  Lemma hfilled_singleton x lh es e :
+    hfilled x lh es [e] ->
+    (forall a b c, e = AI_label a b c -> False) ->
+    (forall a b c, e = AI_local a b c -> False) ->
+    (forall a b c, e = AI_prompt a b c -> False) ->
+    (forall a b, e = AI_handler a b -> False) ->
+    es <> [] ->
+    lh = HH_base [] [] /\ es = [e].
+  Proof.
+    intros.
+    move/hfilledP in H; inversion H; subst.
+    all: try (destruct vs; last by destruct vs; try destruct es).
+    all: try (destruct bef; last by destruct bef; try destruct es).
+    2-5: inversion H5; subst; exfalso.
+    2: by eapply H0.
+    2: by eapply H1.
+    2: by eapply H2.
+    2: by eapply H3.
+    destruct es => //.
+    inversion H5; destruct es, es' => //.
+  Qed. 
 
   Definition lh_prepend lh v :=
     match lh with
@@ -688,7 +845,7 @@ Section lfilled_properties.
     all: simpl in Hbase.
     all: apply IHlh in Hbase.
     all: unfold lh_delete_inner in Hbase.
-    all: destruct (empty_base lh) eqn:Hlh.
+    all: destruct (empty_base lh) as [[??]?] eqn:Hlh.
     all: simplify_eq.
     all: unfold lh_delete_inner.
     all: rewrite /= Hlh.
@@ -701,9 +858,9 @@ Section lfilled_properties.
     induction lh.
     { simpl. auto. }
     all: unfold lh_delete_inner.
-    all: destruct (empty_base _) eqn:Hl.
+    all: destruct (empty_base _) as [[??]?] eqn:Hl.
     all: inversion Hl.
-    all: destruct (empty_base lh) eqn:Hlh.
+    all: destruct (empty_base lh) as [[??]?] eqn:Hlh.
     all: simplify_eq.
     all: simpl.
     all: unfold lh_delete_inner in IHlh.

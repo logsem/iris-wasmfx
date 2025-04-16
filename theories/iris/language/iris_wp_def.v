@@ -33,6 +33,10 @@ Class wasmG Σ :=
   WasmG {
       func_invG :: invGS Σ;
       func_gen_hsG :: gen_heapGS N function_closure Σ;
+
+      cont_gen_hsG :: gen_heapGS N continuation Σ;
+
+      tag_gen_hsG :: gen_heapGS N function_type Σ;
       
       tab_gen_hsG :: gen_heapGS (N*N) funcelem Σ;
       
@@ -81,7 +85,9 @@ Definition gen_heap_wasm_store `{!wasmG Σ} (s: store_record) : iProp Σ :=
 
 Definition state_interp `{!wasmG Σ} σ :=
   let: (s, locs, inst) := σ in
-     ((@gen_heap_interp _ _ _ _ _ func_gen_hsG (gmap_of_list s.(s_funcs))) ∗
+  ((@gen_heap_interp _ _ _ _ _ func_gen_hsG (gmap_of_list s.(s_funcs))) ∗
+     (@gen_heap_interp _ _ _ _ _ cont_gen_hsG (gmap_of_list s.(s_conts))) ∗
+     (@gen_heap_interp _ _ _ _ _ tag_gen_hsG (gmap_of_list s.(s_tags))) ∗
       (@gen_heap_interp _ _ _ _ _ tab_gen_hsG (gmap_of_table s.(s_tables))) ∗
       (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
       (gen_heap_interp (gmap_of_list s.(s_globals))) ∗
@@ -113,7 +119,15 @@ End wp_def.
 Notation "n ↦[wf]{ q } v" := (pointsto (L:=N) (V:=function_closure) n q v%V)
                            (at level 20, q at level 5, format "n ↦[wf]{ q } v") : bi_scope.
 Notation "n ↦[wf] v" := (pointsto (L:=N) (V:=function_closure) n (DfracOwn 1) v%V)
-                      (at level 20, format "n ↦[wf] v") : bi_scope.
+                          (at level 20, format "n ↦[wf] v") : bi_scope.
+Notation "n ↦[wcont]{ q } v" := (pointsto (L:=N) (V:=continuation) n q v%V)
+                           (at level 20, q at level 5, format "n ↦[wcont]{ q } v") : bi_scope.
+Notation "n ↦[wcont] v" := (pointsto (L:=N) (V:=continuation) n (DfracOwn 1) v%V)
+                             (at level 20, format "n ↦[wcont] v") : bi_scope.
+
+Notation "n ↪[tag] v" := (exists q, pointsto (L:=N) (V:=function_type) n q v%V)
+                           (at level 20, format "n ↪[tag] v") : bi_scope.
+
 Notation "n ↦[wt]{ q } [ i ] v" := (pointsto (L:=N*N) (V:=funcelem) (n, i) q v%V)
                            (at level 20, q at level 5, format "n ↦[wt]{ q } [ i ] v") : bi_scope.
 Notation "n ↦[wt][ i ] v" := (pointsto (L:=N*N) (V:=funcelem) (n, i) (DfracOwn 1) v%V)

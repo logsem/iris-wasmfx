@@ -2,345 +2,30 @@ From mathcomp Require Import ssreflect eqtype seq ssrbool.
 From stdpp Require Import base list.
 From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 
-Set Bullet Behavior "Strict Subproofs".
 
-Lemma select_false_det v1 v2 n s f s' f' es:
-  n = Wasm_int.int_zero i32m ->
-  reduce s f [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select] s' f' es ->
-  reduce_det_goal s f [AI_const v2] s' f' es [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select].
+
+Lemma store_det i m k off a v t mem' s f s' f' es:
+  smem_ind s (f_inst f) = Some i ->
+  nth_error (s_mems s) i = Some m ->
+  store m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tnum t) = Some mem' ->
+  reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)] s' f' es ->
+  reduce_det_goal (upd_s_mem s (update_list_at (s_mems s) i mem')) f [] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)]. 
 Proof.
-  move => H Hred.
-    
-  let Hfill := fresh "Hfill" in
-  let Hfill' := fresh "Hfill" in
-  let IHHred := fresh "IHHred" in
-    lazymatch goal with
-      Hred : reduce _ _ ?es _ _ _ |- _ =>
-      remember es as esnew eqn:Heqesnew;
-      induction Hred as [? ? ? ? Hred | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ?? esnewest ??????? Hred IHHred Hfill Hfill' | ];
-      first destruct Hred as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? Hfill];
-      try (by inversion Heqesnew) ;
-      try (by lazymatch goal with
-                _ : (v_to_e_list ?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
-              end);
-      try (by lazymatch goal with
-                _ : (?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
-              end);
-      try (by inversion Heqesnew; subst; left);
-      try (move/lfilledP in Hfill; inversion Hfill; subst;
-            try (by lazymatch goal with
-                _ : (?vs ++ _)%SEQ = _ |- _ => do 5 (destruct vs => //; try by destruct v1, v2; try destruct v; try destruct v0)
-                    end))  ;
-      last (move/lfilledP in Hfill'; inversion Hfill'; subst ;
-      lazymatch goal with
-        _ : (?vs ++ ?esnewest ++ ?es'0)%SEQ = _ |- _ =>
-          destruct vs;
-          first (
-              destruct es'0 ;
-              [ repeat rewrite cats0 /=;
-                  lazymatch goal with H : ([] ++ _ ++ [])%SEQ = _ |- _ => rewrite cats0 /= in H; subst end;
-                try apply IHHred => //
-              | lazymatch goal with
-                  H : ([] ++ _ ++ _ :: _)%SEQ = _ |- _ =>
-                    do 4 try (destruct esnewest; first by inversion H; subst;
-                              apply values_no_reduce in Hred; repeat rewrite /= const_const);
-                    try (destruct esnewest; last by inversion H);
-                    inversion H
-                end] ) 
-      end)
-    end.
+  move => H Hm Hstore Hred.
+  only_one.
+  1-2: inversion Heqesnew; subst.
+  1-2: rewrite H1 in H; inversion H; subst.
+  1-2: rewrite H2 in Hm; inversion Hm; subst.
+  1-2: rewrite H3 in Hstore; inversion Hstore; subst.
+  by left.
+  simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.
-  - destruct esnewest; first empty_list_no_reduce.
-    inversion H3; subst.
-    destruct esnewest; first by apply values_no_reduce in Hred; try rewrite /= const_const.
-    inversion H5; subst.
-    destruct esnewest; first by apply values_no_reduce in Hred; repeat rewrite /= const_const.
-    inversion H6; subst. destruct esnewest, es'0 => //.
-    clear -Hred.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    exfalso. 
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by do 5 destruct vs => //);
-      try (by do 5 destruct ves => //);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 (destruct vs => //; try by destruct v2; try destruct v));
-          do 4 (destruct bef => //; try by destruct v2; try destruct v)
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 (destruct vs => //; try by destruct v2; try destruct v));
-          try (by do 4 (destruct bef => //; try by destruct v2; try destruct v)) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred; repeat rewrite /= const_const);
-              inversion H3; subst;
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst.
-    destruct vs.
-    + destruct es; first empty_list_no_reduce.
-      inversion H2; subst.
-      destruct es; first by apply values_no_reduce in Hred.
-      inversion H4; subst. destruct es, es'0 => //.
-      clear -Hred.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    exfalso. 
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst;
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst. 
-    destruct vs; last by inversion H2; subst.
-    destruct es; first empty_list_no_reduce.
-    inversion H2; subst.
-    destruct es, es'0 => //.
-    clear - Hred.
-    lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst; 
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst. destruct vs, es, es'0 => //.
-    + destruct vs.
-      2:{ inversion H2; subst. simpl in H. destruct v2; try destruct v => //. }   inversion H2; subst.
-      destruct es; first empty_list_no_reduce.
-      inversion H4; subst.
-      destruct es => //.
-      clear - Hred.
-      exfalso.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst; 
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst.
-    done.
-  - inversion H3; subst.
-     destruct vs.
-    + destruct esnewest; first empty_list_no_reduce.
-      inversion H5; subst.
-      destruct esnewest; first by apply values_no_reduce in Hred.
-      inversion H6; subst. destruct esnewest, es'0 => //.
-      clear -Hred.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    exfalso. 
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst;
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst. 
-    destruct vs; last by inversion H2; subst.
-    destruct es; first empty_list_no_reduce.
-    inversion H2; subst.
-    destruct es, es'0 => //.
-    clear - Hred.
-    lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst; 
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst. destruct vs, es, es'0 => //.
-    + destruct vs.
-      2:{ inversion H5; subst. simpl in H0. repeat rewrite const_const in H0. done. }
-      inversion H5; subst.
-      destruct esnewest; first empty_list_no_reduce.
-      inversion H6; subst.
-      destruct esnewest => //.
-      clear - Hred.
-      exfalso.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst; 
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst.
-    done.
-Qed.
-
-Lemma select_true_det v1 v2 n s f s' f' es:
-  n <> Wasm_int.int_zero i32m ->
-  reduce s f [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select] s' f' es ->
-  reduce_det_goal s f [AI_const v1] s' f' es [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select].
-Proof.
-  move => H Hred.
-    
-  let Hfill := fresh "Hfill" in
-  let Hfill' := fresh "Hfill" in
-  let IHHred := fresh "IHHred" in
-    lazymatch goal with
-      Hred : reduce _ _ ?es _ _ _ |- _ =>
-      remember es as esnew eqn:Heqesnew;
-      induction Hred as [? ? ? ? Hred | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ?? esnewest ??????? Hred IHHred Hfill Hfill' | ];
-      first destruct Hred as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? Hfill];
-      try (by inversion Heqesnew) ;
-      try (by lazymatch goal with
-                _ : (v_to_e_list ?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
-              end);
-      try (by lazymatch goal with
-                _ : (?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
-              end);
-      try (by inversion Heqesnew; subst; left);
-      try (move/lfilledP in Hfill; inversion Hfill; subst;
-            try (by lazymatch goal with
-                _ : (?vs ++ _)%SEQ = _ |- _ => do 5 (destruct vs => //; try by destruct v1, v2; try destruct v; try destruct v0)
-                    end))  ;
-      last (move/lfilledP in Hfill'; inversion Hfill'; subst ;
-      lazymatch goal with
-        _ : (?vs ++ ?esnewest ++ ?es'0)%SEQ = _ |- _ =>
-          destruct vs;
-          first (
-              destruct es'0 ;
-              [ repeat rewrite cats0 /=;
-                  lazymatch goal with H : ([] ++ _ ++ [])%SEQ = _ |- _ => rewrite cats0 /= in H; subst end;
-                try apply IHHred => //
-              | lazymatch goal with
-                  H : ([] ++ _ ++ _ :: _)%SEQ = _ |- _ =>
-                    do 4 try (destruct esnewest; first by inversion H; subst;
-                              apply values_no_reduce in Hred; repeat rewrite /= const_const);
-                    try (destruct esnewest; last by inversion H);
-                    inversion H
-                end] ) 
-      end)
-    end.
-  inversion H4; subst.
-  destruct vs.
-  - destruct esnewest; first empty_list_no_reduce.
-    inversion H5; subst.
-    destruct esnewest; first by apply values_no_reduce in Hred; try rewrite /= const_const.
+  { repeat (destruct esnewest; first by inversion H6; subst; apply values_no_reduce in Hred).
     inversion H6; subst.
-    destruct esnewest; first by apply values_no_reduce in Hred; repeat rewrite /= const_const.
-    inversion H7; subst. destruct esnewest, es'0 => //.
+    destruct esnewest, es'0 => //.
     clear -Hred.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    exfalso. 
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by do 5 destruct vs => //);
-      try (by do 5 destruct ves => //);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 (destruct vs => //; try by destruct v2; try destruct v));
-          do 4 (destruct bef => //; try by destruct v2; try destruct v)
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 (destruct vs => //; try by destruct v2; try destruct v));
-          try (by do 4 (destruct bef => //; try by destruct v2; try destruct v)) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred; repeat rewrite /= const_const);
-              inversion H3; subst;
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst.
-    destruct vs.
-    + destruct es; first empty_list_no_reduce.
-      inversion H2; subst.
-      destruct es; first by apply values_no_reduce in Hred.
-      inversion H4; subst. destruct es, es'0 => //.
-      clear -Hred.
-      lazymatch goal with
+    lazymatch goal with
     | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
     end.
     exfalso. 
@@ -389,15 +74,15 @@ Proof.
               destruct es => //; apply IHHred => //
               )
         ].
-    inversion H3; subst. destruct vs, es, es'0 => //.
-    + destruct vs.
-      2:{ inversion H2; subst. rewrite /= const_const in H. done. }
-      destruct es; first empty_list_no_reduce.
-      inversion H2; subst.
-      destruct es => //.
-      clear - Hred.
-      exfalso.
-      lazymatch goal with
+    inversion H3; subst. destruct vs, es, es'0 => //.  }
+  destruct vs; last by inversion H6; subst.
+  inversion H6; subst.
+  destruct esnewest; first empty_list_no_reduce.
+  inversion H7; subst.
+  destruct esnewest => //.
+  clear - Hred.
+  exfalso.
+  lazymatch goal with
     | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
     end.
     induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
@@ -420,93 +105,313 @@ Proof.
         ].
     inversion H3; subst.
     done.
-  - inversion H3; subst.
-     destruct vs.
-    + destruct esnewest; first empty_list_no_reduce.
-      inversion H5; subst.
-      destruct esnewest; first by apply values_no_reduce in Hred.
-      inversion H8; subst. destruct esnewest, es'0 => //.
-      clear -Hred.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    exfalso. 
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //);
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst;
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst. 
-    destruct vs; last by inversion H2; subst.
-    destruct es; first empty_list_no_reduce.
-    inversion H2; subst.
-    destruct es, es'0 => //.
-    clear - Hred.
-    lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst; 
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst. destruct vs, es, es'0 => //.
-    + destruct vs.
-      2:{ inversion H5; subst. simpl in H0. repeat rewrite const_const in H0. done. }
-      inversion H5; subst.
-      destruct esnewest; first empty_list_no_reduce.
-      inversion H8; subst.
-      destruct esnewest => //.
-      clear - Hred.
-      exfalso.
-      lazymatch goal with
-    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
-    end.
-    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
-        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-        [ by move/lfilledP in H01; inversion H01; subst;
-          try (by do 4 destruct vs => //);
-          do 4 destruct bef => //
-        | move/lfilledP in H02; inversion H02; subst;
-          try (by do 4 destruct vs => //);
-          try (by do 4 destruct bef => //) ;
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
-              inversion H3; subst; 
-              destruct es => //; apply IHHred => //
-              )
-        ].
-    inversion H3; subst.
-    done.
-Qed.
+Qed. 
 
+Lemma store_failure_det i m k off a v t s f s' f' es:
+  smem_ind s (f_inst f) = Some i ->
+  nth_error (s_mems s) i = Some m ->
+  store m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tnum t) = None ->
+  reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)] s' f' es ->
+  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)]. 
+Proof.
+  move => H Hm Hstore Hred.
+  only_one.
+  inversion Heqesnew; subst.
+  rewrite H1 in H; inversion H; subst.
+  rewrite H2 in Hm; inversion Hm; subst.
+  rewrite H3 in Hstore; inversion Hstore; subst.
+  simpl in H3; remove_bools_options.
+  inversion H4; subst.
+  destruct vs.
+  { repeat (destruct esnewest; first by inversion H6; subst; apply values_no_reduce in Hred).
+    inversion H6; subst.
+    destruct esnewest, es'0 => //.
+    clear -Hred.
+    lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    exfalso. 
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst;
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst. 
+    destruct vs; last by inversion H2; subst.
+    destruct es; first empty_list_no_reduce.
+    inversion H2; subst.
+    destruct es, es'0 => //.
+    clear - Hred.
+    lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //) ;
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst; 
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst. destruct vs, es, es'0 => //.  }
+  destruct vs; last by inversion H6; subst.
+  inversion H6; subst.
+  destruct esnewest; first empty_list_no_reduce.
+  inversion H7; subst.
+  destruct esnewest => //.
+  clear - Hred.
+  exfalso.
+  lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //) ;
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst; 
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst.
+    done.
+Qed. 
+
+
+Lemma store_packed_det i m k off a v t mem' tp s f s' f' es:
+  smem_ind s (f_inst f) = Some i ->
+  nth_error (s_mems s) i = Some m ->
+  store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tp tp) = Some mem' ->
+  reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)] s' f' es ->
+  reduce_det_goal (upd_s_mem s (update_list_at (s_mems s) i mem')) f [] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]. 
+Proof.
+  move => H Hm Hstore Hred.
+  only_one.
+  1-2: inversion Heqesnew; subst.
+  1-2: rewrite H1 in H; inversion H; subst.
+  1-2: rewrite H2 in Hm; inversion Hm; subst.
+  1-2: rewrite H3 in Hstore; inversion Hstore; subst.
+  by left.
+  simpl in H3; remove_bools_options.
+  inversion H4; subst.
+  destruct vs.
+  { repeat (destruct esnewest; first by inversion H6; subst; apply values_no_reduce in Hred).
+    inversion H6; subst.
+    destruct esnewest, es'0 => //.
+    clear -Hred.
+    lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    exfalso. 
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst;
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst. 
+    destruct vs; last by inversion H2; subst.
+    destruct es; first empty_list_no_reduce.
+    inversion H2; subst.
+    destruct es, es'0 => //.
+    clear - Hred.
+    lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //) ;
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst; 
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst. destruct vs, es, es'0 => //.  }
+  destruct vs; last by inversion H6; subst.
+  inversion H6; subst.
+  destruct esnewest; first empty_list_no_reduce.
+  inversion H7; subst.
+  destruct esnewest => //.
+  clear - Hred.
+  exfalso.
+  lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //) ;
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst; 
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst.
+    done.
+Qed.  
+
+
+Lemma store_packed_failure_det i m k off a v t tp s f s' f' es:
+  smem_ind s (f_inst f) = Some i ->
+  nth_error (s_mems s) i = Some m ->
+  store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tp tp) = None ->
+  reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)] s' f' es ->
+  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]. 
+Proof.
+  move => H Hm Hstore Hred.
+  only_one.
+  inversion Heqesnew; subst.
+  rewrite H1 in H; inversion H; subst.
+  rewrite H2 in Hm; inversion Hm; subst.
+  rewrite H3 in Hstore; inversion Hstore; subst.
+  simpl in H3; remove_bools_options.
+  inversion H4; subst.
+  destruct vs.
+  { repeat (destruct esnewest; first by inversion H6; subst; apply values_no_reduce in Hred).
+    inversion H6; subst.
+    destruct esnewest, es'0 => //.
+    clear -Hred.
+    lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    exfalso. 
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //);
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst;
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst. 
+    destruct vs; last by inversion H2; subst.
+    destruct es; first empty_list_no_reduce.
+    inversion H2; subst.
+    destruct es, es'0 => //.
+    clear - Hred.
+    lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //) ;
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst; 
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst. destruct vs, es, es'0 => //.  }
+  destruct vs; last by inversion H6; subst.
+  inversion H6; subst.
+  destruct esnewest; first empty_list_no_reduce.
+  inversion H7; subst.
+  destruct esnewest => //.
+  clear - Hred.
+  exfalso.
+  lazymatch goal with
+    | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+    end.
+    induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+        first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+        try (by inversion Heqves);
+        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+        try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+        [ by move/lfilledP in H01; inversion H01; subst;
+          try (by do 4 destruct vs => //);
+          do 4 destruct bef => //
+        | move/lfilledP in H02; inversion H02; subst;
+          try (by do 4 destruct vs => //);
+          try (by do 4 destruct bef => //) ;
+          destruct vs;
+          first (
+              do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+              inversion H3; subst; 
+              destruct es => //; apply IHHred => //
+              )
+        ].
+    inversion H3; subst.
+    done.
+Qed.  

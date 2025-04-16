@@ -149,6 +149,53 @@ Proof.
   all: done.
 Qed.
 
+Lemma hfilled_first_values i lh vs e i' lh' vs' e' LI :
+  hfilled i lh (vs ++ [::e]) LI ->
+  hfilled i' lh' (vs' ++ [::e']) LI ->
+  const_list vs -> const_list vs' ->
+  (is_const e = false) -> (is_const e' = false) ->
+  (forall n es LI, e <> AI_label n es LI) -> (forall n es LI, e' <> AI_label n es LI) ->
+  (forall n es LI, e <> AI_local n es LI) -> (forall n es LI, e' <> AI_local n es LI) ->
+  (forall hs LI, e <> AI_handler hs LI) -> (forall ts hs LI, e <> AI_prompt ts hs LI) ->
+  (forall hs LI, e' <> AI_handler hs LI) -> (forall ts hs LI, e' <> AI_prompt ts hs LI) ->
+  e = e' /\ (length vs = length vs' -> (vs = vs' /\ lh = lh')).
+Proof.
+  generalize dependent LI. generalize dependent lh'.
+  generalize dependent i'.
+  generalize dependent i. 
+  induction lh as [bef aft| bef n0 es lh IH aft | bef n0 es lh IH aft |bef hs lh IH aft |bef ts hs lh IH aft ] => //.
+  all: intros i i' lh' LI Hfill Hfill' Hvs Hvs' He He' Hlabe Hlabe' Hloce Hloce' Hhandlere Hprompte Hhandlere' Hprompte'.
+  all: move/hfilledP in Hfill; inversion Hfill; subst.
+  all: destruct lh' as [bef' aft'|bef' n' es' lh' aft' | bef' n' es' lh' aft' | bef' hs' lh' aft' | bef' ts' hs' lh' aft' ] => //.
+  all: move/hfilledP in Hfill'; inversion Hfill'; subst.
+  all: lazymatch goal with
+       | H : (_ ++ _)%SEQ = (_ ++ _)%SEQ |- _ => remember H as Hnew; clear HeqHnew H
+       end.
+  all: repeat rewrite cat_app in Hnew.
+  all: repeat rewrite - app_assoc in Hnew.
+  all: try rewrite (app_assoc bef) in Hnew.
+  all: try rewrite (app_assoc bef') in Hnew.
+  all: try (apply first_values in Hnew as (Hvvs & Hee & ?);
+            (try done); (try by left); try by unfold const_list ; rewrite forallb_app; apply andb_true_iff).
+  all: try by exfalso; eapply Hlabe.
+  all: try by exfalso; eapply Hhandlere.
+  all: try by exfalso; eapply Hprompte.
+  all: try by exfalso; eapply Hlabe'.
+  all: try by exfalso; eapply Hloce.
+  all: try by exfalso; eapply Hloce'.
+  all: try by exfalso; eapply Hhandlere'.
+  all: try by exfalso; eapply Hprompte'.
+  { repeat split => //=. eapply app_inj_2. exact H0. symmetry. exact Hvvs. 
+    apply app_inj_2 in Hvvs as [-> _] => //. by subst. } 
+  all: inversion Hee; subst.
+  all: edestruct IH as (Hres & Hlen) => //.
+  all: try by apply/hfilledP.
+  all: split => //.
+  all: intros Hlenvs.
+  all: apply Hlen in Hlenvs as [-> ->].
+  all: done.
+Qed.
+
 Lemma lfilled_trans : forall k lh es1 es2 k' lh' es3,
     lfilled k lh es1 es2 -> lfilled k' lh' es2 es3 -> exists lh'', lfilled (k+k') lh'' es1 es3.
 Proof.

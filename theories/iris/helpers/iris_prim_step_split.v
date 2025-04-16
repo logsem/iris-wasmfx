@@ -3,6 +3,8 @@ From stdpp Require Import base list.
 From Wasm Require Export stdpp_aux.
 Require Export lfilled_reduce iris_split_reduce.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Ltac solve_prim_step_split_reduce_r H objs Heqf0 :=
   left ; subst ;
   apply Logic.eq_sym, app_eq_nil in H as [? ?] ;
@@ -45,21 +47,37 @@ Section prim_step_split_properties.
         destruct Hred as (? & ? & [[ ?  ? ] ? ] & ? & (? & ? & ?)).
         apply val_head_stuck_reduce in H. congruence.
     - right. split => //=.
-      unfold lfilled, lfill in Htrap.
-      destruct lh0 as [bef aft|] ; last by false_assumption.
-      destruct (const_list bef) eqn : Hbef ; last by false_assumption.
-      move/eqP in Htrap.
-      destruct σ as [[s  locs ] inst ].
-      destruct Hred as (?&?&[[??]?]&?&(?&?&?)).
-      edestruct first_non_value_reduce as (vs & e & afte & Hvs & He & Hes1) => //=.
-      rewrite Hes1 in Htrap.
-      rewrite - app_assoc in Htrap.
-      rewrite - app_comm_cons in Htrap.
-      apply first_values in Htrap as (-> & -> & <-) => //= ; try by right.
-      exists (LH_base bef afte).
-      by unfold lfilled, lfill ; rewrite Hbef Hes1.
-      destruct e => // ; destruct b => //.
-      unfold to_val, iris.to_val in He ; simpl in He ; destruct He as [?|?] => //.
+      move/lfilledP in Htrap; inversion Htrap; subst.
+      + destruct σ2 as [[s  locs ] inst ].
+        destruct Hred as (?&?&[[??]?]&?&(?&?&?)).
+        edestruct first_non_value_reduce as (vs' & e & afte & Hvs & He & Hes1) => //=.
+        rewrite Hes1 in H.
+        rewrite - app_assoc in H.
+        rewrite - app_comm_cons in H.
+        apply first_values in H as (<- & <- & ->) => //=.
+        2: by destruct He as [He | ->] => //; destruct e => //; destruct b.
+        exists (LH_base vs afte).
+        rewrite Hes1; apply/lfilledP; constructor => //.
+      + destruct σ2 as [[s  locs ] inst ].
+        destruct Hred as (?&?&[[??]?]&?&(?&?&?)).
+        edestruct first_non_value_reduce as (vs' & e & afte & Hvs & He & Hes1) => //=.
+        rewrite Hes1 in H.
+        rewrite - app_assoc in H.
+        rewrite - app_comm_cons in H.
+        apply first_values in H as (<- & <- & ->) => //=.
+        2: by destruct He as [He | ->] => //; destruct e => //; destruct b.
+        exists (LH_handler bef hs lh' afte).
+        rewrite Hes1; apply/lfilledP; constructor => //.
+      + destruct σ2 as [[s  locs ] inst ].
+        destruct Hred as (?&?&[[??]?]&?&(?&?&?)).
+        edestruct first_non_value_reduce as (vs' & e & afte & Hvs & He & Hes1) => //=.
+        rewrite Hes1 in H.
+        rewrite - app_assoc in H.
+        rewrite - app_comm_cons in H.
+        apply first_values in H as (<- & <- & ->) => //=.
+        2: by destruct He as [He | ->] => //; destruct e => //; destruct b.
+        exists (LH_prompt bef ts hs lh' afte).
+        rewrite Hes1; apply/lfilledP; constructor => //.
   Qed.
 
 
@@ -110,7 +128,15 @@ Section prim_step_split_properties.
         exact H.
         exact H1.
         exact Hfill.
-      - subst. filled_trap H0 Hxl1. }
+      - subst.
+        move/lfilledP in H0; inversion H0; subst.
+        repeat destruct vs => //.
+        repeat destruct bef => //.
+        repeat destruct bef => //. }
+    - repeat destruct vs => //.
+    - repeat destruct vs => //.
+    - repeat destruct vs => //.
+    - repeat destruct ves => //.
     - subst les.
       assert (es <> []) ; first by intro ; subst ;  empty_list_no_reduce.
       eapply (filled_singleton k lh0 es) in H1 as (-> & -> & Hes) => //=.
