@@ -7,11 +7,11 @@
    reasoning about the state by allowing one to derive specifications with
    a larger footprint than their original statement. *)
 
-Shamamama (* placeholder *)
 
 From iris.proofmode Require Import base tactics classes.
 From iris.program_logic Require Import weakestpre.
-From Wasm.iris.language.iris Require Import weakest_precondition.
+From Wasm.iris.language Require Import iris_ewp_def.
+From Wasm.iris.rules Require Import iris_rules_structural.
 
 
 (* ========================================================================== *)

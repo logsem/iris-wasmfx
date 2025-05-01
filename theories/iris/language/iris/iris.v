@@ -232,6 +232,12 @@ Definition val_not_val_combine (v1 : ValNotVal) (v2 : ValNotVal) : ValNotVal :=
       NotVal (es ++ expr_of_val_not_val v2)
   end.
 
+Definition val_combine v1 v2 :=
+  match val_not_val_combine (Val v1) (Val v2) with
+  | Val v => v
+  | _ => trapV
+  end.
+
 
 Definition merge_values vs :=
   fold_left val_not_val_combine vs (Val (immV [])).
@@ -9692,15 +9698,15 @@ Proof.
     rewrite -v_to_e_cat => //.  *)
 Qed.
 
-       (*
-       Lemma to_eff_None_append: forall es1 es2,
-           (const_list es1 -> False) ->
+       
+Lemma to_eff_None_append: forall es1 es2,
+    (const_list es1 -> False) ->
     to_eff es1 = None ->
     to_eff (es1 ++ es2) = None.
 Proof.
   move => es1 es2.
   induction es1 => //=.
-  { intros H; exfalso; apply H => //. } 
+  { intros H; exfalso; apply H => //. }
   destruct a => //=; unfold to_eff => /=.
   destruct b => //= ; unfold to_eff => /=.
   all: try by repeat rewrite merge_notval.
@@ -9710,196 +9716,121 @@ Proof.
     unfold to_eff in IHes1.
     destruct (merge_values _) eqn:Hmerge => //=.
     + destruct v0 => //=.
-      assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
-      apply to_val_trap_is_singleton in H as -> => //=.
-      rewrite merge_prepend.
-      rewrite merge_trap.
-      simpl. destruct (flatten _) => //=.
+      all: by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+        try destruct v0. 
     + destruct e => //=.
-      all: rewrite merge_prepend.
-      all: destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
-      all: try by specialize (IHes1 Logic.eq_refl).
-      all: destruct e => //. 
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
+    + by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+        try destruct v0. 
   - rewrite merge_prepend.
-    unfold to_val in IHes1.
+    unfold to_eff in IHes1.
+    destruct (merge_values _) eqn:Hmerge => //=.
+    + rewrite merge_prepend. destruct v => //=.
+      all: by intros H Htriv; specialize (IHes1 H Htriv);
+          destruct (merge_values (map _ (_ ++ _)%list));
+        try destruct v. 
+    + destruct e => //=.
+    + rewrite merge_prepend.
+      by intros H Htriv; specialize (IHes1 H Htriv);
+          destruct (merge_values (map _ (_ ++ _)%list));
+        try destruct v.
+  - intros. rewrite merge_trap => //.
+    destruct (flatten _) => //.
+  - repeat rewrite merge_prepend.
+    unfold to_eff in IHes1.
     destruct (merge_values _) eqn:Hmerge => //=.
     + destruct v => //=.
-      assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
-      apply to_val_trap_is_singleton in H as -> => //=.
-      rewrite merge_prepend.
-      rewrite merge_trap.
-      simpl. destruct (flatten _) => //=.
-    + destruct e => //=.
-      all: rewrite merge_prepend.
-      all: destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
-      all: try by specialize (IHes1 Logic.eq_refl).
-      all: destruct e => //. 
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-  - rewrite /to_val /= merge_ThrowRef.
-    rewrite merge_ThrowRef.
-    done.
-  - unfold to_val => /=.
-    rewrite merge_trap => /=.
-    rewrite flatten_simplify.
-    destruct es1 => //=.
-    rewrite merge_trap /=.
-    rewrite of_to_val_instr => //.
-  - rewrite /to_val /= merge_prepend.
-    unfold to_val in IHes1.
+      all: by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+        try destruct v.
+    + destruct e => //.
+    + by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+      try destruct v.
+  - repeat rewrite merge_prepend.
+    unfold to_eff in IHes1.
     destruct (merge_values _) eqn:Hmerge => //=.
     + destruct v => //=.
-      assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
-      apply to_val_trap_is_singleton in H as -> => //=.
-      rewrite merge_prepend.
-      rewrite merge_trap.
-      simpl. destruct (flatten _) => //=.
-    + destruct e => //=.
-      all: rewrite merge_prepend.
-      all: destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
-      all: try by specialize (IHes1 Logic.eq_refl).
-      all: destruct e => //. 
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-  - rewrite /to_val /= merge_prepend.
-    unfold to_val in IHes1.
+      all: by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+        try destruct v.
+    + destruct e0 => //.
+    + by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+      try destruct v.
+  - repeat rewrite merge_prepend.
+    unfold to_eff in IHes1.
     destruct (merge_values _) eqn:Hmerge => //=.
     + destruct v => //=.
-      assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
-      apply to_val_trap_is_singleton in H as -> => //=.
-      rewrite merge_prepend.
-      rewrite merge_trap.
-      simpl. destruct (flatten _) => //=.
-    + destruct e => //=.
-      all: rewrite merge_prepend.
-      all: destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
-      all: try by specialize (IHes1 Logic.eq_refl).
-      destruct e => //.
-      destruct e1 => //. 
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e1 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e1 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e1 => //.
-        - rewrite /to_val /= merge_prepend.
-    unfold to_val in IHes1.
-    destruct (merge_values _) eqn:Hmerge => //=.
-    + destruct v => //=.
-      assert (to_val es1 = Some trapV) ; first by unfold to_val ; rewrite Hmerge.
-      apply to_val_trap_is_singleton in H as -> => //=.
-      rewrite merge_prepend.
-      rewrite merge_trap.
-      simpl. destruct (flatten _) => //=.
-    + destruct e => //=.
-      all: rewrite merge_prepend.
-      all: destruct (merge_values (map to_val_instr (es1 ++ es2)%list)) => //=.
-      all: try by specialize (IHes1 Logic.eq_refl).
-      all: destruct e => //. 
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (es1 ++ es2)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-    + rewrite merge_prepend.
-      destruct (merge_values (map _ (_ ++ _)%list)) => //=.
-      by specialize (IHes1 Logic.eq_refl).
-      destruct e0 => //.
-  - unfold to_val => //=.
-    do 2 rewrite merge_suspend => //=.
-  - rewrite /to_val /= merge_Switch merge_Switch => //.
-  - unfold to_val => /=.
-    destruct (merge_values (map _ _)) eqn:Hmerge => //.
-    2: destruct e.
-    destruct v => //.
-    all: try by repeat rewrite merge_notval.
-    + rewrite merge_br => //.
-    + rewrite merge_return => //.
-    + rewrite merge_call_host => //.
-    + repeat rewrite merge_suspend => //.
-    + repeat rewrite merge_switch => //.
-    + destruct (exnelts_of_exception_clauses _ _) => //. 
-      repeat rewrite merge_throw => //.
-      repeat rewrite merge_notval => //.
-  - unfold to_val => /=.
-    destruct (merge_values (map _ _)) eqn:Hmerge => //.
-    2: destruct e.
-    destruct v => //.
-    all: try by repeat rewrite merge_notval.
-    + rewrite merge_br => //.
-    + rewrite merge_return => //.
-    + rewrite merge_call_host => //.
-    + destruct (suselts_of_continuation_clauses _ _).
-      repeat rewrite merge_suspend => //.
-      repeat rewrite merge_notval => //. 
-    + destruct (swelts_of_continuation_clauses _ _).
-      repeat rewrite merge_switch => //.
-      repeat rewrite merge_notval => //. 
-    + repeat rewrite merge_throw => //.
-  - destruct (merge_values (map _ _)) eqn:Hmerge => //.
-    2: destruct e.
-    destruct v => //.
-    all: try by repeat rewrite merge_notval.
-    + destruct i => //.
-      2: destruct (vh_decrease _) eqn:Hdecr => //.
-      all: try by repeat rewrite merge_notval.
-      rewrite merge_br => //.
-    + rewrite merge_return => //.
-    + rewrite merge_call_host => //.
-    + repeat rewrite merge_suspend => //.
-    + repeat rewrite merge_switch => //.
-    + repeat rewrite merge_throw => //. 
-  - destruct (merge_values (map _ _)) => //.
-    2: destruct e.
-    destruct v => //.
-    all: try by repeat rewrite merge_notval.
-    + rewrite merge_call_host => //.
-    + repeat rewrite merge_suspend => //.
-    + repeat rewrite merge_switch => //.
-    + repeat rewrite merge_throw => //. 
-  - unfold to_val => /=. by rewrite merge_call_host flatten_simplify.
-Qed. *)
+      all: by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+        try destruct v.
+    + destruct e => //.
+    + by intros H Htriv; specialize (IHes1 H Htriv);
+        destruct (merge_values (map _ (_ ++ _)%list));
+      try destruct v.
+  - rewrite merge_throw => //.
+  - rewrite merge_suspend => //.
+  - rewrite merge_switch => //.
+  - destruct (merge_values (map _ l0)) eqn:Hmerge => //=.
+    + destruct v => //.
+      all: intros _ H.
+      all: try by rewrite merge_notval.
+      by rewrite merge_br.
+      by rewrite merge_return.
+      by rewrite merge_call_host.
+    + destruct e => //.
+      rewrite merge_suspend => //.
+      rewrite merge_switch => //.
+      destruct (exnelts_of_exception_clauses _ _) => //. 
+      rewrite merge_throw => //.
+      by intros _ H; rewrite merge_notval.
+    + by intros _ H; rewrite merge_notval.
+  - destruct (merge_values (map _ l1)) eqn:Hmerge => //=.
+    + destruct v => //.
+      all: intros _ H.
+      all: try by rewrite merge_notval.
+      by rewrite merge_br.
+      by rewrite merge_return.
+      by rewrite merge_call_host.
+    + destruct e => //.
+      destruct (suselts_of_continuation_clauses _ _) => //.
+      rewrite merge_suspend => //.
+      by intros _ H; rewrite merge_notval.
+      destruct (swelts_of_continuation_clauses _ _) => //. 
+      rewrite merge_switch => //.
+      by intros _ H; rewrite merge_notval.
+      rewrite merge_throw => //.
+    + by intros _ H; rewrite merge_notval.
+  - destruct (merge_values (map _ l0)) eqn:Hmerge => //=.
+    + destruct v => //.
+      all: intros _ H.
+      all: try by rewrite merge_notval.
+      destruct i => //.
+      by rewrite merge_notval.
+      destruct (vh_decrease _) => //.
+      by rewrite merge_br.
+      by rewrite merge_notval.
+      by rewrite merge_return.
+      by rewrite merge_call_host.
+    + destruct e => //.
+      rewrite merge_suspend => //.
+      rewrite merge_switch => //.
+      rewrite merge_throw => //.
+    + by intros _ H; rewrite merge_notval.
+  - destruct (merge_values (map _ l)) eqn:Hmerge => //=.
+    + destruct v => //.
+      all: intros _ H.
+      all: try by rewrite merge_notval.
+      by rewrite merge_call_host.
+    + destruct e => //.
+      rewrite merge_suspend => //.
+      rewrite merge_switch => //.
+      rewrite merge_throw => //.
+    + by intros _ H; rewrite merge_notval.
+  - intros. rewrite merge_call_host => //. 
+Qed. 
 
 
 (* Still necessary? *)

@@ -791,6 +791,60 @@ Proof.
   destruct vh => //= ; rewrite catA => //.
 Qed.
 
+Lemma susfill_sus_push_const i sh vs es:
+  susfill i (sus_push_const sh vs) es = v_to_e_list vs ++ susfill i sh es.
+Proof.
+  destruct sh => //=.
+  all: rewrite -v_to_e_cat.
+  all: repeat rewrite -cat_app.
+  all: repeat rewrite catA //.
+Qed.
+
+Lemma susfill_sus_append i sh es' es:
+  susfill i (sus_append sh es') es = susfill i sh es ++ es'.
+Proof.
+  destruct sh => //=.
+  all: try (rewrite separate1; symmetry; rewrite separate1).
+  all: repeat rewrite -cat_app.
+  all: repeat rewrite catA //.
+Qed.
+
+Lemma swfill_sw_push_const i sh vs es:
+  swfill i (sw_push_const sh vs) es = v_to_e_list vs ++ swfill i sh es.
+Proof.
+  destruct sh => //=.
+  all: rewrite -v_to_e_cat.
+  all: repeat rewrite -cat_app.
+  all: repeat rewrite catA //.
+Qed.
+
+Lemma swfill_sw_append i sh es' es:
+  swfill i (sw_append sh es') es = swfill i sh es ++ es'.
+Proof.
+  destruct sh => //=.
+  all: try (rewrite separate1; symmetry; rewrite separate1).
+  all: repeat rewrite -cat_app.
+  all: repeat rewrite catA //.
+Qed.
+
+Lemma exnfill_exn_push_const i sh vs es:
+  exnfill i (exn_push_const sh vs) es = v_to_e_list vs ++ exnfill i sh es.
+Proof.
+  destruct sh => //=.
+  all: rewrite -v_to_e_cat.
+  all: repeat rewrite -cat_app.
+  all: repeat rewrite catA //.
+Qed.
+
+Lemma exnfill_exn_append i sh es' es:
+  exnfill i (exn_append sh es') es = exnfill i sh es ++ es'.
+Proof.
+  destruct sh => //=.
+  all: try (rewrite separate1; symmetry; rewrite separate1).
+  all: repeat rewrite -cat_app.
+  all: repeat rewrite catA //.
+Qed. 
+
 Lemma sus_push_const_app (sh : susholed) vs1 vs2 :
   sus_push_const sh (vs1 ++ vs2) =
     sus_push_const (sus_push_const sh vs2) vs1.

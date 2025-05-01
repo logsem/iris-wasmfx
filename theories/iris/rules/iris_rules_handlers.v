@@ -3,7 +3,7 @@
 (* This file introduces reasoning rules for shallow effect handlers. *)
 
 From iris.proofmode Require Import base tactics classes.
-From Wasm.iris.language.iris Require Import protocols weakest_precondition.
+From Wasm.iris.language Require Import protocols iris_ewp_def.
 From Wasm.iris.rules Require Import iris_rules_effects.
 
 

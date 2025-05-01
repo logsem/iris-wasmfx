@@ -6,7 +6,7 @@ From iris.base_logic.lib Require Export fancy_updates.
 From Wasm.iris.language.iris Require Export iris_locations iris.
 From Wasm.iris.helpers Require Export iris_properties.
 From Wasm.iris.rules Require Export iris_rules_resources.
-From Wasm.iris.language Require Export iris_wp_def.
+From Wasm.iris.language Require Export iris_ewp_def.
 From Wasm Require Export stdpp_aux.
 From Wasm Require Export instantiation.
 Require Export instantiation_properties.
