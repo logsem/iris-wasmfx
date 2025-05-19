@@ -50,7 +50,7 @@ Qed.
 
 
 Lemma contnew_det tf i hh x s f s' f' es:
-  stypes s (f_inst f) i = Some tf ->
+  stypes (f_inst f) i = Some tf ->
   hh = HH_base [] [AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))] ->
   reduce s f [AI_ref x; AI_basic $ BI_contnew i] s' f' es ->
   reduce_det_goal (new_cont s (Cont_hh tf hh)) f [AI_ref_cont (length (s_conts s))] s' f' es [AI_ref x; AI_basic $ BI_contnew i]. 

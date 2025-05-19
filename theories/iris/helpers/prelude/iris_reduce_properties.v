@@ -658,8 +658,8 @@ Section reduce_properties_lemmas.
  
   Lemma contbind_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
     t1s t2s ts k tf hh i i' s' f' es'  :
-    stypes s (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
-    stypes s (f_inst f) i' = Some (Tf t1s t2s) ->
+    stypes (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
+    stypes (f_inst f) i' = Some (Tf t1s t2s) ->
     List.nth_error (s_conts s) k = Some (Cont_hh tf hh) -> 
     reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_contbind i i')]) s' f' es' ->
     const_list vs ->
@@ -834,7 +834,7 @@ Section reduce_properties_lemmas.
   
     Lemma resume_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
       t1s t2s i k tf hh hs s' f' es'  :
-      stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+      stypes (f_inst f) i = Some (Tf t1s t2s) ->
       List.nth_error (s_conts s) k = Some (Cont_hh tf hh) ->
     reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_resume i hs)]) s' f' es' ->
     const_list vs ->
@@ -980,7 +980,7 @@ Section reduce_properties_lemmas.
   
    Lemma try_table_not_enough_arguments_no_reduce s f (vs : seq.seq administrative_instruction)
      i cs esb t1s t2s s' f' es'  :
-     stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+     stypes (f_inst f) i = Some (Tf t1s t2s) ->
     reduce s f (vs ++ [AI_basic (BI_try_table i cs esb)]) s' f' es' ->
     const_list vs ->
     length vs < length t1s ->

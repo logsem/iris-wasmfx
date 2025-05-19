@@ -51,7 +51,7 @@ Proof.
 Qed.
 
 Lemma switch_desugar_det x a k cont t1s t2s vs i tf s f s' f' es' :
-  stypes s (f_inst f) i = Some tf ->
+  stypes (f_inst f) i = Some tf ->
   nth_error (inst_tags (f_inst f)) x = Some a ->
   nth_error (s_conts s) k = Some cont ->
   typeof_cont cont = Tf t1s t2s ->

@@ -59,7 +59,7 @@ Lemma resume_throw_det ves vcs x a i ts s2 s'' k t1s t2s hh hs hsd LI s f s' f' 
   s2 = add_exn s {| e_tag := Mk_tagidx a; e_fields := vcs |} ->
   s'' = upd_s_cont s2 k (Cont_dagger (Tf t1s t2s)) ->
   nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh) ->
-  stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+  stypes (f_inst f) i = Some (Tf t1s t2s) ->
   hfilled No_var hh [AI_ref_exn (length (s_exns s)) (Mk_tagidx a); AI_basic BI_throw_ref] LI ->
   [seq desugar_continuation_clause (f_inst f) i | i <- hs] = [seq Some i | i <- hsd] ->
   reduce s f (ves ++ [AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]) s' f' es' ->

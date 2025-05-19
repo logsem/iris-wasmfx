@@ -43,7 +43,7 @@ Qed.
 
 Lemma resume_det i t1s t2s vs k hh LI hs hsd s f s' f' es' :
   const_list vs ->
-  stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+  stypes (f_inst f) i = Some (Tf t1s t2s) ->
   length vs = length t1s ->
   nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh) ->
   hfilled No_var hh vs LI ->

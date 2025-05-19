@@ -1116,6 +1116,98 @@ Fixpoint llh_of_lh lh :=
   end.
 
 
+Inductive is_pure : lholed -> Prop :=
+| BasePure : forall bef aft, is_pure (LH_base bef aft)
+| LabelPure : forall bef n es lh aft, is_pure lh -> is_pure (LH_rec bef n es lh aft)
+.
+
+
+Fixpoint susholed_of_lholed lh :=
+  match lh with
+  | LH_base bef aft =>
+      match e_to_v_list_opt bef with
+      | Some bef => Some $ SuBase bef aft
+      | None => None
+      end
+  | LH_rec bef n es lh aft =>
+      match susholed_of_lholed lh with
+      | Some lh =>
+          match e_to_v_list_opt bef with
+          | Some bef => Some $ SuLabel bef n es lh aft
+          | None => None
+          end
+      | None => None
+      end
+  | _ => None
+  end.
+
+Fixpoint swholed_of_lholed lh :=
+  match lh with
+  | LH_base bef aft =>
+      match e_to_v_list_opt bef with
+      | Some bef => Some $ SwBase bef aft
+      | None => None
+      end
+  | LH_rec bef n es lh aft =>
+      match swholed_of_lholed lh with
+      | Some lh =>
+          match e_to_v_list_opt bef with
+          | Some bef => Some $ SwLabel bef n es lh aft
+          | None => None
+          end
+      | None => None
+      end
+  | _ => None
+  end.
+
+Fixpoint exnholed_of_lholed lh :=
+  match lh with
+  | LH_base bef aft =>
+      match e_to_v_list_opt bef with
+      | Some bef => Some $ ExBase bef aft
+      | None => None
+      end
+  | LH_rec bef n es lh aft =>
+      match exnholed_of_lholed lh with
+      | Some lh =>
+          match e_to_v_list_opt bef with
+          | Some bef => Some $ ExLabel bef n es lh aft
+          | None => None
+          end
+      | None => None
+      end
+  | _ => None
+  end.
+
+Fixpoint sus_trans sh1 sh2 :=
+  match sh1 with
+  | SuBase bef aft => sus_push_const (sus_append sh2 aft) bef
+  | SuLabel bef n es sh aft => SuLabel bef n es (sus_trans sh sh2) aft
+  | SuLocal bef n es sh aft => SuLocal bef n es (sus_trans sh sh2) aft
+  | SuHandler bef hs sh aft => SuHandler bef hs (sus_trans sh sh2) aft
+  | SuPrompt bef ts hs sh aft => SuPrompt bef ts hs (sus_trans sh sh2) aft
+  end.
+
+Fixpoint sw_trans sh1 sh2 :=
+  match sh1 with
+  | SwBase bef aft => sw_push_const (sw_append sh2 aft) bef
+  | SwLabel bef n es sh aft => SwLabel bef n es (sw_trans sh sh2) aft
+  | SwLocal bef n es sh aft => SwLocal bef n es (sw_trans sh sh2) aft
+  | SwHandler bef hs sh aft => SwHandler bef hs (sw_trans sh sh2) aft
+  | SwPrompt bef ts hs sh aft => SwPrompt bef ts hs (sw_trans sh sh2) aft
+  end.
+
+Fixpoint exn_trans sh1 sh2 :=
+  match sh1 with
+  | ExBase bef aft => exn_push_const (exn_append sh2 aft) bef
+  | ExLabel bef n es sh aft => ExLabel bef n es (exn_trans sh sh2) aft
+  | ExLocal bef n es sh aft => ExLocal bef n es (exn_trans sh sh2) aft
+  | ExHandler bef hs sh aft => ExHandler bef hs (exn_trans sh sh2) aft
+  | ExPrompt bef ts hs sh aft => ExPrompt bef ts hs (exn_trans sh sh2) aft
+  end.
+
+
+
 
 (* Tactics *)
 

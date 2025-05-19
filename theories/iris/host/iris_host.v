@@ -3,7 +3,7 @@ From iris.program_logic Require Import language weakestpre lifting.
 From iris.proofmode Require Import base tactics classes.
 From iris.base_logic Require Export gen_heap ghost_map proph_map.
 From iris.base_logic.lib Require Export fancy_updates.
-From Wasm.iris.language Require Export iris_locations iris_ewp_def iris.
+From Wasm.iris.language Require Export iris_locations iris_ewp_ctx iris.
 From Wasm.iris.helpers Require Export iris_properties.
 From Wasm.iris.rules Require Export iris_rules_resources.
 From Wasm Require Export stdpp_aux.

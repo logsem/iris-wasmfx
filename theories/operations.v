@@ -551,7 +551,7 @@ Definition option_bind (A B : Type) (f : A -> option B) (x : option A) :=
 
 Definition empty_instance := Build_instance [::] [::] [::] [::] [::].
 
-Definition stypes (s : store_record) (i : instance) j : option function_type :=
+Definition stypes (i : instance) j : option function_type :=
   match j with 
   | Type_lookup j => List.nth_error (inst_types i) j
   | Type_explicit t => Some t

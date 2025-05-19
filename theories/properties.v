@@ -693,29 +693,29 @@ Proof.
 Qed.
 
 
-Lemma hfilled_inj : forall i lh es LI LI',
+Lemma hfilled_inj : forall i i' lh es LI LI',
     hfilled i lh es LI ->
-    hfilled i lh es LI' ->
+    hfilled i' lh es LI' ->
   LI = LI'.
 Proof.
-  intros i lh. generalize dependent i.
-  induction lh; intros i es LI LI'
+  intros i i' lh. 
+  induction lh; intros es LI LI'
                       Hfill1%hfilled_Ind_Equivalent
                       Hfill2%hfilled_Ind_Equivalent.
   - inversion Hfill1; subst.
     inversion Hfill2; subst. done. 
   - inversion Hfill1; subst.
     inversion Hfill2; subst.
-    rewrite (IHlh i es LI0 LI);auto;by apply hfilled_Ind_Equivalent.
+    rewrite (IHlh es LI0 LI);auto;by apply hfilled_Ind_Equivalent.
   - inversion Hfill1; subst.
     inversion Hfill2; subst.
-    rewrite (IHlh i es LI0 LI);auto; by apply hfilled_Ind_Equivalent.
+    rewrite (IHlh es LI0 LI);auto; by apply hfilled_Ind_Equivalent.
   - inversion Hfill1; subst.
     inversion Hfill2; subst.
-    rewrite (IHlh i es LI0 LI);auto; by apply hfilled_Ind_Equivalent.
+    rewrite (IHlh es LI0 LI);auto; by apply hfilled_Ind_Equivalent.
   - inversion Hfill1; subst.
     inversion Hfill2; subst.
-    rewrite (IHlh i es LI0 LI);auto; by apply hfilled_Ind_Equivalent.
+    rewrite (IHlh es LI0 LI);auto; by apply hfilled_Ind_Equivalent.
 Qed.
 
 Lemma map_Some_inj {A} (l1 l2: list A) :

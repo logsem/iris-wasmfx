@@ -1285,7 +1285,7 @@ Proof.
       remember Hstabaddr as Hstabaddr2. clear HeqHstabaddr2.
       eapply store_typing_stabaddr in Hstabaddr; eauto.
       destruct Hstabaddr as [cl Hstabaddr].
-      destruct (stypes s f.(f_inst) i == Some (cl_type cl)) eqn:Hclt; move/eqP in Hclt.
+      destruct (stypes f.(f_inst) i == Some (cl_type cl)) eqn:Hclt; move/eqP in Hclt.
       * exists (v_to_e_list (take (size t1s) vcs) ++ [::AI_invoke a]).
         rewrite size_map.
         apply reduce_composition_left; first by apply v_to_e_is_const_list.

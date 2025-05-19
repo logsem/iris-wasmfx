@@ -225,13 +225,13 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
       forall s f i a cl c ,
         stab_addr s f (Wasm_int.nat_of_uint i32m c) = Some a ->
         List.nth_error s.(s_funcs) a = Some cl ->
-        stypes s f.(f_inst) i = Some (cl_type cl) ->
+        stypes f.(f_inst) i = Some (cl_type cl) ->
         reduce s f [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] s f [::AI_invoke a]
   | r_call_indirect_failure1 :
       forall s f i a cl c,
         stab_addr s f (Wasm_int.nat_of_uint i32m c) = Some a ->
         List.nth_error s.(s_funcs) a = Some cl ->
-        stypes s f.(f_inst) i <> Some (cl_type cl) ->
+        stypes f.(f_inst) i <> Some (cl_type cl) ->
         reduce s f [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] s f [::AI_trap]
   | r_call_indirect_failure2 :
       forall s f i c,
@@ -242,7 +242,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
   (*  forall s f x i vcs ves t1s t2s n m f' cl i0 ts es zs, *)
   forall x cl i s f,
     List.nth_error s.(s_funcs) x = Some cl ->
-    stypes s f.(f_inst) i = Some (cl_type cl) ->
+    stypes f.(f_inst) i = Some (cl_type cl) ->
 (*    cl = FC_func_native i (Tf t1s t2s) ts es ->
     ves = v_to_e_list vcs ->
     length vcs = n ->
@@ -278,7 +278,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
 (** Exception handling *)
 | r_try_table :
   forall s f vs t1s t2s cs csd es n i,
-    stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+    stypes (f_inst f) i = Some (Tf t1s t2s) ->
     n = length t2s ->
     const_list vs -> 
     length vs = length t1s ->
@@ -313,13 +313,13 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
 
 | r_contnew :
   forall s f x i tf hh,
-    stypes s (f_inst f) i = Some tf ->
+    stypes (f_inst f) i = Some tf ->
     hh = HH_base [::] [::AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))] ->
     reduce s f [:: AI_ref x; AI_basic (BI_contnew i)] (new_cont s (Cont_hh tf hh)) f [:: AI_ref_cont (length (s_conts s))]
  | r_resume :
    forall s f k hh vs i hs hsd t1s t2s LI,
      const_list vs ->
-     stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+     stypes (f_inst f) i = Some (Tf t1s t2s) ->
      length vs = length t1s ->
      List.nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh) ->
      hfilled No_var hh vs LI ->
@@ -337,7 +337,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     reduce s f (v_to_e_list vs ++ [:: AI_basic (BI_suspend (Mk_tagident x))]) s f [:: AI_suspend_desugared vs (Mk_tagidx a)]
 | r_switch_desugar :
   forall s f i x a tf tf' k cont t1s t2s vs,
-    stypes s (f_inst f) i = Some tf ->
+    stypes (f_inst f) i = Some tf ->
     List.nth_error f.(f_inst).(inst_tags) x = Some a ->
     List.nth_error s.(s_tags) a = Some tf' ->
     List.nth_error s.(s_conts) k = Some cont ->
@@ -366,8 +366,8 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
 | r_contbind :
   forall s f k hh vs i i' ts t1s t2s,
     const_list vs ->
-    stypes s (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
-    stypes s (f_inst f) i' = Some (Tf t1s t2s) ->
+    stypes (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
+    stypes (f_inst f) i' = Some (Tf t1s t2s) ->
     length ts = length vs ->
     List.nth_error (s_conts s) k = Some (Cont_hh (Tf (ts ++ t1s) t2s) hh) ->
     reduce s f (vs ++ [:: AI_ref_cont k; AI_basic (BI_contbind i i')]) (new_cont (upd_s_cont s k (Cont_dagger (Tf (ts ++ t1s) t2s))) (Cont_hh (Tf t1s t2s) (hhplug vs hh))) f [:: AI_ref_cont (length (s_conts s))]
@@ -384,7 +384,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     s' = add_exn s {| e_tag := Mk_tagidx a ; e_fields := vcs |} ->
     s'' = upd_s_cont s' k (Cont_dagger (Tf t1s t2s)) ->
     List.nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh) ->
-    stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+    stypes (f_inst f) i = Some (Tf t1s t2s) ->
     map (desugar_continuation_clause (f_inst f)) hs = map Some hsd ->
     hfilled No_var hh ([:: AI_ref_exn (List.length (s_exns s)) (Mk_tagidx a) ; AI_basic BI_throw_ref]) LI -> 
     reduce s f (ves ++ [:: AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]) s'' f [:: AI_prompt t2s hsd LI]

@@ -6776,9 +6776,9 @@ Proof.
 Qed. 
 
 
-Lemma stypes_get_type s inst C i :
+Lemma stypes_get_type inst C i :
   tc_types_t C = inst_types inst ->
-  stypes s inst i = get_type C i.
+  stypes inst i = get_type C i.
 Proof.
   destruct i => //=.
   intros ->. done.
@@ -6873,7 +6873,7 @@ Proof.
         inversion Ht.
         inversion Htypes; subst.
         apply inst_typing_types in H1.
-        erewrite <- (stypes_get_type s) in Htypes; last exact H1.
+        erewrite <- (stypes_get_type) in Htypes; last exact H1.
         rewrite H in Htypes.
         inversion Htypes; subst.
         inversion Ht.
@@ -6985,9 +6985,9 @@ Proof.
       apply Contbind_typing in Hbindt as (tsnew & t0s & t1snew & t2snew & H0' & H1' & Ht' & ->).
 (*      unfold stypes in H0. unfold stypes in H1. *)
       apply inst_typing_types in HIT.
-      erewrite <- (stypes_get_type s) in H0'; last exact HIT.
+      erewrite <- (stypes_get_type) in H0'; last exact HIT.
       rewrite H0' in H0.
-      erewrite <- (stypes_get_type s) in H1'; last exact HIT.
+      erewrite <- (stypes_get_type) in H1'; last exact HIT.
       rewrite H1' in H1.
       inversion H1; subst t1snew t2snew.
       inversion H0. apply concat_cancel_last_n in H4; last done.
@@ -8156,7 +8156,7 @@ Proof.
     repeat apply ety_weakening.
     eapply ety_invoke; eauto.
     apply inst_typing_types in HIT1.
-    erewrite <- (stypes_get_type s) in H6; last exact HIT1.
+    erewrite <- (stypes_get_type) in H6; last exact HIT1.
     rewrite H6 in H1. inversion H1; done.
   - (* Call reference *)
     rewrite (separate1 (AI_ref x)) in HType.
@@ -8187,7 +8187,7 @@ Proof.
     apply ety_weakening.
     econstructor. exact H.
     apply inst_typing_types in HIT1.
-    erewrite <- (stypes_get_type s) in Htypes; last exact HIT1.
+    erewrite <- (stypes_get_type) in Htypes; last exact HIT1.
     rewrite Htypes in H0. inversion H0 => //. 
   - (* Invoke native *)
     invert_e_typing.
@@ -8568,7 +8568,7 @@ Proof.
     
     apply ety_weakening. apply et_weakening_empty_1.
     apply inst_typing_types in HIT1.
-    erewrite <- (stypes_get_type s) in Htypes; last exact HIT1.
+    erewrite <- (stypes_get_type) in Htypes; last exact HIT1.
     rewrite H in Htypes.
     inversion Htypes; subst tf.
     
@@ -8984,8 +8984,8 @@ Proof.
     convert_et_to_bet.
     apply Contbind_typing in Hcontbind as (ts1 & t0s & t1s''' & t2s''' & H0' & H1' & Htypes' & ->).
     apply inst_typing_types in HIT1.
-    erewrite <- (stypes_get_type s) in H0'; last exact HIT1.
-    erewrite <- (stypes_get_type s) in H1'; last exact HIT1.
+    erewrite <- (stypes_get_type) in H0'; last exact HIT1.
+    erewrite <- (stypes_get_type) in H1'; last exact HIT1.
     rewrite H0' in H0.
     rewrite H1' in H1.
     inversion H1; subst t1s''' t2s'''. clear H1.
@@ -9040,7 +9040,7 @@ Proof.
     eapply tc_reference_tag in HIT1 as Htagseq.
     2: exact H. 2: exact H0. 2: exact H0'.
     apply inst_typing_types in HIT1 as Htypeseq.
-    erewrite <- (stypes_get_type s) in H3'; last exact Htypeseq.
+    erewrite <- (stypes_get_type) in H3'; last exact Htypeseq.
     rewrite H6 in H3'.
     inversion H3'; subst. clear H3'.
     inversion Htagseq; subst.

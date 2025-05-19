@@ -1357,7 +1357,36 @@ Proof.
   all: erewrite those_app.
   all: try rewrite separate1.
   all: done.
+Qed.
+
+
+Lemma v_to_e_e_to_v es vs:
+  e_to_v_list_opt es = Some vs -> v_to_e_list vs = es.
+Proof.
+  unfold e_to_v_list_opt, those.
+  assert (forall vs',
+             match list_extra.those_aux (Some vs') [seq e_to_v_opt i | i <- es] with
+             | Some l => Some (rev l)
+             | None => None
+             end = Some vs → v_to_e_list vs = v_to_e_list (rev vs') ++ es).
+  2:{ specialize (H []). done. }
+  induction es.
+  - intros vs' H. simpl in H. inversion H; subst. by rewrite app_nil_r.
+  - intros vs' H. simpl in H.
+    destruct (e_to_v_opt a) eqn:Ha => //.
+    apply IHes in H.
+    simpl in H.
+    rewrite -v_to_e_cat in H.
+    rewrite -app_assoc in H.
+    simpl in H.
+    replace a with (AI_const v) => //.
+    clear - Ha.
+    destruct a => //=.
+    destruct b => //=.
+    all: simpl in Ha.
+    all: inversion Ha; subst => //.
 Qed. 
+    
     
 
 
@@ -3708,3 +3737,252 @@ Proof.
     cbn. rewrite Heq.
     exists (LL_handler l l0 vh' l1). cbn. auto.
 Qed.
+
+Lemma is_pure_susholed_of_lholed k lh es LI :
+  is_pure lh ->
+  lfilled k lh es LI ->
+  exists sh, susholed_of_lholed lh = Some sh.
+Proof.
+  intros Hpure.
+  generalize dependent k.
+  generalize dependent LI.
+  induction Hpure.
+  all: intros LI k Hfilled.
+  all: move/lfilledP in Hfilled; inversion Hfilled; subst.
+  all: simpl.
+  - apply const_es_exists in H4 as [vs ->].
+    rewrite e_to_v_v_to_e. by eexists.
+  - move/lfilledP in H8.
+    apply IHHpure in H8 as [sh ->].
+    apply const_es_exists in H7 as [vs ->].
+    rewrite e_to_v_v_to_e.
+    by eexists.
+Qed.
+
+Lemma is_pure_swholed_of_lholed k lh es LI :
+  is_pure lh ->
+  lfilled k lh es LI ->
+  exists sh, swholed_of_lholed lh = Some sh.
+Proof.
+  intros Hpure.
+  generalize dependent k.
+  generalize dependent LI.
+  induction Hpure.
+  all: intros LI k Hfilled.
+  all: move/lfilledP in Hfilled; inversion Hfilled; subst.
+  all: simpl.
+  - apply const_es_exists in H4 as [vs ->].
+    rewrite e_to_v_v_to_e. by eexists.
+  - move/lfilledP in H8.
+    apply IHHpure in H8 as [sh ->].
+    apply const_es_exists in H7 as [vs ->].
+    rewrite e_to_v_v_to_e.
+    by eexists.
+Qed.
+
+Lemma is_pure_exnholed_of_lholed k lh es LI :
+  is_pure lh ->
+  lfilled k lh es LI ->
+  exists sh, exnholed_of_lholed lh = Some sh.
+Proof.
+  intros Hpure.
+  generalize dependent k.
+  generalize dependent LI.
+  induction Hpure.
+  all: intros LI k Hfilled.
+  all: move/lfilledP in Hfilled; inversion Hfilled; subst.
+  all: simpl.
+  - apply const_es_exists in H4 as [vs ->].
+    rewrite e_to_v_v_to_e. by eexists.
+  - move/lfilledP in H8.
+    apply IHHpure in H8 as [sh ->].
+    apply const_es_exists in H7 as [vs ->].
+    rewrite e_to_v_v_to_e.
+    by eexists.
+Qed. 
+
+
+Lemma susholed_of_lholed_is_pure lh sh :
+  susholed_of_lholed lh = Some sh ->
+  is_pure lh.
+Proof.
+  generalize dependent sh.
+  induction lh => //=.
+  - intros _ _. constructor.
+  - intros sh H.
+    constructor.
+    destruct (susholed_of_lholed lh) => //. 
+    eapply IHlh.
+    done.
+Qed. 
+
+
+Lemma swholed_of_lholed_is_pure lh sh :
+  swholed_of_lholed lh = Some sh ->
+  is_pure lh.
+Proof.
+  generalize dependent sh.
+  induction lh => //=.
+  - intros _ _. constructor.
+  - intros sh H.
+    constructor.
+    destruct (swholed_of_lholed lh) => //. 
+    eapply IHlh.
+    done.
+Qed.
+
+
+
+Lemma exnholed_of_lholed_is_pure lh sh :
+  exnholed_of_lholed lh = Some sh ->
+  is_pure lh.
+Proof.
+  generalize dependent sh.
+  induction lh => //=.
+  - intros _ _. constructor.
+  - intros sh H.
+    constructor.
+    destruct (exnholed_of_lholed lh) => //. 
+    eapply IHlh.
+    done.
+Qed.
+
+
+Lemma susfill_trans x sh1 sh2 es :
+  susfill x (sus_trans sh1 sh2) es = susfill x sh1 (susfill x sh2 es).
+Proof.
+  induction sh1 => //=.
+  all: try rewrite IHsh1 //.
+  rewrite susfill_sus_push_const.
+  rewrite susfill_sus_append //.
+Qed. 
+
+Lemma swfill_trans x sh1 sh2 es :
+  swfill x (sw_trans sh1 sh2) es = swfill x sh1 (swfill x sh2 es).
+Proof.
+  induction sh1 => //=.
+  all: try rewrite IHsh1 //.
+  rewrite swfill_sw_push_const.
+  rewrite swfill_sw_append //.
+Qed.
+
+Lemma exnfill_trans x sh1 sh2 es :
+  exnfill x (exn_trans sh1 sh2) es = exnfill x sh1 (exnfill x sh2 es).
+Proof.
+  induction sh1 => //=.
+  all: try rewrite IHsh1 //.
+  rewrite exnfill_exn_push_const.
+  rewrite exnfill_exn_append //.
+Qed.
+
+Lemma susfill_to_lfilled i sh es LI lh :
+  susfill i sh es = LI ->
+  susholed_of_lholed lh = Some sh ->
+  exists k, lfilled k lh es LI.
+Proof.
+  generalize dependent LI.
+  generalize dependent sh.
+  induction lh => //=.
+  - destruct (e_to_v_list_opt l) eqn:Hl => //.
+    intros sh LI Hsh Heq; inversion Heq; subst.
+    exists 0. simpl.
+    apply v_to_e_e_to_v in Hl as <-.
+    apply/lfilledP. constructor. apply v_to_e_is_const_list.
+  - destruct (susholed_of_lholed lh) eqn:Hholed => //.
+    destruct (e_to_v_list_opt l) eqn:Hl => //.
+    intros sh LI Hsh Heq; inversion Heq; subst.
+    edestruct IHlh as [k Hfill].
+    2: done.
+    done.
+    exists (S k).
+    simpl. apply v_to_e_e_to_v in Hl as <-.
+    move/lfilledP in Hfill.
+    apply/lfilledP. constructor => //.
+    apply v_to_e_is_const_list.
+Qed. 
+
+
+Lemma swfill_to_lfilled i sh es LI lh :
+  swfill i sh es = LI ->
+  swholed_of_lholed lh = Some sh ->
+  exists k, lfilled k lh es LI.
+Proof.
+  generalize dependent LI.
+  generalize dependent sh.
+  induction lh => //=.
+  - destruct (e_to_v_list_opt l) eqn:Hl => //.
+    intros sh LI Hsh Heq; inversion Heq; subst.
+    exists 0. simpl.
+    apply v_to_e_e_to_v in Hl as <-.
+    apply/lfilledP. constructor. apply v_to_e_is_const_list.
+  - destruct (swholed_of_lholed lh) eqn:Hholed => //.
+    destruct (e_to_v_list_opt l) eqn:Hl => //.
+    intros sh LI Hsh Heq; inversion Heq; subst.
+    edestruct IHlh as [k Hfill].
+    2: done.
+    done.
+    exists (S k).
+    simpl. apply v_to_e_e_to_v in Hl as <-.
+    move/lfilledP in Hfill.
+    apply/lfilledP. constructor => //.
+    apply v_to_e_is_const_list.
+Qed.
+
+Lemma exnfill_to_lfilled i sh es LI lh :
+  exnfill i sh es = LI ->
+  exnholed_of_lholed lh = Some sh ->
+  exists k, lfilled k lh es LI.
+Proof.
+  generalize dependent LI.
+  generalize dependent sh.
+  induction lh => //=.
+  - destruct (e_to_v_list_opt l) eqn:Hl => //.
+    intros sh LI Hsh Heq; inversion Heq; subst.
+    exists 0. simpl.
+    apply v_to_e_e_to_v in Hl as <-.
+    apply/lfilledP. constructor. apply v_to_e_is_const_list.
+  - destruct (exnholed_of_lholed lh) eqn:Hholed => //.
+    destruct (e_to_v_list_opt l) eqn:Hl => //.
+    intros sh LI Hsh Heq; inversion Heq; subst.
+    edestruct IHlh as [k Hfill].
+    2: done.
+    done.
+    exists (S k).
+    simpl. apply v_to_e_e_to_v in Hl as <-.
+    move/lfilledP in Hfill.
+    apply/lfilledP. constructor => //.
+    apply v_to_e_is_const_list.
+Qed. 
+
+Lemma sus_trans_assoc sh1 sh2 sh3 :
+  sus_trans (sus_trans sh1 sh2) sh3 = sus_trans sh1 (sus_trans sh2 sh3).
+Proof.
+  induction sh1 => //=.
+  all: try by rewrite IHsh1.
+  destruct sh2 => //=.
+  rewrite - sus_push_const_append.
+  rewrite sus_push_const_app.
+  rewrite sus_append_app //.
+Qed.
+
+Lemma sw_trans_assoc sh1 sh2 sh3 :
+  sw_trans (sw_trans sh1 sh2) sh3 = sw_trans sh1 (sw_trans sh2 sh3).
+Proof.
+  induction sh1 => //=.
+  all: try by rewrite IHsh1.
+  destruct sh2 => //=.
+  rewrite - sw_push_const_append.
+  rewrite sw_push_const_app.
+  rewrite sw_append_app //.
+Qed.
+
+Lemma exn_trans_assoc sh1 sh2 sh3 :
+  exn_trans (exn_trans sh1 sh2) sh3 = exn_trans sh1 (exn_trans sh2 sh3).
+Proof.
+  induction sh1 => //=.
+  all: try by rewrite IHsh1.
+  destruct sh2 => //=.
+  rewrite - exn_push_const_append.
+  rewrite exn_push_const_app.
+  rewrite exn_append_app //.
+Qed. 

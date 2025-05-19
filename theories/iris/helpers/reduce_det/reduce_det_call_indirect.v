@@ -5,7 +5,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 Lemma call_indirect_det c i cl a s f s' f' es:
   stab_addr s f (Wasm_int.nat_of_uint i32m c) = Some a ->
    nth_error (s_funcs s) a = Some cl ->
-  stypes s (f_inst f) i = Some (cl_type cl) ->
+  stypes (f_inst f) i = Some (cl_type cl) ->
   reduce s f [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] s' f' es ->
   reduce_det_goal s f [AI_invoke a]
     s' f' es [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)].
@@ -51,7 +51,7 @@ Qed.
 Lemma call_indirect_failure1_det c i cl a s f s' f' es:
   stab_addr s f (Wasm_int.nat_of_uint i32m c) = Some a ->
    nth_error (s_funcs s) a = Some cl ->
-  stypes s (f_inst f) i <> Some (cl_type cl) ->
+  stypes (f_inst f) i <> Some (cl_type cl) ->
   reduce s f [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] s' f' es ->
   reduce_det_goal s f [AI_trap]
     s' f' es [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)].

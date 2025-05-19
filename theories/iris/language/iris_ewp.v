@@ -9,7 +9,8 @@
 From iris.proofmode Require Import base tactics classes.
 From iris.program_logic Require Import weakestpre.
 From Wasm.iris.language.iris Require Export iris.
-From Wasm.iris.language Require Export protocols.
+From Wasm.iris.language Require Export protocols iris_resources.
+
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -25,17 +26,17 @@ Inductive effect_identifier : Type :=
 | ThrowE : tagidx -> effect_identifier
 .
   
+Opaque weakestpre.state_interp.
+Opaque num_laters_per_step.
 
-Definition ewp_pre `{!irisGS wasm_lang Σ} :
+Definition ewp_pre `{!wasmG Σ} :
   (coPset -d> expr -d>
-     (* (tagidx -d> iProt Σ) -d> (tagidx -d> iProt Σ) -d> (tagidx -d> val -d> iPropO Σ) -d> *)
      (effect_identifier -d> iProt Σ) -d>
      (val -d> iPropO Σ) -d> iPropO Σ) →
   (coPset -d> expr -d>
-     (* (tagidx -d> iProt Σ) -d> (tagidx -d> iProt Σ) -d> (tagidx -d> val -d> iPropO Σ) -d> *)
      (effect_identifier -d> iProt Σ) -d>
      (val -d> iPropO Σ) -d> iPropO Σ)
-  := λ ewp E e₁ (* Ψsus Ψsw Ψeff *) Ψ Φ,
+  := λ ewp E e₁ Ψ Φ,
   match to_val e₁ with
   | Some v =>
       |={E}=> Φ v
@@ -44,50 +45,49 @@ Definition ewp_pre `{!irisGS wasm_lang Σ} :
       | Some (thrE vs i a sh) =>
       (*    Ψ (ThrowE a) (immV vs)
        (* Hmmm have value instead of val to avoid immV? *) *)
-          iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I
+          ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I)
       | Some (susE vs i sh) =>
-          iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ ewp E (susfill i sh (of_val w)) Ψ Φ)
+          ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ ewp E (susfill i sh (of_val w)) Ψ Φ))
       | Some (swE vs k tf i sh) =>
-          iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ ewp E (swfill i sh (of_val w)) Ψ Φ)
+          ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ ewp E (swfill i sh (of_val w)) Ψ Φ))
       | None =>
           ∀ σ₁ ns κ κs nt,
-            state_interp σ₁ ns (κ ++ κs) nt ={E,∅}=∗
+            weakestpre.state_interp σ₁ ns (κ ++ κs) nt ={E,∅}=∗
               ⌜ reducible e₁ σ₁ ⌝ ∗  
               ∀ e₂ σ₂, ⌜ prim_step e₁ σ₁ κ e₂ σ₂ [] ⌝
                 ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
-                state_interp σ₂ (S ns) κs nt ∗ ewp E e₂ Ψ Φ 
+                weakestpre.state_interp σ₂ (S ns) κs nt ∗ ∃ (f : frame), ↪[frame] f ∗ (↪[frame] f -∗ ewp E e₂ Ψ Φ)
       end
   end%I.
 
-Local Instance ewp_pre_contractive `{!irisGS wasm_lang Σ} : Contractive ewp_pre.
+Local Instance ewp_pre_contractive `{!wasmG Σ} : Contractive ewp_pre.
 Proof.
   rewrite /ewp_pre=> n ewp ewp' Hwp E e Ψ Φ.
-  do 4 f_equiv; try by intros => ?; f_contractive; apply Hwp.
-  do 16 (f_contractive || f_equiv). 
+  do 8 f_equiv; try by intros => ?; f_contractive; apply Hwp.
+  do 12 (f_contractive || f_equiv).
   induction num_laters_per_step as [|k IH]; simpl.
   - repeat (f_contractive || f_equiv); apply Hwp.
   - do 3 f_equiv. by apply IH.
 Qed.
-Definition ewp_def `{!irisGS wasm_lang Σ} :
+Definition ewp_def `{!wasmG Σ} :
   coPset -d> expr -d>
-    (* (tagidx -d> iProt Σ) -d> (tagidx -d> iProt Σ) -d> (tagidx -d> val -d> iPropO Σ) -d> *)
     (effect_identifier -d> iProt Σ) -d>
     (val -d> iPropO Σ) -d> iPropO Σ :=
   fixpoint ewp_pre.
-Definition ewp_aux `{!irisGS wasm_lang Σ} : seal ewp_def. Proof. by eexists. Qed.
-Definition ewp_eq `{!irisGS wasm_lang Σ} := ewp_aux.(seal_eq).
-Definition ewp' `{!irisGS wasm_lang Σ} := ewp_aux.(unseal).
+Definition ewp_aux `{!wasmG Σ} : seal ewp_def. Proof. by eexists. Qed.
+Definition ewp_eq `{!wasmG Σ} := ewp_aux.(seal_eq).
+Definition ewp' `{!wasmG Σ} := ewp_aux.(unseal).
 
 
 
 (* -------------------------------------------------------------------------- *)
 (** Non-expansiveness. *)
 
-Lemma ewp_unfold `{!irisGS wasm_lang Σ} E e Ψ Φ :
+Lemma ewp_unfold `{!wasmG Σ} E e Ψ Φ :
   ewp_def E e Ψ Φ ⊣⊢ ewp_pre ewp_def E e Ψ Φ.
 Proof. by rewrite /ewp_def; apply (fixpoint_unfold ewp_pre). Qed.
 
-Global Instance ewp_ne `{!irisGS wasm_lang Σ} E e n :
+Global Instance ewp_ne `{!wasmG Σ} E e n :
   Proper ((dist n) ==> (dist n) ==> (dist n)) (ewp_def E e).
 Proof.
   revert e.
@@ -96,26 +96,27 @@ Proof.
   f_equiv. { by f_equiv. }
   f_equiv.
   - f_equiv.
-    + f_equiv. f_equiv. f_equiv.
+    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       * f_equiv.
         apply IProt_ne.
         f_equiv.
         apply HΨ1.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         apply IH; try lia; eapply dist_le; eauto with lia.
-    + f_equiv. f_equiv. f_equiv.
+    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       * f_equiv. apply IProt_ne. f_equiv. apply HΨ1.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         apply IH; try lia; eapply dist_le; eauto with lia.
-    + f_equiv. f_equiv. f_equiv. apply IProt_ne. f_equiv. apply HΨ1. 
+    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+      f_equiv. apply IProt_ne. f_equiv. apply HΨ1. 
   - do 4 f_equiv. do 14 (f_contractive || f_equiv).
     induction num_laters_per_step as [| k IH']; simpl.
-    + do 5 (f_contractive || f_equiv).
+    + do 9 (f_contractive || f_equiv).
       apply IH; try lia; eapply dist_le; eauto with lia.
-    + do 3 f_equiv. by apply IH'.
+    + do 3 f_equiv. by apply IH'. 
 Qed.
 
-Global Instance ewp_proper `{!irisGS wasm_lang Σ} E e :
+Global Instance ewp_proper `{!wasmG Σ} E e :
   Proper ((≡) ==> (≡) ==> (≡)) (ewp_def E e).
 Proof.
   intros Ψ1 Ψ1' ? Φ Φ' ?.
@@ -279,10 +280,38 @@ Notation "'EWP' e <| Ψ1 '|' '>' {| Ψ2 '|' '}' <{ Ψ3 '}' '>'  {{ Φ } }" :=
 
 
 Section wp.
-  Context `{Pred : A -> iProp Σ, !irisGS wasm_lang Σ}.
+  Context `{!wasmG Σ}.
 
   Lemma ewp_value_fupd' E Ψ Φ v : EWP of_val v @  E <| Ψ |> {{ Φ }} ⊣⊢ |={E}=> Φ v.
-  Proof. rewrite ewp_unfold /ewp_pre to_of_val. auto. Qed.
+  Proof. rewrite ewp_unfold /ewp_pre. rewrite to_of_val. auto. Qed.
+
+  Lemma ewp_effect_sus' E Ψ Φ vs i sh : EWP of_eff (susE vs i sh) @ E <| Ψ |> {{ Φ }} ⊣⊢ ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ EWP (susfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+  Proof.
+    rewrite ewp_unfold /ewp_pre. rewrite to_of_eff.
+    destruct (to_val _) eqn:Habs => //.
+    exfalso; eapply to_val_to_eff => //.
+    rewrite to_of_eff //.
+  Qed.
+
+  Lemma ewp_effect_sw' E Ψ Φ vs k tf i sh : EWP of_eff (swE vs k tf i sh) @ E <| Ψ |> {{ Φ }} ⊣⊢  ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ EWP (swfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+  Proof.
+    rewrite ewp_unfold /ewp_pre. rewrite to_of_eff.
+    destruct (to_val _) eqn:Habs => //.
+    exfalso; eapply to_val_to_eff => //.
+    rewrite to_of_eff //.
+  Qed.
+
+
+   Lemma ewp_effect_thr' E Ψ Φ vs i a sh : EWP of_eff (thrE vs i a sh) @ E <| Ψ |> {{ Φ }} ⊣⊢    ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I).
+  Proof.
+    rewrite ewp_unfold /ewp_pre. rewrite to_of_eff.
+    destruct (to_val _) eqn:Habs => //.
+    exfalso; eapply to_val_to_eff => //.
+    rewrite to_of_eff //.
+  Qed.
+
+  
+  
 
   Lemma ewp_strong_mono E1 E2 e Φ1 Φ2 Ψ1 Ψ2 :
     E1 ⊆ E2 →
@@ -295,6 +324,10 @@ Section wp.
     { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
     destruct (to_eff e) as [eff|] eqn:?.
     { destruct eff.
+      all: iDestruct "H" as (f) "[Hf H]".
+      all: iFrame.
+      all: iIntros "Hf".
+      all: iDestruct ("H" with "Hf") as "H".
       all: iDestruct "H" as (Φ) "[HΦ1 H]".
       all: iExists Φ.
       all: iSplitL "HΦ1".
@@ -308,27 +341,35 @@ Section wp.
     } 
     iIntros (σ1 ns κ κs nt) "Hσ".
     iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
+    iDestruct ("H" $! σ1 ns κ κs nt) as "H".
     iMod ("H" with "[$]") as "[% H]".
     iModIntro. iSplit; [done|].
     iIntros (e2 σ2 Hstep).
     iMod ("H" with "[//]") as "H". iIntros "!> !>".  iMod "H". iModIntro.
-    iApply (step_fupdN_wand with "[H]"); first by iApply "H".
-    iIntros ">[$ H]".
-    iMod "Hclose" as "_". iModIntro.
+    iMod "H" as "[Hσ H]".
+    iMod "Hclose".
+    (*    iApply (step_fupdN_wand with "[H]"); first by iApply "H". *)
+    iModIntro.
+    iFrame.
+    iDestruct "H" as (f) "[Hf Hnext]".
+    iExists f.
+    iFrame.
+    iIntros "Hf".
+    iDestruct ("Hnext" with "Hf") as "H".
     iApply ("IH" with "[] H"); eauto.
   Qed.
 
-  (* not true anymore? *)
-  (*
-  Lemma fupd_ewp E e Ψ Φ : (|={E}=> EWP e @ E <| Ψ |> {{ Φ }}) ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
+    Lemma fupd_ewp E e Ψ Φ :
+    TCEq (to_eff e) None ->
+    (|={E}=> EWP e @ E <| Ψ |> {{ Φ }}) ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
   Proof.
-    rewrite ewp_unfold /ewp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
+    rewrite ewp_unfold /ewp_pre. iIntros (He) "H".
+    destruct (to_val e) as [v|] eqn:?.
     { by iMod "H". }
     destruct (to_eff e) as [eff|] eqn:?.
-    { destruct eff.
-
+    { inversion He. } 
     iIntros (σ1 ns κ κs nt) "Hσ1". iMod "H". by iApply "H".
-  Qed. *)
+  Qed. 
   
   Lemma ewp_fupd E e Ψ Φ : EWP e @ E <| Ψ |> {{ v, |={E}=> Φ v }} ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
   Proof. iIntros "H". iApply (ewp_strong_mono E with "H"); auto.
@@ -373,11 +414,11 @@ Section wp.
    ordinary conjunction here. *)
   Lemma ewp_step_fupdN_strong n E1 E2 e P Ψ Φ :
     TCEq (to_val e) None → TCEq (to_eff e) None -> E2 ⊆ E1 →
-    (∀ σ ns κs nt, state_interp σ ns κs nt
+    (∀ σ ns κs nt, weakestpre.state_interp σ ns κs nt
                    ={E1,∅}=∗ ⌜n ≤ S (num_laters_per_step ns)⌝) ∧
       ((|={E1,E2}=> |={∅}▷=>^n |={E2,E1}=> P) ∗
          EWP e @ E2 <| Ψ |> {{ v, P ={E1}=∗ Φ v }}) -∗
-                                                       EWP e @ E1 <| Ψ |> {{ Φ }}.
+            EWP e @ E1 <| Ψ |> {{ Φ }}.
   Proof.
     destruct n as [|n].
     { iIntros (? ? ?) "/= [_ [HP Hwp]]".
@@ -387,22 +428,29 @@ Section wp.
     rewrite !ewp_unfold /ewp_pre /=. iIntros (-> -> ?) "H".
     iIntros (σ1 ns κ κs nt) "Hσ".
     destruct (decide (n ≤ num_laters_per_step ns)) as [Hn|Hn]; first last.
-    { iDestruct "H" as "[Hn _]". iMod ("Hn" with "Hσ") as %?. lia. }
-    iDestruct "H" as "[_ [>HP Hwp]]". iMod ("Hwp" with "[$]") as "[$ H]".
+    { iDestruct "H" as "[Hn _]".
+      iDestruct ("Hn" $! σ1 ns (κ ++ κs) nt) as "Hn".
+      iMod ("Hn" with "Hσ") as %?. lia. }
+    iDestruct "H" as "[_ [>HP Hwp]]".
+    iDestruct ("Hwp" $! σ1 ns κ κs nt) as "Hwp".
+    iMod ("Hwp" with "[$]") as "[$ H]".
     iMod "HP".
     iIntros "!>" (e2 σ2 Hstep). iMod ("H" $! e2 σ2 with "[% //]") as "H".
     iIntros "!>!>". iMod "H". iMod "HP". iModIntro.
     revert n Hn. generalize (num_laters_per_step ns)=>n0 n Hn.
     iInduction n as [|n] "IH" forall (n0 Hn).
     - iApply (step_fupdN_wand with "H").
-      iIntros ">[$ H]".
-      (*      iDestruct "H" as (a) "(pred & Hwp & H)". iFrame.  *)
+      iIntros "H".
+      iMod "H" as "(Hσ & %f & Hf & H)".
       iMod "HP".
-      iModIntro. (* iExists _. iFrame. *) (* iIntros "H'". iDestruct ("Hwp" with "H'") as "Hwp". *)
+      iModIntro. iFrame.
+      iIntros "Hf".
+      iDestruct ("H" with "Hf") as "H".
       iApply (ewp_strong_mono with "H"); [done|set_solver|].
       iIntros (v) "HΦ".  iApply ("HΦ" with "HP").
-    - destruct n0 as [|n0]; [lia|]=> /=. iMod "HP". iMod "H". iIntros "!> !>".
-      iMod "HP". iMod "H". iModIntro. iApply ("IH" with "[] HP H").
+    - destruct n0 as [|n0]; [lia|]=> /=. iMod "HP".
+      iMod "H". iIntros "!> !>". iMod "HP". iMod "H".
+      iModIntro. iApply ("IH" with "[] HP H").
       auto with lia.
   Qed.
 
@@ -448,6 +496,28 @@ Section wp.
   Lemma ewp_value E Ψ Φ e v : IntoVal e v → Φ v ⊢ EWP e @ E <| Ψ |> {{ Φ }}.
   Proof. intros <-. apply ewp_value'. Qed.
 
+  Lemma ewp_effect_sus E Ψ Φ vs i sh es:
+    to_eff es = Some (susE vs i sh) ->
+    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢ ∃ f, ↪[frame] f ∗  (↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ EWP (susfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+  Proof.
+    intros. apply of_to_eff in H. subst. by apply ewp_effect_sus'.
+  Qed.
+
+  
+  Lemma ewp_effect_sw E Ψ Φ vs k tf i sh es:
+    to_eff es = Some (swE vs k tf i sh) ->
+    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢  ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ EWP (swfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+  Proof.
+    intros. apply of_to_eff in H. subst. by apply ewp_effect_sw'.
+  Qed.
+
+  Lemma ewp_effect_thr E Ψ Φ vs i a sh es:
+    to_eff es = Some (thrE vs i a sh) ->
+    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢    ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I).
+  Proof.
+    intros. apply of_to_eff in H. subst. by apply ewp_effect_thr'.
+  Qed. 
+
   Lemma ewp_frame_l E e Ψ Φ R : R ∗ EWP e @ E <| Ψ |> {{ Φ }} ⊢ EWP e @ E <| Ψ |> {{ v, R ∗ Φ v }}.
   Proof. iIntros "[? H]". iApply (ewp_strong_mono with "H"); auto with iFrame.
          iIntros (?); iApply iProt_le_refl.
@@ -466,7 +536,7 @@ Section wp.
       a premise. *)
   Lemma ewp_step_fupdN n E1 E2 e P Ψ Φ :
     TCEq (to_val e) None → TCEq (to_eff e) None -> E2 ⊆ E1 →
-    (∀ σ ns κs nt, state_interp σ ns κs nt
+    (∀ σ ns κs nt, weakestpre.state_interp σ ns κs nt
                    ={E1,∅}=∗ ⌜n ≤ S (num_laters_per_step ns)⌝) ∧
       ((|={E1∖E2,∅}=> |={∅}▷=>^n |={∅,E1∖E2}=> P) ∗
       EWP e @ E2 <| Ψ |> {{ v, P ={E1}=∗ Φ v }}) -∗
@@ -538,18 +608,20 @@ Section wp.
 
      Lemma ewp_lift_step_fupdN E Ψ Φ e1 :
     to_val e1 = None → to_eff e1 = None ->
-    (∀ σ1 ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
+    (∀ σ1 ns κ κs nt, weakestpre.state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
     ⌜reducible e1 σ1 ⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 κ e2 σ2 [] ⌝
       ={∅}▷=∗^(S $ num_laters_per_step ns) |={∅,E}=>
-      state_interp σ2 (S ns) κs nt ∗ ∃ a, Pred a ∗
-      (Pred a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
+      weakestpre.state_interp σ2 (S ns) κs nt ∗ ∃ f, ↪[frame] f ∗
+      (↪[frame] f -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
       ⊢ EWP e1 @ E <| Ψ |> {{ Φ }}.
    Proof.
-     rewrite ewp_unfold /ewp_pre => -> ->.
-     iIntros "H" (σ1 ns κ κs nt) "Hσ".
+     rewrite ewp_unfold /ewp_pre => -> ->. done.
+   Qed. 
+(*     iIntros "H" (σ1 ns κ κs nt) "Hσ".
      iMod ("H" with "Hσ") as "(Hred & H)".
      iFrame.
+     done.
      iIntros "!>" (e2 σ2 Hred).
      iSpecialize ("H" $! e2 σ2 Hred).
      iApply (step_fupdN_mono with "H").
@@ -558,15 +630,15 @@ Section wp.
      iModIntro. iFrame.
      iDestruct "H" as (a) "[Ha H]".
      iApply ("H" with "Ha").
-   Qed.
+   Qed. *)
 
-     Lemma ewp_lift_step_fupd E Ψ Φ e1 :
+   Lemma ewp_lift_step_fupd E Ψ Φ e1 :
   to_val e1 = None → to_eff e1 = None ->
-  (∀ σ1 ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
+  (∀ σ1 ns κ κs nt, weakestpre.state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
     ⌜reducible e1 σ1 ⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 κ e2 σ2 [] ⌝ ={∅}=∗ ▷ |={∅,E}=>
-      state_interp σ2 (S ns) κs nt ∗ ∃ a, Pred a ∗
-      (Pred a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
+      weakestpre.state_interp σ2 (S ns) κs nt ∗ ∃ f, ↪[frame] f ∗
+      (↪[frame] f -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
     ⊢ EWP e1 @ E <| Ψ |> {{ Φ }}.
   Proof.
     intros ? ?. rewrite -ewp_lift_step_fupdN => //. simpl.
@@ -578,11 +650,11 @@ Section wp.
   (** Derived lifting lemmas. *)
   Lemma ewp_lift_step E Ψ Φ e1 :
     to_val e1 = None → to_eff e1 = None ->
-    (∀ σ1 ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
+    (∀ σ1 ns κ κs nt, weakestpre.state_interp σ1 ns (κ ++ κs) nt ={E,∅}=∗
     ⌜reducible e1 σ1 ⌝ ∗
     ▷ ∀ e2 σ2, ⌜prim_step e1 σ1 κ e2 σ2 []⌝ ={∅,E}=∗
-      state_interp σ2 (S ns) κs nt ∗ ∃ a, Pred a ∗
-      (Pred a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
+      weakestpre.state_interp σ2 (S ns) κs nt ∗ ∃ a, ↪[frame] a ∗
+      (↪[frame] a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
       ⊢ EWP e1 @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (??) "H". iApply ewp_lift_step_fupd => //. iIntros (?????) "Hσ".
@@ -592,8 +664,8 @@ Section wp.
   Lemma ewp_lift_pure_step_no_fork (* `{!Inhabited (language.state wasm_lang)} *) E E' Ψ Φ e1 a :
     (∀ σ1, reducible e1 σ1) →
     (∀ κ σ1 e2 σ2, prim_step e1 σ1 κ e2 σ2 [] → κ = [] ∧ σ2 = σ1) →
-    (|={E}[E']▷=> ∀ κ e2 σ, ⌜prim_step e1 σ κ e2 σ []⌝ → (Pred a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
-      ⊢ Pred a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
+    (|={E}[E']▷=> ∀ κ e2 σ, ⌜prim_step e1 σ κ e2 σ []⌝ → (↪[frame] a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
+      ⊢ ↪[frame] a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hsafe Hstep) "H". iIntros "pred". iApply ewp_lift_step.
     { specialize (Hsafe (Build_store_record [] [] [] [] [] [] [], [], Build_instance [] [] [] [] [] [])).
@@ -624,12 +696,12 @@ Section wp.
      use the generic lemmas here. *)
     Lemma ewp_lift_atomic_step_fupd {E1 E2 Ψ Φ} e1 a :
     to_val e1 = None → to_eff e1 = None ->
-    (∀ σ1 ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E1}=∗
+    (∀ σ1 ns κ κs nt, weakestpre.state_interp σ1 ns (κ ++ κs) nt ={E1}=∗
     ⌜ reducible e1 σ1 ⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 κ e2 σ2 []⌝ ={E1}[E2]▷=∗
-      state_interp σ2 (S ns) κs nt ∗
-      from_option Φ False (to_val e2) ∗ Pred a )
-      ⊢ EWP e1 @ E1 <| Ψ |> {{ v, Φ v ∗ Pred a }}.
+      weakestpre.state_interp σ2 (S ns) κs nt ∗
+      from_option Φ False (to_val e2) ∗ ↪[frame] a )
+      ⊢ EWP e1 @ E1 <| Ψ |> {{ v, Φ v ∗ ↪[frame] a }}.
   Proof.
     iIntros (??) "H".
     iApply (ewp_lift_step_fupd E1 _ _ e1)=> //; iIntros (σ1 ns κ κs nt) "Hσ1".
@@ -647,12 +719,12 @@ Section wp.
 
   Lemma ewp_lift_atomic_step {E Ψ Φ} e1 a :
     to_val e1 = None → to_eff e1 = None ->
-    (∀ σ1 ns κ κs nt, state_interp σ1 ns (κ ++ κs) nt ={E}=∗
+    (∀ σ1 ns κ κs nt, weakestpre.state_interp σ1 ns (κ ++ κs) nt ={E}=∗
     ⌜reducible e1 σ1 ⌝ ∗
     ▷ ∀ e2 σ2, ⌜prim_step e1 σ1 κ e2 σ2 []⌝ ={E}=∗
-      state_interp σ2 (S ns) κs nt ∗
-      from_option Φ False (to_val e2) ∗ Pred a)
-      ⊢ EWP e1 @ E <| Ψ |> {{ v, Φ v ∗ Pred a }}.
+      weakestpre.state_interp σ2 (S ns) κs nt ∗
+      from_option Φ False (to_val e2) ∗ ↪[frame] a)
+      ⊢ EWP e1 @ E <| Ψ |> {{ v, Φ v ∗ ↪[frame] a }}.
   Proof.
     iIntros (??) "H". iApply ewp_lift_atomic_step_fupd. done. done.
     iIntros (?????) "?". iMod ("H" with "[$]") as "[$ H]".
@@ -665,7 +737,7 @@ Section wp.
     (∀ σ1, reducible e1 σ1 ) →
     (∀ σ1 κ e2' σ2, prim_step e1 σ1 κ e2' σ2 []  →
                          κ = [] ∧ σ2 = σ1 ∧ e2' = e2) →
-    (|={E}[E']▷=> Pred a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}) ⊢ Pred a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
+    (|={E}[E']▷=> ↪[frame] a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}) ⊢ ↪[frame] a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (? Hpuredet) "H". iApply (ewp_lift_pure_step_no_fork E E'); try done.
     { naive_solver. }
@@ -676,7 +748,7 @@ Section wp.
   Lemma ewp_pure_step_fupd E E' e1 e2 φ n Ψ Φ a :
     PureExec φ n e1 e2 →
     φ →
-    (|={E}[E']▷=>^n Pred a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}) ⊢ Pred a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
+    (|={E}[E']▷=>^n ↪[frame] a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}) ⊢ ↪[frame] a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
     iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
@@ -690,7 +762,7 @@ Section wp.
   Lemma ewp_pure_step_later E e1 e2 φ n Ψ Φ a :
     PureExec φ n e1 e2 →
     φ →
-    ▷^n (Pred a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}) ⊢ Pred a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
+    ▷^n (↪[frame] a -∗ EWP e2 @ E <| Ψ |> {{ Φ }}) ⊢ ↪[frame] a -∗ EWP e1 @ E <| Ψ |> {{ Φ }}.
   Proof.
     intros Hexec ?. rewrite -ewp_pure_step_fupd //. clear Hexec.
     induction n as [|n IH]; by rewrite //= -step_fupd_intro // IH.
@@ -758,9 +830,5 @@ Section wp.
 End wp.
 
 
-
-
-
-
-
-
+Transparent weakestpre.state_interp.
+Transparent num_laters_per_step.

@@ -5,7 +5,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 Set Bullet Behavior "Strict Subproofs".
 
 Lemma try_table_det cs vs i n csd t1s t2s s f es s' f' es' :
-  stypes s (f_inst f) i = Some (Tf t1s t2s) ->
+  stypes (f_inst f) i = Some (Tf t1s t2s) ->
   n = length t2s ->
   const_list vs ->
   length vs = length t1s ->

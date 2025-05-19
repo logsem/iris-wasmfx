@@ -53,8 +53,8 @@ Qed.
 
 Lemma contbind_det i ts t1s t2s vs k i' hh s f s' f' es' :
   const_list vs ->
-  stypes s (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
-  stypes s (f_inst f) i' = Some (Tf t1s t2s) ->
+  stypes (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
+  stypes (f_inst f) i' = Some (Tf t1s t2s) ->
   length ts = length vs ->
   nth_error (s_conts s) k = Some (Cont_hh (Tf (ts ++ t1s) t2s) hh) ->
   reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_contbind i i')]) s' f' es' ->
