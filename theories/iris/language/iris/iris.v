@@ -401,7 +401,44 @@ Proof.
   - unfold suselt_of_continuation_clause in Hai.
     destruct i. inversion Hai; subst s.
     simpl. done.
-Qed. 
+Qed.
+
+  Locate suselts_of_continuation_clauses_inj.
+  
+  Lemma suselts_of_continuation_clauses_None cls i:
+    suselts_of_continuation_clauses cls i = None ->
+    is_Some (firstx_continuation_suspend cls i).
+  Proof.
+    induction cls => //=.
+    destruct (suselt_of_continuation_clause a i) eqn:Helt => //.
+    - destruct (suselts_of_continuation_clauses cls i) => //.
+      destruct a => //. destruct (eqtype.eq_op i t) => //.
+    - unfold suselt_of_continuation_clause in Helt.
+      destruct i.
+      destruct a => //.
+      destruct t => //.
+      destruct (n0 <? n) eqn:Hn => //.
+      destruct (n0 =? n) eqn:Hn' => //.
+      apply Nat.eqb_eq in Hn' as ->.
+      rewrite eqtype.eq_refl. done.
+  Qed.
+
+  Lemma firstx_suspend_lookup dccs i x :
+    firstx_continuation_suspend dccs i = Some x ->
+    exists k, dccs !! k = Some (DC_catch i x).
+  Proof.
+    induction dccs => //=.
+    destruct a => //=.
+    - destruct (eqtype.eq_op i t) eqn:Hit => //.
+      + intros H; inversion H; subst; clear H.
+        apply b2p in Hit as ->.
+        exists 0 => //.
+      + intros H; apply IHdccs in H as [k Hres].
+        exists (S k) => //.
+    - intros H; apply IHdccs in H as [k Hres].
+      exists (S k) => //.
+  Qed. 
+
 
 
 Lemma suselts_of_continuation_clauses_inv i l: 
@@ -7114,7 +7151,10 @@ Lemma to_val_instr_AI_const a :
 Proof.
   destruct a => //=.
   destruct v => //=.
-Qed. 
+Qed.
+
+Lemma to_val_AI_const a : to_val [AI_const a] = Some (immV [:: a]).
+Proof. rewrite /to_val /= to_val_instr_AI_const //. Qed.
 
 Lemma to_of_val v : to_val (of_val v) = Some v.
 Proof.
@@ -9832,66 +9872,6 @@ Proof.
   - intros. rewrite merge_call_host => //. 
 Qed. 
 
-
-(* Still necessary? *)
-(* Lemma to_val_not_trap_interweave : ∀ es es',
-    const_list es -> es != [] ∨ es' != [] -> to_val (es ++ [AI_trap] ++ es')%SEQ = None.
-Proof.
-  intros es.
-  induction es;intros es1 Hconst [Hnil | Hnil];try done.
-  - destruct es1 => //=. unfold to_val => /=.
-    rewrite merge_trap.
-    simpl. rewrite of_to_val_instr => //. 
-  - simpl in Hconst. apply andb_true_iff in Hconst as [Ha Hconst].
-    destruct a => //.
-    destruct b => //.
-    all: simpl.
-    all: unfold to_val => /=.
-    all: rewrite merge_prepend.
-    all: destruct (merge_values _) eqn:Hmerge => //.
-    all: try by destruct es,es1 ; first simpl in Hmerge;
-        [ inversion Hmerge => //
-        |  assert (to_val ([] ++ [AI_trap] ++ s :: es1) = None);
-           first (by apply IHes => //=; right);
-           unfold to_val in H; 
-           rewrite Hmerge in H => //
-        |  assert (to_val ((a :: es) ++ [AI_trap] ++ []) = None);
-           first (by apply IHes => //=; left);
-           rewrite app_nil_r in H;
-           unfold to_val in H;
-           rewrite Hmerge in H => //
-        | assert (to_val (a :: es ++ [AI_trap] ++ s :: es1) = None);
-          first (by apply IHes => //=; right);
-          unfold to_val in H;
-          rewrite Hmerge in H => //].
-    all: try by destruct e.
-    by destruct e0.
-  - simpl in Hconst. apply andb_true_iff in Hconst as [Ha Hconst].
-    destruct a => //.
-    destruct b => //.
-    all: simpl.
-    all: unfold to_val => /=.
-    all: rewrite merge_prepend.
-    all: destruct (merge_values _) eqn:Hmerge => //.
-    all: try by destruct es,es1 ; first simpl in Hmerge;
-      [ inversion Hmerge => //
-      | assert (to_val ([] ++ [AI_trap] ++ s :: es1) = None);
-        first (by apply IHes => //=; right);
-        unfold to_val in H;
-        rewrite Hmerge in H => //
-      | assert (to_val ((a :: es) ++ [AI_trap] ++ []) = None);
-        first (by apply IHes => //=);
-        rewrite app_nil_r in H;
-        unfold to_val in H;
-        rewrite Hmerge in H => //
-      | assert (to_val (a :: es ++ [AI_trap] ++ s :: es1) = None);
-        first (by apply IHes => //=; right);
-        unfold to_val in H;
-        rewrite Hmerge in H => //].
-    all: try by destruct e.
-    by destruct e0.
-  Qed. *)
-
 Lemma const_list_to_val es :
   const_list es -> exists vs, to_val es = Some (immV vs) /\ v_to_e_list vs = es.
 Proof.
@@ -9908,6 +9888,24 @@ Proof.
   all: eexists; split => //=.
   all: by rewrite Hte.
 Qed.
+
+Lemma to_val_not_trap_interweave : ∀ es es',
+    const_list es -> es != [] ∨ es' != [] -> to_val (es ++ [AI_trap] ++ es')%SEQ = None.
+Proof.
+  intros es es1 Hconst Hnil.
+  unfold to_val.
+  rewrite map_app merge_app /=.
+  apply const_list_to_val in Hconst as (vs & Htv & Hvs).
+  unfold to_val in Htv.
+  destruct (merge_values _) => //.
+  inversion Htv; subst.
+  rewrite merge_trap flatten_simplify /=.
+  destruct es1 => //.
+  destruct vs => //.
+  destruct Hnil => //.
+Qed. 
+
+
 
 Lemma to_val_to_eff es v e:
   to_val es = Some v -> to_eff es = Some e -> False.

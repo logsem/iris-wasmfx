@@ -314,6 +314,165 @@ Section wasm_lang_properties.
         rewrite /= cats0 Htrans merge_to_val //.
   Qed.
 
+  Lemma to_eff_sus_lfilled k lh es LI shin shout vs i:
+    susholed_of_lholed lh = Some shout ->
+    lfilled k lh es LI ->
+    to_eff es = Some (susE vs i shin) ->
+    to_eff LI = Some (susE vs i (sus_trans shout shin)).
+  Proof.
+    generalize dependent shout.
+    generalize dependent k.
+    generalize dependent LI.
+    induction lh => //=.
+    - destruct (e_to_v_list_opt l) eqn:Hl => //.
+      intros LI k shout Heq Hfill Hes.
+      simplify_eq.
+      move/lfilledP in Hfill. inversion Hfill; subst.
+      apply v_to_e_e_to_v in Hl as <-.
+      apply const_list_to_val in H4 as (vs' & Htv & Hvs).
+      apply v_to_e_inj in Hvs as ->.
+      unfold iris.to_val in Htv.
+      unfold to_eff.
+      unfold to_eff in Hes.
+      do 2 rewrite map_app merge_app.
+      destruct (merge_values _) => //.
+      destruct (merge_values _) => //.
+      simplify_eq.
+      simpl.
+      rewrite -merge_flatten.
+      rewrite flatten_simplify. done.
+    - destruct (susholed_of_lholed lh) => //.
+      destruct (e_to_v_list_opt l) eqn:Hl => //.
+      intros LI k shout Heq Hfill Hes.
+      simplify_eq.
+      move/lfilledP in Hfill.
+      inversion Hfill; subst.
+      move/lfilledP in H8.
+      eapply IHlh in Hes.
+      2: done. 2: done.
+      apply v_to_e_e_to_v in Hl as <-.
+      apply const_list_to_val in H7 as (vs' & Htv & Hvs).
+      apply v_to_e_inj in Hvs as ->.
+      unfold iris.to_val in Htv.
+      unfold to_eff.
+      unfold to_eff in Hes.
+      rewrite map_app merge_app /=.
+      destruct (merge_values _) => //.
+      destruct (merge_values _) => //.
+      simplify_eq.
+      simpl.
+      rewrite merge_suspend.
+      simpl.
+      rewrite flatten_simplify cats0 //.
+  Qed.
+
+  Lemma to_eff_sw_lfilled k lh es LI shin shout vs k' tf i:
+    swholed_of_lholed lh = Some shout ->
+    lfilled k lh es LI ->
+    to_eff es = Some (swE vs k' tf i shin) ->
+    to_eff LI = Some (swE vs k' tf i (sw_trans shout shin)).
+  Proof.
+    generalize dependent shout.
+    generalize dependent k.
+    generalize dependent LI.
+    induction lh => //=.
+    - destruct (e_to_v_list_opt l) eqn:Hl => //.
+      intros LI k shout Heq Hfill Hes.
+      simplify_eq.
+      move/lfilledP in Hfill. inversion Hfill; subst.
+      apply v_to_e_e_to_v in Hl as <-.
+      apply const_list_to_val in H4 as (vs' & Htv & Hvs).
+      apply v_to_e_inj in Hvs as ->.
+      unfold iris.to_val in Htv.
+      unfold to_eff.
+      unfold to_eff in Hes.
+      do 2 rewrite map_app merge_app.
+      destruct (merge_values _) => //.
+      destruct (merge_values _) => //.
+      simplify_eq.
+      simpl.
+      rewrite -merge_flatten.
+      rewrite flatten_simplify. done.
+    - destruct (swholed_of_lholed lh) => //.
+      destruct (e_to_v_list_opt l) eqn:Hl => //.
+      intros LI k shout Heq Hfill Hes.
+      simplify_eq.
+      move/lfilledP in Hfill.
+      inversion Hfill; subst.
+      move/lfilledP in H8.
+      eapply IHlh in Hes.
+      2: done. 2: done.
+      apply v_to_e_e_to_v in Hl as <-.
+      apply const_list_to_val in H7 as (vs' & Htv & Hvs).
+      apply v_to_e_inj in Hvs as ->.
+      unfold iris.to_val in Htv.
+      unfold to_eff.
+      unfold to_eff in Hes.
+      rewrite map_app merge_app /=.
+      destruct (merge_values _) => //.
+      destruct (merge_values _) => //.
+      simplify_eq.
+      simpl.
+      rewrite merge_switch.
+      simpl.
+      rewrite flatten_simplify cats0 //.
+  Qed. 
+                 
+
+
+  Lemma to_eff_thr_lfilled k lh es LI shin shout vs a i:
+    exnholed_of_lholed lh = Some shout ->
+    lfilled k lh es LI ->
+    to_eff es = Some (thrE vs a i shin) ->
+    to_eff LI = Some (thrE vs a i (exn_trans shout shin)).
+  Proof.
+    generalize dependent shout.
+    generalize dependent k.
+    generalize dependent LI.
+    induction lh => //=.
+    - destruct (e_to_v_list_opt l) eqn:Hl => //.
+      intros LI k shout Heq Hfill Hes.
+      simplify_eq.
+      move/lfilledP in Hfill. inversion Hfill; subst.
+      apply v_to_e_e_to_v in Hl as <-.
+      apply const_list_to_val in H4 as (vs' & Htv & Hvs).
+      apply v_to_e_inj in Hvs as ->.
+      unfold iris.to_val in Htv.
+      unfold to_eff.
+      unfold to_eff in Hes.
+      do 2 rewrite map_app merge_app.
+      destruct (merge_values _) => //.
+      destruct (merge_values _) => //.
+      simplify_eq.
+      simpl.
+      rewrite -merge_flatten.
+      rewrite flatten_simplify. done.
+    - destruct (exnholed_of_lholed lh) => //.
+      destruct (e_to_v_list_opt l) eqn:Hl => //.
+      intros LI k shout Heq Hfill Hes.
+      simplify_eq.
+      move/lfilledP in Hfill.
+      inversion Hfill; subst.
+      move/lfilledP in H8.
+      eapply IHlh in Hes.
+      2: done. 2: done.
+      apply v_to_e_e_to_v in Hl as <-.
+      apply const_list_to_val in H7 as (vs' & Htv & Hvs).
+      apply v_to_e_inj in Hvs as ->.
+      unfold iris.to_val in Htv.
+      unfold to_eff.
+      unfold to_eff in Hes.
+      rewrite map_app merge_app /=.
+      destruct (merge_values _) => //.
+      destruct (merge_values _) => //.
+      simplify_eq.
+      simpl.
+      rewrite merge_throw.
+      simpl.
+      rewrite flatten_simplify cats0 //.
+  Qed.
+
+  
 Lemma lfilled_to_eff_sw i lh es LI vs k tf k' sh:
     iris.to_eff LI = Some (swE vs k tf k' sh) ->
     lfilled i lh es LI ->

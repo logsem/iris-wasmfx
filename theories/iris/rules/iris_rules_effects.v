@@ -63,7 +63,7 @@ Section clause_triple.
       match dcc with
       | DC_catch (Mk_tagidx addr) _
       | DC_switch (Mk_tagidx addr) =>
-          ∃ t1s t2s, N.of_nat addr ↪[tag] Tf t1s t2s
+          ∃ t1s t2s, N.of_nat addr ↦□[tag] Tf t1s t2s
   end)%I .
                             
     
@@ -89,14 +89,15 @@ Section reasoning_rules.
   
 
   Lemma ewp_suspend vs i E Ψ Φ f:
-    ↪[frame] f ∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) Φ
-      ⊢ EWP [ AI_suspend_desugared vs i ] @ E <| Ψ |> {{ v, Φ v ∗ ↪[frame] f}}.
+    ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) Φ)
+      ⊢ EWP [ AI_suspend_desugared vs i ] @ E <| Ψ |> {{ v, Φ v }}.
   Proof.
     iIntros "[Hf HΨ]".
     iApply ewp_effect_sus => //.
     iFrame.
-    iIntros "Hf".
-    iApply (monotonic_prot with "[Hf] HΨ").
+    iIntros (?) "Hf".
+    iSpecialize ("HΨ" with "Hf").
+    iApply (monotonic_prot with "[] HΨ").
     iIntros (w) "Hw".
     iSimpl.
     rewrite app_nil_r.
@@ -104,39 +105,67 @@ Section reasoning_rules.
     iFrame.
   Qed.
 
-  Lemma suselts_of_continuation_clauses_None cls i:
-    suselts_of_continuation_clauses cls i = None ->
-    is_Some (firstx_continuation_suspend cls i).
+  Lemma tag_valid gm a tf:
+    gen_heap_interp gm -∗ a ↦□[tag] tf -∗ ⌜ gm !! a = Some tf ⌝.
   Proof.
-    induction cls => //=.
-    destruct (suselt_of_continuation_clause a i) eqn:Helt => //.
-    - destruct (suselts_of_continuation_clauses cls i) => //.
-      destruct a => //. destruct (eqtype.eq_op i t) => //.
-    - unfold suselt_of_continuation_clause in Helt.
-      destruct i.
-      destruct a => //.
-      destruct t => //.
-      destruct (n0 <? n) eqn:Hn => //.
-      destruct (n0 =? n) eqn:Hn' => //.
-      apply Nat.eqb_eq in Hn' as ->.
-      rewrite eqtype.eq_refl. done.
-  Qed.
-
-  Lemma firstx_suspend_lookup dccs i x :
-    firstx_continuation_suspend dccs i = Some x ->
-    exists k, dccs !! k = Some (DC_catch i x).
-  Proof.
-    induction dccs => //=.
-    destruct a => //=.
-    - destruct (eqtype.eq_op i t) eqn:Hit => //.
-      + intros H; inversion H; subst; clear H.
-        apply b2p in Hit as ->.
-        exists 0 => //.
-      + intros H; apply IHdccs in H as [k Hres].
-        exists (S k) => //.
-    - intros H; apply IHdccs in H as [k Hres].
-      exists (S k) => //.
+    iIntros "Htags Htag".
+    iDestruct (gen_heap_valid with "Htags Htag") as "%Htag".
+    done.
   Qed. 
+
+  Lemma ewp_suspend_desugar f ves vs i x a t1s t2s E Ψ Φ:
+    i = Mk_tagident x ->
+    f.(f_inst).(inst_tags) !! x = Some a ->
+    length vs = length t1s ->
+    ves = v_to_e_list vs ->
+    N.of_nat a ↦□[tag] Tf t1s t2s ∗
+    ↪[frame] f ∗ (↪[frame] f -∗ N.of_nat a ↦□[tag] Tf t1s t2s -∗ EWP [AI_suspend_desugared vs (Mk_tagidx a)] @ E <| Ψ |> {{ v, Φ v }})
+    ⊢ EWP ves ++ [AI_basic (BI_suspend i)] @ E <| Ψ |> {{ v, Φ v }}.
+  Proof.
+    iIntros (-> Hx Hlen ->) "(Htag & Hf & H)".
+    iApply ewp_lift_step.
+    { rewrite to_val_cat_None2 => //.
+      apply v_to_e_is_const_list. }
+    { rewrite to_eff_cat_None2 => //.
+      apply v_to_e_is_const_list. }
+    iIntros (σ ns κ κs nt) "Hσ".
+    iApply fupd_mask_intro; first solve_ndisj.
+    iIntros "Hclose".
+    destruct σ as [[??]?].
+    iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hmems & Htabs & Hglobs & Hframe & Hrest)".
+    iDestruct (tag_valid with "Htags Htag") as "%Htag".
+    iDestruct (ghost_map_lookup with "Hframe Hf") as "%Hf".
+    rewrite lookup_insert in Hf.
+    inversion Hf; subst f.
+    rewrite gmap_of_list_lookup in Htag.
+    rewrite Nat2N.id in Htag.
+    iSplit.
+    { iPureIntro.
+      eexists _,_,(_,_,_),_.
+      repeat split => //.
+      eapply r_suspend_desugar => //.
+      rewrite nth_error_lookup //.
+      rewrite nth_error_lookup //. }
+    iIntros "!>" (e2 σ2 HStep).
+    iMod "Hclose".
+    iModIntro.
+    destruct σ2 as [[??]?].
+    destruct HStep as (Hred & -> & _).
+    edestruct reduce_det.
+    exact Hred.
+    eapply r_suspend_desugar => //.
+    1-2: rewrite nth_error_lookup //.
+    - inversion H; subst. iFrame.
+      iIntros "Hf".
+      iApply ("H" with "Hf Htag").
+    - destruct H as [[? H] | (? & ? & ? & H & _)].
+      all: rewrite first_instr_const in H => //.
+      all: apply v_to_e_is_const_list.
+  Qed. 
+      
+
+    
+
 
 
   Lemma susE_first_instr es vs i sh :
@@ -300,7 +329,7 @@ Section reasoning_rules.
         + simpl in Htf'.
           iApply ewp_effect_sus => //.
           iFrame.
-          iIntros "Hf".
+          iIntros (?) "Hf".
           iDestruct ("Hes" with "Hf") as "Hes".
           remember HΨ as HΨ'; clear HeqHΨ'.
           destruct HΨ as [HΨ _].
@@ -328,7 +357,7 @@ Section reasoning_rules.
           exact Hk.
           iDestruct (big_sepL_lookup with "Hclres") as "Hclres".
           exact Hk.
-          iDestruct "Hclres" as (t1s t2s q) "Hclres".
+          iDestruct "Hclres" as (t1s t2s) "Hclres".
           iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
@@ -417,7 +446,7 @@ Section reasoning_rules.
         simpl in Htf'.
         iApply ewp_effect_thr => //.
         iFrame.
-        iIntros "Hf".
+        iIntros (?) "Hf".
         iDestruct ("Hes" with "Hf") as "Hes".
         remember HΨ as HΨ'; clear HeqHΨ'.
         destruct HΨ as (_ & _ & HΨ).
@@ -502,16 +531,18 @@ Admitted.
     map (desugar_continuation_clause (f_inst f)) ccs = map Some dccs ->
     agree_on_uncaptured dccs Ψ Ψ' ->
     hfilled No_var h vs LI ->
+
+    
     (N.of_nat addr ↦[wcont] Cont_hh (Tf t1s t2s) h ∗
-       ¬ Φ trapV ∗ EWP LI @ E <| Ψ |> {{ Φ }} ∗
+       ¬ Φ trapV ∗ 
        ↪[frame] f ∗ clause_resources dccs ∗
-(*       (∀ w, Φ' w -∗ (Ξ w ∗ ↪[frame] f)) ∗ *)
-       (↪[frame] f -∗ ∀ w, Φ w -∗ EWP [AI_prompt t2s dccs (of_val w)] @ E <| Ψ' |> {{ Φ' }}) ∗
+       (↪[frame] f -∗ EWP LI @ E <| Ψ |> {{ Φ }}) ∗
+       (∀ w, Φ w -∗ EWP [AI_prompt t2s dccs (of_val w)] @ E <| Ψ' |> {{ Φ' }}) ∗
        [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc Ψ' Φ'
         )%I
       ⊢ EWP vs ++ [AI_ref_cont addr ; AI_basic $ BI_resume i ccs] @ E <| Ψ' |> {{ Φ'}}.
   Proof.
-    iIntros (Hvs Hi Hlen Hclauses HLI HΨ) "(Hcont & Hntrap & HLI & Hf & Hclres & HΦ & Hclauses)".
+    iIntros (Hvs Hi Hlen Hclauses HLI HΨ) "(Hcont & Hntrap & Hf & Hclres & HΦ & Hnext & Hclauses)".
 (*    iApply (ewp_wand with "[-]"). *)
     iApply ewp_lift_step => //.
     { rewrite to_val_cat_None2 => //. destruct (const_list vs) => //. }
@@ -577,7 +608,7 @@ Admitted.
   Qed. 
 
 
-  Lemma ewp_newcont addr i E Ψ ft f:
+  Lemma ewp_contnew addr i E Ψ ft f:
     stypes (f_inst f) i = Some ft ->
     ↪[frame] f 
       ⊢ EWP [AI_ref addr; AI_basic $ BI_contnew i] @ E <| Ψ |> {{ w, (∃ kaddr, ⌜ w = immV [VAL_ref $ VAL_ref_cont kaddr] ⌝ ∗ N.of_nat kaddr ↦[wcont] Cont_hh ft (HH_base [] [AI_ref addr; AI_basic $ BI_call_reference $ Type_explicit ft])) ∗ ↪[frame] f }}.

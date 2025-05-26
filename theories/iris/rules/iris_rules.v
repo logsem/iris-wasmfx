@@ -11,5 +11,4 @@ Require Export iris_rules_structural
         iris_rules_trap
         iris_rules_bind
         iris_rules_effects
-        iris_rules_handlers
 .

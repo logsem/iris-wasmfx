@@ -45,11 +45,11 @@ Definition ewp_pre `{!wasmG Σ} :
       | Some (thrE vs i a sh) =>
       (*    Ψ (ThrowE a) (immV vs)
        (* Hmmm have value instead of val to avoid immV? *) *)
-          ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I)
+          ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I)
       | Some (susE vs i sh) =>
-          ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ ewp E (susfill i sh (of_val w)) Ψ Φ))
+          ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ ewp E (susfill i sh (of_val w)) Ψ Φ))
       | Some (swE vs k tf i sh) =>
-          ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ ewp E (swfill i sh (of_val w)) Ψ Φ))
+          ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ ewp E (swfill i sh (of_val w)) Ψ Φ))
       | None =>
           ∀ σ₁ ns κ κs nt,
             weakestpre.state_interp σ₁ ns (κ ++ κs) nt ={E,∅}=∗
@@ -63,8 +63,8 @@ Definition ewp_pre `{!wasmG Σ} :
 Local Instance ewp_pre_contractive `{!wasmG Σ} : Contractive ewp_pre.
 Proof.
   rewrite /ewp_pre=> n ewp ewp' Hwp E e Ψ Φ.
-  do 8 f_equiv; try by intros => ?; f_contractive; apply Hwp.
-  do 12 (f_contractive || f_equiv).
+  do 10 f_equiv; try by intros => ?; f_contractive; apply Hwp.
+  do 10 (f_contractive || f_equiv).
   induction num_laters_per_step as [|k IH]; simpl.
   - repeat (f_contractive || f_equiv); apply Hwp.
   - do 3 f_equiv. by apply IH.
@@ -96,19 +96,21 @@ Proof.
   f_equiv. { by f_equiv. }
   f_equiv.
   - f_equiv.
-    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
-      * f_equiv.
+    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+      f_equiv.
+      * f_equiv. 
         apply IProt_ne.
         f_equiv.
         apply HΨ1.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         apply IH; try lia; eapply dist_le; eauto with lia.
-    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+      f_equiv.
       * f_equiv. apply IProt_ne. f_equiv. apply HΨ1.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         apply IH; try lia; eapply dist_le; eauto with lia.
     + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
-      f_equiv. apply IProt_ne. f_equiv. apply HΨ1. 
+      f_equiv. f_equiv. f_equiv. apply IProt_ne. f_equiv. apply HΨ1. 
   - do 4 f_equiv. do 14 (f_contractive || f_equiv).
     induction num_laters_per_step as [| k IH']; simpl.
     + do 9 (f_contractive || f_equiv).
@@ -285,7 +287,7 @@ Section wp.
   Lemma ewp_value_fupd' E Ψ Φ v : EWP of_val v @  E <| Ψ |> {{ Φ }} ⊣⊢ |={E}=> Φ v.
   Proof. rewrite ewp_unfold /ewp_pre. rewrite to_of_val. auto. Qed.
 
-  Lemma ewp_effect_sus' E Ψ Φ vs i sh : EWP of_eff (susE vs i sh) @ E <| Ψ |> {{ Φ }} ⊣⊢ ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ EWP (susfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+  Lemma ewp_effect_sus' E Ψ Φ vs i sh : EWP of_eff (susE vs i sh) @ E <| Ψ |> {{ Φ }} ⊣⊢ ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ EWP (susfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite to_of_eff.
     destruct (to_val _) eqn:Habs => //.
@@ -293,7 +295,7 @@ Section wp.
     rewrite to_of_eff //.
   Qed.
 
-  Lemma ewp_effect_sw' E Ψ Φ vs k tf i sh : EWP of_eff (swE vs k tf i sh) @ E <| Ψ |> {{ Φ }} ⊣⊢  ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ EWP (swfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+  Lemma ewp_effect_sw' E Ψ Φ vs k tf i sh : EWP of_eff (swE vs k tf i sh) @ E <| Ψ |> {{ Φ }} ⊣⊢  ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ EWP (swfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite to_of_eff.
     destruct (to_val _) eqn:Habs => //.
@@ -302,7 +304,7 @@ Section wp.
   Qed.
 
 
-   Lemma ewp_effect_thr' E Ψ Φ vs i a sh : EWP of_eff (thrE vs i a sh) @ E <| Ψ |> {{ Φ }} ⊣⊢    ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I).
+   Lemma ewp_effect_thr' E Ψ Φ vs i a sh : EWP of_eff (thrE vs i a sh) @ E <| Ψ |> {{ Φ }} ⊣⊢    ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I).
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite to_of_eff.
     destruct (to_val _) eqn:Habs => //.
@@ -326,7 +328,7 @@ Section wp.
     { destruct eff.
       all: iDestruct "H" as (f) "[Hf H]".
       all: iFrame.
-      all: iIntros "Hf".
+      all: iIntros (f0) "Hf".
       all: iDestruct ("H" with "Hf") as "H".
       all: iDestruct "H" as (Φ) "[HΦ1 H]".
       all: iExists Φ.
@@ -498,7 +500,7 @@ Section wp.
 
   Lemma ewp_effect_sus E Ψ Φ vs i sh es:
     to_eff es = Some (susE vs i sh) ->
-    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢ ∃ f, ↪[frame] f ∗  (↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ EWP (susfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢ ∃ f, ↪[frame] f ∗  (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ w, ▷ EWP (susfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
   Proof.
     intros. apply of_to_eff in H. subst. by apply ewp_effect_sus'.
   Qed.
@@ -506,14 +508,14 @@ Section wp.
   
   Lemma ewp_effect_sw E Ψ Φ vs k tf i sh es:
     to_eff es = Some (swE vs k tf i sh) ->
-    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢  ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ EWP (swfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
+    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢  ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ SwitchE i)) (immV vs) (λ w, ▷ EWP (swfill i sh (of_val w)) @ E <| Ψ |> {{ Φ }})).
   Proof.
     intros. apply of_to_eff in H. subst. by apply ewp_effect_sw'.
   Qed.
 
   Lemma ewp_effect_thr E Ψ Φ vs i a sh es:
     to_eff es = Some (thrE vs i a sh) ->
-    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢    ∃ f, ↪[frame] f ∗ (↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I).
+    EWP es @ E <| Ψ |> {{ Φ }} ⊣⊢    ∃ f, ↪[frame] f ∗ (∀ f, ↪[frame] f -∗ iProt_car (upcl (Ψ $ ThrowE a)) (immV vs) (λ w, False)%I).
   Proof.
     intros. apply of_to_eff in H. subst. by apply ewp_effect_thr'.
   Qed. 

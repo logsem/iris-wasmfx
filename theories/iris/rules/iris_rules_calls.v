@@ -557,4 +557,100 @@ Qed.
       simplify_eq. iFrame. 
   Qed.
 
+
+  Lemma ewp_ref_func f k i E Ψ Φ:
+    f.(f_inst).(inst_funcs) !! k = Some i ->
+    ↪[frame] f ∗ ▷ Φ (immV [VAL_ref (VAL_ref_func i)])
+      ⊢ EWP [AI_basic (BI_ref_func k)] @ E <| Ψ |> {{ v, Φ v ∗ ↪[frame] f }}.
+  Proof.
+    iIntros (Hk) "[Hf HΦ]".
+    iApply ewp_lift_atomic_step => //=.
+    iIntros (σ ns κ κs nt) "Hσ".
+    destruct σ as [[??]?].
+    iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hmems & Htabs & Hglobs & Hframe & Hrest)".
+    iDestruct (ghost_map_lookup with "Hframe Hf") as "%Hf".
+    rewrite lookup_insert in Hf; inversion Hf; subst.
+    iModIntro.
+    iSplit.
+    { iPureIntro. eexists _,_,(_,_,_),_.
+      repeat split => //.
+      apply r_ref_func.
+      rewrite nth_error_lookup => //. }
+    iIntros "!>" (e2 σ2 HStep).
+    iModIntro.
+    destruct σ2 as [[??]?].
+    destruct HStep as (Hred & -> & _).
+    edestruct reduce_det.
+    exact Hred. apply r_ref_func. rewrite nth_error_lookup //.
+    - inversion H; subst. iFrame.
+    - rewrite /first_instr /= in H.
+      destruct H as [[??] | (?&?&?&?&_)] => //.
+  Qed.
+
+    Lemma ewp_call_reference_ctx (E : coPset) Ψ (Φ : val -> iProp Σ) f i a j lh tf cl:
+      stypes f.(f_inst) i = Some tf ->
+      cl_type cl = tf ->
+    ↪[frame] f -∗ N.of_nat a ↦[wf] cl -∗
+     ▷ (↪[frame] f -∗ N.of_nat a ↦[wf] cl -∗ EWP [AI_invoke a] @ E CTX j; lh <| Ψ |> {{ v, Φ v }}) -∗
+     EWP [AI_ref a; AI_basic (BI_call_reference i)] @ E CTX j; lh <| Ψ |> {{ v, Φ v }}.
+  Proof.
+    iIntros (Hi Hcl) "Hf Ha HΦ".
+    iIntros (LI Hfill).
+    apply lfilled_swap with (es':=[AI_invoke a]) in Hfill as Hfill'.
+    destruct Hfill' as [LI' Hfill'].
+    iApply ewp_lift_step.
+    { apply eq_None_not_Some.
+      intros Hcontr.
+      eapply lfilled_to_val in Hcontr;[|eauto].
+      inversion Hcontr.
+      done. }
+    { apply eq_None_not_Some.
+      intros Hcontr.
+      eapply lfilled_to_eff in Hcontr; last eauto.
+      destruct Hcontr => //. 
+      inversion H.
+      done. } 
+    iIntros ([[ ? ?] ?] ns κ κs nt) "(Hσ1&Hσ2&Hσ3&Hσ4&?&?&Hσ5&Hσ6)".
+    iDestruct (gen_heap_valid with "Hσ1 Ha") as %Ha.
+    rewrite gmap_of_list_lookup in Ha.
+    rewrite -nth_error_lookup Nat2N.id in Ha.
+    iApply fupd_frame_l.
+    iDestruct (ghost_map_lookup with "Hσ5 Hf") as %Hlook. simplify_map_eq.
+    set (σ := (s,l,i0)).
+    iSplit.
+    - iPureIntro.
+      unfold language.reducible, language.prim_step => /=.
+      eexists [], _, σ, [].
+      unfold iris.prim_step => /=.
+      repeat split => //. eapply r_label.
+      eapply r_call_reference. done. done. done. done. 
+    - iApply fupd_mask_intro;[solve_ndisj|].
+      iIntros "Hcls !>" (es1 σ2 HStep).
+      iMod "Hcls". iModIntro.
+      destruct σ2 as [[ ws' locs'] inst'].
+      destruct HStep as (H & -> & _).
+      assert (first_instr LI = Some (AI_basic (BI_call_reference i),0 + j)).
+      { eapply starts_with_lfilled;eauto. auto. }
+      eapply reduce_det in H as HH;[|eapply r_label;[|eauto..];eapply r_call_reference => //].
+      destruct HH as [HH | [[? Hstart] | (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ)  ]]; try done; try congruence.
+      simplify_eq. iApply bi.sep_exist_l. iExists _. iFrame.
+      iIntros "?". iApply ("HΦ" with "[$] [$]"). auto.
+  Qed.
+  Lemma ewp_call_reference (E : coPset) Ψ (Φ : val -> iProp Σ) f i a tf cl:
+      stypes f.(f_inst) i = Some tf ->
+      cl_type cl = tf ->
+    ↪[frame] f -∗ N.of_nat a ↦[wf] cl -∗
+     ▷ (↪[frame] f -∗ N.of_nat a ↦[wf] cl -∗ EWP [AI_invoke a] @ E <| Ψ |> {{ v, Φ v }}) -∗
+     EWP [AI_ref a; AI_basic (BI_call_reference i)] @ E <| Ψ |> {{ v, Φ v }}.
+  Proof.
+    iIntros (Hi Hcl) "Hf Ha HΦ".
+    iApply ewp_wasm_empty_ctx.
+    iApply (ewp_call_reference_ctx with "[$] [$]"). eauto. eauto.
+    iNext. iIntros "? ?".
+    iApply ewp_wasm_empty_ctx.
+    iApply ("HΦ" with "[$] [$]").
+  Qed.
+  
+  
+
 End iris_rules_calls.

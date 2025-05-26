@@ -130,8 +130,8 @@ Notation "n ↦[wcont]{ q } v" := (pointsto (L:=N) (V:=continuation) n q v%V)
 Notation "n ↦[wcont] v" := (pointsto (L:=N) (V:=continuation) n (DfracOwn 1) v%V)
                              (at level 20, format "n ↦[wcont] v") : bi_scope.
 
-Notation "n ↪[tag] v" := (∃ q, pointsto (L:=N) (V:=function_type) n q v%V)%I
-                           (at level 20, format "n ↪[tag] v") : bi_scope.
+Notation "n ↦□[tag] v" := (pointsto (L:=N) (V:=function_type) n DfracDiscarded v%V)%I
+                           (at level 20, format "n ↦□[tag] v") : bi_scope.
 
 Notation "n ↦[wt]{ q } [ i ] v" := (pointsto (L:=N*N) (V:=funcelem) (n, i) q v%V)
                            (at level 20, q at level 5, format "n ↦[wt]{ q } [ i ] v") : bi_scope.
@@ -192,3 +192,5 @@ Proof.
   destruct mem_data, mem_data0 => //=.
   by move => [-> ->] => //.
 Qed.
+
+
