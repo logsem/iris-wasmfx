@@ -26,7 +26,7 @@ Proof.
       try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
               end);
-      try (by inversion Heqesnew; subst; left);
+      try (by inversion Heqesnew; subst; repeat split => //; left);
       try (move/lfilledP in Hfill; inversion Hfill; subst;
             try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 (destruct vs => //; try by destruct v1, v2; try destruct v; try destruct v0)
@@ -279,7 +279,7 @@ Proof.
       try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
               end);
-      try (by inversion Heqesnew; subst; left);
+      try (by inversion Heqesnew; subst; repeat split => //; left);
       try (move/lfilledP in Hfill; inversion Hfill; subst;
             try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 (destruct vs => //; try by destruct v1, v2; try destruct v; try destruct v0)

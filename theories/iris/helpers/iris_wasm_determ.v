@@ -100,16 +100,20 @@ Section determ.
       - by eapply filled_trap_det. 
       - only_one.
         inversion Heqesnew; subst. rewrite H0 in H. inversion H; subst.
-        by left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
+        repeat split => //. by left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
       - only_one.
         inversion Heqesnew; subst. rewrite H0 in H. inversion H; subst.
-        by left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
+        repeat split => //. by left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
       - by eapply call_indirect_det.
       - by eapply call_indirect_failure1_det.
       - by eapply call_indirect_failure2_det.
       - by apply call_reference_det.
-      - subst; left; by eapply invoke_native_det.
-      - subst; left; by eapply invoke_host_det.
+      - subst; eapply invoke_native_det in Hred2 => //.
+        inversion Hred2; subst.
+        repeat split => //. by left.
+      - subst; eapply invoke_host_det in Hred2 => //.
+        inversion Hred2; subst.
+        repeat split => //. by left.
       - by eapply try_table_det.
       - by eapply throw_det.
       - by eapply throw_ref_desugar_det. 
@@ -127,9 +131,9 @@ Section determ.
       - by eapply contbind_dagger_det.
       - by eapply resume_throw_det.
       - by eapply resume_throw_dagger_det.
-      - only_one. inversion Heqesnew; subst. rewrite H in H0; inversion H0; subst; by left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
+      - only_one. inversion Heqesnew; subst. rewrite H in H0; inversion H0; subst; by repeat split => //; left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
       - by eapply set_local_det.
-      - only_one. inversion Heqesnew; subst. rewrite H in H0; inversion H0; subst; by left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
+      - only_one. inversion Heqesnew; subst. rewrite H in H0; inversion H0; subst; by repeat split => //; left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
       - by eapply set_global_det.
       - by eapply load_det.
       - by eapply load_failure_det.
@@ -140,20 +144,128 @@ Section determ.
       - by eapply store_packed_det.
       - by eapply store_packed_failure_det.
       - only_one. inversion Heqesnew; subst. rewrite H2 in H; inversion H; subst.
-        rewrite H3 in H0; inversion H0; subst. by left.
+        rewrite H3 in H0; inversion H0; subst. by repeat split => //; left.
         inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
     (* the following two cases are the r_grow_memory cases. We do not guarantee
        determinism in these cases, but the second disjunct of the conclusion holds *)
-      - right ; left.
-      exists 0.
-      replace [AI_basic (BI_const (VAL_int32 c)); AI_basic BI_grow_memory] with
-        ([AI_basic (BI_const (VAL_int32 c))] ++ [AI_basic BI_grow_memory] ++ []).
-      constructor => //=. by rewrite app_nil_r.
-    - right ; left.
-      exists 0.
-      replace [AI_basic (BI_const (VAL_int32 c)); AI_basic BI_grow_memory] with
-        ([AI_basic (BI_const (VAL_int32 c))] ++ [AI_basic BI_grow_memory] ++ []).
-      constructor => //=. by rewrite app_nil_r.
+      - remember  [AI_basic (BI_const (VAL_int32 c)); AI_basic BI_grow_memory] as es.
+        unfold reduce_det_goal.
+        assert ( f = f2 /\ (first_instr es = Some (AI_basic BI_grow_memory, 0))).
+        2:{ destruct H3 as (-> & ?).
+            repeat split => //.
+            right; left. exists 0. done. }
+        clear -Hred2 Heqes.
+        induction Hred2.
+        inversion H.
+        all: subst.
+        all: try done.
+        all: try by do 3 destruct vs => //.
+        all: try by do 3 destruct vcs => //.
+        move/lfilledP in H.
+        inversion H.
+        all: try by do 3 destruct vs => //.
+        all: try by do 3 destruct bef => //.
+        destruct vs.
+        + destruct es; first empty_list_no_reduce.
+          destruct es.
+          * inversion H1; subst.
+            exfalso. values_no_reduce.
+          * inversion H1; subst.
+            destruct es, es'0 => //.
+            simpl.
+            apply IHHred2 => //.
+        + destruct vs.
+          * destruct es; first empty_list_no_reduce.
+            inversion H1; subst.
+            destruct es, es'0 => //.
+            clear - Hred2; exfalso.
+            lazymatch goal with
+            | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+            end.
+            induction Hred2 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+              first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+              try (by inversion Heqves);
+              try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+              try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+              [ by move/lfilledP in H01; inversion H01; subst;
+                try (by do 4 destruct vs => //);
+                do 4 destruct bef => //
+              | move/lfilledP in H02; inversion H02; subst;
+                try (by do 4 destruct vs => //);
+                try (by do 4 destruct bef => //) ;
+                destruct vs;
+                first (
+                    do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+                    inversion H3; subst; 
+                    destruct es => //; apply IHHred2 => //
+                  )
+              ].
+            empty_list_no_reduce.
+            inversion H3; subst.
+            destruct es, es'0 => //.
+            inversion H3 => //.
+            destruct vs, es => //. empty_list_no_reduce.
+          * inversion H1; subst.
+            destruct vs, es => //.
+      - remember  [AI_basic (BI_const (VAL_int32 c)); AI_basic BI_grow_memory] as es.
+        unfold reduce_det_goal.
+        assert ( f = f2 /\ (first_instr es = Some (AI_basic BI_grow_memory, 0))).
+        2:{ destruct H2 as (-> & ?).
+            repeat split => //.
+            right; left. exists 0. done. }
+        clear -Hred2 Heqes.
+        induction Hred2.
+        inversion H.
+        all: subst.
+        all: try done.
+        all: try by do 3 destruct vs => //.
+        all: try by do 3 destruct vcs => //.
+        move/lfilledP in H.
+        inversion H.
+        all: try by do 3 destruct vs => //.
+        all: try by do 3 destruct bef => //.
+        destruct vs.
+        + destruct es; first empty_list_no_reduce.
+          destruct es.
+          * inversion H1; subst.
+            exfalso. values_no_reduce.
+          * inversion H1; subst.
+            destruct es, es'0 => //.
+            simpl.
+            apply IHHred2 => //.
+        + destruct vs.
+          * destruct es; first empty_list_no_reduce.
+            inversion H1; subst.
+            destruct es, es'0 => //.
+            clear - Hred2; exfalso.
+            lazymatch goal with
+            | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
+            end.
+            induction Hred2 as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+              first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
+              try (by inversion Heqves);
+              try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
+              try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
+              [ by move/lfilledP in H01; inversion H01; subst;
+                try (by do 4 destruct vs => //);
+                do 4 destruct bef => //
+              | move/lfilledP in H02; inversion H02; subst;
+                try (by do 4 destruct vs => //);
+                try (by do 4 destruct bef => //) ;
+                destruct vs;
+                first (
+                    do 4 try (destruct es; first by inversion H3; subst; apply values_no_reduce in Hred);
+                    inversion H3; subst; 
+                    destruct es => //; apply IHHred2 => //
+                  )
+              ].
+            empty_list_no_reduce.
+            inversion H3; subst.
+            destruct es, es'0 => //.
+            inversion H3 => //.
+            destruct vs, es => //. empty_list_no_reduce.
+          * inversion H1; subst.
+            destruct vs, es => //.
     - by eapply label_det.
     - by eapply local_det.
   Qed.

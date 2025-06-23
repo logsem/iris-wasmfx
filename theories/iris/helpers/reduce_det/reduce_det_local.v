@@ -195,16 +195,16 @@ Proof.
     unfold length_rec in Hlen ; simpl in Hlen.
     unfold length_rec ; lia.
     destruct (IHnnn _ _ _ _ _ _ Hred1 Hred2 H)
-      as [Hσ | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ) (* ] *)]].
-    * left. by inversion Hσ ; subst.
-    * right ; left. exists (i + 1). unfold first_instr => //=. unfold first_instr in Hstart.
+      as (-> & [[Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->) (* ] *)]]).
+    * repeat split => //. left. by subst.
+    * repeat split => //. right ; left. exists (i + 1). unfold first_instr => //=. unfold first_instr in Hstart.
       rewrite Hstart => //=. repeat f_equiv. lia.
-    * repeat right. exists (i1 + 1),(i2 + 1),(i3 + 1). repeat split => //=.
+    * repeat split => //.
+      repeat right. exists (i1 + 1),(i2 + 1),(i3 + 1). repeat split => //=.
       unfold first_instr => //= ; unfold first_instr in Hstart1 ;
                              rewrite Hstart1 => //=; repeat f_equiv; lia.
       unfold first_instr => //= ; unfold first_instr in Hstart2 ;
                              rewrite Hstart2 => //=; repeat f_equiv; lia.
       unfold first_instr => //= ; unfold first_instr in Hstart3 ;
                              rewrite Hstart3 => //=; repeat f_equiv; lia.
-        by inversion Hσ ; subst.
 Qed.

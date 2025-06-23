@@ -17,7 +17,7 @@ Proof.
   1-2: rewrite H in Hmem; inversion Hmem; subst.
   1-2: rewrite H0 in Hi; inversion Hi; subst.
   1-2: rewrite H1 in Hload; inversion Hload; subst.
-  by left.
+  repeat split => //. by left.
   
   inversion H3; subst.
   destruct vs; inversion H4; subst => //.
@@ -111,7 +111,7 @@ Proof.
   1-2: rewrite H in Hmem; inversion Hmem; subst.
   1-2: rewrite H0 in Hi; inversion Hi; subst.
   1-2: rewrite H1 in Hload; inversion Hload; subst.
-  by left.
+  repeat split => //. by left.
   
   inversion H3; subst.
   destruct vs; inversion H4; subst => //.

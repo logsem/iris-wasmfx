@@ -39,7 +39,7 @@ Proof.
     by apply first_values in H10 as (? & ? & ?).
   - apply concat_cancel_last in Heqes0 as [-> Heq].
     inversion Heq; subst.
-    left. rewrite H7 in Hdesug.
+    repeat split => //; left. rewrite H7 in Hdesug.
     rewrite H3 in H; inversion H; subst.
     assert (csd0 = csd) as -> => //.
     clear -Hdesug.

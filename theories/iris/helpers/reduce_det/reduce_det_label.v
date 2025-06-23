@@ -67,31 +67,30 @@ Proof.
              assert (length_rec [a] > 0) ; first by apply length_cons_rec.
              rewrite length_app_rec.
              lia. }
-           destruct (IHnnn _ _ _ _ _ _ H2 H3 H5) as [Hσ | [[i Hstart] |
-                                                        (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                                        (*] *)]].
-           ++ left. inversion Hσ ; subst.
-              rewrite /= catA H9 cat_app -Hes2y //. 
-           ++ right ; left.
+           destruct (IHnnn _ _ _ _ _ _ H2 H3 H5) as (-> &  [[Hes ->] | [[i Hstart] |
+                                                        (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                                        (*] *)]]).
+           ++ repeat split => //. left. subst.
+              rewrite /= catA Hes cat_app -Hes2y //. 
+           ++ repeat split => //. right ; left.
               exists i. rewrite /= catA.
               apply first_instr_app. done.
-           ++ repeat right.
+           ++ repeat split => //. repeat right.
               exists i1, i2, i3. repeat split => //=.
               rewrite catA. apply first_instr_app => //.
               rewrite catA. apply first_instr_app => //.
               rewrite -(take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
-        -- repeat right.
-           exists 0, 0, 0.
-           do 2 rewrite /= catA.
+        -- do 2 rewrite /= catA.
            assert (reduce s f (es ++ l) s' f' (es' ++ l)) as Hles.
            { apply (r_label (k:=0) (lh:=LH_base [] l) (es:=es) (es':=es')) => //=.
              unfold lfilled, lfill => //=.
              unfold lfilled, lfill => //=. }
            destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+           inversion Hσ; inversion Hσ'; subst.
+           repeat split => //. destruct f', f2; simpl in *; subst => //. repeat right.
+           exists 0, 0, 0.
            repeat split => //= ; try by try apply first_instr_app; eapply lfilled_implies_starts.
-           inversion Hσ ; subst.
-           destruct f ; destruct f2 ; simpl in H6 ; simpl in H7 ; by subst. 
     + (* if bef is nonempty, then we proceed like before, but on the left side.
          Calling v the first value in bef, we know that [ les = v :: bef' ++ es ++ aft ]
          r_label gives us [ bef' ++ es ++ aft -> bef' ++ es1 ++ aft ] and we still
@@ -126,19 +125,19 @@ Proof.
         repeat rewrite length_app_rec in Hlen.
         repeat rewrite length_app_rec.
         destruct v; try destruct v; simpl in Hlen; lia. } 
-      destruct (IHnnn _ _ _ _ _ _ H1 H3 H5) as [Hσ | [[i Hstart] |
-                                                      (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                               ]].
-        -- left. 
-           inversion Hσ ; subst.
+      destruct (IHnnn _ _ _ _ _ _ H1 H3 H5) as (-> & [[Hes ->] | [[i Hstart] |
+                                                      (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                               ]]).
+        -- repeat split => //. left. 
+           subst.
            rewrite separate1. rewrite -cat_app.
-           repeat rewrite -catA. rewrite H9.
+           repeat rewrite -catA. rewrite Hes.
            by rewrite Hves2.
-        -- right ; left.
+        -- repeat split => //. right ; left.
            exists i. rewrite separate1 -cat_app -catA.
            rewrite first_instr_const => //.
            rewrite /= const_const //.
-        -- repeat right.
+        -- repeat split => //. repeat right.
            exists i1, i2, i3. repeat split => //=.
            rewrite separate1 -cat_app first_instr_const //.
            rewrite /= const_const //.
@@ -147,12 +146,12 @@ Proof.
            rewrite - (take_drop 1 es2).
            rewrite first_instr_const //.
            rewrite Hves2 /= const_const //. 
-      * repeat right. exists 0,0,0.
-        destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-        
+      * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+        inversion Hσ; inversion Hσ'; subst.
+        repeat split => //. destruct f', f2; simpl in *; subst => //.
+        repeat right. exists 0,0,0.
+
         repeat split => //= ; try by try rewrite separate1 -cat_app first_instr_const //; try eapply lfilled_implies_starts; try rewrite /= const_const //.
-        inversion Hσ ; subst.
-        destruct f ; destruct f2 ; simpl in H7 ; simpl in H6 ; by subst. 
   - (* in this case, Hred1 was [ les -> les1 ] with 
        [ les = bef ++ AI_label n es0 l :: aft ], [ les1 = bef ++ AI_label n es0 l1 :: aft ],
        [ lfilled k lh es l ], [ lfilled k lh es1 l1 ] and [ es -> es1 ]. We still have
@@ -216,11 +215,11 @@ Proof.
               assert (lfilled 1 (LH_rec [] n es'0 (LH_base [] []) []) LI [AI_label n es'0 LI]).
               { unfold lfilled, lfill => //=. by rewrite app_nil_r. }
               destruct (IHnnn _ _ _ _ _ _ H7 H8 H9)
-                as [ Hσ | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ) (* ] *)]].
-              ** left. inversion Hσ ; by subst.
-              ** right ; left. exists (i + 1).
+                as (-> &  [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->) (* ] *)]]).
+              ** repeat split => //. left. by subst.
+              ** repeat split => //. right ; left. exists (i + 1).
                  eapply starts_with_lfilled => //=.
-              ** repeat right.
+              ** repeat split => //. repeat right.
                  exists (S i1),(S i2),(S i3). repeat split => //=.
                  unfold first_instr => //=.
                  unfold first_instr in Hstart1 ; rewrite Hstart1 => //=.
@@ -254,19 +253,19 @@ Proof.
            { rewrite cat0s cat_app length_app_rec length_app_rec in Hlen.
              assert (length_rec [a] > 0) ; first by apply length_cons_rec.
              rewrite separate1 length_app_rec. lia. }
-           destruct (IHnnn _ _ _ _ _ _ H3 H2' H4) as [Hσ | [ [i Hstart] |
-                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                                 ]].
-           ++ left. inversion Hσ ; subst.
+           destruct (IHnnn _ _ _ _ _ _ H3 H2' H4) as (-> &  [[Hes ->] | [ [i Hstart] |
+                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                                 ]]).
+           ++ repeat split => //. left. subst.
               rewrite /= -cat_app separate1 -cat_app catA.
-              rewrite separate1 -cat_app in H8. rewrite H8.
+              rewrite separate1 -cat_app in Hes. rewrite Hes.
               rewrite -cat_app in Hes2y.
               rewrite - Hes2y. done.
-           ++ right ; left.
+           ++ repeat split => //. right ; left.
               exists i. simpl.
               rewrite separate1 app_assoc.
               apply first_instr_app => //.
-           ++ repeat right.
+           ++ repeat split => //. repeat right.
               exists i1, i2, i3. repeat split => //=.
               rewrite separate1 app_assoc.
               apply first_instr_app => //.
@@ -274,17 +273,17 @@ Proof.
               apply first_instr_app => //.
               rewrite - (take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
-        -- repeat right.
-           assert (reduce s f (AI_label n es'0 LI :: l) s' f'
+        -- assert (reduce s f (AI_label n es'0 LI :: l) s' f'
                      (AI_label n es'0 LI0 :: l)) as Hles.
            { apply (r_label (k:=S k0) (lh:=LH_rec [] n es'0 lh' l) (es:=es) (es':=es')) => //=.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //. } 
            destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+           inversion Hσ; inversion Hσ'; subst.
+           repeat split => //. destruct f', f2; simpl in *; subst => //.
+           repeat right. 
            exists 0, 0, 0.
            repeat split; try by try rewrite cat0s -cat_app catA; try apply first_instr_app; eapply lfilled_implies_starts.
-           inversion Hσ ; subst.
-           destruct f ; destruct f2 ; simpl in H7 ; simpl in H6 ; by subst. 
     + simpl in H1; remove_bools_options.
       assert (reduce s f (vs ++ AI_label n es'0 LI :: es'') s' f'
                 (vs ++ AI_label n es'0 LI0 :: es'')) as Hles.
@@ -310,16 +309,16 @@ Proof.
         repeat rewrite length_app_rec in Hlen.
         rewrite separate1. repeat rewrite length_app_rec.
         simpl in Hlen. simpl. destruct v; try destruct v; simpl in Hlen; lia. }
-      destruct (IHnnn _ _ _ _ _ _ Hles H2' H1) as [Hσ | [ [i Hstart] |
-                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                                 ]].
-      -- left.
-         inversion Hσ ; subst.
-         rewrite separate1 -cat_app -catA H7 Hves2 //.  
-      -- right ; left.
+      destruct (IHnnn _ _ _ _ _ _ Hles H2' H1) as (-> & [[Hes ->] | [ [i Hstart] |
+                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                                 ]]).
+      -- repeat split => //. left.
+         subst.
+         rewrite separate1 -cat_app -catA Hes Hves2 //.  
+      -- repeat split => //. right ; left.
          exists i. rewrite separate1 -cat_app -catA first_instr_const //.
          rewrite /= const_const //.
-      -- repeat right.
+      -- repeat split => //. repeat right.
          exists i1, i2, i3. repeat split => //=.
          rewrite separate1 -cat_app first_instr_const //.
          rewrite /= const_const //.
@@ -327,12 +326,12 @@ Proof.
          rewrite /= const_const //.
          rewrite - (take_drop 1 es2) first_instr_const //.
          rewrite Hves2 /= const_const //.
-    * repeat right.
-      exists 0, 0, 0. 
-      destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+    * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+      inversion Hσ ; inversion Hσ'; subst.
+      repeat split => //. destruct f', f2; simpl in *; subst => //. 
+      repeat right.
+      exists 0, 0, 0.
       repeat split => //= ; try by try rewrite separate1 -cat_app first_instr_const; try rewrite /= const_const //; eapply lfilled_implies_starts.
-      inversion Hσ ; subst.
-      destruct f ; destruct f2 ; simpl in H7 ; simpl in H6 ; by subst.
   - (* Handler *)
     destruct bef.
     + separate_last aft; last first. 
@@ -364,19 +363,22 @@ Proof.
            destruct es; first empty_list_no_reduce.
            inversion H4; destruct es, es'0; subst => //.
            apply AI_trap_irreducible in Hred1 => //.
-        -- right. right.
-           move/lfilledP in H5; inversion H5; subst.
+        -- move/lfilledP in H5; inversion H5; subst.
            all: try by do 2 destruct bef => //.
            all: try by do 2 destruct vs => //.
            destruct bef; last by destruct bef.
            inversion H6; subst.
-           exists 0, 0, 0.
            edestruct trap_reduce as (lh''' & ? & Hσ').
            apply/lfilledP. exact H13.
            eapply r_label.
            exact Hred1.
            apply/lfilledP. exact H2.
            apply/lfilledP. exact H11.
+           inversion Hσ'; subst.
+           repeat split => //. right. right.
+                      
+           exists 0, 0, 0.
+
            repeat split => //=.
            eapply lfilled_implies_starts => //.
            instantiate (1 := LH_handler [] hs lh'0 []).
@@ -417,11 +419,11 @@ Proof.
               assert (lfilled 0 (LH_handler [] hs (LH_base [] []) []) LI [AI_handler hs LI]).
               { unfold lfilled, lfill => //=. by rewrite app_nil_r. }
               destruct (IHnnn _ _ _ _ _ _ H7 H8 H9)
-                as [ Hσ | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ) (* ] *)]].
-              ** left. inversion Hσ ; by subst.
-              ** right ; left. exists (i + 0).
+                as (-> & [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3& ->) (* ] *)]]).
+              ** repeat split => //. left. by subst.
+              ** repeat split => //. right ; left. exists (i + 0).
                  eapply starts_with_lfilled => //=.
-              ** repeat right.
+              ** repeat split => //. repeat right.
                  exists i1,i2,i3. repeat split => //=.
                  unfold first_instr => //=.
                  unfold first_instr in Hstart1 ; rewrite Hstart1 => //=.
@@ -455,19 +457,19 @@ Proof.
            { rewrite cat0s cat_app length_app_rec length_app_rec in Hlen.
              assert (length_rec [a] > 0) ; first by apply length_cons_rec.
              rewrite separate1 length_app_rec. lia. }
-           destruct (IHnnn _ _ _ _ _ _ H3 H2' H4) as [Hσ | [ [i Hstart] |
-                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                                 ]].
-           ++ left. inversion Hσ ; subst.
+           destruct (IHnnn _ _ _ _ _ _ H3 H2' H4) as (-> & [[Hes ->] | [ [i Hstart] |
+                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                                 ]]).
+           ++ repeat split => //. left. subst.
               rewrite /= -cat_app separate1 -cat_app catA.
-              rewrite separate1 -cat_app in H8. rewrite H8.
+              rewrite separate1 -cat_app in Hes. rewrite Hes.
               rewrite -cat_app in Hes2y.
               rewrite - Hes2y. done.
-           ++ right ; left.
+           ++ repeat split => //. right ; left.
               exists i. simpl.
               rewrite separate1 app_assoc.
               apply first_instr_app => //.
-           ++ repeat right.
+           ++ repeat split => //. repeat right.
               exists i1, i2, i3. repeat split => //=.
               rewrite separate1 app_assoc.
               apply first_instr_app => //.
@@ -475,17 +477,16 @@ Proof.
               apply first_instr_app => //.
               rewrite - (take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
-        -- repeat right.
-           assert (reduce s f (AI_handler hs LI :: l) s' f'
+        -- assert (reduce s f (AI_handler hs LI :: l) s' f'
                      (AI_handler hs LI0 :: l)) as Hles.
            { apply (r_label (k:=k) (lh:=LH_handler [] hs lh' l) (es:=es) (es':=es')) => //=.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //. } 
            destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-           exists 0, 0, 0.
+           inversion Hσ; inversion Hσ'; subst.
+           repeat split => //. destruct f', f2; simpl in *; subst => //. 
+           repeat right. exists 0, 0, 0.
            repeat split; try by try rewrite cat0s -cat_app catA; try apply first_instr_app; eapply lfilled_implies_starts.
-           inversion Hσ ; subst.
-           destruct f ; destruct f2 ; simpl in H7 ; simpl in H6 ; by subst. 
     + simpl in H1; remove_bools_options.
       assert (reduce s f (bef ++ AI_handler hs LI :: aft) s' f'
                 (bef ++ AI_handler hs LI0 :: aft)) as Hles.
@@ -511,16 +512,16 @@ Proof.
         repeat rewrite length_app_rec in Hlen.
         rewrite separate1. repeat rewrite length_app_rec.
         simpl in Hlen. simpl. destruct v; try destruct v; simpl in Hlen; lia. }
-      destruct (IHnnn _ _ _ _ _ _ Hles H2' H1) as [Hσ | [ [i Hstart] |
-                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                                 ]].
-      -- left.
-         inversion Hσ ; subst.
-         rewrite separate1 -cat_app -catA H7 Hves2 //.  
-      -- right ; left.
+      destruct (IHnnn _ _ _ _ _ _ Hles H2' H1) as (-> & [[Hes ->] | [ [i Hstart] |
+                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                                 ]]).
+      -- repeat split => //. left.
+         subst.
+         rewrite separate1 -cat_app -catA Hes Hves2 //.  
+      -- repeat split => //. right ; left.
          exists i. rewrite separate1 -cat_app -catA first_instr_const //.
          rewrite /= const_const //.
-      -- repeat right.
+      -- repeat split => //. repeat right.
          exists i1, i2, i3. repeat split => //=.
          rewrite separate1 -cat_app first_instr_const //.
          rewrite /= const_const //.
@@ -528,12 +529,14 @@ Proof.
          rewrite /= const_const //.
          rewrite - (take_drop 1 es2) first_instr_const //.
          rewrite Hves2 /= const_const //.
-    * repeat right.
-      exists 0, 0, 0. 
-      destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+    * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+      
+      inversion Hσ ; inversion Hσ'; subst.
+      repeat split => //=. destruct f', f2; simpl in *; subst => //.
+      repeat right.
+      exists 0,0,0.
       repeat split => //= ; try by try rewrite separate1 -cat_app first_instr_const; try rewrite /= const_const //; eapply lfilled_implies_starts.
-      inversion Hσ ; subst.
-      destruct f ; destruct f2 ; simpl in H7 ; simpl in H6 ; by subst.
+      
   - (* Prompt *)
     destruct bef.
     + separate_last aft; last first. 
@@ -565,19 +568,21 @@ Proof.
            destruct es; first empty_list_no_reduce.
            inversion H4; destruct es, es'0; subst => //.
            apply AI_trap_irreducible in Hred1 => //.
-        -- right. right.
-           move/lfilledP in H5; inversion H5; subst.
+        -- move/lfilledP in H5; inversion H5; subst.
            all: try by do 2 destruct bef => //.
            all: try by do 2 destruct vs => //.
            destruct bef; last by destruct bef.
            inversion H6; subst.
-           exists 0, 0, 0.
+           
            edestruct trap_reduce as (lh''' & ? & Hσ').
            apply/lfilledP. exact H13.
            eapply r_label.
            exact Hred1.
            apply/lfilledP. exact H2.
            apply/lfilledP. exact H12.
+           inversion Hσ'; subst.
+           repeat split => //. right. right.
+           exists 0, 0, 0.
            repeat split => //=.
            eapply lfilled_implies_starts => //.
            instantiate (1 := LH_prompt [] ts hs lh'0 []).
@@ -618,11 +623,11 @@ Proof.
               assert (lfilled 0 (LH_prompt [] ts hs (LH_base [] []) []) LI [AI_prompt ts hs LI]).
               { unfold lfilled, lfill => //=. by rewrite app_nil_r. }
               destruct (IHnnn _ _ _ _ _ _ H7 H8 H9)
-                as [ Hσ | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ) (* ] *)]].
-              ** left. inversion Hσ ; by subst.
-              ** right ; left. exists (i + 0).
+                as (-> & [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->) (* ] *)]]).
+              ** repeat split => //. left. by subst.
+              ** repeat split => //. right ; left. exists (i + 0).
                  eapply starts_with_lfilled => //=.
-              ** repeat right.
+              ** repeat split => //. repeat right.
                  exists i1,i2,i3. repeat split => //=.
                  unfold first_instr => //=.
                  unfold first_instr in Hstart1 ; rewrite Hstart1 => //=.
@@ -656,19 +661,19 @@ Proof.
            { rewrite cat0s cat_app length_app_rec length_app_rec in Hlen.
              assert (length_rec [a] > 0) ; first by apply length_cons_rec.
              rewrite separate1 length_app_rec. lia. }
-           destruct (IHnnn _ _ _ _ _ _ H3 H2' H4) as [Hσ | [ [i Hstart] |
-                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                                 ]].
-           ++ left. inversion Hσ ; subst.
+           destruct (IHnnn _ _ _ _ _ _ H3 H2' H4) as (-> & [[Hes ->] | [ [i Hstart] |
+                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                                 ]]).
+           ++ repeat split => //. left. subst.
               rewrite /= -cat_app separate1 -cat_app catA.
-              rewrite separate1 -cat_app in H8. rewrite H8.
+              rewrite separate1 -cat_app in Hes. rewrite Hes.
               rewrite -cat_app in Hes2y.
               rewrite - Hes2y. done.
-           ++ right ; left.
+           ++ repeat split => //. right ; left.
               exists i. simpl.
               rewrite separate1 app_assoc.
               apply first_instr_app => //.
-           ++ repeat right.
+           ++ repeat split => //. repeat right.
               exists i1, i2, i3. repeat split => //=.
               rewrite separate1 app_assoc.
               apply first_instr_app => //.
@@ -676,17 +681,17 @@ Proof.
               apply first_instr_app => //.
               rewrite - (take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
-        -- repeat right.
-           assert (reduce s f (AI_prompt ts hs LI :: l) s' f'
+        -- assert (reduce s f (AI_prompt ts hs LI :: l) s' f'
                      (AI_prompt ts hs LI0 :: l)) as Hles.
            { apply (r_label (k:=k) (lh:=LH_prompt [] ts hs lh' l) (es:=es) (es':=es')) => //=.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //. } 
            destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+           inversion Hσ; inversion Hσ'; subst.
+           repeat split => //. destruct f', f2; simpl in *; subst => //.
+           repeat right.
            exists 0, 0, 0.
            repeat split; try by try rewrite cat0s -cat_app catA; try apply first_instr_app; eapply lfilled_implies_starts.
-           inversion Hσ ; subst.
-           destruct f ; destruct f2 ; simpl in H7 ; simpl in H6 ; by subst. 
     + simpl in H1; remove_bools_options.
       assert (reduce s f (bef ++ AI_prompt ts hs LI :: aft) s' f'
                 (bef ++ AI_prompt ts hs LI0 :: aft)) as Hles.
@@ -712,16 +717,16 @@ Proof.
         repeat rewrite length_app_rec in Hlen.
         rewrite separate1. repeat rewrite length_app_rec.
         simpl in Hlen. simpl. destruct v; try destruct v; simpl in Hlen; lia. }
-      destruct (IHnnn _ _ _ _ _ _ Hles H2' H1) as [Hσ | [ [i Hstart] |
-                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & Hσ)
-                                                 ]].
-      -- left.
-         inversion Hσ ; subst.
-         rewrite separate1 -cat_app -catA H7 Hves2 //.  
-      -- right ; left.
+      destruct (IHnnn _ _ _ _ _ _ Hles H2' H1) as (-> & [[Hes ->] | [ [i Hstart] |
+                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
+                                                 ]]).
+      -- repeat split => //. left.
+         subst.
+         rewrite separate1 -cat_app -catA Hes Hves2 //.  
+      -- repeat split => //; right ; left.
          exists i. rewrite separate1 -cat_app -catA first_instr_const //.
          rewrite /= const_const //.
-      -- repeat right.
+      -- repeat split => //. repeat right.
          exists i1, i2, i3. repeat split => //=.
          rewrite separate1 -cat_app first_instr_const //.
          rewrite /= const_const //.
@@ -729,10 +734,13 @@ Proof.
          rewrite /= const_const //.
          rewrite - (take_drop 1 es2) first_instr_const //.
          rewrite Hves2 /= const_const //.
-    * repeat right.
+    * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+      inversion Hσ; inversion Hσ' ; subst.
+      repeat split => //.
+      destruct f', f2; simpl in *; subst => //. 
+      repeat right.
       exists 0, 0, 0. 
-      destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
+
       repeat split => //= ; try by try rewrite separate1 -cat_app first_instr_const; try rewrite /= const_const //; eapply lfilled_implies_starts.
-      inversion Hσ ; subst.
-      destruct f ; destruct f2 ; simpl in H7 ; simpl in H6 ; by subst. 
+
 Qed.

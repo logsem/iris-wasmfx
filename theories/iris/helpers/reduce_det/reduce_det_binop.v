@@ -9,7 +9,7 @@ Lemma binop_det v1 v2 v op t s f s' f' es:
 Proof.
   move => H Hred.
   only_one.
-  1-2: inversion Heqesnew; subst; left; rewrite H in H0; inversion H0; subst => //. 
+  1-2: inversion Heqesnew; subst; repeat split => //; left; rewrite H in H0; inversion H0; subst => //. 
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.
@@ -107,7 +107,7 @@ Lemma binop_none_det v1 v2 op t s f s' f' es:
 Proof.
   move => H Hred.
   only_one.
-  inversion Heqesnew; subst; left; rewrite H in H0; inversion H0; subst => //. 
+  inversion Heqesnew; subst; repeat split => //; left; rewrite H in H0; inversion H0; subst => //. 
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.

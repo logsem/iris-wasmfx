@@ -3132,5 +3132,194 @@ Qed.
     eapply reduce_det_label in Heqes'';eauto.
   Qed.
 
+(*
+  Lemma reduce_det_prompt ws f ws' f' es1 n es es'' es2 :
+    opsem.reduce ws f es'' ws' f' es2 ->
+    ∀ l1 l2, es'' = (l1 ++ [AI_prompt n es es1] ++ l2) ->
+    const_list l1 ->
+    iris.to_val es1 = None ->
+    ∃ es2', es2 = l1 ++ [AI_prompt n es es2'] ++ l2 ∧
+              opsem.reduce ws f es1 ws' f' es2'.
+  Proof.
+    revert es2. induction 1.
+    destruct H. 
+    all:intros l1 l2 Heqes'' Hconst Hes1; simplify_eq.
+    all: try destruct ref.
+    all: try by do 2 destruct l1 => //.
+    all: try by try (destruct v; try destruct v); do 3 destruct l1 => //.
+    all: try by do 4 destruct l1 => //.
+    all: try by try (destruct v1, v2; try destruct v; try destruct v0); do 5 destruct l1 => //.
+    all: try by rewrite - (app_nil_r [_]) in Heqes''; apply first_values in Heqes'' as (? & ? & ?); subst; try apply v_to_e_is_const_list.
+    all: try by repeat rewrite cat_app in Heqes''; rewrite separate2 separate1 app_assoc app_assoc - app_assoc in Heqes''; apply first_values in Heqes'' as (? & ? & ?); try apply const_list_concat; subst; try apply v_to_e_is_const_list => //.
+    all: try (destruct l1; last (by destruct l1); inversion Heqes''; subst).
+    - apply const_list_to_val in H as (? & ? & ?); congruence.
+    - done.
+    - move/lfilledP in H0. inversion H0; subst.
+      all: apply first_values in H1 as (?&?&?) => //.
+
+    - apply const_es_exists in H as [? ->].
+      apply lh_pull_const_r_app in H1 as [lh' Hlh'].
+      apply lfilled_to_vfill with (i:=i) in Hlh' as (vh' & Heq & Hvh); last lia.
+      rewrite -Hvh in Hes1. fold (of_val (brV vh')) in Hes1.
+      rewrite to_of_val in Hes1 => //.
+    - move/lfilledP in H0; inversion H0; subst.
+      2-4: apply first_values in H2 as (? & Hres & ?) => //; inversion Hres; subst.
+      + apply val_head_stuck_reduce in H as Hstuck.
+        apply const_list_snoc_eq3 in H2; eauto.
+        2,4: by intros ->.
+        2: by destruct (const_list es0) eqn:Habs => //; exfalso; eapply values_no_reduce.
+        destruct H2 as (vs2 & es2 & Heq1 & Heq2 & Heq3 & Hcons').
+        apply IHreduce in Heq2; eauto.
+        simplify_eq.
+        move/lfilledP in H1. inversion H1. simplify_eq.
+        destruct Heq2 as (es2' & -> & Hstep).
+        repeat erewrite <- app_assoc;erewrite app_assoc.
+        eexists. split;eauto. 
+      + move/lfilledP in H1. inversion H1. eexists. split;eauto.
+        move/lfilledP in H7.
+        move/lfilledP in H13.
+        eapply r_label;eauto. 
+  Qed. *)
+
+  Lemma r_label_trans s f es s' f' es' k lh LI LI' :
+    reduce_trans (s, f, es) (s', f', es') ->
+    lfilled k lh es LI ->
+    lfilled k lh es' LI' ->
+    reduce_trans (s, f, LI) (s', f', LI').
+  Proof.
+    intros Hred HLI HLI'.
+    remember (s, f, es) as y.
+    remember (s', f', es') as y'.
+    generalize dependent es. generalize dependent s.
+    generalize dependent f. generalize dependent es'.
+    generalize dependent s'. generalize dependent f'.
+    generalize dependent LI. generalize dependent LI'.
+    induction Hred; intros; subst.
+    - constructor.
+      eapply r_label.
+      exact H. exact HLI. exact HLI'.
+    - inversion Heqy; subst.
+      eapply lfilled_inj in HLI'; try exact HLI.
+      subst.
+      by constructor.
+    - destruct y as [[??]?].
+      edestruct lfilled_swap as [LI'' HLI''].
+      exact HLI.
+      econstructor 3.
+      + instantiate (1 := (_,_,_)).
+        eapply IHHred1.
+        done.
+        exact HLI''.
+        done.
+        exact HLI.
+      + eapply IHHred2.
+        done.
+        exact HLI'.
+        done.
+        exact HLI''.
+  Qed. 
+      
+  
+  Lemma lfilled_trap_reduce s f es k lh:
+    lfilled k lh [AI_trap] es ->
+    reduce_trans (s, f, es) (s, f, [AI_trap]).
+  Proof.
+    intros H.
+    destruct (lfilled k lh [AI_trap] es) eqn:H' => //. 
+    apply lfilled_Ind_Equivalent in H'.
+    remember [AI_trap] as trap.
+    induction H'; subst.
+    - destruct (seq.cat vs es') eqn:Hvses'.
+      + destruct vs, es' => //. simpl.
+        constructor 2. 
+      + constructor. constructor. econstructor.
+        * destruct vs => //. destruct es' => //. destruct vs => //.
+        * instantiate (1 := LH_base vs es').
+          rewrite /lfilled /lfill /= H0 //.
+    - econstructor 3.
+      + eapply r_label_trans.
+        by apply IHH'.
+        instantiate (1 := LH_rec vs n es' (LH_base [] []) es'').
+        instantiate (1 := 1).
+        rewrite /lfilled /lfill /= H0 app_nil_r //.
+        rewrite /lfilled /lfill /= H0. done.
+      + destruct (vs ++ es'') eqn:Hvses''.
+        * destruct vs, es'' => //.
+          constructor.
+          constructor. apply rs_label_trap.
+        * econstructor 3.
+          -- constructor.
+             instantiate (1 := (_,_,_)).
+             eapply r_label.
+             2: instantiate (2 := LH_base vs es'').
+             2: instantiate (2 := 0).
+             2: instantiate (1 := [_]).
+             2: rewrite /lfilled /lfill /= H0 //.
+             constructor. apply rs_label_trap.
+             rewrite /lfilled /lfill /= H0 //.
+          -- constructor.
+             constructor.
+             econstructor.
+             destruct vs => //. destruct es'' => //. destruct vs => //.
+             instantiate (1 := LH_base vs es'').
+             rewrite /lfilled /lfill /= H0 //.
+    - econstructor 3.
+      + eapply r_label_trans.
+        by apply IHH'.
+        instantiate (1 := LH_handler bef hs (LH_base [] []) aft).
+        instantiate (1 := 0).
+        rewrite /lfilled /lfill /= H0 app_nil_r //.
+        rewrite /lfilled /lfill /= H0. done.
+      + destruct (bef ++ aft) eqn:Hvses''.
+        * destruct bef, aft => //.
+          constructor.
+          constructor. apply rs_handler_trap.
+        * econstructor 3.
+          -- constructor.
+             instantiate (1 := (_,_,_)).
+             eapply r_label.
+             2: instantiate (2 := LH_base bef aft).
+             2: instantiate (2 := 0).
+             2: instantiate (1 := [_]).
+             2: rewrite /lfilled /lfill /= H0 //.
+             constructor. apply rs_handler_trap.
+             rewrite /lfilled /lfill /= H0 //.
+          -- constructor.
+             constructor.
+             econstructor.
+             destruct bef => //. destruct aft => //. destruct bef => //.
+             instantiate (1 := LH_base bef aft).
+             rewrite /lfilled /lfill /= H0 //.
+    - econstructor 3.
+      + eapply r_label_trans.
+        by apply IHH'.
+        instantiate (1 := LH_prompt bef ts hs (LH_base [] []) aft).
+        instantiate (1 := 0).
+        rewrite /lfilled /lfill /= H0 app_nil_r //.
+        rewrite /lfilled /lfill /= H0. done.
+      + destruct (bef ++ aft) eqn:Hvses''.
+        * destruct bef, aft => //.
+          constructor.
+          constructor. apply rs_prompt_trap.
+        * econstructor 3.
+          -- constructor.
+             instantiate (1 := (_,_,_)).
+             eapply r_label.
+             2: instantiate (2 := LH_base bef aft).
+             2: instantiate (2 := 0).
+             2: instantiate (1 := [_]).
+             2: rewrite /lfilled /lfill /= H0 //.
+             constructor. apply rs_prompt_trap.
+             rewrite /lfilled /lfill /= H0 //.
+          -- constructor.
+             constructor.
+             econstructor.
+             destruct bef => //. destruct aft => //. destruct bef => //.
+             instantiate (1 := LH_base bef aft).
+             rewrite /lfilled /lfill /= H0 //.
+  Qed. 
+             
+      
+
   
 End reduce_properties_lemmas.

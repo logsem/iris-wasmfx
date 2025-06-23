@@ -86,7 +86,7 @@ Proof.
     rewrite H4 in H0; inversion H0; subst.
     rewrite H6 in H1; inversion H1; subst.
     apply v_to_e_inj in Hvs as ->.
-    by left.
+    repeat split => //. by left.
   - move/lfilledP in H3; inversion H3; subst.
     all: try by apply first_values in H10 as (? & ? & ?); try apply const_list_concat; try apply v_to_e_is_const_list.
     move/lfilledP in H4; inversion H4; subst.
@@ -211,7 +211,7 @@ Proof.
     eapply hfilled_inj in Hfill'.
     2: exact H3.
     subst.
-    by left.
+    repeat split => //. by left.
 
   - move/lfilledP in H; inversion H; subst.
     all: try by do 2 destruct vs0 => //. 

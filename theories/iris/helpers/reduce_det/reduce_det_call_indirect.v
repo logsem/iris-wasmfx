@@ -14,7 +14,7 @@ Proof.
   only_one.
   1-3: inversion Heqesnew; subst.
   1-3: rewrite H in Ha; inversion Ha; subst.
-  by left. rewrite H0 in Hcl. inversion Hcl; subst.
+  repeat split => //. by left. rewrite H0 in Hcl. inversion Hcl; subst.
   apply H1 in Hclt => //. 
   inversion H3; subst.
   destruct vs; inversion H4; subst => //.

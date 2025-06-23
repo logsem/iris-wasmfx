@@ -10,7 +10,7 @@ Lemma cvtop_convert_det v v' t1 t2 sx s f s' f' es:
 Proof.
   move => H H0 Hred.
   only_one.
-  1-2: inversion Heqesnew; left; subst;
+  1-2: inversion Heqesnew; repeat split => //; left; subst;
   rewrite H0 in H2; inversion H2; subst => //.
   inversion H5; subst.
   destruct vs; inversion H6; subst => //.
@@ -51,7 +51,7 @@ Lemma cvtop_convert_none_det v t1 t2 sx s f s' f' es:
 Proof.
     move => H H0 Hred.
   only_one.
-  inversion Heqesnew; left; subst;
+  inversion Heqesnew; repeat split => //; left; subst;
   rewrite H0 in H2; inversion H2; subst => //.
   inversion H5; subst.
   destruct vs; inversion H6; subst => //.

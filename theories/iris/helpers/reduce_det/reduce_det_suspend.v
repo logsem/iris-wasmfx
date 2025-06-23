@@ -34,7 +34,7 @@ Proof.
     inversion Heq; subst.
     rewrite H3 in H; inversion H; subst.
     apply v_to_e_inj in Hvs as ->.
-    by left.
+    repeat split => //. by left.
     
   - move/lfilledP in H3; inversion H3; subst.
     all: try by apply first_values in H10 as (? & ? & ?); try apply v_to_e_is_const_list.
@@ -114,7 +114,7 @@ Proof.
     inversion H; subst.
     rewrite H1 in Hfirst; inversion Hfirst; subst.
     rewrite H0 in Htag; inversion Htag; subst.
-    by left.
+    repeat split => //. by left.
   - inversion Heqves'; subst.
     edestruct hfilled_first_values as (? & ?).
     instantiate (3 := []).

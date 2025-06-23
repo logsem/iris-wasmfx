@@ -23,7 +23,7 @@ Ltac only_one :=
       try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 4 destruct vs => //
               end);
-      try (by inversion Heqesnew; subst; left);
+      try (by inversion Heqesnew; subst; repeat split => //; left);
       try (move/lfilledP in Hfill; inversion Hfill; subst;
             try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 4 destruct vs => //
@@ -201,8 +201,8 @@ Ltac only_one objs Hred2 :=
   only_one_reduction Heqes Hred2. *)
 
 Definition reduce_det_goal (ws1: store_record) (f1: frame) es1 ws2 f2 es2 es :=
-      ((ws1, f1, es1) = (ws2, f2, es2) \/
+  f1 = f2 /\ (es1 = es2 /\ ws1 = ws2 \/
           (exists i, first_instr es = Some (AI_basic (BI_grow_memory),i)) \/
           (exists i1 i2 i3, first_instr es = Some (AI_trap,i1) /\ first_instr es1 = Some (AI_trap,i2) /\
-                         first_instr es2 = Some (AI_trap,i3) /\
-                         (ws1, f1) = (ws2, f2))).
+                         first_instr es2 = Some (AI_trap,i3) /\ ws1 = ws2)).
+

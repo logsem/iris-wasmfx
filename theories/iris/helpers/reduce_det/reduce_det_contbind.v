@@ -87,7 +87,7 @@ Proof.
     rewrite H5 in H0; inversion H0; subst.
     rewrite H7 in H2; inversion H2; subst.
     apply app_inj_2 in H10 as [-> _] => //. 
-    by left.
+    repeat split => //. by left.
   - repeat destruct vs => //.
     inversion Heqes0; subst.
     rewrite H3 in H2 => //. 

@@ -58,7 +58,7 @@ Proof.
   move => Htf -> Hred.
   only_one.
   inversion Heqesnew; subst.
-  rewrite H in Htf; inversion Htf; subst. by left.
+  rewrite H in Htf; inversion Htf; subst. repeat split => //. by left.
   inversion H3; subst.
     destruct vs; inversion H4; subst => //.
     destruct esnewest; first empty_list_no_reduce.

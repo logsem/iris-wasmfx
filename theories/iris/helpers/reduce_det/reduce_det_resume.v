@@ -81,7 +81,7 @@ Proof.
     subst.
     rewrite H2 in H8.
     apply map_Some_inj in H8 as ->.
-    by left.
+    repeat split => //. by left.
   - repeat destruct vs => //.
     inversion Heqes0; subst.
     rewrite H3 in H1 => //. 

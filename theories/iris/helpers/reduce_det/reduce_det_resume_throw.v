@@ -98,7 +98,7 @@ Proof.
     rewrite H11 in Hdesug.
     apply map_Some_inj in Hdesug as ->.
     apply v_to_e_inj in H5 as <-.
-    by left.
+    repeat split => //. by left.
   - repeat destruct vcs => //.
     inversion Heqes0; subst.
     rewrite H3 in Hcont => //. 

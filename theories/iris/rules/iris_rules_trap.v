@@ -10,11 +10,10 @@ Set Bullet Behavior "Strict Subproofs".
 Section trap_rules.
   Context `{!wasmG Σ}.
 
-  Lemma ewp_trap (E : coPset) Ψ (Φ : iris.val -> iProp Σ) (vs1 es2 : iris.expr) f :
+  Lemma ewp_trap (E : coPset) Ψ (Φ : iris.val -> iProp Σ) (vs1 es2 : iris.expr) f Φf:
     const_list vs1 ->
-    Φ trapV -∗
-    ↪[frame] f -∗
-    EWP vs1 ++ [AI_trap] ++ es2 @ E <| Ψ |> {{ v, Φ v ∗ ↪[frame] f }}.
+    Φ trapV -∗ Φf f -∗
+    EWP vs1 ++ [AI_trap] ++ es2 UNDER f @ E <| Ψ |> {{ v, Φ v ; Φf }}.
   Proof.
     iLöb as "IH" forall (E vs1 es2 f). 
     iIntros (Hconst) "HΦ Hf".
@@ -28,54 +27,51 @@ Section trap_rules.
     iApply ewp_unfold.
     repeat rewrite /ewp_pre /=.
     rewrite Hsome Hsome'.
-    iIntros (σ ns κ κs nt) "Hσ".
+    iIntros (σ) "Hσ".
     iApply fupd_frame_l.
     iSplit.
     { iPureIntro.
-      eexists _,[AI_trap],σ,_.
-      destruct σ as [[ ??]?]. simpl.
+      eexists _,[AI_trap],(_,_,_),_.
       repeat split;eauto.
       eapply r_simple,rs_trap.
       2: instantiate (1 := LH_base vs1 es2);apply lfilled_Ind_Equivalent;by constructor.
       destruct vs1,es2 => //; destruct vs1 => //. }
     { iApply fupd_mask_intro;[solve_ndisj|].
       iIntros "Hcls".
-      iIntros (e2 σ2 Hstep).
+      iIntros (e2 σ2 ?? Hstep).
       iModIntro. iNext. iModIntro.
       iMod "Hcls". iModIntro.
       assert (lfilled 0 (LH_base vs1 es2) [AI_trap] (vs1 ++ (AI_trap :: es2))) as Hfill.
       { apply lfilled_Ind_Equivalent. constructor. done. } 
-      destruct σ as [[ ??]?].
-      destruct σ2 as [[? ?]?].
-      simpl in *. destruct Hstep as [Hstep [-> _]].
+
+      simpl in *. destruct Hstep as [Hstep _].
 
       eapply trap_reduce_length in Hstep as Hred;[|apply Hfill].
       destruct Hred as (? & ? & _ & Hfill' & Heq).
       simplify_eq.
-      iApply bi.sep_exist_l. iExists _. iFrame. 
-      iIntros "Hf".
+      iFrame. 
       apply lfilled_Ind_Equivalent in Hfill';inversion Hfill';subst.
-      iApply ("IH" with "[] HΦ Hf"). auto.
+      destruct f; iApply ("IH" with "[] HΦ Hf"). auto.
     }
   Qed.
 
-  (* Cannot seem to prove this: problem with the frame resource in the to_eff=Some case *)
-  (*
-  Lemma ewp_seq_trap (E : coPset) (es1 es2 : language.expr wasm_lang) f f' Ψ :
-    to_eff es2 = None ->
-    ↪[frame] f ∗ 
-     ( ↪[frame] f -∗ EWP es1 @ E <| Ψ |> {{ w, ⌜w = trapV⌝ ∗ ↪[frame] f' }})
-     ⊢ EWP (es1 ++ es2) @ E <| Ψ |> {{ w, ⌜w = trapV⌝ ∗ ↪[frame] f' }}.
+(* Cannot seem to prove this: problem with the frame resource in the to_eff=Some case
+ UPD: try again with fram baked in? *)
+
+  Lemma ewp_seq_trap (E : coPset) (es1 es2 : language.expr wasm_lang) f Φf Ψ :
+(*    to_eff es2 = None -> *)
+     EWP es1 UNDER f @ E <| Ψ |> {{ w, ⌜w = trapV⌝ ; Φf }}
+     ⊢ EWP (es1 ++ es2) UNDER f @ E <| Ψ |> {{ w, ⌜w = trapV⌝ ; Φf }}.
   Proof.
-    iLöb as "IH" forall (E es1 es2 f f' ).
-    iIntros (Hes2) "[Hf Hes1]". 
-    repeat rewrite ewp_unfold /ewp_pre /=.
+    iLöb as "IH" forall (E es1 es2 f Φf ).
+    iIntros (* Hes2 *) "Hes1". 
+    repeat rewrite ewp_unfold /ewp_pre.
     destruct (iris.to_val (es1 ++ es2)) as [vs|] eqn:Hetov.
     { eapply lfilled_to_val_app with (i:=0) (lh:=LH_base [] []) in Hetov as HH.
       2: cbn;erewrite app_nil_r;by apply/eqP. 
       destruct HH as [vs' [Hvs' Hfilled']].
       rewrite Hvs'.
-      iMod ("Hes1" with "Hf") as "[-> Hf]". iFrame. 
+      iMod "Hes1" as "[-> Hf]". iFrame. 
       apply to_val_trap_is_singleton in Hvs' as ->.
       apply to_val_AI_trap_Some_nil in Hetov as Heq. subst es2.
       rewrite app_nil_r in Hetov.
@@ -92,15 +88,15 @@ Section trap_rules.
         + edestruct const_list_to_val as (vsn & Htv & Hvsn).
           apply const_list_concat. exact Hes1. exact Hes2'.
           rewrite Htv in Hetov => //.
-        + rewrite Hes2' in Hes2 => //. 
+        + edestruct const_list_to_val as (?&?&?); first apply v_to_e_is_const_list.
+          erewrite H.
+          Search (|={_}=> ⌜ _ ⌝)%I.
+          Check fupd_elim_pure.
+x          iDestruct "Hes1" as "[% ?]".
+          rewrite Hes2' in Hes2 => //. 
         + destruct (to_val es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
           rewrite Hin.
-          iFrame. iIntros "Hf".
-          iDestruct ("Hes1" with "Hf") as (f0) "[Hf Hnext]".
-          iDestruct ("IH" with "[] [$Hf]") as "H".
-          done.
-          iFrame. iIntros "Hf".
-          iDestruct ("Hnext" with "Hf") as (Ξ) "[HΞ H]".
+          iDestruct "Hes1" as (Ξ) "[HΞ H]".
           iFrame. iIntros (w) "Hw".
           iSpecialize ("H" with "Hw").
           iNext.
@@ -110,106 +106,133 @@ Section trap_rules.
           rewrite sus_push_const_nil.
           rewrite susfill_sus_append.
           iApply "IH". done. iExact "H".
-      - a dmit.
-      - a dmit.
+      - eapply lfilled_to_eff_app_sw in Hetof as HH; last first.
+        2:{ instantiate (3 := LH_base [] []).
+            instantiate (3 := 0).
+            rewrite /lfilled /lfill /= app_nil_r //. }
+        constructor.
+        destruct HH as [[Hes1 Hes2'] | [(esv & shin & shout & -> & Hes2' & Hout & Htrans) | (shin & shout & Hin & Hout & Htrans)]].
+        + edestruct const_list_to_val as (vsn & Htv & Hvsn).
+          apply const_list_concat. exact Hes1. exact Hes2'.
+          rewrite Htv in Hetov => //.
+        + rewrite Hes2' in Hes2 => //. 
+        + destruct (to_val es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
+          rewrite Hin.
+          iDestruct "Hes1" as (Ξ) "[HΞ H]".
+          iFrame. iIntros (w) "Hw".
+          iSpecialize ("H" with "Hw").
+          iNext.
+          simpl in Hout. inversion Hout; subst.
+          iSimpl. rewrite sw_push_const_nil.
+          rewrite sw_append_nil.
+          rewrite sw_push_const_nil.
+          rewrite swfill_sw_append.
+          iApply "IH". done. iExact "H".
+      - eapply lfilled_to_eff_app_thr in Hetof as HH; last first.
+        2:{ instantiate (3 := LH_base [] []).
+            instantiate (3 := 0).
+            rewrite /lfilled /lfill /= app_nil_r //. }
+        constructor.
+        destruct HH as [[Hes1 Hes2'] | [(esv & shin & shout & -> & Hes2' & Hout & Htrans) | (shin & shout & Hin & Hout & Htrans)]].
+        + edestruct const_list_to_val as (vsn & Htv & Hvsn).
+          apply const_list_concat. exact Hes1. exact Hes2'.
+          rewrite Htv in Hetov => //.
+        + rewrite Hes2' in Hes2 => //. 
+        + destruct (to_val es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
+          rewrite Hin.
+          iDestruct "Hes1" as (Ξ) "[HΞ H]".
+          iFrame. 
     } 
     
     (* Ind *)
-    iIntros (σ ns κ κs nt) "Hσ".
+    iIntros (σ) "Hσ".
     destruct (iris.to_val es1) as [vs|] eqn:Hes.
     { apply of_to_val in Hes as <-.
-      iMod "Hes1" as "->".
+      iMod "Hes1" as "[-> Hf]".
 (*      iMod ("Hes1" with "Hf") as "[%Heq Hf]". subst. *)
       iApply fupd_frame_l.
       iSplit.
       - iPureIntro.
         unfold reducible, reducible.
-        eexists _,[AI_trap],σ,_.
-        destruct σ as [[ ??]?]. simpl.
+        eexists _,[AI_trap],(_,_,_),_.
         repeat split;eauto.
         eapply r_simple,rs_trap.
         2: instantiate (1 := LH_base [] es2);apply lfilled_Ind_Equivalent;by constructor.
         destruct es2 => //. 
       - iApply fupd_mask_intro;[solve_ndisj|].
         iIntros "Hcls".
-        iIntros (e2 σ2 Hstep).
+        iIntros (e2 σ2 ?? Hstep).
         iModIntro. iNext. iModIntro.
         iMod "Hcls". iModIntro.
         assert (lfilled 0 (LH_base [] es2) [AI_trap] (of_val trapV ++ es2)) as Hfill.
         { apply lfilled_Ind_Equivalent. constructor. done. }
-        destruct σ as [[ ??]?].
-        destruct σ2 as [[ ??]?].
-        simpl in *. destruct Hstep as [Hstep [-> _]].
+        simpl in *. destruct Hstep as [Hstep _].
         eapply trap_reduce_length in Hstep as Hred;[|apply Hfill].
         destruct Hred as (? & ? & _ & Hfill' & Heq). simplify_eq.
         apply lfilled_Ind_Equivalent in Hfill'. inversion Hfill';subst.
-        iApply bi.sep_exist_l. iExists _. iFrame. iSplit => //.
-      iIntros "Hf". erewrite app_assoc.
-      iApply ("IH" with "[$Hf]").
-      iIntros "Hf".
-      iApply ewp_trap;eauto. }
-  }
-  { destruct σ as [[ ??]?].
-    set (σ:=(s0,l,i)).
-    iDestruct "Hσ" as "(?&?&?&?&Hfr&?)".
-    iDestruct (ghost_map_lookup with "Hfr Hf") as %Heq1.
+        iFrame. 
+        erewrite app_assoc.
+        iApply "IH".
+        admit.
+        iApply ewp_trap;eauto. by destruct f. }
+
+    destruct (iris.to_eff es1) as [eff|] eqn:Hes'.
+    { apply of_to_eff in Hes' as <-.
+      destruct eff.
+      all: simpl in Hetof.
+      rewrite -susfill_sus_append in Hetof.
+      fold (of_eff (susE vs i (sus_append sh es2))) in Hetof.
+      rewrite to_of_eff in Hetof => //.
+      rewrite -swfill_sw_append in Hetof.
+      fold (of_eff (swE vs k tf i (sw_append sh es2))) in Hetof.
+      rewrite to_of_eff in Hetof => //.
+      rewrite -exnfill_exn_append in Hetof.
+      fold (of_eff (thrE vs a i (exn_append sh es2))) in Hetof.
+      rewrite to_of_eff in Hetof => //. } 
+
     iSpecialize ("Hes1" with "[$]").
-    iSpecialize ("Hes1" $! σ ns κ κs nt with "[$]").
     iMod "Hes1" as "[%H1 H2]".
     iModIntro.
     iSplit.
     - iPureIntro.
-      destruct s => //.
       by apply append_reducible.
-    - iIntros (e2 σ2 HStep).
-      assert (κ = [] /\ efs = []) as [-> ->]; first by apply prim_step_obs_efs_empty in HStep; inversion HStep.
-      apply prim_step_split_reduce_r in HStep; last by [].
-      destruct HStep as [[es'' [-> HStep]] | [n [m [lh [Hlf1 [Hlf2 ->]]]]]].
-      + iSpecialize ("H2" $! es'' σ2 [] HStep).
+    - iIntros (e2 σ2 ?? HStep).
+      apply prim_step_split_reduce_r in HStep ; last by [].
+      destruct HStep as [[es'' [-> HStep]] | [n [m [lh [Hlf1 [Hlf2 Hσ]]]]]]; last (inversion Hσ; subst).
+      + iSpecialize ("H2" $! es'' σ2 _ _ HStep).
         iMod "H2".
         repeat iModIntro.
         repeat iMod "H2".
         iModIntro.
-        destruct σ2 as [[? ?]?].
+
         iDestruct "H2" as "[Hσ H]".
-        iDestruct "H" as (f1) "(Hf1 & Hes'' & Hefs)".
-        iApply bi.sep_exist_l. iExists f1.
         iFrame. (* iSplit => //. *)
-        iIntros "?".
-        iSpecialize ("IH" with "[$]").
-        iApply "IH". eauto.
+        iSpecialize "IH".
+        iApply "IH".
+        done.
+        done.
       + move/lfilledP in Hlf1.
         inversion Hlf1; subst; clear Hlf1.
-        assert (iris.prim_step es1 σ [] [AI_trap] σ []) as HStep2.
+        assert (iris.prim_step es1 (σ,f_locs f, f_inst f) [] [AI_trap] (σ, f_locs f, f_inst f) []) as HStep2.
         { unfold iris.prim_step.
-          destruct σ as [[??]?].
           repeat split => //.
           apply r_simple; eapply rs_trap => //.
           move => HContra; subst.
           by destruct n.
         }
-        iSpecialize ("H2" $! [AI_trap] σ [] HStep2).
+        iSpecialize ("H2" $! [AI_trap] σ _ _ HStep2).
         iMod "H2".
         repeat iModIntro.
         repeat iMod "H2".
-        destruct σ as [[? ?]?].
         iDestruct "H2" as "[Hσ H]".
-        iDestruct "H" as (f1) "(Hf1 & Hes'' & Hefs)".
-        iApply bi.sep_exist_l.  iExists f1.
-        iDestruct "Hσ" as "(?&?&?&?&Hfr&?)".
-        iDestruct (ghost_map_lookup with "Hfr Hf1") as %Heq.
-        iDestruct ("Hes''" with "Hf1") as "Hes''".
         rewrite ewp_unfold /ewp_pre /=.
-        iMod "Hes''" as "[_ Hf1]".
-        iDestruct (ghost_map_lookup with "Hfr Hf1") as %Heq'.
-        simplify_map_eq.
-        (* iModIntro. *)
-        iFrame. (* iApply fupd_frame_r. iSplit => //. *)
-        iModIntro. iIntros "Hf".
+        iMod "H" as "[_ Hf1]".
+        iFrame. 
+        iModIntro. 
         erewrite cons_middle.
         erewrite app_assoc.
-        iApply ("IH" with "[$Hf]").
-        iIntros "Hf".
+        iApply "IH" .
+        admit.
         iApply ewp_trap;auto. }
   Qed. 
 

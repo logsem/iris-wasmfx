@@ -52,7 +52,7 @@ Proof.
   only_one.
   inversion Heqesnew; subst.
   rewrite Hexn in H; inversion H; subst.
-  by left.
+  repeat split => //; by left.
   inversion H3; subst.
     destruct vs0; inversion H4; subst => //.
     destruct esnewest; first empty_list_no_reduce.
@@ -124,7 +124,7 @@ Proof.
     all: try done.
     destruct H2 as [_ ->] => //.
     inversion H1; subst.
-    rewrite H0 in Hfirst; inversion Hfirst; subst. by left.
+    rewrite H0 in Hfirst; inversion Hfirst; subst. repeat split => //; by left.
   - inversion Heqves'; subst.
     edestruct hfilled_first_values as (? & ?).
     instantiate (3 := []).
@@ -202,7 +202,7 @@ Proof.
     all: try done.
     destruct H2 as [_ ->] => //.
     inversion H1; subst.
-    rewrite H0 in Hfirst; inversion Hfirst; subst. by left.
+    rewrite H0 in Hfirst; inversion Hfirst; subst. repeat split => //; by left.
 
 
   - move/lfilledP in H; inversion H; subst.

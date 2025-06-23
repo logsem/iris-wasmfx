@@ -166,6 +166,26 @@ Proof.
   all: rewrite Hf; repeat f_equal; try lia.
 Qed.
 
+
+Lemma starts_with_hfilled e i es k lh les :
+  first_instr es = Some (e,i) ->
+  hfilled k lh es les ->
+  exists i', i' >= i /\ first_instr les = Some (e,i').
+Proof.
+  move => Hf Hlf; move/hfilledP in Hlf.
+  move: Hf; move: e i.
+  induction Hlf; move => e i Hf.
+  all: rewrite first_instr_const => //.
+  { erewrite first_instr_app => //; exists i; split => //; lia. } 
+  all: apply IHHlf in Hf as (i' & Hi' & Hf).
+  all: unfold first_instr in * => /=.
+  all: rewrite Hf; repeat f_equal; try lia.
+  all: eexists; split; last done.
+  all: lia.
+  
+Qed.
+
+
 Lemma starts_implies_not_constant e es :
   first_instr es = Some e ->
   const_list es -> False.

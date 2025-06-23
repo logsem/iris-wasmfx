@@ -15,7 +15,7 @@ Proof.
   (* this is the rs_return case. It combines the difficulties of rs_br with
          the fact that, as for the previous few cases, [ only_one ] cannot be applied
          and thus all the work must be performed by hand *)
-  left ; remember [AI_local n f0 es] as es0.
+  remember [AI_local n f0 es] as es0.
   rewrite <- app_nil_l in Heqes0.
   induction Hred.
   inversion H2.
@@ -33,6 +33,7 @@ Proof.
     edestruct lfilled_first_values as (_ & _ & Hsol).
     exact H5. exact H1. all: try done.
     apply Hsol in H4 as [-> ->] => //.
+    repeat split => //. by left.
   - move/lfilledP in H4; inversion H4; subst.
     do 2 destruct vs0 => //.
     all: do 2 destruct bef => //.

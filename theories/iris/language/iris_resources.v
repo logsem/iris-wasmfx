@@ -6,6 +6,7 @@ From iris.base_logic.lib Require Export fancy_updates.
 From Wasm.iris.helpers Require Import iris_properties.
 From Wasm Require Import stdpp_aux (* datatypes common operations properties memory_list *).
 From Wasm.iris.language.iris Require Export iris_locations iris.
+From Wasm.iris.language Require Import protocols.
 
 
 
@@ -26,6 +27,8 @@ Section wp_def.
 Canonical Structure wasm_lang := Language wasm_mixin.
  
 Local Definition reducible := @reducible wasm_lang.
+
+
 
 (* Implicit Type σ : state. *)
 
@@ -52,9 +55,9 @@ Class wasmG Σ :=
 
       glob_gen_hsG :: gen_heapGS N global Σ;
 
-      locs_gen_hsG :: ghost_mapG Σ unit frame;
+(*      locs_gen_hsG :: ghost_mapG Σ unit frame;
 
-      frameGName : gname
+      frameGName : gname *)
     }.
 
 (* functor needed for NA invariants -- those used by the logical
@@ -83,15 +86,14 @@ Definition gen_heap_wasm_store `{!wasmG Σ} (s: store_record) : iProp Σ :=
 
 
 
-Definition state_interp `{!wasmG Σ} σ :=
-  let: (s, locs, inst) := σ in
+Definition state_interp `{!wasmG Σ} s :=
   ((@gen_heap_interp _ _ _ _ _ func_gen_hsG (gmap_of_list s.(s_funcs))) ∗
      (@gen_heap_interp _ _ _ _ _ cont_gen_hsG (gmap_of_list s.(s_conts))) ∗
      (@gen_heap_interp _ _ _ _ _ tag_gen_hsG (gmap_of_list s.(s_tags))) ∗
       (@gen_heap_interp _ _ _ _ _ tab_gen_hsG (gmap_of_table s.(s_tables))) ∗
       (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
       (gen_heap_interp (gmap_of_list s.(s_globals))) ∗
-      (ghost_map_auth frameGName 1 (<[ tt := Build_frame locs inst ]> ∅)) ∗ 
+(*      (ghost_map_auth frameGName 1 (<[ tt := Build_frame locs inst ]> ∅)) ∗  *)
       (gen_heap_interp (gmap_of_list (fmap operations.length_mem s.(s_mems)))) ∗
       (gen_heap_interp (gmap_of_list (fmap tab_size s.(s_tables)))) ∗
       (@gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt s.(s_mems)))) ∗
@@ -112,10 +114,10 @@ Qed.
 
 Global Instance heapG_irisG `{!wasmG Σ} : irisGS wasm_lang Σ := {
   iris_invGS := func_invG; 
-  state_interp σ _ κs _ := state_interp σ; 
+  state_interp '(σ,_,_) _ _ _ := state_interp σ; 
     num_laters_per_step _ := 0;
     fork_post _ := True%I ;
-    state_interp_mono s0 _ _ _ := state_interp_mono s0 
+    state_interp_mono '(s0,_,_) _ _ _ := state_interp_mono s0 
   }.
 
 End wp_def.
@@ -153,10 +155,10 @@ Notation "n ↦[wg]{ q } v" := (pointsto (L:=N) (V:=global) n q v%V)
                            (at level 20, q at level 5, format "n ↦[wg]{ q } v").
 Notation "n ↦[wg] v" := (pointsto (L:=N) (V:=global) n (DfracOwn 1) v%V)
                       (at level 20, format "n ↦[wg] v") .
-Notation " ↪[frame]{ q } v" := (ghost_map_elem frameGName tt q v%V)
+(*Notation " ↪[frame]{ q } v" := (ghost_map_elem frameGName tt q v%V)
                            (at level 20, q at level 5, format " ↪[frame]{ q } v") .
 Notation " ↪[frame] v" := (ghost_map_elem frameGName tt (DfracOwn 1) v%V)
-                           (at level 20, format " ↪[frame] v").
+                           (at level 20, format " ↪[frame] v"). *)
 
 (* Predicates for memory blocks and whole tables *)  
 Definition mem_block `{!wasmG Σ} (n: N) (m: memory) :=
@@ -170,6 +172,7 @@ Notation "n ↦[wmblock] m" := (mem_block n m)
                            (at level 20, format "n ↦[wmblock] m"): bi_scope.
 Notation "n ↦[wms][ i ] l" := (mem_block_at_pos n l i)                    
                                 (at level 20, format "n ↦[wms][ i ] l"): bi_scope.
+
 
 
 Definition tab_block `{!wasmG Σ} (n: N) (tab: tableinst) :=

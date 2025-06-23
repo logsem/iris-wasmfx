@@ -17,7 +17,7 @@ Proof.
   1-2: rewrite H1 in H; inversion H; subst.
   1-2: rewrite H2 in Hm; inversion Hm; subst.
   1-2: rewrite H3 in Hstore; inversion Hstore; subst.
-  by left.
+  repeat split => //. by left.
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.
@@ -223,7 +223,7 @@ Proof.
   1-2: rewrite H1 in H; inversion H; subst.
   1-2: rewrite H2 in Hm; inversion Hm; subst.
   1-2: rewrite H3 in Hstore; inversion Hstore; subst.
-  by left.
+  repeat split => //. by left.
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.

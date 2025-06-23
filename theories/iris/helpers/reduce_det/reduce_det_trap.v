@@ -14,7 +14,14 @@ Proof.
   induction Hred.
   destruct H.
   84:{ clear IHHred.
-       right. right. exists 0, 0, 0.
+       unfold reduce_det_goal.
+       assert (s = s' /\ f = f' /\ 
+             first_instr les = Some (AI_trap, 0)
+             ∧ first_instr [AI_trap] = Some (AI_trap, 0)
+             ∧ first_instr les' = Some (AI_trap, 0)).
+       2:{ destruct H1 as (-> & -> & ? & ? & ?).
+           repeat split => //. 
+           right. right. exists 0, 0, 0. repeat split => //. }
        generalize dependent les. generalize dependent lh0. generalize dependent les'.
        induction lh; intros les' lh0 H0 les (* Hntrap *) Hfill H.
        all: move/lfilledP in Hfill; inversion Hfill; subst.
@@ -35,6 +42,7 @@ Proof.
          { apply/lfilledP; constructor => //. }
          edestruct trap_reduce as (lh' & Hlh' & Hσ).
          exact H1. exact Hred.
+         inversion Hσ; 
          repeat split => //.
          rewrite first_instr_const //.
          edestruct lfilled_trans.
@@ -54,7 +62,7 @@ Proof.
            { apply/lfilledP; constructor => //. }
            edestruct trap_reduce as (lh'' & Hlh' & Hσ).
            exact H1. exact Hred.
-           repeat split => //.
+           inversion Hσ; repeat split => //.
            rewrite first_instr_const.
            apply first_instr_app.
            unfold first_instr. simpl.
@@ -69,7 +77,7 @@ Proof.
          + apply first_values in H1 as (-> & Hh & ->) => //.
            inversion Hh; subst.
            move/lfilledP in H0; inversion H0; subst.
-           edestruct IHlh as (Hres1 & Hres2 & Hres3 & Hres4).
+           edestruct IHlh as (-> & -> & Hres1 & Hres2 & Hres3).
            apply/lfilledP; exact H13.
            apply/lfilledP; exact H9.
            apply/lfilledP; exact H6.
@@ -100,7 +108,7 @@ Proof.
            { apply/lfilledP; constructor => //. }
            edestruct trap_reduce as (lh'' & Hlh' & Hσ).
            exact H1. exact Hred.
-           repeat split => //.
+           inversion Hσ; subst; repeat split => //.
            rewrite first_instr_const.
            apply first_instr_app.
            unfold first_instr. simpl.
@@ -115,7 +123,7 @@ Proof.
          + apply first_values in H1 as (-> & Hh & ->) => //.
            inversion Hh; subst.
            move/lfilledP in H0; inversion H0; subst.
-           edestruct IHlh as (Hres1 & Hres2 & Hres3 & Hres4).
+           edestruct IHlh as (-> & -> & Hres1 & Hres2 & Hres3).
            apply/lfilledP; exact H14.
            apply/lfilledP; exact H10.
            apply/lfilledP; exact H6.
@@ -169,7 +177,7 @@ Proof.
       lazymatch goal with
       | H : lfilledInd _ _ _ _ |- _ => move/lfilledP in H; apply lfilled_const in H as [??]
       end .
-    all: try by left.
+    all: try by repeat split => //; left.
     all: try by
       apply hfilled_to_llfill in H as [llh Hllh];
     move/lfilledP in H6;

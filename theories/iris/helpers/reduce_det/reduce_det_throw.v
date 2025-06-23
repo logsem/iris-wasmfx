@@ -42,7 +42,7 @@ Proof.
     inversion Heq; subst.
     rewrite H3 in H; inversion H; subst.
     apply v_to_e_inj in H5 as ->.
-    by left.
+    repeat split => //. by left.
     
   - move/lfilledP in H3; inversion H3; subst.
     all: try by apply first_values in H10 as (? & ? & ?); try apply v_to_e_is_const_list.

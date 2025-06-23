@@ -16,7 +16,7 @@ Proof.
     destruct v; destruct v => //;
     inversion H1; subst;
     rewrite H in Hs2; inversion Hs2; subst;
-    left.
+                             repeat split => //; left.
 
   all: inversion H3; subst.
   all: destruct vs; inversion H4; subst => //.

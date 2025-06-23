@@ -17,7 +17,7 @@ Close Scope byte.
 
 Section Iris_instantiation.
 
-Definition assert_const1 (es: expr) : option value :=
+  Definition assert_const1 (es: expr) : option value_num :=
   match es with
   | [:: BI_const v] => Some v
   | _ => None
@@ -176,10 +176,10 @@ Definition mem_typecheck v_imps t_imps (wms: gmap N memory): Prop :=
   | _ => True
   end) v_imps t_imps.
 
-Definition glob_typecheck v_imps t_imps (wgs: gmap N global): Prop :=
+Definition glob_typecheck s v_imps t_imps (wgs: gmap N global) : Prop :=
   Forall2 (fun v t =>
   match v.(modexp_desc) with
-  | MED_global (Mk_globalidx i) => (∃ g gt, wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree g gt)
+  | MED_global (Mk_globalidx i) => (∃ g gt, wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree s g gt)
   | _ => True
   end) v_imps t_imps.
 
@@ -198,16 +198,16 @@ Definition import_mem_wasm_check v_imps t_imps wms : iProp Σ:=
   ⌜mem_typecheck v_imps t_imps wms /\
   mem_domcheck v_imps wms⌝.
 
-Definition import_glob_wasm_check v_imps t_imps wgs : iProp Σ:=
+Definition import_glob_wasm_check s v_imps t_imps wgs : iProp Σ:=
   import_glob_resources wgs ∗
-  ⌜glob_typecheck v_imps t_imps wgs /\
+  ⌜glob_typecheck s v_imps t_imps wgs /\
   glob_domcheck v_imps wgs⌝.
 
-Definition import_resources_wasm_typecheck v_imps t_imps wfs wts wms wgs: iProp Σ :=
+Definition import_resources_wasm_typecheck s v_imps t_imps wfs wts wms wgs: iProp Σ :=
   import_func_wasm_check v_imps t_imps wfs ∗
   import_tab_wasm_check v_imps t_imps wts ∗
   import_mem_wasm_check v_imps t_imps wms ∗
-  import_glob_wasm_check v_imps t_imps wgs.
+  import_glob_wasm_check s v_imps t_imps wgs.
 
   Ltac unfold_irwt_all :=
     unfold import_func_wasm_check;
@@ -227,14 +227,14 @@ Definition import_resources_wasm_typecheck v_imps t_imps wfs wts wms wgs: iProp 
     unfold mem_domcheck;
     unfold glob_domcheck.
   
-Definition import_resources_wasm_typecheck_sepL2 v_imps t_imps wfs wts wms wgs: iProp Σ :=
+Definition import_resources_wasm_typecheck_sepL2 s v_imps t_imps wfs wts wms wgs: iProp Σ :=
   import_resources_wasm_domcheck v_imps wfs wts wms wgs ∗
   [∗ list] i ↦ v; t ∈ v_imps; t_imps,
   match v.(modexp_desc) with
   | MED_func (Mk_funcidx i) => ((∃ cl, N.of_nat i ↦[wf] cl ∗ ⌜ wfs !! (N.of_nat i) = Some cl /\ t = ET_func (cl_type cl) ⌝)%I)
   | MED_table (Mk_tableidx i) => (∃ tab tt, N.of_nat i ↦[wtblock] tab ∗ ⌜ wts !! (N.of_nat i) = Some tab /\ t = ET_tab tt /\ tab_typing tab tt ⌝)
   | MED_mem (Mk_memidx i) => (∃ mem mt, N.of_nat i ↦[wmblock] mem ∗ ⌜ wms !! (N.of_nat i) = Some mem /\ t = ET_mem mt /\ mem_typing mem mt ⌝) 
-  | MED_global (Mk_globalidx i) => (∃ g gt, N.of_nat i ↦[wg] g ∗ ⌜ wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree g gt ⌝)
+  | MED_global (Mk_globalidx i) => (∃ g gt, N.of_nat i ↦[wg] g ∗ ⌜ wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree s g gt ⌝)
   end.
 
 Lemma ifwc_cons_ne v_imps t_imps wfs v t:

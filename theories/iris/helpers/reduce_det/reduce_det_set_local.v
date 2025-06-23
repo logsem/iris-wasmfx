@@ -25,7 +25,7 @@ Proof.
      destruct f2, f, f';
      simpl in Hf2, Hf2', H, H1, Hlenf, H0;
      subst;
-     erewrite Hign; [left |].
+     erewrite Hign; [repeat split => //; left |].
 
   all: inversion H3; subst.
   all: destruct vs; inversion H4; subst => //.

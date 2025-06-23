@@ -30,7 +30,7 @@ Proof.
       apply first_values in Heqes0 as (? & ? & ?);
     try apply const_list_concat; subst; try apply v_to_e_is_const_list.
   - apply concat_cancel_last in Heqes0 as [-> Heq].
-    inversion Heq; subst. left. done.
+    inversion Heq; subst. repeat split => //. left. done.
   - move/lfilledP in H4; inversion H4; subst.
     by apply first_values in H9 as (? & ? & ?).
     by apply first_values in H10 as (? & ? & ?).

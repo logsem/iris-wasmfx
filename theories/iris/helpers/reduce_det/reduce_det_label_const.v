@@ -20,7 +20,7 @@ Proof.
   all: try by inversion Heqves'.
   all: try by do 4 destruct vs0 => //.
   all: try by do 4 destruct vcs => //.
-  - inversion Heqves'; subst. left. done.
+  - inversion Heqves'; subst. repeat split => //. left. done.
   - inversion Heqves'; subst => //.
   - inversion Heqves'; subst.
     apply lfilled_const in H2 as [??] => //.
@@ -63,7 +63,7 @@ Proof.
   all: try by do 4 destruct vs => //.
   all: try by do 4 destruct vcs => //.
   - inversion Heqves'; subst => //. 
-  - inversion Heqves'; subst; left => //.
+  - inversion Heqves'; subst; repeat split => //; left => //.
   - inversion Heqves'; subst.
     eapply filled_singleton in H2 as (_ & _ & ?) => //.
     all: do 2 destruct vs => //.

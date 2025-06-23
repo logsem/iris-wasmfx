@@ -140,89 +140,74 @@ Qed.
 
 (* Instance related *)
 
-Lemma ewp_get_local (E : coPset) (v: value) (i: nat) Ψ (Φ: iris.val -> iProp Σ) f :
+Lemma ewp_get_local (E : coPset) (v: value) (i: nat) Ψ (Φ: iris.val -> iProp Σ) f Φf:
   (f_locs f) !! i = Some v -> 
-  ▷Φ (immV [v]) -∗
-  ↪[frame] f -∗
-                EWP ([AI_basic (BI_get_local i)]) @ E <| Ψ |> {{ w, Φ w ∗ ↪[frame] f }}.
+  ▷Φ (immV [v]) -∗ ▷ Φf f -∗
+   EWP ([AI_basic (BI_get_local i)]) UNDER f @ E <| Ψ |> {{ w, Φ w ; Φf }}.
 Proof.
-  iIntros (Hlook) "HΦ Hli".
+  iIntros (Hlook) "HΦ Hf".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] inst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & Hl & ?)".
-  iDestruct (ghost_map_lookup with "Hl Hli") as "%Hli".
-  simplify_map_eq.
+  iIntros (σ) "Hσ !>".
   rewrite - nth_error_lookup in Hlook.
   iSplit.
   - iPureIntro.
-    exists [], [AI_const v], (ws, locs, inst), [].
+    exists [], [AI_const v], (σ, f_locs f, f_inst f), [].
     unfold iris.prim_step => /=.
     repeat split => //.
-    by apply r_get_local.
-  - iIntros "!>" (es σ2 HStep) "!>".
-    destruct σ2 as [[ws' locs'] inst'] => //=.
-    destruct HStep as [H [-> _]].
+    apply r_get_local => //.
+  - iIntros "!>" (es ??? HStep) "!>".
+    destruct HStep as [H _].
     only_one_reduction H.
-    iFrame "# ∗ %".
+    destruct f; iFrame.
     unfold to_val => //=. rewrite to_val_instr_AI_const //=.
 Qed.
 
-Lemma ewp_set_local (E : coPset) (v : value) (i: nat) Ψ (Φ: iris.val -> iProp Σ) f :
+Lemma ewp_set_local (E : coPset) (v : value) (i: nat) Ψ (Φ: iris.val -> iProp Σ) f Φf:
   i < length (f_locs f) ->
-  ▷ Φ (immV []) -∗
-  ↪[frame] f -∗
-  EWP ([AI_const v; AI_basic (BI_set_local i)]) @ E <| Ψ |> {{ w, Φ w  ∗ ↪[frame] (Build_frame (set_nth v (f_locs f) i v) (f_inst f)) }}.
+  ▷ Φ (immV []) -∗ ▷ Φf (Build_frame (set_nth v (f_locs f) i v) (f_inst f)) -∗
+    EWP ([AI_const v; AI_basic (BI_set_local i)]) UNDER f @ E <| Ψ |> {{ w, Φ w ; Φf }}.
 Proof.
-  iIntros (Hlen) "HΦ Hli".
+  iIntros (Hlen) "HΦ Hf".
   iApply ewp_lift_atomic_step => //=.
   rewrite /to_val /= merge_prepend to_val_instr_AI_const //.
   rewrite /to_eff /= merge_prepend to_val_instr_AI_const //.
   
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] inst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & Hl & ?)".
-  iDestruct (ghost_map_lookup with "Hl Hli") as "%Hli".
-  simplify_map_eq.
+  iIntros (σ) "Hσ !>".
   iSplit.
   - iPureIntro.
-    exists [], [], (ws, set_nth v locs i v, inst), [].
+    exists [], [], (σ, set_nth v (f_locs f) i v, (f_inst f)), [].
     unfold iris.prim_step => /=.
     repeat split => //.
     eapply r_set_local => //=.
     rewrite -(rwP ssrnat.leP). lia.
-  - iIntros "!>" (es σ2 HStep).
-    iMod (ghost_map_update (Build_frame (set_nth v locs i v) inst) with "Hl Hli") as "(Hl & Hli)".
+  - iIntros "!>" (es ??? HStep).
     iModIntro.
-    destruct σ2 as [[ws' locs'] inst'] => //=.
-    destruct HStep as [H [-> _]].
-    eapply reduce_det in H as [H | [ [? Hstart] |  (?&?&?&Hstart & Hstart1 & Hstart2
-                                                               & Hσ)]] ;
-      last (eapply r_set_local with (f' := {| f_locs := set_nth v locs i v; f_inst := inst |}); eauto) ;
+    destruct HStep as [H _].
+    eapply reduce_det in H as [-> [H | [ [? Hstart] |  (?&?&?&Hstart & Hstart1 & Hstart2
+                                                               & Hσ)]]] ;
+      last (eapply r_set_local with (f' := {| f_locs := set_nth v (f_locs f) i v; f_inst := f_inst f |}); eauto) ;
     try by unfold first_instr in Hstart ; simpl in Hstart ; inversion Hstart.
-    inversion H; subst; clear H. simpl.
-    iFrame "# ∗ %".
+    destruct H as [<- <-].
+    iFrame "# ∗ %". 
     rewrite separate1 -cat_app first_instr_const // in Hstart.
     rewrite /= const_const //.
     rewrite -(rwP ssrnat.leP) /=. lia.
 Qed.
 
-Lemma ewp_tee_local (E : coPset) (v : value) (i : nat) Ψ (Φ : iris.val -> iProp Σ) f :
-  ⊢ ↪[frame] f -∗
-    ▷ (↪[frame] f -∗ EWP [AI_const v ; AI_const v ;
+Lemma ewp_tee_local (E : coPset) (v : value) (i : nat) Ψ (Φ : iris.val -> iProp Σ) f Φf :
+  ⊢ 
+    ▷ (EWP [AI_const v ; AI_const v ;
                        AI_basic (BI_set_local i)]
-     @ E <| Ψ |> {{ Φ }}) -∗
-             EWP [AI_const v ; AI_basic (BI_tee_local i)] @ E <| Ψ |> {{ Φ }}.
+                     UNDER f @ E <| Ψ |> {{ Φ ; Φf }}) -∗
+             EWP [AI_const v ; AI_basic (BI_tee_local i)] UNDER f @ E <| Ψ |> {{ Φ ; Φf}}.
 Proof.
-  iIntros "Hf Hwp".
+  iIntros "Hwp".
   iApply ewp_lift_step => //=.
   rewrite /to_val /= merge_prepend to_val_instr_AI_const //.
   rewrite /to_eff /= merge_prepend to_val_instr_AI_const //.
-  iIntros (σ ns κ κs nt) "Hσ".
-  destruct σ as [[ws locs ] inst ].
+  iIntros (σ) "Hσ".
   iApply fupd_mask_intro ; first by solve_ndisj.
   iIntros "Hfupd".
-  iDestruct "Hσ" as "(? & ? & ? & ? & ? & ?)".
   iSplit.
   - iPureIntro.
     unfold reducible, language.prim_step => //=.
@@ -230,16 +215,16 @@ Proof.
     repeat split => //=.
     apply r_simple, rs_tee_local.
     rewrite const_const //.
-  - iIntros "!>" (es σ2 HStep).
+  - iIntros "!>" (es ??? HStep).
     iMod "Hfupd".
     iModIntro.
-    destruct σ2 as [[ws' locs' ] inst' ] => //=.
-    destruct HStep as [H [-> _]].
+    destruct HStep as [H _].
     edestruct reduce_det.
     exact H.
     constructor. constructor. rewrite const_const //.
-    inversion H0; subst.
-    iApply bi.sep_exist_l. iExists _. iFrame.
+    inversion H0; subst; clear H0.
+    destruct H1 as [[-> ->]| H0].
+    destruct f; iFrame.
     destruct H0 as [[??]|(?&?&?&?&_)].
     rewrite separate1 -cat_app first_instr_const // in H0.
     rewrite /= const_const //.
@@ -247,28 +232,25 @@ Proof.
     rewrite /= const_const //.
 Qed.
 
-Lemma ewp_get_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> iProp Σ) (g: global) (k: nat):
+Lemma ewp_get_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> iProp Σ) (g: global) (k: nat) Φf:
   (f_inst f).(inst_globs) !! n = Some k ->
   g.(g_val) = v ->
-  ▷ Φ(immV [v]) -∗
-  ↪[frame] f -∗
-  N.of_nat k ↦[wg] g -∗
-  EWP ([AI_basic (BI_get_global n)]) @ E <| Ψ |> {{ w, Φ w ∗ N.of_nat k ↦[wg] g ∗ ↪[frame] f }}.
+  ▷ Φ(immV [v]) -∗ ▷ Φf f -∗
+    N.of_nat k ↦[wg] g -∗
+  EWP ([AI_basic (BI_get_global n)]) UNDER f @ E <| Ψ |> {{ w, Φ w ∗ N.of_nat k ↦[wg] g ; Φf }}.
 Proof.
-  iIntros (Hinstg Hgval) "HΦ Hinst Hglob".
-  iApply (ewp_wand _ _ _ (λ w, (Φ w ∗ N.of_nat k↦[wg]g) ∗  ↪[frame]f)%I with "[-]");[|iIntros (?) "[[? ?] ?]";iFrame].
+  iIntros (Hinstg Hgval) "HΦ Hf Hglob".
+  iApply (ewp_wand _ _ _ _ _ (λ w, (Φ w ∗ N.of_nat k↦[wg]g))%I with "[-]") ;[|iIntros (?) "?";iFrame].
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
+  iIntros (σ) "Hσ !>".
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hg & Hi & ? & ?)".
   iDestruct (gen_heap_valid with "Hg Hglob") as "%Hglob".
-  iDestruct (ghost_map_lookup with "Hi Hinst") as "%Hli".
   simplify_map_eq.
   rewrite gmap_of_list_lookup Nat2N.id in Hglob.
   rewrite - nth_error_lookup in Hglob.
   rewrite - nth_error_lookup in Hinstg.
-  assert ( sglob_val ws
-                     (f_inst {| f_locs := locs; f_inst := winst |}) n =
+  assert ( sglob_val σ
+                     (f_inst {| f_locs := f_locs f; f_inst := f_inst f |}) n =
            Some (g_val g) ) as Hsglob.
   { unfold sglob_val, option_map, sglob, option_bind, operations.option_bind, sglob_ind => /=.
     by rewrite Hinstg Hglob.
@@ -276,51 +258,50 @@ Proof.
   iSplit.
   - iPureIntro.
     unfold reducible, language.prim_step => /=.
-    eexists [], [AI_const (g_val g)], (ws, locs, _), [].
+    eexists [], [AI_const (g_val g)], (_, _, _), [].
     unfold iris.prim_step => /=.
     repeat split => //.
     by apply r_get_global.
-  - iIntros "!>" (es σ2 HStep) "!>".
-    destruct σ2 as [[ws' locs'] winst'] => //=.
-    destruct HStep as [H [-> _]].
-    only_one_reduction H. iFrame.
+  - iIntros "!>" (es ??? HStep) "!>".
+    destruct HStep as [H _].
+    only_one_reduction H. destruct f; iFrame.
     rewrite to_val_AI_const.
     iFrame.
 Qed.
 
-Lemma ewp_set_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> iProp Σ) (g: global) (k: nat):
+Lemma ewp_set_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> iProp Σ) (g: global) (k: nat) Φf:
   (f_inst f).(inst_globs) !! n = Some k ->
   ▷ Φ (immV []) -∗
-  ↪[frame] f -∗
+  ▷ Φf f -∗
   N.of_nat k ↦[wg] g -∗
-  EWP [AI_const v; AI_basic (BI_set_global n)] @ E <| Ψ |> {{ w, Φ w ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v ∗ ↪[frame] f }}.
+  EWP [AI_const v; AI_basic (BI_set_global n)] UNDER f @ E <| Ψ |> {{ w, Φ w ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v ; Φf }}.
 Proof.
-  iIntros (Hinstg) "HΦ Hinst Hglob".
-  iApply (ewp_wand _ _ _ (λ w, (Φ w ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v) ∗  ↪[frame]f)%I with "[-]");[|iIntros (?) "[[? ?] ?]";iFrame].
+  iIntros (Hinstg) "HΦ Hf Hglob".
+  iApply (ewp_wand _ _ _ _ _ (λ w, (Φ w ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v) )%I with "[-]");[|iIntros (?) "?";iFrame].
   iApply ewp_lift_atomic_step => //=.
   rewrite /to_val /= merge_prepend to_val_instr_AI_const //.
   rewrite /to_eff /= merge_prepend to_val_instr_AI_const //.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
+  iIntros (σ) "Hσ !>".
+
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hg & Hi & ?)".
   iDestruct (gen_heap_valid with "Hg Hglob") as "%Hglob".
-  iDestruct (ghost_map_lookup with "Hi Hinst") as "%Hli".
+  
   simplify_map_eq.
   rewrite gmap_of_list_lookup Nat2N.id in Hglob.
   rewrite - nth_error_lookup in Hglob.
   rewrite - nth_error_lookup in Hinstg.
-  assert (supdate_glob  ws
-                       (f_inst {| f_locs := locs; f_inst := winst |}) n v = 
+  assert (supdate_glob σ
+                       (f_inst {| f_locs := f_locs f; f_inst := f_inst f |}) n v = 
             Some
     {|
-      s_funcs := s_funcs ws;
-      s_tables := s_tables ws;
-      s_mems := s_mems ws;
-      s_conts := s_conts ws;
-      s_exns := s_exns ws;
-      s_tags := s_tags ws;
+      s_funcs := s_funcs σ;
+      s_tables := s_tables σ;
+      s_mems := s_mems σ;
+      s_conts := s_conts σ;
+      s_exns := s_exns σ;
+      s_tags := s_tags σ;
       s_globals :=
-        update_list_at (s_globals ws) k {| g_mut := g_mut g; g_val := v |}
+        update_list_at (s_globals σ) k {| g_mut := g_mut g; g_val := v |}
     |}) as Hsglob.
   { unfold supdate_glob, supdate_glob_s, option_map, sglob, option_bind, operations.option_bind, sglob_ind => /=.
     by rewrite Hinstg Hglob.
@@ -328,17 +309,16 @@ Proof.
   iSplit.
   - iPureIntro.
     unfold reducible, language.prim_step => /=.
-    eexists [], _, (_, locs, _), [].
+    eexists [], _, (_, _, _), [].
     unfold iris.prim_step => /=.
     repeat split => //.
     apply r_set_global;eauto.
     
-  - iIntros "!>" (es σ2 HStep).
-    destruct σ2 as [[ws' locs'] winst'] => //=.
-    destruct HStep as [H [-> _]].
+  - iIntros "!>" (es ??? HStep).
+    destruct HStep as [H _].
     only_one_reduction H.
     iMod (gen_heap_update with "Hg Hglob") as "[Hg Hglob]".
-    iFrame. rewrite nth_error_lookup in Hglob.
+    destruct f; iFrame. rewrite nth_error_lookup in Hglob.
     apply lookup_lt_Some in Hglob as Hlt.
     rewrite -update_list_at_is_set_nth;[|apply/ssrnat.leP; rewrite -length_is_size;lia].
     rewrite -fmap_insert_set_nth//.
@@ -1797,23 +1777,19 @@ Qed.
 
 Lemma ewp_load_deserialize Ψ (Φ:iris.val -> iProp Σ) (E:coPset) t (bv:bytes)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) :
+      (k: i32) (n:nat) (f0: frame) Φf:
   length bv = length_tnum t ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
-  (▷ Φ (immV [VAL_num $ wasm_deserialise bv t]) ∗
-   ↪[frame] f0 ∗
+  (▷ Φ (immV [VAL_num $ wasm_deserialise bv t]) ∗ ▷ Φf f0 ∗
      N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bv ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t None a off)] @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) ∗ ↪[frame] f0 }})).
+          AI_basic (BI_load t None a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) ; Φf }})).
 Proof.
-  iIntros (Htv Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
+  iIntros (σ) "Hσ !>".
   iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  rewrite lookup_insert in Hf0.
-  inversion Hf0; subst; clear Hf0.
+  
   destruct bv eqn:Hb. destruct t;done.
   iDestruct (wms_implies_smems_is_Some with "Hm Hwms") as "(Hwms & Hm & %Hm)".
   destruct Hm as [m Hm].
@@ -1825,40 +1801,40 @@ Proof.
   rewrite - nth_error_lookup in Hm.
   rewrite - nth_error_lookup in Hinstn.
   simpl in Hinstn.
-  destruct (inst_memory winst) eqn:Hinstmem => //.
+  destruct (inst_memory _) eqn:Hinstmem => //.
   inversion Hinstn; subst; clear Hinstn.
   iSplit.
   - iPureIntro.
     unfold language.reducible, language.prim_step => /=.
-    eexists [], [AI_basic (BI_const _)], (ws, locs, winst), [].
+    eexists [], [AI_basic (BI_const _)], (_,_,_), [].
     unfold iris.prim_step => /=.
     repeat split => //.
     eapply r_load_success => //.
     unfold smem_ind.
     by rewrite Hinstmem.
-  - iIntros "!>" (es σ2 HStep) "!>".
-    destruct σ2 as [[ws' locs'] inst'] => //=.
-    destruct HStep as [H [-> _]].
-    eapply reduce_det in H as [ H | [ [? Hfirst] |  (?&?&?&Hfirst & Hfirst2 &
-                                                                  Hfirst3 & Hσ)]] ;
-      last (eapply r_load_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+  - iIntros "!>" (es ??? HStep) "!>".
+
+    destruct HStep as [H _].
+    eapply reduce_det in H as [-> [ H | [ [? Hfirst] |  (?&?&?&Hfirst & Hfirst2 &
+                                                                  Hfirst3 & Hσ)]]] ;
+      last (destruct f0; eapply r_load_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H;subst. iFrame. 
+    destruct H as [<- <-]. destruct f0; iFrame. 
 Qed.
 
 Lemma ewp_load Ψ (Φ:iris.val -> iProp Σ) (E:coPset) t v
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f: frame):
+      (k: i32) (n:nat) (f: frame) Φf:
   types_num_agree t v ->
   f.(f_inst).(inst_memory) !! 0 = Some n ->
   (▷ Φ (immV [VAL_num v]) ∗
-   ↪[frame] f ∗
+   ▷ Φf f ∗
      N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]
      (bits v) ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t None a off)] @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ](bits v)) ∗ ↪[frame] f }})).
+          AI_basic (BI_load t None a off)] UNDER f @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ](bits v)) ; Φf }})).
 Proof.
-  iIntros (Htv Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_load_deserialize;auto.
   { erewrite length_bits;eauto. }
   rewrite deserialise_bits;auto. iFrame.
@@ -1866,23 +1842,21 @@ Qed.
 
 Lemma ewp_load_packed_deserialize Ψ (Φ:iris.val -> iProp Σ) (E:coPset) t (bv:bytes)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) tp sx :
+      (k: i32) (n:nat) (f0: frame) tp sx Φf:
   length bv = length_tp tp ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   (▷ Φ (immV [VAL_num $ wasm_deserialise bv t]) ∗
-   ↪[frame] f0 ∗
+   ▷ Φf f0 ∗
      N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bv ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t (Some (tp, sx)) a off)] @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) ∗ ↪[frame] f0 }})).
+          AI_basic (BI_load t (Some (tp, sx)) a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) ; Φf }})).
 Proof.
-  iIntros (Htv Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
+  iIntros (σ) "Hσ !>".
+
   iDestruct "Hσ" as "(? &? & ? & ? & Hm & ? & Hframe & Hγ)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  rewrite lookup_insert in Hf0.
-  inversion Hf0; subst; clear Hf0.
+  
   destruct bv eqn:Hb.
   destruct tp;done.
   iDestruct (wms_implies_smems_is_Some with "Hm Hwms") as "(Hwms & Hm & %Hm)".
@@ -1895,142 +1869,137 @@ Proof.
   simpl in Hinstn.
   rewrite -Hb in Htv.
   rewrite Htv in Hload.
-  destruct (inst_memory winst) eqn:Hinstmem => //.
+  destruct (inst_memory _) eqn:Hinstmem => //.
   inversion Hinstn; subst; clear Hinstn.
   iSplit.
   - iPureIntro.
     unfold language.reducible, language.prim_step => /=.
-    eexists [], [AI_basic (BI_const _)], (ws, locs, winst), [].
+    eexists [], [AI_basic (BI_const _)], (_,_,_), [].
     unfold iris.prim_step => /=.
     repeat split => //.
     eapply r_load_packed_success => //.
     unfold smem_ind.
     by rewrite Hinstmem.
-  - iIntros "!>" (es σ2 HStep) "!>".
-    destruct σ2 as [[ws' locs'] inst'] => //=.
-    destruct HStep as [H [-> _]].
-    eapply reduce_det in H as [ H | [ [? Hfirst] | (?&?&?&Hfirst & Hfirst2 &
-                                                                  Hfirst3 & Hσ)(* ] *)]] ;
-      last (eapply r_load_packed_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+  - iIntros "!>" (es ??? HStep) "!>".
+
+    destruct HStep as [H _].
+    eapply reduce_det in H as [-> [ H | [ [? Hfirst] | (?&?&?&Hfirst & Hfirst2 &
+                                                                  Hfirst3 & Hσ)(* ] *)]] ];
+      last (destruct f0; eapply r_load_packed_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ; 
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H ; subst. iFrame. 
+    destruct H as [<- <-]. destruct f0; iFrame. 
 Qed.
 
 Lemma ewp_load_failure Ψ (Φ:iris.val -> iProp Σ) (E:coPset)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) t len :
+      (k: i32) (n:nat) (f0: frame) t len Φf:
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tnum t)) > len)%N ->
-  (▷ Φ trapV ∗ ↪[frame] f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
+  (▷ Φ trapV ∗ ▷ Φf f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t None a off)] @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wmlength] len) ∗ ↪[frame] f0 }})).
+          AI_basic (BI_load t None a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wmlength] len); Φf }})).
 Proof.
-  iIntros (Htv Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ ws locs] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  iAssert (⌜is_Some (s_mems ws !! n)⌝)%I as %[m Hm].
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
+  iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
     rewrite gmap_of_list_lookup in HH.
     rewrite Nat2N.id in HH.
     rewrite list_lookup_fmap /= in HH.
-    destruct (s_mems ws !! n );eauto. }  
+    destruct (s_mems σ !! n );eauto. }  
   simplify_map_eq.
   iDestruct (wms_is_not_load with "Hwms Hγ") as %Hnload;[eauto..|].
   rewrite Nat2N.id in Hnload.
-  destruct (inst_memory winst) eqn:Hinstmem => //.
+  destruct (inst_memory _) eqn:Hinstmem => //.
   inversion Hinstn; subst; clear Hinstn.
   iSplit.
   - iPureIntro.
     unfold language.reducible, language.prim_step => /=.
-    eexists [], [AI_trap], (_, locs, winst), [].
+    eexists [], [AI_trap], (_, _,_), [].
     repeat split => //.
     eapply r_load_failure => //=.
     unfold smem_ind.
     by rewrite Hinstmem.
     by rewrite nth_error_lookup.
-  - iIntros "!>" (es σ2 HStep).
-    destruct σ2 as [[ws2 locs2] winst2].
+  - iIntros "!>" (es ??? HStep).
+
     rewrite -nth_error_lookup in Hm.
     iModIntro.
-    destruct HStep as [HStep [-> _]].
-    eapply reduce_det in HStep as [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
-                                                                       Hfirst3 & Hσ)]] ;
-      last (eapply r_load_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+    destruct HStep as [HStep _].
+    eapply reduce_det in HStep as [-> [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
+                                                                       Hfirst3 & Hσ)]]] ;
+      last (destruct f0; eapply r_load_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H ; subst; clear H => /=.
-    iFrame.
+    destruct H as [<- <-].
+    iFrame. 
 Qed.
 
 Lemma ewp_load_packed_failure Ψ (Φ:iris.val -> iProp Σ) (E:coPset)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) t len tp sx :
+      (k: i32) (n:nat) (f0: frame) t len tp sx Φf :
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tp tp)) > len)%N ->
-  (▷ Φ trapV ∗ ↪[frame] f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
+  (▷ Φ trapV ∗ ▷ Φf f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t (Some (tp,sx)) a off)] @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wmlength] len) ∗ ↪[frame] f0 }})).
+          AI_basic (BI_load t (Some (tp,sx)) a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wmlength] len) ; Φf }})).
 Proof.
-  iIntros (Htv Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  iAssert (⌜is_Some (s_mems ws !! n)⌝)%I as %[m Hm].
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? &  Hm & ? & Hframe & Hγ & ?)".
+  iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
     rewrite gmap_of_list_lookup in HH.
     rewrite Nat2N.id in HH.
     rewrite list_lookup_fmap /= in HH.
-    destruct (s_mems ws !! n );eauto. }  
+    destruct (s_mems σ !! n );eauto. }  
   simplify_map_eq.
   iDestruct (wms_is_not_load_packed _ _ _ _ _ _ _ (length_tnum t) sx  with "Hwms Hγ") as %Hnload;[eauto..|].
   rewrite Nat2N.id in Hnload.
-  destruct (inst_memory winst) eqn:Hinstmem => //.
+  destruct (inst_memory _) eqn:Hinstmem => //.
   inversion Hinstn; subst; clear Hinstn.
   iSplit.
   - iPureIntro.
     unfold language.reducible, language.prim_step => /=.
-    eexists [], [AI_trap], (_, locs, winst), [].
+    eexists [], [AI_trap], (_, _,_), [].
     repeat split => //.
     eapply r_load_packed_failure => //=.
     unfold smem_ind.
     by rewrite Hinstmem.
     by rewrite nth_error_lookup.
-  - iIntros "!>" (es σ2 HStep).
-    destruct σ2 as [[ws2 locs2] winst2].
+  - iIntros "!>" (es ??? HStep).
+
     rewrite -nth_error_lookup in Hm.
     iModIntro.
-    destruct HStep as [HStep [-> _]].
-    eapply reduce_det in HStep as [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
-                                                                       Hfirst3 & Hσ)]] ;
-      last (eapply r_load_packed_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+    destruct HStep as [HStep _].
+    eapply reduce_det in HStep as [-> [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
+                                                                       Hfirst3 & Hσ)]]] ;
+      last (destruct f0; eapply r_load_packed_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H ; subst; clear H => /=.
-    iFrame.
+    destruct H as [<- <-].
+    iFrame. 
 Qed.
 
 
 Lemma ewp_store Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f: frame) :
+      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f: frame) Φf:
   types_num_agree t v ->
   length bs = length_tnum t ->
   f.(f_inst).(inst_memory) !! 0 = Some n ->
-  (▷ ϕ (immV []) ∗
-   ↪[frame] f ∗
-  N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bs) ⊢
-  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wms][ Wasm_int.N_of_uint i32m k + off ] (bits v)) ∗ ↪[frame] f }}).
+  (▷ ϕ (immV []) ∗ ▷ Φf f ∗
+     N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bs) ⊢
+  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) UNDER f @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wms][ Wasm_int.N_of_uint i32m k + off ] (bits v)) ; Φf }}).
 Proof.
-  iIntros (Hvt Hbs Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Hvt Hbs Hinstn) "(HΦ & HΦf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hmemlength & ? & Hmemlimit & ?)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  rewrite lookup_insert in Hf0.
-  inversion Hf0; subst; clear Hf0.
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
+  
   erewrite <- (bits_deserialise bs) => //=.
   remember (wasm_deserialise bs t) as vinit.
   assert (types_num_agree t vinit) as Hvinit.
@@ -2046,7 +2015,7 @@ Proof.
   rewrite - nth_error_lookup in Hm.
   rewrite - nth_error_lookup in Hinstn.
   simpl in Hinstn.
-  destruct (inst_memory winst) eqn: Hinstmem => //.
+  destruct (inst_memory _) eqn: Hinstmem => //.
   inversion Hinstn; subst m0; clear Hinstn.
   iSplit.
   - iPureIntro.
@@ -2055,13 +2024,13 @@ Proof.
     edestruct (if_load_then_store (bits vinit) (bits v)) as [mem Hsomemem];eauto.
     { simplify_eq. erewrite length_bits => //=. }
     erewrite length_bits in Hsomemem => //=.
-    eexists [], [], (_, locs, winst), [].
+    eexists [], [], (_, _,_), [].
     repeat split => //.
     eapply r_store_success => //=.
     unfold smem_ind.
     by rewrite Hinstmem.    
-  - iIntros "!>" (es σ2 HStep).
-    destruct σ2 as [[ws2 locs2] winst2].
+  - iIntros "!>" (es ??? HStep).
+
     edestruct (if_load_then_store (bits vinit) (bits v)) as [mem Hsomemem] ; eauto;
       repeat erewrite length_bits => //=.
     erewrite length_bits in Hsomemem => //=.
@@ -2071,12 +2040,12 @@ Proof.
     done.
     rewrite nth_error_lookup in Hm => //=.
     iModIntro.
-    destruct HStep as [HStep [-> _]].
-    eapply reduce_det in HStep as [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
-                                                                       Hfirst3 & Hσ) ]] ;
-      last (eapply r_store_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+    destruct HStep as [HStep _].
+    eapply reduce_det in HStep as [-> [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
+                                                                       Hfirst3 & Hσ) ]]] ;
+      last (destruct f; eapply r_store_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H ; subst; clear H => /=.
+    destruct H as [<- <-].
     iFrame.
     rewrite update_list_at_insert; last by rewrite nth_error_lookup in Hm; apply lookup_lt_Some in Hm.
     repeat rewrite list_fmap_insert.
@@ -2088,30 +2057,27 @@ Proof.
     apply store_mem_max_opt in Hsomemem as Hmemlimit.
     rewrite - Hmemlimit.
     do 2 (rewrite list_insert_id; last by rewrite list_lookup_fmap; rewrite - nth_error_lookup; rewrite Hm).
-    by iFrame.
+    iFrame. 
 Qed.
 
 Lemma ewp_store_packed Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) tp :
+      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) tp Φf:
   types_num_agree t v ->
   length bs = length_tp tp ->
   length_tp tp <  length_tnum t ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   (▷ ϕ (immV []) ∗
-   ↪[frame] f0 ∗
+   ▷ Φf f0 ∗
   N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bs) ⊢
-   (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]) @ E <| Ψ |>
+   (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]) UNDER f0 @ E <| Ψ |>
                   {{ w, (ϕ w ∗ (N.of_nat n) ↦[wms][ Wasm_int.N_of_uint i32m k + off ] bytes_takefill #00%byte (length_tp tp) 
-             (bits v)) ∗ ↪[frame] f0 }}).
+             (bits v)) ; Φf }}).
 Proof.
-  iIntros (Hvt Hbs Hlt Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Hvt Hbs Hlt Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ ws locs] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hmemlength & ? & Hmemlimit & ?)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  rewrite lookup_insert in Hf0.
-  inversion Hf0; subst; clear Hf0.
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
   destruct bs.
   { simpl in Hbs. destruct tp;simpl in Hbs;lia. }
   iDestruct (wms_implies_smems_is_Some with "Hm Hwms") as "(Hwms & Hm & %Hm)".
@@ -2127,18 +2093,18 @@ Proof.
   rewrite - nth_error_lookup in Hm.
   rewrite - nth_error_lookup in Hinstn.
   simpl in Hinstn.
-  destruct (inst_memory winst) eqn: Hinstmem => //.
+  destruct (inst_memory _) eqn: Hinstmem => //.
   inversion Hinstn; subst m0; clear Hinstn.
   iSplit.
   - iPureIntro.
     unfold language.reducible, language.prim_step => /=.
-    eexists [], [], (_, locs, winst), [].
+    eexists [], [], (_, _,_), [].
     repeat split => //.
     eapply r_store_packed_success => //=.
     unfold smem_ind.
     by rewrite Hinstmem.
-  - iIntros "!>" (es σ2 HStep).
-    destruct σ2 as [[ws2 locs2] winst2].
+  - iIntros "!>" (es ??? HStep).
+
     iMod (gen_heap_update_big_wm (b :: bs) (bytes_takefill #00%byte (length_tp tp) (bits v)) with "Hm Hwms")
       as "[Hm Hwms]";eauto.
     { by rewrite Hbs length_bytes_takefill. }
@@ -2146,14 +2112,14 @@ Proof.
       rewrite store_bytes_takefill_eq. eauto. }
     { by rewrite nth_error_lookup in Hm. }
     iModIntro.
-    destruct HStep as [HStep [-> _]].
-    eapply reduce_det in HStep as [H | [[? Hfirst] |  (?&?&?& Hfirst & Hfirst2 &
-                                                          Hfirst3 & Hσ) ]] ;
-      last (eapply r_store_packed_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+    destruct HStep as [HStep _].
+    eapply reduce_det in HStep as [-> [H | [[? Hfirst] |  (?&?&?& Hfirst & Hfirst2 &
+                                                          Hfirst3 & Hσ) ]]] ;
+      last (destruct f0; eapply r_store_packed_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H ; subst; clear H => /=.
-    iFrame.
-    erewrite (store_mem_len_eq _ _ _ (bytes_takefill #00%byte (length_tp tp) (bits v)));[iFrame|..].
+    destruct H as [<- <-].
+    iFrame. 
+    iSimpl. erewrite (store_mem_len_eq _ _ _ (bytes_takefill #00%byte (length_tp tp) (bits v)));[iFrame|..].
     + apply store_mem_max_opt in Hstore as Hmemlimit.   
     rewrite update_list_at_insert; last by rewrite nth_error_lookup in Hm; apply lookup_lt_Some in Hm.
     rewrite list_fmap_insert list_insert_id => //.
@@ -2163,138 +2129,134 @@ Proof.
 Qed. 
 
 Lemma ewp_store_failure Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-       (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len :
+       (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len Φf:
   types_num_agree t v ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tnum t)) > len)%N ->
-  (▷ ϕ (trapV) ∗
-   ↪[frame] f0 ∗ (N.of_nat n) ↦[wmlength] len) ⊢
-  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wmlength] len) ∗ ↪[frame] f0 }}).
+  (▷ ϕ (trapV) ∗ ▷ Φf f0 ∗
+   (N.of_nat n) ↦[wmlength] len) ⊢
+  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) UNDER f0 @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wmlength] len) ; Φf }}).
 Proof.
-  iIntros (Htypes Htv Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Htypes Htv Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  iAssert (⌜is_Some (s_mems ws !! n)⌝)%I as %[m Hm].
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hγ & ?)".
+
+  iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
     rewrite gmap_of_list_lookup in HH.
     rewrite Nat2N.id in HH.
     rewrite list_lookup_fmap /= in HH.
-    destruct (s_mems ws !! n );eauto. }  
+    destruct (s_mems σ !! n );eauto. }  
   simplify_map_eq.
   iDestruct (wms_is_not_store with "Hwms Hγ") as %Hnload;[eauto..|].
   rewrite Nat2N.id in Hnload.
-  destruct (inst_memory winst) eqn:Hinstmem => //.
+  destruct (inst_memory _) eqn:Hinstmem => //.
   inversion Hinstn; subst; clear Hinstn.
   iSplit.
   - iPureIntro.
     unfold language.reducible, language.prim_step => /=.
-    eexists [], [AI_trap], (_, locs, winst), [].
+    eexists [], [AI_trap], (_, _,_), [].
     repeat split => //.
     eapply r_store_failure => //=.
     unfold smem_ind.
     by rewrite Hinstmem.
     by rewrite nth_error_lookup.
-  - iIntros "!>" (es σ2 HStep).
-    destruct σ2 as [[ws2 locs2] winst2].
+  - iIntros "!>" (es ??? HStep).
+
     rewrite -nth_error_lookup in Hm.
     iModIntro.
-    destruct HStep as [HStep [-> _]].
-    eapply reduce_det in HStep as [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
-                                                                       Hfirst3 & Hσ)]] ;
-      last (eapply r_store_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+    destruct HStep as [HStep _].
+    eapply reduce_det in HStep as [-> [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
+                                                                       Hfirst3 & Hσ)]]] ;
+      last (destruct f0; eapply r_store_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H ; subst; clear H => /=.
-    iFrame.
+    destruct H as [<- <-].
+    iFrame. 
 Qed.
 
 Lemma ewp_store_packed_failure Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-      (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len tp :
+      (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len tp Φf:
   types_num_agree t v ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tp tp)) > len)%N ->
-  (▷ ϕ (trapV) ∗
-   ↪[frame] f0 ∗ (N.of_nat n) ↦[wmlength] len) ⊢
-  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]) @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wmlength] len) ∗ ↪[frame] f0 }}).
+  (▷ ϕ (trapV) ∗ ▷ Φf f0 ∗
+   (N.of_nat n) ↦[wmlength] len) ⊢
+  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]) UNDER f0 @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wmlength] len) ; Φf }}).
 Proof.
-  iIntros (Htypes Htv Hinstn) "[HΦ [Hf0 Hwms]]".
+  iIntros (Htypes Htv Hinstn) "(HΦ & Hf & Hwms)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ ws locs] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hf0".
-  iAssert (⌜is_Some (s_mems ws !! n)⌝)%I as %[m Hm].
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hγ & ?)".
+  iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
     rewrite gmap_of_list_lookup in HH.
     rewrite Nat2N.id in HH.
     rewrite list_lookup_fmap /= in HH.
-    destruct (s_mems ws !! n );eauto. }  
+    destruct (s_mems σ !! n );eauto. }  
   simplify_map_eq.
   iDestruct (wms_is_not_store with "Hwms Hγ") as %Hnload;[eauto..|].
   rewrite Nat2N.id in Hnload.
-  destruct (inst_memory winst) eqn:Hinstmem => //.
+  destruct (inst_memory _) eqn:Hinstmem => //.
   inversion Hinstn; subst; clear Hinstn.
   iSplit.
   - iPureIntro.
     unfold language.reducible, language.prim_step => /=.
-    eexists [], [AI_trap], (_, locs, winst), [].
+    eexists [], [AI_trap], (_, _,_), [].
     repeat split => //.
     eapply r_store_packed_failure => //=.
     unfold smem_ind.
     by rewrite Hinstmem.
     by rewrite nth_error_lookup.
-  - iIntros "!>" (es σ2 HStep).
-    destruct σ2 as [[ws2 locs2] winst2].
+  - iIntros "!>" (es ??? HStep).
+
     rewrite -nth_error_lookup in Hm.
     iModIntro.
-    destruct HStep as [HStep [-> _]].
-    eapply reduce_det in HStep as [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
-                                                                       Hfirst3 & Hσ)]] ;
-      last (eapply r_store_packed_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
+    destruct HStep as [HStep _].
+    eapply reduce_det in HStep as [-> [H | [[? Hfirst] | (?&?&?& Hfirst & Hfirst2 &
+                                                                       Hfirst3 & Hσ)]]] ;
+      last (destruct f0; eapply r_store_packed_failure => //= ; unfold smem_ind ; by rewrite Hinstmem) ;
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
-    inversion H ; subst; clear H => /=.
-    iFrame.
+    destruct H as [<- <-].
+    iFrame. 
 Qed.
   
 
-Lemma ewp_current_memory (E: coPset) (k: nat) (n: N) (f:frame) Ψ (Φ: iris.val -> iProp Σ) :
+Lemma ewp_current_memory (E: coPset) (k: nat) (n: N) (f:frame) Ψ (Φ: iris.val -> iProp Σ) Φf :
   f.(f_inst).(inst_memory) !! 0 = Some k ->
   (▷ Φ (immV [VAL_num (VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (N.div n page_size))))]) ∗
-   ↪[frame] f ∗
+   ▷ Φf f ∗
    (N.of_nat k) ↦[wmlength] n) ⊢
-   EWP ([AI_basic (BI_current_memory)]) @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat k) ↦[wmlength] n) ∗ ↪[frame] f }}.
+   EWP ([AI_basic (BI_current_memory)]) UNDER f @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat k) ↦[wmlength] n) ; Φf }}.
 Proof.
-  iIntros (Hf) "(HΦ & Hf0 & Hmemlength)".
+  iIntros (Hf) "(HΦ & Hf & Hmemlength)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws locs] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
-  iDestruct (ghost_map_lookup with "Hframe Hf0") as "%Hframe".
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hγ & ?)".
   iDestruct (gen_heap_valid with "Hγ Hmemlength") as "%Hmemlength".
-  rewrite lookup_insert in Hframe.
-  inversion Hframe; subst; clear Hframe.
   rewrite - nth_error_lookup in Hf.
   rewrite gmap_of_list_lookup list_lookup_fmap Nat2N.id in Hmemlength => /=.
-  destruct (s_mems ws !! k) eqn:Hmemlookup => //.
+  destruct (s_mems σ !! k) eqn:Hmemlookup => //.
   rewrite - nth_error_lookup in Hmemlookup.
   simpl in Hmemlength.
   inversion Hmemlength; clear Hmemlength.
   iSplit.
   - iPureIntro.
-    exists [], [AI_basic (BI_const (VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (N.div n page_size)))))], (ws, locs, winst), [].
+    eexists [], [AI_basic (BI_const (VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (N.div n page_size)))))], (_,_,_), [].
 
     unfold iris.prim_step => /=.
     repeat split => //.
     eapply r_current_memory => //.
     unfold mem_size.
     by f_equal.
-  - iIntros "!>" (es σ2 HStep) "!>".
-    destruct σ2 as [[ws' locs'] inst'] => //=.
-    destruct HStep as [H [-> _]].
+  - iIntros "!>" (es ??? HStep) "!>".
+
+    destruct HStep as [H _].
     only_one_reduction H.
-    iFrame.
+    iFrame. destruct f => //.
 Qed.
 
 Lemma gen_heap_alloc_grow (m m' : memory) (mems mems' : list memory) (k : nat) (n : N) : 
@@ -2533,33 +2495,31 @@ Qed.
 Definition mem_in_bound (c: N):= (c <= page_limit)%N.
 
 Lemma ewp_grow_memory (E: coPset) (k: nat) (f : frame)
-      (n: N) Ψ (Φ Φ' : iris.val -> iProp Σ) (c: i32) :
+      (n: N) Ψ (Φ Φ' : iris.val -> iProp Σ) (c: i32) Φf:
   f.(f_inst).(inst_memory) !! 0 = Some k ->
-  ( ↪[frame] f ∗
+  ( 
      (N.of_nat k) ↦[wmlength] n ∗
      ▷ Φ (immV [VAL_num $ VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (n `div` page_size)%N))]) ∗
-     ▷ Φ' (immV [VAL_num $ VAL_int32 int32_minus_one]))
+     ▷ Φ' (immV [VAL_num $ VAL_int32 int32_minus_one]) ∗ ▷ Φf f)
     ⊢ EWP [AI_basic (BI_const (VAL_int32 c)) ; AI_basic (BI_grow_memory)]
-    @ E <| Ψ |> {{ w, ((Φ w ∗
+    UNDER f @ E <| Ψ |> {{ w, ((Φ w ∗
                     ((N.of_nat k) ↦[wms][ n ]
                     repeat #00%byte (N.to_nat (Wasm_int.N_of_uint i32m c * page_size))) ∗
                     (N.of_nat k) ↦[wmlength]
                     (n + Wasm_int.N_of_uint i32m c * page_size)%N) ∗
                     ⌜ mem_in_bound ((n `div` page_size + Wasm_int.N_of_uint i32m c)) ⌝
-                 ∨ (Φ' w ∗ (N.of_nat k) ↦[wmlength] n)) ∗ ↪[frame] f }}.
+                 ∨ (Φ' w ∗ (N.of_nat k) ↦[wmlength] n)) ; Φf }}.
 Proof.
-  iIntros (Hfm) "(Hframe & Hmlength & HΦ & HΨ)".
+  iIntros (Hfm) "(Hmlength & HΦ & HΨ & Hf)".
   iApply ewp_lift_atomic_step => //=.
-  iIntros (σ ns κ κs nt) "Hσ !>".
-  destruct σ as [[ws  locs ] winst].
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hf & Hmemlength & ? & Hmemlimit & ?)".
-  iDestruct (ghost_map_lookup with "Hf Hframe") as "%Hframe".
+  iIntros (σ) "Hσ !>".
+
+  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
+
   iDestruct (gen_heap_valid with "Hmemlength Hmlength") as "%Hmemlength".
-  rewrite lookup_insert in Hframe.
-  inversion Hframe ; subst ; clear Hframe.
   rewrite - nth_error_lookup in Hfm.
   rewrite gmap_of_list_lookup list_lookup_fmap Nat2N.id in Hmemlength => /=.
-  destruct (s_mems ws !! k) eqn:Hmemlookup => //.
+  destruct (s_mems σ !! k) eqn:Hmemlookup => //.
   simpl in Hmemlength.
   inversion Hmemlength as [Hmemlength']; clear Hmemlength.
   iSplit.
@@ -2569,12 +2529,12 @@ Proof.
     repeat split => //=.
     eapply r_grow_memory_failure => //=.
     by rewrite nth_error_lookup.
-  - iIntros "!>" (es σ2 HStep). 
-    destruct σ2 as [[ws' locs'] inst'] => //=.
-    destruct HStep as [H [-> _]].
+  - iIntros "!>" (es ??? HStep). 
+
+    destruct HStep as [H _].
     remember [AI_basic (BI_const (VAL_int32 c)) ; AI_basic BI_grow_memory] as es0.
-    remember {| f_locs := locs ; f_inst := winst |} as f.
-    remember {| f_locs := locs' ; f_inst := inst' |} as f'.
+    remember {| f_locs := f_locs f ; f_inst := f_inst f |} as f0.
+    remember {| f_locs := locs2 ; f_inst := inst2 |} as f'.
     replace [AI_basic (BI_const (VAL_int32 c)) ; AI_basic BI_grow_memory] with
       ([AI_basic (BI_const (VAL_int32 c))] ++ [AI_basic BI_grow_memory]) in Heqes0 => //=.
     induction H ; try by inversion Heqes0 ;
@@ -2592,15 +2552,16 @@ Proof.
     { (* grow_memory succeeded *)
       inversion Heqes0 ; subst c0; clear Heqes0.
       unfold smem_ind in H.
-      destruct (inst_memory (f_inst f)) ; try by inversion Hfm.
+      destruct f; rewrite Heqf0 in Heqf'; inversion Heqf'; subst; simpl in *.
+      destruct (inst_memory inst2) ; try by inversion Hfm.
       simpl in Hfm.
       inversion Hfm ; subst m1 ; clear Hfm.
       inversion H ; subst i ; clear H.
       rewrite nth_error_lookup in H0.
       rewrite Hmemlookup in H0.
       inversion H0 ; subst m0 ; clear H0.
-      unfold mem_size in H1.
-      rewrite Hmemlength' in H1.
+      unfold mem_size.
+
       unfold upd_s_mem => //=.
       iMod (gen_heap_update with "Hmemlength Hmlength") as "[Hmemlength Hmlength]".
       iMod (gen_heap_alloc_grow with "Hm") as "[Hm Hown]" => //=.
@@ -2621,15 +2582,13 @@ Proof.
         + rewrite Nat2N.id.
           rewrite length_fmap.
           by apply lookup_lt_Some in Hmemlookup.
-      - 
-        iLeft.
+      - iLeft.
         iSplit.
-        + rewrite Hmemlength' H1.
-          erewrite mem_grow_length => //=.
-          rewrite Hmemlength'.
+        + apply mem_grow_length in H2.
+          rewrite H2. 
           replace (Wasm_int.N_of_uint i32m c) with (Z.to_N (Wasm_int.Int32.unsigned c)) ;
-          last done.
-          by iFrame.
+            last done.
+          iFrame.
         + iPureIntro.
           unfold mem_in_bound.
           unfold mem_grow in H2.
@@ -2639,9 +2598,9 @@ Proof.
           by apply HLP.
     }
     { (* grow_memory failed *)
-      iSplitR "Hframe HΨ Hmlength"  => //.
+      iSplitR "HΨ Hmlength Hf"  => //.
       iFrame => //.
-      iFrame.
+      iSplitR "Hf"; last by rewrite Heqf0; destruct f.
       iRight.
       by iFrame.  }
     rewrite Heqes0 in H0.

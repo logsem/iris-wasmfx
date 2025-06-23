@@ -33,7 +33,7 @@ Proof.
     exact H2. exact Hfill.
     all: try done.
     destruct H5 as [-> ->] => //.
-    subst. by left.
+    subst. repeat split => //. by left.
   - move/lfilledP in H1; inversion H1; subst.
     all: try by do 2 destruct vs0 => //.
     all: try by do 2 destruct bef => //.
@@ -169,7 +169,7 @@ Proof.
          [ only_one ] cannot exfalso all irrelevant cases *)
   only_one.
   inversion Heqesnew; subst.
-  rewrite H0 in Hj; inversion Hj; subst. by left.
+  rewrite H0 in Hj; inversion Hj; subst. repeat split => //. by left.
   inversion Heqesnew; subst. 
   move: (ssrnat.leq_trans Hlim H).
   rewrite ssrnat.ltnn. done.
