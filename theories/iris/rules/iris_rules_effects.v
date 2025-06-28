@@ -123,7 +123,7 @@ Section reasoning_rules.
     length vs = length t1s ->
     ves = v_to_e_list vs ->
     N.of_nat a ↦□[tag] Tf t1s t2s ∗
-      (N.of_nat a ↦□[tag] Tf t1s t2s -∗ EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }})
+      EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}
     ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}.
   Proof.
     iIntros (-> Hx Hlen ->) "(Htag & H)".
@@ -159,7 +159,6 @@ Section reasoning_rules.
     destruct H0.
     - destruct H0 as [-> ->].
       destruct f; simpl in H; inversion H; subst. iFrame.
-      iApply ("H" with "Htag").
     - destruct H0 as [[? H'] | (? & ? & ? & H' & _)].
       all: rewrite first_instr_const in H' => //.
       all: apply v_to_e_is_const_list.

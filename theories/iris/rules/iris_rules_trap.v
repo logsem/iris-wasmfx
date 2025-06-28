@@ -57,7 +57,7 @@ Section trap_rules.
 
 (* Cannot seem to prove this: problem with the frame resource in the to_eff=Some case
  UPD: try again with fram baked in? *)
-
+(*
   Lemma ewp_seq_trap (E : coPset) (es1 es2 : language.expr wasm_lang) f Φf Ψ :
 (*    to_eff es2 = None -> *)
      EWP es1 UNDER f @ E <| Ψ |> {{ w, ⌜w = trapV⌝ ; Φf }}
@@ -90,9 +90,8 @@ Section trap_rules.
           rewrite Htv in Hetov => //.
         + edestruct const_list_to_val as (?&?&?); first apply v_to_e_is_const_list.
           erewrite H.
-          Search (|={_}=> ⌜ _ ⌝)%I.
-          Check fupd_elim_pure.
-x          iDestruct "Hes1" as "[% ?]".
+          waaaat
+          iDestruct "Hes1" as "[% ?]".
           rewrite Hes2' in Hes2 => //. 
         + destruct (to_val es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
           rewrite Hin.

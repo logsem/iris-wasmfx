@@ -575,6 +575,86 @@ Section control_rules.
                          unfold first_instr ; rewrite <- Heqfes.
   Qed.
 
+   Lemma ewp_prompt_value  (E : coPset) Ψ (Φ : val -> iProp Σ) es m ces v f Φf:
+    iris.to_val es = Some (immV v) -> 
+     ▷ Φ (immV v) -∗ ▷ Φf f -∗ EWP [::AI_prompt m ces es] UNDER f @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+  Proof.
+    iIntros (Hval) "HP Hf".
+    iApply ewp_lift_atomic_step => //=.
+    { eapply to_val_immV_prompt_None;eauto. }
+    { eapply to_eff_None_prompt => //.
+      destruct (to_eff es) eqn:Habs => //.
+      exfalso; by eapply to_val_to_eff. } 
+    iIntros (σ) "Hσ !>".
+    iSplit.
+    - iPureIntro.
+      unfold language.reducible, language.prim_step => /=.
+      eexists [], es, (_,_,_), [].
+
+      unfold iris.prim_step => /=.
+      repeat split => //.
+      apply r_simple.  apply rs_prompt_const.
+      eapply to_val_const_list. apply Hval.
+    - iIntros "!>" (es1 ??? HStep) "!>".
+
+      destruct HStep as [H _].
+      eapply reduce_det in H as [-> [H | [[i0 Hstart] |
+                                                      (i1 & i2 & i3 & Hstart & Hstart1 & Hstart2 & Hσ)]]];
+        (try by destruct f; apply r_simple ; apply rs_prompt_const ;
+         eapply to_val_const_list ; apply Hval) .
+      { (* The only possible case. *)
+        destruct H as [-> ->].
+        rewrite Hval.
+        iFrame. }
+        (* All of the rest are impossible reductions since es is a value. *)
+      all: try by unfold first_instr in Hstart ; simpl in Hstart ;
+          remember (find_first_some (map first_instr_instr es)) as fes ;
+          destruct fes => //= ;
+                         apply to_val_const_list in Hval ;
+                         eapply starts_implies_not_constant in Hval ; first (by exfalso) ;
+                         unfold first_instr ; rewrite <- Heqfes.
+  Qed.
+
+   Lemma ewp_handler_value  (E : coPset) Ψ (Φ : val -> iProp Σ) es ces v f Φf:
+    iris.to_val es = Some (immV v) -> 
+     ▷ Φ (immV v) -∗ ▷ Φf f -∗ EWP [::AI_handler ces es] UNDER f @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+  Proof.
+    iIntros (Hval) "HP Hf".
+    iApply ewp_lift_atomic_step => //=.
+    { eapply to_val_immV_handler_None;eauto. }
+    { eapply to_eff_None_handler => //.
+      destruct (to_eff es) eqn:Habs => //.
+      exfalso; by eapply to_val_to_eff. } 
+    iIntros (σ) "Hσ !>".
+    iSplit.
+    - iPureIntro.
+      unfold language.reducible, language.prim_step => /=.
+      eexists [], es, (_,_,_), [].
+
+      unfold iris.prim_step => /=.
+      repeat split => //.
+      apply r_simple.  apply rs_handler_const.
+      eapply to_val_const_list. apply Hval.
+    - iIntros "!>" (es1 ??? HStep) "!>".
+
+      destruct HStep as [H _].
+      eapply reduce_det in H as [-> [H | [[i0 Hstart] |
+                                                      (i1 & i2 & i3 & Hstart & Hstart1 & Hstart2 & Hσ)]]];
+        (try by destruct f; apply r_simple ; apply rs_handler_const ;
+         eapply to_val_const_list ; apply Hval) .
+      { (* The only possible case. *)
+        destruct H as [-> ->].
+        rewrite Hval.
+        iFrame. }
+        (* All of the rest are impossible reductions since es is a value. *)
+      all: try by unfold first_instr in Hstart ; simpl in Hstart ;
+          remember (find_first_some (map first_instr_instr es)) as fes ;
+          destruct fes => //= ;
+                         apply to_val_const_list in Hval ;
+                         eapply starts_implies_not_constant in Hval ; first (by exfalso) ;
+                         unfold first_instr ; rewrite <- Heqfes.
+  Qed.
+
   Lemma ewp_label_trap  (E : coPset) Ψ (Φ : val -> iProp Σ) es m ctx f0 Φf:
     iris.to_val es = Some trapV -> 
      ▷ Φ trapV -∗ ▷ Φf f0 -∗ EWP [::AI_label m ctx es] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; Φf }}.
@@ -645,6 +725,170 @@ Section control_rules.
         intros ->; empty_list_no_reduce.
       + do 2 destruct bef => //.
       + do 2 destruct bef => //. 
+  Qed.
+
+
+    Lemma ewp_prompt_trap  (E : coPset) Ψ (Φ : val -> iProp Σ) es m ctx f0 Φf:
+    iris.to_val es = Some trapV -> 
+     ▷ Φ trapV -∗ ▷ Φf f0 -∗ EWP [::AI_prompt m ctx es] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+  Proof.
+    iIntros (Hval) "HP Hf".
+    iApply ewp_lift_atomic_step => //=.
+    { eapply to_val_trapV_prompt_None;eauto. }
+    { eapply to_eff_None_prompt => //.
+      destruct (to_eff es) eqn:Habs => //.
+      exfalso; by eapply to_val_to_eff. } 
+    iIntros (σ) "Hσ !>".
+    iSplit.
+    - iPureIntro.
+      unfold language.reducible, language.prim_step => /=.
+      eexists [], [AI_trap], (_,_,_), [].
+
+      unfold iris.prim_step => /=.
+      repeat split => //.
+      apply to_val_trap_is_singleton in Hval as ->.
+      apply r_simple.  apply rs_prompt_trap.
+    - apply to_val_trap_is_singleton in Hval as ->.
+
+      iIntros "!>" (es1 ??? HStep) "!>".
+
+      destruct HStep as [H _].
+      (* Here, the conclusion of reduce_det is not strong enough, so we re-do the proof
+       of this subcase by hand, since in this particular case, we can get a 
+       stronger result *)
+      remember [AI_prompt m ctx [AI_trap]] as es0.
+      remember {| f_locs := f_locs f0 ; f_inst := f_inst f0 |} as f.
+      remember {| f_locs := locs2 ; f_inst := inst2 |} as f'.
+      rewrite <- app_nil_l in Heqes0.
+      induction H ; (try by inversion Heqes0) ;
+        try by apply app_inj_tail in Heqes0 as [_ Habs] ; inversion Habs.
+      { destruct H ; (try by inversion Heqes0) ;
+          try by apply app_inj_tail in Heqes0 as [_ Habs] ; inversion Habs.
+        - inversion Heqes0 ; subst. inversion H.
+        - inversion Heqes0 ; subst. inversion Heqf' ; subst.
+          iFrame.  destruct f0 => //.
+        - iFrame. subst f; by destruct f0. } 
+(*        - inversion Heqes0 ; subst.
+          move/lfilledP in H1; inversion H1; subst.
+          repeat rewrite catA in H0.
+          remember (vs0 ++ vs)%SEQ as l.
+          do 2 destruct l => //.
+          do 2 destruct vs0 => //.
+          all: do 2 destruct bef => //. 
+        - rewrite Heqes0 in H0.
+          move/lfilledP in H0; inversion H0; subst.
+          do 2 destruct vs => //.
+          all: do 2 destruct bef => //. }  *)
+      all: try by do 2 destruct vs => //.
+      + inversion Heqes0; subst.
+        move/hfilledP in H2; inversion H2; subst.
+        all: try by do 2 destruct vs0 => //.
+        all: try by do 2 destruct bef => //.
+      + inversion Heqes0; subst.
+        move/hfilledP in H2; inversion H2; subst.
+        all: try by do 2 destruct vs0 => //.
+        all: try by do 2 destruct bef => //.
+      + do 2 destruct ves => //. 
+      + rewrite Heqes0 in H0.
+        move/lfilledP in H0; inversion H0; subst.
+        * apply app_eq_unit in H2 as [[ -> H2 ] | [_ Habs]].
+          apply app_eq_unit in H2 as [[ -> _] | [-> ->]] => //=.
+          apply empty_no_reduce in H. by exfalso.
+          unfold lfilled, lfill in H1 ; simpl in H1. move/eqP in H1.
+          rewrite app_nil_r in H1 ; subst.
+          apply IHreduce => //=.
+          destruct es, es'0 => //. 
+          by apply empty_no_reduce in H.
+        * by do 2 destruct vs => //.
+        * by do 2 destruct bef => //.
+        * destruct bef; last by destruct bef => //.
+          inversion H2; subst.
+          move/lfilledP in H7.
+          eapply filled_singleton in H7 as (-> & -> & ->) => //.
+          by apply AI_trap_irreducible in H.
+          intros ->; empty_list_no_reduce.
+  Qed.
+
+
+    Lemma ewp_handler_trap  (E : coPset) Ψ (Φ : val -> iProp Σ) es ctx f0 Φf:
+    iris.to_val es = Some trapV -> 
+     ▷ Φ trapV -∗ ▷ Φf f0 -∗ EWP [::AI_handler ctx es] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+  Proof.
+    iIntros (Hval) "HP Hf".
+    iApply ewp_lift_atomic_step => //=.
+    { eapply to_val_trapV_handler_None;eauto. }
+    { eapply to_eff_None_handler => //.
+      destruct (to_eff es) eqn:Habs => //.
+      exfalso; by eapply to_val_to_eff. } 
+    iIntros (σ) "Hσ !>".
+    iSplit.
+    - iPureIntro.
+      unfold language.reducible, language.prim_step => /=.
+      eexists [], [AI_trap], (_,_,_), [].
+
+      unfold iris.prim_step => /=.
+      repeat split => //.
+      apply to_val_trap_is_singleton in Hval as ->.
+      apply r_simple.  apply rs_handler_trap.
+    - apply to_val_trap_is_singleton in Hval as ->.
+
+      iIntros "!>" (es1 ??? HStep) "!>".
+
+      destruct HStep as [H _].
+      (* Here, the conclusion of reduce_det is not strong enough, so we re-do the proof
+       of this subcase by hand, since in this particular case, we can get a 
+       stronger result *)
+      remember [AI_handler ctx [AI_trap]] as es0.
+      remember {| f_locs := f_locs f0 ; f_inst := f_inst f0 |} as f.
+      remember {| f_locs := locs2 ; f_inst := inst2 |} as f'.
+      rewrite <- app_nil_l in Heqes0.
+      induction H ; (try by inversion Heqes0) ;
+        try by apply app_inj_tail in Heqes0 as [_ Habs] ; inversion Habs.
+      { destruct H ; (try by inversion Heqes0) ;
+          try by apply app_inj_tail in Heqes0 as [_ Habs] ; inversion Habs.
+        - inversion Heqes0 ; subst. inversion H.
+        - inversion Heqes0 ; subst. inversion Heqf' ; subst.
+          iFrame.  destruct f0 => //.
+        - iFrame. by subst; destruct f0. } 
+(*        - inversion Heqes0 ; subst.
+          move/lfilledP in H1; inversion H1; subst.
+          repeat rewrite catA in H0.
+          remember (vs0 ++ vs)%SEQ as l.
+          do 2 destruct l => //.
+          do 2 destruct vs0 => //.
+          all: do 2 destruct bef => //. 
+        - rewrite Heqes0 in H0.
+          move/lfilledP in H0; inversion H0; subst.
+          do 2 destruct vs => //.
+          all: do 2 destruct bef => //. }  *)
+      all: try by do 2 destruct vs => //.
+      + inversion Heqes0; subst.
+        move/hfilledP in H; inversion H; subst.
+        all: try by do 2 destruct vs0 => //.
+        all: try by do 2 destruct bef => //.
+      + inversion Heqes0; subst.
+        move/hfilledP in H; inversion H; subst.
+        all: try by do 2 destruct vs0 => //.
+        all: try by do 2 destruct bef => //.
+      + do 2 destruct ves => //. 
+      + rewrite Heqes0 in H0.
+        move/lfilledP in H0; inversion H0; subst.
+        * apply app_eq_unit in H2 as [[ -> H2 ] | [_ Habs]].
+        apply app_eq_unit in H2 as [[ -> _] | [-> ->]] => //=.
+        apply empty_no_reduce in H. by exfalso.
+        unfold lfilled, lfill in H1 ; simpl in H1. move/eqP in H1.
+        rewrite app_nil_r in H1 ; subst.
+        apply IHreduce => //=.
+        destruct es, es'0 => //. 
+        by apply empty_no_reduce in H.
+        * by do 2 destruct vs => //.
+        * destruct bef; last by destruct bef => //.
+          inversion H2; subst.
+          move/lfilledP in H7.
+          eapply filled_singleton in H7 as (-> & -> & ->) => //.
+          by apply AI_trap_irreducible in H.
+          intros ->; empty_list_no_reduce.
+        * do 2 destruct bef => //. 
   Qed.
 
   Lemma ewp_val_return  (E : coPset) Ψ (Φ : val -> iProp Σ) vs vs' es' es'' n f f' :

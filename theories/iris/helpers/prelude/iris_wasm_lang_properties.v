@@ -6364,6 +6364,52 @@ Qed.
     apply (Build_frame [] (Build_instance [] [] [] [] [] [])).
   Qed.
 
+  Lemma to_val_immV_prompt_None es v m ctx :
+    iris.to_val es = Some (immV v) ->
+    iris.to_val [AI_prompt m ctx es] = None.
+  Proof.
+    intros Hes.
+    eapply val_head_stuck_reduce.
+    eapply r_simple, rs_prompt_const. eapply to_val_const_list;eauto.
+    Unshelve. apply (Build_store_record [] [] [] [] [] [] []).
+    apply (Build_frame [] (Build_instance [] [] [] [] [] [])).
+  Qed.  
+  
+  Lemma to_val_trapV_prompt_None es m ctx :
+    iris.to_val es = Some trapV ->
+    iris.to_val [AI_prompt m ctx es] = None.
+  Proof.
+    intros Hes.
+    apply to_val_trap_is_singleton in Hes as ->.
+    eapply val_head_stuck_reduce.
+    eapply r_simple, rs_prompt_trap.
+    Unshelve. apply (Build_store_record [] [] [] [] [] [] []).
+    apply (Build_frame [] (Build_instance [] [] [] [] [] [])).
+  Qed.
+
+  Lemma to_val_immV_handler_None es v ctx :
+    iris.to_val es = Some (immV v) ->
+    iris.to_val [AI_handler ctx es] = None.
+  Proof.
+    intros Hes.
+    eapply val_head_stuck_reduce.
+    eapply r_simple, rs_handler_const. eapply to_val_const_list;eauto.
+    Unshelve. apply (Build_store_record [] [] [] [] [] [] []).
+    apply (Build_frame [] (Build_instance [] [] [] [] [] [])).
+  Qed.  
+  
+  Lemma to_val_trapV_handler_None es ctx :
+    iris.to_val es = Some trapV ->
+    iris.to_val [AI_handler ctx es] = None.
+  Proof.
+    intros Hes.
+    apply to_val_trap_is_singleton in Hes as ->.
+    eapply val_head_stuck_reduce.
+    eapply r_simple, rs_handler_trap.
+    Unshelve. apply (Build_store_record [] [] [] [] [] [] []).
+    apply (Build_frame [] (Build_instance [] [] [] [] [] [])).
+  Qed.
+
   Lemma to_val_cons_immV v l :
     iris.to_val (AI_const v :: iris.of_val (immV l)) = Some (immV (v :: l)).
   Proof.
