@@ -182,19 +182,19 @@ Section control_rules.
 
   (* Structural lemmas for contexts *)
 
-  Lemma ewp_base  (E : coPset) Ψ (Φ : val -> iProp Σ) vs vs' es'' f f':
-    EWP vs' ++ vs ++ es'' UNDER f @ E <| Ψ |> {{ Φ ; f' }}
-                                ⊢ EWP vs UNDER f @ E CTX 0; LH_base vs' es'' <| Ψ |> {{ Φ ; f' }}.
+  Lemma ewp_base  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs vs' es'' f :
+    EWP vs' ++ vs ++ es'' UNDER f @ E <| Ψ |> {{ Φ }}
+                                ⊢ EWP vs UNDER f @ E CTX 0; LH_base vs' es'' <| Ψ |> {{ Φ }}.
   Proof.
     iIntros "HWP".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
     inversion Hfill;subst. iFrame.
   Qed.
 
-  Lemma ewp_base_push  (E : coPset) Ψ (Φ : val -> iProp Σ) es l1 l2 i lh f f':
+  Lemma ewp_base_push  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es l1 l2 i lh f:
     const_list l1 ->
-    EWP es UNDER f @ E CTX i; frame_base lh l1 l2 <| Ψ |> {{ Φ ; f' }}
-                                   ⊢ EWP l1 ++ es ++ l2 UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; f' }}.
+    EWP es UNDER f @ E CTX i; frame_base lh l1 l2 <| Ψ |> {{ Φ }}
+                                   ⊢ EWP l1 ++ es ++ l2 UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hconst) "HWP".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -202,9 +202,9 @@ Section control_rules.
     iDestruct ("HWP" with "[]") as "HWP";[|iFrame].
     iPureIntro. by apply lfilled_Ind_Equivalent. auto.
   Qed.
-  Lemma ewp_base_pull  (E : coPset) Ψ (Φ : val -> iProp Σ) es i lh f f' :
-    (let '(lh',l1,l2) := pull_base lh in EWP l1 ++ es ++ l2 UNDER f @ E CTX i; lh' <| Ψ |> {{ Φ ; f' }})
-      ⊢ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ Φ; f' }}.
+  Lemma ewp_base_pull  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es i lh f :
+    (let '(lh',l1,l2) := pull_base lh in EWP l1 ++ es ++ l2 UNDER f @ E CTX i; lh' <| Ψ |> {{ Φ }})
+      ⊢ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros "HWP".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -213,10 +213,10 @@ Section control_rules.
     iDestruct ("HWP" with "[]") as "HWP";[|iFrame].
     iPureIntro. by apply lfilled_Ind_Equivalent.
   Qed.
-  Lemma ewp_label_push  (E : coPset) Ψ (Φ : val -> iProp Σ) es i lh n es' l1 l2 f f':
+  Lemma ewp_label_push  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es i lh n es' l1 l2 f :
     const_list l1 ->
-    EWP es UNDER f @ E CTX S i; push_base lh n es' l1 l2 <| Ψ |> {{ Φ ; f' }}
-                                    ⊢ EWP [::AI_label n es' (l1 ++ es ++ l2)] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; f'}}.
+    EWP es UNDER f @ E CTX S i; push_base lh n es' l1 l2 <| Ψ |> {{ Φ }}
+                                    ⊢ EWP [::AI_label n es' (l1 ++ es ++ l2)] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hconst) "HWP".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -224,18 +224,18 @@ Section control_rules.
     iDestruct ("HWP" with "[]") as "HWP";[|iFrame].
     iPureIntro. by apply lfilled_Ind_Equivalent. auto.
   Qed.
-  Lemma ewp_label_push_nil  (E : coPset) Ψ (Φ : val -> iProp Σ) es i lh n es' f f':
-    EWP es UNDER f @ E CTX S i; push_base lh n es' [] [] <| Ψ |> {{ Φ ; f' }}
-                                    ⊢ EWP [::AI_label n es' es] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; f' }}.
+  Lemma ewp_label_push_nil  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es i lh n es' f:
+    EWP es UNDER f @ E CTX S i; push_base lh n es' [] [] <| Ψ |> {{ Φ }}
+                                    ⊢ EWP [::AI_label n es' es] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros "HWP".
     iDestruct (ewp_label_push with "HWP") as "HWP". auto.
     erewrite app_nil_l. erewrite app_nil_r. done.
   Qed.
-  Lemma ewp_label_pull  (E : coPset) Ψ (Φ : val -> iProp Σ) es i lh n es' l1 l2 f f':
+  Lemma ewp_label_pull  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es i lh n es' l1 l2 f :
     const_list l1 ->
-    EWP [::AI_label n es' (l1 ++ es ++ l2)] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; f' }}
-    ⊢ EWP es UNDER f @ E CTX S i; push_base lh n es' l1 l2 <| Ψ |> {{ Φ ; f' }}.
+    EWP [::AI_label n es' (l1 ++ es ++ l2)] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}
+    ⊢ EWP es UNDER f @ E CTX S i; push_base lh n es' l1 l2 <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hconst) "HWP".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -247,9 +247,9 @@ Section control_rules.
     all: apply lfilled_Ind_Equivalent.
     all: auto.
   Qed.
-  Lemma ewp_label_pull_nil  (E : coPset) Ψ (Φ : val -> iProp Σ) es i lh n es' f f' :
-    EWP [::AI_label n es' es] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; f' }}
-    ⊢ EWP es UNDER f @ E CTX S i; push_base lh n es' [] [] <| Ψ |> {{ Φ ; f'}}.
+  Lemma ewp_label_pull_nil  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es i lh n es' f :
+    EWP [::AI_label n es' es] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}
+    ⊢ EWP es UNDER f @ E CTX S i; push_base lh n es' [] [] <| Ψ |> {{ Φ }}.
   Proof.
     iIntros "HWP".
     iApply ewp_label_pull;auto.
@@ -259,10 +259,10 @@ Section control_rules.
 
   (* Structural lemmas for contexts within a local scope *)
 
-  Lemma ewp_base_push_local  (E : coPset) Ψ (Φ : val -> iProp Σ) es l1 l2 i lh n f f1 f2:
+  Lemma ewp_base_push_local  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es l1 l2 i lh n f f1:
     const_list l1 ->
-    EWP es UNDER f1 @ E FRAME n; f CTX i; frame_base lh l1 l2 <| Ψ |> {{ v, Φ v ; f2 }}
-                                              ⊢ EWP l1 ++ es ++ l2 UNDER f1 @ E FRAME n; f CTX i; lh <| Ψ |> {{ v, Φ v ; f2}}.
+    EWP es UNDER f1 @ E FRAME n; f CTX i; frame_base lh l1 l2 <| Ψ |> {{ v ; f , Φ v f }}
+                                              ⊢ EWP l1 ++ es ++ l2 UNDER f1 @ E FRAME n; f CTX i; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hconst) "HWP".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -270,10 +270,10 @@ Section control_rules.
     iDestruct ("HWP" with "[]") as "HWP";[|iFrame].
     iPureIntro. by apply lfilled_Ind_Equivalent. auto.
   Qed.
-  Lemma ewp_label_push_local  (E : coPset) Ψ (Φ : val -> iProp Σ) es i lh n es' l1 l2 m f f1 f2 :
+  Lemma ewp_label_push_local  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es i lh n es' l1 l2 m f f1 :
     const_list l1 ->
-    EWP es UNDER f1 @ E FRAME m; f CTX S i; push_base lh n es' l1 l2 <| Ψ |> {{ v, Φ v ; f2 }}
-                                               ⊢ EWP [::AI_label n es' (l1 ++ es ++ l2)] UNDER f1 @ E FRAME m; f CTX i; lh <| Ψ |> {{ v, Φ v ; f2 }}.
+    EWP es UNDER f1 @ E FRAME m; f CTX S i; push_base lh n es' l1 l2 <| Ψ |> {{ v ; f, Φ v f }}
+                                               ⊢ EWP [::AI_label n es' (l1 ++ es ++ l2)] UNDER f1 @ E FRAME m; f CTX i; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hconst) "HWP".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -281,9 +281,9 @@ Section control_rules.
     iDestruct ("HWP" with "[]") as "HWP";[|iFrame].
     iPureIntro. by apply lfilled_Ind_Equivalent. auto.
   Qed.
-  Lemma ewp_label_push_nil_local  (E : coPset) Ψ (Φ : val -> iProp Σ) es i lh n es' m f f1 f2:
-    EWP es UNDER f1 @ E FRAME m; f CTX S i; push_base lh n es' [] [] <| Ψ |> {{ v, Φ v ; f2 }}
-                                               ⊢ EWP [::AI_label n es' es] UNDER f1 @ E FRAME m; f CTX i; lh <| Ψ |> {{ v, Φ v ; f2 }}.
+  Lemma ewp_label_push_nil_local  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es i lh n es' m f f1:
+    EWP es UNDER f1 @ E FRAME m; f CTX S i; push_base lh n es' [] [] <| Ψ |> {{ v ; f , Φ v f }}
+                                               ⊢ EWP [::AI_label n es' es] UNDER f1 @ E FRAME m; f CTX i; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros "HWP".
     iDestruct (ewp_label_push_local with "HWP") as "HWP". auto.
@@ -292,12 +292,12 @@ Section control_rules.
 
 
   (* Control flow rules *)
-  Lemma ewp_return  (E: coPset) Ψ (Φ: val -> iProp Σ) es vs vs0 n f0 f i lh f' :
+  Lemma ewp_return  (E: coPset) Ψ (Φ: val -> frame -> iProp Σ) es vs vs0 n f0 i lh f' :
     iris.to_val vs = Some (immV vs0) ->
     length vs = n ->
     lfilled i lh (vs ++ [AI_basic BI_return]) es ->
-    ▷ EWP vs UNDER f' @ E <| Ψ |> {{ v, Φ v ; f }} -∗
-                 EWP [AI_local n f0 es] UNDER f' @ E <| Ψ |> {{ v, Φ v ; f }}%I.
+    ▷ EWP vs UNDER f' @ E <| Ψ |> {{ v ; f , Φ v f }} -∗
+                 EWP [AI_local n f0 es] UNDER f' @ E <| Ψ |> {{ v ; f , Φ v f }}%I.
   Proof.
     iIntros (Hval Hlen Hlf) "HΦ".
     iApply ewp_lift_atomic_step => //=.
@@ -330,7 +330,7 @@ Section control_rules.
       constructor. econstructor =>//.
     - iModIntro.
       iIntros (es1 ??? HStep).
-      iMod "HΦ" as "(HΦ & Hf)".
+      iMod "HΦ" as "HΦ".
       iModIntro.
 
       destruct HStep as [H _].  iFrame.
@@ -349,34 +349,34 @@ Section control_rules.
                                                     inversion Hstart.
   Qed.
   
-  Lemma ewp_frame_return  (E: coPset) Ψ (Φ: val -> iProp Σ) vs vs0 n f0 f i lh LI f':
+  Lemma ewp_frame_return  (E: coPset) Ψ (Φ: val -> frame -> iProp Σ) vs vs0 n f0 i lh LI f':
     iris.to_val vs = Some (immV vs0) ->
     length vs = n ->
     lfilled i lh (vs ++ [AI_basic BI_return]) LI ->
-    ( ▷ EWP vs UNDER f' @ E <| Ψ |> {{ v, Φ v ; f }}
-                   ⊢ EWP LI UNDER f' @ E FRAME n ; f0 <| Ψ |> {{ v, Φ v ; f }}).
+    ( ▷ EWP vs UNDER f' @ E <| Ψ |> {{ v ; f, Φ v f }}
+                   ⊢ EWP LI UNDER f' @ E FRAME n ; f0 <| Ψ |> {{ v ; f , Φ v f }}).
   Proof.
     iIntros (Hval Hlen Hlf) "HΦ".
     by iApply ewp_return.
   Qed.
 
-  Lemma ewp_ctx_frame_return  (E: coPset) Ψ (Φ: iris.val -> iProp Σ) vs vs0 n f0 f i lh f' :
+  Lemma ewp_ctx_frame_return  (E: coPset) Ψ (Φ: iris.val -> frame -> iProp Σ) vs vs0 n f0 i lh f' :
     iris.to_val vs = Some (immV vs0) ->
     length vs = n ->
-    ( ▷ EWP vs UNDER f' @ E <| Ψ |> {{ v, Φ v ; f }}
-                   ⊢ EWP vs ++ [AI_basic BI_return] UNDER f' @ E FRAME n ; f0 CTX i ; lh <| Ψ |> {{ v, Φ v ; f }}).
+    ( ▷ EWP vs UNDER f' @ E <| Ψ |> {{ v ; f , Φ v f }}
+                   ⊢ EWP vs ++ [AI_basic BI_return] UNDER f' @ E FRAME n ; f0 CTX i ; lh <| Ψ |> {{ v ; f, Φ v f }}).
   Proof.
     iIntros (Hval Hlen) "HΦ".
     iIntros (LI HLI).
     iApply ewp_return;eauto.
   Qed.
 
-  Lemma ewp_br  (E : coPset) Ψ (Φ : val -> iProp Σ) n vs es i LI lh f f':
+  Lemma ewp_br  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n vs es i LI lh f :
     const_list vs ->
     length vs = n ->
     lfilled i lh (vs ++ [::AI_basic (BI_br i)]) LI ->
-    ▷ (EWP (vs ++ es) UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP [AI_label n es LI] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}.
+    ▷ (EWP (vs ++ es) UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
+     -∗ EWP [AI_label n es LI] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hvs Hlen Hfill) "HΦ".
     iApply ewp_lift_step => //=.
@@ -412,15 +412,15 @@ Section control_rules.
                                                   inversion Hstart.    
   Qed.
 
-  Lemma ewp_br_ctx_nested  (E : coPset) Ψ (Φ : val -> iProp Σ) n vs es i j lh lh' lh'' vs' es' f f' vs0' n0 es0 es0' :
+  Lemma ewp_br_ctx_nested  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n vs es i j lh lh' lh'' vs' es' f vs0' n0 es0 es0' :
     S i < j ->
     get_layer lh' (lh_depth lh' - (S (S i))) = Some (vs0', n0, es0, (LH_rec vs' n es lh es'), es0') ->
     lh_minus lh' lh'' = Some (LH_rec vs' n es lh es') ->
     const_list vs ->
     length vs = n ->
     
-     ▷ (EWP (vs' ++ (vs ++ es) ++ es') UNDER f @ E CTX j - S i ; lh'' <| Ψ |> {{ Φ ; f' }})
-     -∗ EWP vs ++ [::AI_basic (BI_br i)] UNDER f @ E CTX j ; lh' <| Ψ |> {{ Φ ; f' }}.
+     ▷ (EWP (vs' ++ (vs ++ es) ++ es') UNDER f @ E CTX j - S i ; lh'' <| Ψ |> {{ Φ }})
+     -∗ EWP vs ++ [::AI_basic (BI_br i)] UNDER f @ E CTX j ; lh' <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hlt Hlayer Hminus Hvs Hlen) "HΦ".
     iIntros (LI Hfill).
@@ -501,14 +501,14 @@ Section control_rules.
     eauto.
   Qed.
 
-  Lemma ewp_block  (E : coPset) Ψ (Φ : val -> iProp Σ) vs es n m t1s t2s f f' :
+  Lemma ewp_block  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs es n m t1s t2s f :
     const_list vs ->
     length vs = n ->
     length t1s = n ->
     length t2s = m ->
     
-     ▷ (EWP [::AI_label m [::] (vs ++ to_e_list es)] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP (vs ++ [::AI_basic (BI_block (Tf t1s t2s) es)]) UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}.
+     ▷ (EWP [::AI_label m [::] (vs ++ to_e_list es)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
+     -∗ EWP (vs ++ [::AI_basic (BI_block (Tf t1s t2s) es)]) UNDER f @ E <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
     iIntros (Hvs Hlen1 Hlen2 Hlen3) "HΦ".
     iApply ewp_lift_step => //=.
@@ -535,11 +535,11 @@ Section control_rules.
         rewrite first_instr_const in Hstart => //=.
   Qed.
   
-  Lemma ewp_label_value  (E : coPset) Ψ (Φ : val -> iProp Σ) es m ces v f Φf:
+  Lemma ewp_label_value  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es m ces v f:
     iris.to_val es = Some (immV v) -> 
-     ▷ Φ (immV v) -∗ ▷ Φf f -∗ EWP [::AI_label m ces es] UNDER f @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+     ▷ Φ (immV v) f -∗ EWP [::AI_label m ces es] UNDER f @ E <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
-    iIntros (Hval) "HP Hf".
+    iIntros (Hval) "HP".
     iApply ewp_lift_atomic_step => //=.
     { eapply to_val_immV_label_None;eauto. }
     { eapply to_eff_None_label => //.
@@ -575,11 +575,11 @@ Section control_rules.
                          unfold first_instr ; rewrite <- Heqfes.
   Qed.
 
-   Lemma ewp_prompt_value  (E : coPset) Ψ (Φ : val -> iProp Σ) es m ces v f Φf:
+   Lemma ewp_prompt_value  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es m ces v f:
     iris.to_val es = Some (immV v) -> 
-     ▷ Φ (immV v) -∗ ▷ Φf f -∗ EWP [::AI_prompt m ces es] UNDER f @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+     ▷ Φ (immV v) f -∗ EWP [::AI_prompt m ces es] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (Hval) "HP Hf".
+    iIntros (Hval) "HP".
     iApply ewp_lift_atomic_step => //=.
     { eapply to_val_immV_prompt_None;eauto. }
     { eapply to_eff_None_prompt => //.
@@ -615,11 +615,11 @@ Section control_rules.
                          unfold first_instr ; rewrite <- Heqfes.
   Qed.
 
-   Lemma ewp_handler_value  (E : coPset) Ψ (Φ : val -> iProp Σ) es ces v f Φf:
+   Lemma ewp_handler_value  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es ces v f:
     iris.to_val es = Some (immV v) -> 
-     ▷ Φ (immV v) -∗ ▷ Φf f -∗ EWP [::AI_handler ces es] UNDER f @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+     ▷ Φ (immV v) f -∗ EWP [::AI_handler ces es] UNDER f @ E <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
-    iIntros (Hval) "HP Hf".
+    iIntros (Hval) "HP".
     iApply ewp_lift_atomic_step => //=.
     { eapply to_val_immV_handler_None;eauto. }
     { eapply to_eff_None_handler => //.
@@ -655,11 +655,11 @@ Section control_rules.
                          unfold first_instr ; rewrite <- Heqfes.
   Qed.
 
-  Lemma ewp_label_trap  (E : coPset) Ψ (Φ : val -> iProp Σ) es m ctx f0 Φf:
+  Lemma ewp_label_trap  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es m ctx f0:
     iris.to_val es = Some trapV -> 
-     ▷ Φ trapV -∗ ▷ Φf f0 -∗ EWP [::AI_label m ctx es] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+     ▷ Φ trapV f0 -∗ EWP [::AI_label m ctx es] UNDER f0 @ E <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
-    iIntros (Hval) "HP Hf".
+    iIntros (Hval) "HP".
     iApply ewp_lift_atomic_step => //=.
     { eapply to_val_trapV_label_None;eauto. }
     { eapply to_eff_None_label => //.
@@ -728,11 +728,11 @@ Section control_rules.
   Qed.
 
 
-    Lemma ewp_prompt_trap  (E : coPset) Ψ (Φ : val -> iProp Σ) es m ctx f0 Φf:
+    Lemma ewp_prompt_trap  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es m ctx f0:
     iris.to_val es = Some trapV -> 
-     ▷ Φ trapV -∗ ▷ Φf f0 -∗ EWP [::AI_prompt m ctx es] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+     ▷ Φ trapV f0 -∗ EWP [::AI_prompt m ctx es] UNDER f0 @ E <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
-    iIntros (Hval) "HP Hf".
+    iIntros (Hval) "HP".
     iApply ewp_lift_atomic_step => //=.
     { eapply to_val_trapV_prompt_None;eauto. }
     { eapply to_eff_None_prompt => //.
@@ -810,11 +810,11 @@ Section control_rules.
   Qed.
 
 
-    Lemma ewp_handler_trap  (E : coPset) Ψ (Φ : val -> iProp Σ) es ctx f0 Φf:
+    Lemma ewp_handler_trap  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) es ctx f0:
     iris.to_val es = Some trapV -> 
-     ▷ Φ trapV -∗ ▷ Φf f0 -∗ EWP [::AI_handler ctx es] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+     ▷ Φ trapV f0 -∗ EWP [::AI_handler ctx es] UNDER f0 @ E <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
-    iIntros (Hval) "HP Hf".
+    iIntros (Hval) "HP".
     iApply ewp_lift_atomic_step => //=.
     { eapply to_val_trapV_handler_None;eauto. }
     { eapply to_eff_None_handler => //.
@@ -891,12 +891,12 @@ Section control_rules.
         * do 2 destruct bef => //. 
   Qed.
 
-  Lemma ewp_val_return  (E : coPset) Ψ (Φ : val -> iProp Σ) vs vs' es' es'' n f f' :
+  Lemma ewp_val_return  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs vs' es' es'' n f :
     const_list vs ->
     to_eff es'' = None ->
     
-     (EWP vs' ++ vs ++ es'' UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP vs UNDER f @ E CTX 1; LH_rec vs' n es' (LH_base [] []) es'' <| Ψ |> {{ v, Φ v ; f' }}.
+     (EWP vs' ++ vs ++ es'' UNDER f @ E <| Ψ |> {{ v ; f, Φ v f }})
+     -∗ EWP vs UNDER f @ E CTX 1; LH_rec vs' n es' (LH_base [] []) es'' <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
     iIntros (Hconst Htf) "HWP".
     iLöb as "IH".
@@ -909,26 +909,32 @@ Section control_rules.
     apply const_list_to_val in Hconst as (v1 & Hv1 & _).
     apply const_list_to_val in H7 as [v2 Hv2].
     eapply to_val_cat_inv in Hv1 as Hvv;[|apply Hv2].
-    iApply (ewp_seq _ _ _ _ _ _ (λ v, (⌜v = immV (v2 ++ v1)⌝))%I) => //. 
-    iSplitR; first by iIntros "%H".
+    iApply ewp_seq.
+    done.
+    (*    iApply (ewp_seq _ _ _ _ _ _ _ _ (λ v f', (⌜v = immV (v2 ++ v1)⌝ ∗ ⌜ f' = f ⌝))%I) => //.  *)
+    iSplitR; last first.
+(*    iSplitR; first by iIntros "%H". *)
     iSplitR "HWP".
     - iApply ewp_val_app; first by apply Hv2.
-      iSplit; first by iIntros "!> %".
+      iSplit; last first.
+(*      iSplit; first by iIntros "!> %". *)
       iApply (ewp_label_value with "[]") => //=; first by erewrite app_nil_r; apply Hv1 .
-      by instantiate (1 := λ g, ⌜ g = f ⌝%I).
-    - iIntros (w f0) "-> ->".
+      by instantiate (1 := λ v g, (⌜ v = immV (v2 ++ v1) ⌝ ∗ ⌜ g = f ⌝)%I).
+      by iIntros "!>" (?) "[% _ ]".
+    - iIntros (w f0) "[-> ->]".
       erewrite iris.of_to_val => //.
       rewrite app_assoc.
       by iApply "HWP".
+    - by iIntros (?) "[% _]".
   Qed.
 
-  Lemma ewp_block_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) (i : nat) (lh : lholed) vs t1s t2s es n m f0 f1:
+  Lemma ewp_block_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (i : nat) (lh : lholed) vs t1s t2s es n m f0:
     const_list vs ->
     length vs = n ->
     length t1s = n ->
     length t2s = m ->
-    ▷ (EWP [::AI_label m [::] (vs ++ to_e_list es)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP (vs ++ [::AI_basic (BI_block (Tf t1s t2s) es)]) UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }}.
+    ▷ (EWP [::AI_label m [::] (vs ++ to_e_list es)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }})
+     -∗ EWP (vs ++ [::AI_basic (BI_block (Tf t1s t2s) es)]) UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hconst Hn Hn' Hm) "HWP".
     iIntros (LI Hfill).
@@ -981,14 +987,14 @@ Section control_rules.
     by iSpecialize ("HWP" with "[%]").
   Qed.
   
-  Lemma ewp_block_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) (i : nat) (lh : lholed) vs t1s t2s es n m n1 f1 f0 f' :
+  Lemma ewp_block_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (i : nat) (lh : lholed) vs t1s t2s es n m n1 f1 f0 :
     const_list vs ->
     length vs = n ->
     length t1s = n ->
     length t2s = m ->
     
-     ▷ (EWP [::AI_label m [::] (vs ++ to_e_list es)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP (vs ++ [::AI_basic (BI_block (Tf t1s t2s) es)]) UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }}.
+     ▷ (EWP [::AI_label m [::] (vs ++ to_e_list es)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f , Φ v f }})
+     -∗ EWP (vs ++ [::AI_basic (BI_block (Tf t1s t2s) es)]) UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hconst Hn Hn' Hm) "HWP".
     iIntros (LI Hfill).
@@ -1050,12 +1056,12 @@ Section control_rules.
     by iSpecialize ("HWP" with "[%]").
   Qed.
 
-  Lemma ewp_br_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n vs es i lh vs' es' f0 f1:
+  Lemma ewp_br_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n vs es i lh vs' es' f0:
     const_list vs ->
     length vs = n ->
 
-     ▷ (EWP (vs' ++ vs ++ es ++ es') UNDER f0 @ E <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP vs ++ [::AI_basic (BI_br i)] UNDER f0 @ E CTX S i; LH_rec vs' n es lh es' <| Ψ |> {{ Φ ; f1 }}.
+     ▷ (EWP (vs' ++ vs ++ es ++ es') UNDER f0 @ E <| Ψ |> {{ Φ }})
+     -∗ EWP vs ++ [::AI_basic (BI_br i)] UNDER f0 @ E CTX S i; LH_rec vs' n es lh es' <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hvs Hlen) "HΦ".
     iIntros (LI Hfill).
@@ -1123,12 +1129,12 @@ Section control_rules.
     by erewrite !app_assoc.
   Qed.
 
-  Lemma ewp_br_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n vs es i lh vs' es' f0 n1 f1 f' :
+  Lemma ewp_br_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n vs es i lh vs' es' f0 n1 f1 :
     const_list vs ->
     length vs = n ->
     
-     ▷ (EWP (vs' ++ vs ++ es ++ es') UNDER f0 @ E FRAME n1; f1 <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP vs ++ [::AI_basic (BI_br i)] UNDER f0 @ E FRAME n1; f1 CTX S i; LH_rec vs' n es lh es' <| Ψ |> {{ v, Φ v ; f' }}.
+     ▷ (EWP (vs' ++ vs ++ es ++ es') UNDER f0 @ E FRAME n1; f1 <| Ψ |> {{ v ; f , Φ v f }})
+     -∗ EWP vs ++ [::AI_basic (BI_br i)] UNDER f0 @ E FRAME n1; f1 CTX S i; LH_rec vs' n es lh es' <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hvs Hlen) "HΦ".
     iIntros (LI Hfill).
@@ -1203,14 +1209,14 @@ Section control_rules.
     by erewrite !app_assoc.
   Qed.
 
-  Lemma ewp_loop_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) vs es n m t1s t2s i lh f0 f1: 
+  Lemma ewp_loop_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs es n m t1s t2s i lh f0: 
     const_list vs ->
     length vs = n ->
     length t1s = n ->
     length t2s = m ->
     
-     ▷ (EWP [::AI_label n [::AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP vs ++ [::AI_basic (BI_loop (Tf t1s t2s) es)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }}.
+     ▷ (EWP [::AI_label n [::AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }})
+     -∗ EWP vs ++ [::AI_basic (BI_loop (Tf t1s t2s) es)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hvs Hn Hn' Hm) "HP".
     iIntros (LI Hfill).
@@ -1257,14 +1263,14 @@ Section control_rules.
       by iSpecialize ("HP" with "[%]").
   Qed.
 
-  Lemma ewp_loop_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) vs es n m t1s t2s i lh f0 n1 f1 f' :
+  Lemma ewp_loop_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs es n m t1s t2s i lh f0 n1 f1 :
     const_list vs ->
     length vs = n ->
     length t1s = n ->
     length t2s = m ->
     
-     ▷ (EWP [::AI_label n [::AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP vs ++ [::AI_basic (BI_loop (Tf t1s t2s) es)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }}.
+     ▷ (EWP [::AI_label n [::AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f, Φ v f }})
+     -∗ EWP vs ++ [::AI_basic (BI_loop (Tf t1s t2s) es)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hvs Hn Hn' Hm) "HP".
     iIntros (LI Hfill).
@@ -1315,14 +1321,14 @@ Section control_rules.
       by iSpecialize ("HP" with "[%]").
   Qed.
 
-  Lemma ewp_loop  (E : coPset) Ψ (Φ : val -> iProp Σ) vs es n m t1s t2s f f':
+  Lemma ewp_loop  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs es n m t1s t2s f :
     const_list vs ->
     length vs = n ->
     length t1s = n ->
     length t2s = m ->
     
-     ▷ (EWP [::AI_label n [::AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }})
-     -∗ EWP vs ++ [::AI_basic (BI_loop (Tf t1s t2s) es)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }}.
+     ▷ (EWP [::AI_label n [::AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }})
+     -∗ EWP vs ++ [::AI_basic (BI_loop (Tf t1s t2s) es)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros (Hvs Hn Hn' Hm) "HP".
     iApply ewp_wasm_empty_ctx. iApply ewp_loop_ctx => //.
@@ -1331,10 +1337,10 @@ Section control_rules.
     by iApply ewp_wasm_empty_ctx. 
   Qed.
 
-  Lemma ewp_if_true_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n tf e1s e2s i lh f0 f1 :
+  Lemma ewp_if_true_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n tf e1s e2s i lh f0  :
     n ≠ Wasm_int.int_zero i32m ->
-    ▷ (EWP [::AI_basic (BI_block tf e1s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }}.
+    ▷ (EWP [::AI_basic (BI_block tf e1s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hn) "HP".
     iIntros (LI Hfill).
@@ -1378,11 +1384,11 @@ Section control_rules.
                                                      rewrite Hfilln in Hstart ; inversion Hstart.
   Qed.
 
-  Lemma ewp_if_true_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n tf e1s e2s i lh f0 n1 f1 f' :
+  Lemma ewp_if_true_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n tf e1s e2s i lh f0 n1 f1 :
     n ≠ Wasm_int.int_zero i32m ->
     
-     ▷ (EWP [::AI_basic (BI_block tf e1s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }}.
+     ▷ (EWP [::AI_basic (BI_block tf e1s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f , Φ v f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hn) "HP".
     iIntros (LI Hfill).
@@ -1432,10 +1438,10 @@ Section control_rules.
       by iSpecialize ("HP" with "[%]").
   Qed.
 
-  Lemma ewp_if_true  (E : coPset) Ψ (Φ : val -> iProp Σ) c tf e1s e2s f f':
+  Lemma ewp_if_true  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) c tf e1s e2s f :
     c ≠ Wasm_int.int_zero i32m ->
-    ▷ (EWP [::AI_basic (BI_block tf e1s)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_if tf e1s e2s)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }}.
+    ▷ (EWP [::AI_basic (BI_block tf e1s)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_if tf e1s e2s)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros (?) "HP".
     iApply ewp_wasm_empty_ctx. iApply ewp_if_true_ctx;eauto.
@@ -1444,10 +1450,10 @@ Section control_rules.
     by iApply ewp_wasm_empty_ctx.
   Qed.
   
-  Lemma ewp_if_false_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n tf e1s e2s i lh f0 f1:
+  Lemma ewp_if_false_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n tf e1s e2s i lh f0 :
     n = Wasm_int.int_zero i32m ->
-    ▷ (EWP [::AI_basic (BI_block tf e2s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; f1 }}.
+    ▷ (EWP [::AI_basic (BI_block tf e2s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hn) "HP".
     iIntros (LI Hfill).
@@ -1493,11 +1499,11 @@ Section control_rules.
       by iApply "HP".
   Qed.
 
-  Lemma ewp_if_false_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n tf e1s e2s i lh f0 n1 f1 f' :
+  Lemma ewp_if_false_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n tf e1s e2s i lh f0 n1 f1 :
     n = Wasm_int.int_zero i32m ->
 
-     ▷ (EWP [::AI_basic (BI_block tf e2s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v, Φ v ; f' }}.
+     ▷ (EWP [::AI_basic (BI_block tf e2s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f , Φ v f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] UNDER f0 @ E FRAME n1; f1 CTX i; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hn) "HP".
     iIntros (LI Hfill).
@@ -1548,11 +1554,11 @@ Section control_rules.
       by iApply "HP".
   Qed.
 
-  Lemma ewp_if_false  (E : coPset) Ψ (Φ : val -> iProp Σ) c tf e1s e2s f f':
+  Lemma ewp_if_false  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) c tf e1s e2s f:
     c = Wasm_int.int_zero i32m ->
 
-     ▷ (EWP [::AI_basic (BI_block tf e2s)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_if tf e1s e2s)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }}.
+     ▷ (EWP [::AI_basic (BI_block tf e2s)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_if tf e1s e2s)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros (?) "HP".
     iApply ewp_wasm_empty_ctx. iApply ewp_if_false_ctx;eauto.
@@ -1560,10 +1566,10 @@ Section control_rules.
     by iApply "HP".
   Qed.
 
-  Lemma ewp_br_if_true_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n i j lh f0 f1 :
+  Lemma ewp_br_if_true_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n i j lh f0 :
     n ≠ Wasm_int.int_zero i32m ->
-    ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ ; f1 }}.
+    ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hn) "HP".
     iIntros (LI Hfill).
@@ -1603,10 +1609,10 @@ Section control_rules.
       destruct f0; by iApply "HP".
   Qed.
 
-  Lemma ewp_br_if_true_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) n i j lh f0 n1 f1 f' :
+  Lemma ewp_br_if_true_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n i j lh f0 n1 f1  :
     n ≠ Wasm_int.int_zero i32m ->
-    ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v, Φ v ; f' }}.
+    ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v ; f , Φ v f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hn) "HP".
     iIntros (LI Hfill).
@@ -1657,11 +1663,11 @@ Section control_rules.
       by iApply "HP".
   Qed.
 
-  Lemma ewp_br_if_true  (E : coPset) Ψ (Φ : val -> iProp Σ) c i f f':
+  Lemma ewp_br_if_true  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) c i f :
     c ≠ Wasm_int.int_zero i32m ->
     
-     ▷ (EWP [::AI_basic (BI_br i)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_if i)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }}.
+     ▷ (EWP [::AI_basic (BI_br i)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_if i)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros (?) "HP".
     iApply ewp_wasm_empty_ctx. iApply ewp_br_if_true_ctx;eauto.
@@ -1671,13 +1677,13 @@ Section control_rules.
 
   (* The following expression reduces to a value reguardless of context, 
    and thus does not need a context aware version *)
-  Lemma ewp_br_if_false  (E : coPset) Ψ (Φ : val -> iProp Σ) c i f Φf:
+  Lemma ewp_br_if_false  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) c i f:
     c = Wasm_int.int_zero i32m ->
     
-     ▷ Φ (immV []) -∗ ▷ Φf f 
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_if i)] UNDER f @ E <| Ψ |> {{ w, Φ w ; Φf }}.
+     ▷ Φ (immV []) f 
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_if i)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
-    iIntros (Hn) "HΦ Hf".
+    iIntros (Hn) "HΦ".
     iApply ewp_lift_atomic_step => //=.
     iIntros (σ) "Hσ !>".
     iSplit.
@@ -1697,11 +1703,11 @@ Section control_rules.
   Qed.
 
 
-  Lemma ewp_br_table_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) iss c i j k lh f0 f1:
+  Lemma ewp_br_table_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) iss c i j k lh f0 :
     ssrnat.leq (S (Wasm_int.nat_of_uint i32m c)) (length iss) ->
     List.nth_error iss (Wasm_int.nat_of_uint i32m c) = Some j ->
-    ▷ (EWP [::AI_basic (BI_br j)] UNDER f0 @ E CTX k; lh <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E CTX k; lh <| Ψ |> {{ Φ ; f1}}.
+    ▷ (EWP [::AI_basic (BI_br j)] UNDER f0 @ E CTX k; lh <| Ψ |> {{ Φ }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E CTX k; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hiss Hj) "HP".
     iIntros (LI Hfill).
@@ -1741,11 +1747,11 @@ Section control_rules.
       destruct f0; by iApply "HP".
   Qed.
   
-  Lemma ewp_br_table_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) iss c i j k lh f0 n1 f1 f' :
+  Lemma ewp_br_table_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) iss c i j k lh f0 n1 f1 :
     ssrnat.leq (S (Wasm_int.nat_of_uint i32m c)) (length iss) ->
     List.nth_error iss (Wasm_int.nat_of_uint i32m c) = Some j ->
-    ▷ (EWP [::AI_basic (BI_br j)] UNDER f0 @ E FRAME n1; f1 CTX k; lh <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E FRAME n1; f1 CTX k; lh <| Ψ |> {{ v, Φ v ; f' }}.
+    ▷ (EWP [::AI_basic (BI_br j)] UNDER f0 @ E FRAME n1; f1 CTX k; lh <| Ψ |> {{ v ; f, Φ v f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E FRAME n1; f1 CTX k; lh <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
     iIntros (Hiss Hj) "HP".
     iIntros (LI Hfill).
@@ -1796,10 +1802,10 @@ Section control_rules.
       by iApply "HP".
   Qed.
   
-  Lemma ewp_br_table  (E : coPset) Ψ (Φ : val -> iProp Σ) iss c i j f f' :
+  Lemma ewp_br_table  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) iss c i j f  :
     List.nth_error iss (Wasm_int.nat_of_uint i32m c) = Some j ->
-    ▷ (EWP [::AI_basic (BI_br j)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }}.
+    ▷ (EWP [::AI_basic (BI_br j)] UNDER f @ E <| Ψ |> {{ w ; f, Φ w f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros (?) "HP".
     iApply ewp_wasm_empty_ctx. iApply ewp_br_table_ctx => //.
@@ -1807,10 +1813,10 @@ Section control_rules.
     iNext. iApply ewp_wasm_empty_ctx. done.
   Qed.
 
-  Lemma ewp_br_table_length_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) iss c i j lh f0 f1:
+  Lemma ewp_br_table_length_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) iss c i j lh f0 :
     ssrnat.leq (length iss) (Wasm_int.nat_of_uint i32m c) ->
-     ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ ; f1 }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ ; f1 }}.
+     ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hiss) "HP".
     iIntros (LI Hfill).
@@ -1850,10 +1856,10 @@ Section control_rules.
       destruct f0;
       by iApply "HP" .
   Qed.
-  Lemma ewp_br_table_length_local_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) iss c i j lh f0 n1 f1 f' :
+  Lemma ewp_br_table_length_local_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) iss c i j lh f0 n1 f1  :
     ssrnat.leq (length iss) (Wasm_int.nat_of_uint i32m c) ->
-     ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v, Φ v ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v, Φ v ; f' }}.
+     ▷ (EWP [::AI_basic (BI_br i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v ; f, Φ v f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f0 @ E FRAME n1; f1 CTX j; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hiss) "HP".
     iIntros (LI Hfill).
@@ -1904,10 +1910,10 @@ Section control_rules.
       by iApply "HP".
   Qed.
   
-  Lemma ewp_br_table_length  (E : coPset) Ψ (Φ : val -> iProp Σ) iss c i f f':
+  Lemma ewp_br_table_length  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) iss c i f :
     length iss <= Wasm_int.nat_of_uint i32m c ->
-     ▷ (EWP [::AI_basic (BI_br i)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }})
-     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f @ E <| Ψ |> {{ w, Φ w ; f' }}.
+     ▷ (EWP [::AI_basic (BI_br i)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }})
+     -∗ EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] UNDER f @ E <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros (?) "HP".
     iApply ewp_wasm_empty_ctx. iApply ewp_br_table_length_ctx ;eauto; first by lias.
@@ -1917,11 +1923,11 @@ Section control_rules.
   (* --------------------------------------------- *)
   (* Special sifting rules about break and return *)
 
-  Lemma ewp_br_ctx_shift  (E : coPset) Ψ (Φ : val -> iProp Σ) vs i lh n es vs1 es2 l n1 l0 l1 f f' :
+  Lemma ewp_br_ctx_shift  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs i lh n es vs1 es2 l n1 l0 l1 f :
     const_list vs ->
     length vs = n1 ->
-    EWP vs ++ [AI_basic (BI_br i)] UNDER f @ E CTX S i; LH_rec l n1 l0 lh l1 <| Ψ |> {{ Φ ; f' }} -∗
-                                                         EWP vs ++ [AI_basic (BI_br (S i))] UNDER f @ E CTX S (S i); LH_rec l n1 l0 (push_base lh n es vs1 es2) l1 <| Ψ |> {{ Φ ; f' }}.
+    EWP vs ++ [AI_basic (BI_br i)] UNDER f @ E CTX S i; LH_rec l n1 l0 lh l1 <| Ψ |> {{ Φ }} -∗
+                                                         EWP vs ++ [AI_basic (BI_br (S i))] UNDER f @ E CTX S (S i); LH_rec l n1 l0 (push_base lh n es vs1 es2) l1 <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hlen Hconst) "Hwp".
     iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -2012,12 +2018,12 @@ Section control_rules.
     iFrame.
   Qed.
 
-  Lemma ewp_br_ctx_shift_inv  (E : coPset) Ψ (Φ : val -> iProp Σ) vs i lh n es vs1 es2 l n1 l0 l1 f f' :
+  Lemma ewp_br_ctx_shift_inv  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs i lh n es vs1 es2 l n1 l0 l1 f  :
     const_list vs ->
     const_list vs1 ->
     length vs = n1 ->
-    EWP vs ++ [AI_basic (BI_br (S i))] UNDER f @ E CTX S (S i); LH_rec l n1 l0 (push_base lh n es vs1 es2) l1 <| Ψ |> {{ Φ ; f' }} -∗
-                                                                 EWP vs ++ [AI_basic (BI_br i)] UNDER f @ E CTX (S i); LH_rec l n1 l0 lh l1 <| Ψ |> {{ Φ ; f' }}.
+    EWP vs ++ [AI_basic (BI_br (S i))] UNDER f @ E CTX S (S i); LH_rec l n1 l0 (push_base lh n es vs1 es2) l1 <| Ψ |> {{ Φ }} -∗
+                                                                 EWP vs ++ [AI_basic (BI_br i)] UNDER f @ E CTX (S i); LH_rec l n1 l0 lh l1 <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hconst Hconst' Hlen) "Hwp".
     iIntros (LI Hfill).
@@ -2117,13 +2123,13 @@ Section control_rules.
     iFrame.
   Qed.
 
-  Lemma ewp_ret_shift  (E : coPset) Ψ (Φ : val -> iProp Σ) n f0 i lh j lh' LI LI' vs f f':
+  Lemma ewp_ret_shift  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) n f0 i lh j lh' LI LI' vs f :
     const_list vs ->
     length vs = n ->
     lfilled i lh (vs ++ [AI_basic BI_return]) LI ->
     lfilled j lh' (vs ++ [AI_basic BI_return]) LI' ->
-    EWP [AI_local n f LI] UNDER f @ E <| Ψ |> {{ Φ ; f' }} -∗
-                                EWP [AI_local n f0 LI'] UNDER f @ E <| Ψ |> {{ Φ ; f' }}.
+    EWP [AI_local n f LI] UNDER f @ E <| Ψ |> {{ Φ }} -∗
+                                EWP [AI_local n f0 LI'] UNDER f @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hconst Hlen Hfill1 Hfill2) "Hwp".
 

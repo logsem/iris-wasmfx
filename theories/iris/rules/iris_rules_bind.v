@@ -11,21 +11,21 @@ Section bind_rules.
 Context `{!wasmG Σ}.
 
 
-Lemma ewp_frame_bind Ψ f0 f es E P Φ n Φf Φf0:
+Lemma ewp_frame_bind Ψ f0 f es E P Φ n:
   to_val es = None ->
   to_eff es = None ->
-  (¬ (Ψ trapV) ∗
-    (EWP es UNDER f @ E <| P |> {{ w, Ψ w ; Φf }}) ∗
-    ∀ w f1, Ψ w -∗ Φf f1 -∗ EWP [AI_local n f1 (of_val w)] UNDER f0 @ E <| P |> {{ v, Φ v ; Φf0 }})%I
-    ⊢ EWP [AI_local n f es] UNDER f0 @ E <| P |> {{ v, Φ v ; Φf0 }} .
+  ((∀ f, ¬ (Ψ trapV f)) ∗
+    (EWP es UNDER f @ E <| P |> {{ w ; f , Ψ w f }}) ∗
+    ∀ w f1, Ψ w f1 -∗ EWP [AI_local n f1 (of_val w)] UNDER f0 @ E <| P |> {{ v ; f, Φ v f }})%I
+    ⊢ EWP [AI_local n f es] UNDER f0 @ E <| P |> {{ v ; f , Φ v f }} .
 Proof.
   iIntros (Htv Htf) "(Htrap & Hes1 & Hes2)".
   iDestruct (ewp_frame_seq es [] with "Htrap Hes1") as "H".
   done.
   repeat rewrite app_nil_r.
   iApply ("H" with "[Hes2]").
-  iIntros (??) "??".
-  iSpecialize ("Hes2" with "[$] [$]").
+  iIntros (??) "?".
+  iSpecialize ("Hes2" with "[$]").
   iApply ewp_frame_rewrite.
   rewrite app_nil_r.
   iFrame.
@@ -146,14 +146,14 @@ Qed.
   Qed. *)
 
 
-Lemma ewp_bind es E Ψ i lh Φ f Φf Φf0:
+Lemma ewp_bind es E Ψ i lh Φ f:
   is_pure lh ->
   lh_eff_None lh ->
-  EWP es UNDER f @ E <| Ψ |> {{ w, ⌜ w <> trapV ⌝ ∗
-                                           ∀ f0, Φf0 f0 -∗ EWP of_val w UNDER f0 @ E CTX i; lh <| Ψ |> {{ Φ ; Φf }} ; Φf0 }}
-    ⊢ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ Φ; Φf }}.
+  EWP es UNDER f @ E <| Ψ |> {{ w ; f, ⌜ w <> trapV ⌝ ∗
+                                           EWP of_val w UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} }}
+    ⊢ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}.
 Proof.
-   iLöb as "IH" forall (lh es Ψ f Φf Φf0).
+   iLöb as "IH" forall (lh es Ψ f).
  { iIntros (Hpure Hlh) "H".
    specialize (lh_eff_None_spec _ Hlh) as Hlh'.
    iIntros (LI HLI).
@@ -167,8 +167,7 @@ Proof.
      rewrite Htv.
      iMod "H".
      rewrite (@of_to_val _ _ Htv).
-     iDestruct "H" as "[(%Hntrap & H) Hf0]".
-     iSpecialize ("H" with "Hf0").
+     iDestruct "H" as "(%Hntrap & H)".
      iSpecialize ("H" $! _ HLI).
      rewrite !ewp_unfold /ewp_pre.
      rewrite He. done.
@@ -192,7 +191,7 @@ Proof.
          apply lfilled_depth in Hfilled as Hdepth2.
          rewrite Hdepth1 in Hdepth2; subst i k.
 
-         iSpecialize ("IH" $! lh (susfill i0 shin (of_val w)) Ψ _ _ _ Hpure Hlh).
+         iSpecialize ("IH" $! lh (susfill i0 shin (of_val w)) Ψ _ Hpure Hlh).
          iDestruct ("IH" with "H") as "H".
 
          iSpecialize ("H" $! _ Hfilled).
@@ -216,7 +215,7 @@ Proof.
          apply lfilled_depth in Hfilled as Hdepth2.
          rewrite Hdepth1 in Hdepth2; subst i k'.
 
-         iSpecialize ("IH" $! lh (swfill i0 shin (of_val w)) Ψ _ _ _ Hpure Hlh).
+         iSpecialize ("IH" $! lh (swfill i0 shin (of_val w)) Ψ _ Hpure Hlh).
          iDestruct ("IH" with "H") as "H".
 
          iSpecialize ("H" $! _ Hfilled).
@@ -235,8 +234,7 @@ Proof.
        last destruct (iris.to_eff es) as [eff |] eqn:Heff.
      + apply of_to_val in Hes as <-.
        iMod "H".
-       iDestruct "H" as "[[%Hntrap H] Hf]".
-       iSpecialize ("H" with "Hf").
+       iDestruct "H" as "[%Hntrap H]".
        iSpecialize ("H" $! _ HLI).
        iDestruct (ewp_unfold with "H") as "H"; rewrite /ewp_pre /=.
        rewrite He He'.
@@ -291,14 +289,14 @@ Proof.
             iApply fupd_ewp.
             rewrite Hy. done.
             iMod "H".
-            iDestruct "H" as "[[% _] _]" => //.  } 
+            iDestruct "H" as "[% _]" => //.  } 
   Qed. 
 
 
 
-  Lemma ewp_label_bind (E : coPset) Ψ (Φ : iris.val -> iProp Σ) e n es l1 l2 f Φf Φf0:
-    EWP e UNDER f @ E <| Ψ |> {{ w, ∀ f', Φf0 f' -∗ EWP of_val w UNDER f' @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w, Φ w ; Φf }} ; Φf0 }} -∗
-    EWP e UNDER f @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w, Φ w; Φf }}.
+  Lemma ewp_label_bind (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e n es l1 l2 f :
+    EWP e UNDER f @ E <| Ψ |> {{ w ; f', EWP of_val w UNDER f' @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w ; f , Φ w f }} }} -∗
+    EWP e UNDER f @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros "H". iIntros (LI HLI).
     iLöb as "IH" forall (E e LI HLI f).
@@ -308,8 +306,7 @@ Proof.
     - assert (is_Some (iris.to_val LI)) as Hsome;[eauto|].
       eapply lfilled_to_val in Hsome as [v Hv];[|eauto].
       rewrite Hv. erewrite of_to_val;eauto.
-      iMod "H" as "[H Hf]".
-      iSpecialize ("H" with "Hf").
+      iMod "H" as "H".
       iDestruct ("H" $! _ HLI) as "H".
       iDestruct (ewp_unfold with "H") as "H".
       rewrite /ewp_pre /= Hetov. done.
@@ -369,8 +366,7 @@ Proof.
     - destruct (iris.to_val e) eqn:Hetov'.
       { erewrite of_to_val;[|eauto].
         iIntros (σ) "Hσ".
-        iMod "H" as "[H Hf]".
-        iSpecialize ("H" with "Hf").
+        iMod "H" as "H".
         iDestruct ("H" $! _ HLI) as "H".
         
         iDestruct (ewp_unfold with "H") as "H".
@@ -421,7 +417,7 @@ Proof.
   Qed.
 
 (* not sure if this is still true with frame baked in ewp *)
-(*  Lemma ewp_label_bind_inv (E : coPset) Ψ (Φ : iris.val -> iProp Σ) e n es l1 l2 f Φf Φf0:
+(*  Lemma ewp_label_bind_inv (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e n es l1 l2 f Φf Φf0:
     const_list l1 ->
     EWP e UNDER f @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w, Φ w ; Φf}} -∗
     EWP e UNDER f @ E <| Ψ |> {{ w, ∀ f', Φf0 f' -∗ EWP of_val w UNDER f' @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w, Φ w ; Φf0 }} ; Φf }}.
@@ -595,7 +591,7 @@ Proof.
     erewrite app_nil_l, app_nil_r. done.      
   Qed.
 
-  Lemma ewp_label_bind_next (E : coPset) Ψ (Φ : iris.val -> iProp Σ) e n es l1 l2 i lh :
+  Lemma ewp_label_bind_next (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e n es l1 l2 i lh :
     is_pure lh ->
   (*  lh_eff_None lh -> *)
     base_is_empty lh ->
@@ -639,7 +635,7 @@ Proof.
       erewrite app_nil_l,app_nil_r. eauto. 
   Qed. 
   
-Lemma ewp_ctx_bind (E : coPset) Ψ (Φ : iris.val -> iProp Σ) e i lh f Φf Φf0:
+Lemma ewp_ctx_bind (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e i lh f Φf Φf0:
   is_pure lh ->
     base_is_empty lh ->
     EWP e UNDER f @ E <| Ψ |> {{ w, ∀ f', Φf0 f' -∗ EWP of_val w UNDER f' @ E CTX i; lh <| Ψ |> {{ w, Φ w ; Φf }} ; Φf0 }} -∗

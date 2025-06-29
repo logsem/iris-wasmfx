@@ -124,14 +124,14 @@ Context `{!wasmG Σ}.
   (* ----------------------------- Native invocations ------------------------- *)
   (* -------------------------------------------------------------------------- *)
 
-  Lemma ewp_invoke_native (E : coPset) Ψ (Φ : val -> iProp Σ) ves vcs t1s t2s ts a es i m f f' :
+  Lemma ewp_invoke_native (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) ves vcs t1s t2s ts a es i m f :
     iris.to_val ves = Some (immV vcs) ->
     length vcs = length t1s ->
     length t2s = m ->
     (N.of_nat a) ↦[wf] (FC_func_native i (Tf t1s t2s) ts es) -∗
      ▷ ((N.of_nat a) ↦[wf] (FC_func_native i (Tf t1s t2s) ts es) -∗
-       EWP [::AI_local m (Build_frame (vcs ++ (default_vals ts)) i) [::AI_basic (BI_block (Tf [::] t2s) es)]] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}) -∗
-     EWP ves ++ [AI_invoke a] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}.
+       EWP [::AI_local m (Build_frame (vcs ++ (default_vals ts)) i) [::AI_basic (BI_block (Tf [::] t2s) es)]] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}) -∗
+     EWP ves ++ [AI_invoke a] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hparams Hlen Hret) "Hi HΦ".
     iApply ewp_lift_step.
@@ -173,14 +173,14 @@ Context `{!wasmG Σ}.
 
   
   
-  Lemma ewp_invoke_host E ves vcs n t1s t2s a h f f' Ψ Φ :
+  Lemma ewp_invoke_host E ves vcs n t1s t2s a h f Ψ Φ :
     ves = v_to_e_list vcs ->
     length vcs = n ->
     length t1s = n ->
     (N.of_nat a) ↦[wf] (FC_func_host (Tf t1s t2s) h) -∗
         ▷ ((N.of_nat a) ↦[wf] (FC_func_host (Tf t1s t2s) h) -∗
-      EWP [AI_call_host (Tf t1s t2s) h vcs] UNDER f @ E <| Ψ |> {{ Φ ; f' }}) -∗
-     EWP ves ++ [AI_invoke a] UNDER f@ E <| Ψ |> {{ Φ ; f' }}.
+      EWP [AI_call_host (Tf t1s t2s) h vcs] UNDER f @ E <| Ψ |> {{ Φ }}) -∗
+     EWP ves ++ [AI_invoke a] UNDER f@ E <| Ψ |> {{ Φ }}.
 Proof.
   iIntros (Hves Hvcs Ht1s) "Ha Hwp".
   iApply ewp_lift_step => //=.
@@ -228,10 +228,10 @@ Qed.
   (* ---------------------------------- Calls --------------------------------- *)
   (* -------------------------------------------------------------------------- *)
 
-  Lemma ewp_call_ctx (E : coPset) Ψ (Φ : val -> iProp Σ) f0 f' (i : nat) a j lh :
+  Lemma ewp_call_ctx (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f0 (i : nat) a j lh :
     (inst_funcs (f_inst f0)) !! i = Some a -> 
-    ▷ EWP [AI_invoke a] UNDER f0 @ E CTX j; lh <| Ψ |> {{ v, Φ v ; f' }} -∗
-     EWP [AI_basic (BI_call i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ v, Φ v ; f' }}.
+    ▷ EWP [AI_invoke a] UNDER f0 @ E CTX j; lh <| Ψ |> {{ v ; f , Φ v f }} -∗
+     EWP [AI_basic (BI_call i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hfuncs) "HΦ".
     iIntros (LI Hfill).
@@ -270,10 +270,10 @@ Qed.
       destruct f0; iFrame.
       iApply ("HΦ" with "[]"). done. 
   Qed.
-  Lemma ewp_call (E : coPset) Ψ (Φ : val -> iProp Σ) f0 f' (i : nat) a :
+  Lemma ewp_call (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f0 (i : nat) a :
     (inst_funcs (f_inst f0)) !! i = Some a -> 
-    ▷ (EWP [AI_invoke a] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; f' }}) -∗
-     EWP [AI_basic (BI_call i)] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; f' }}.
+    ▷ (EWP [AI_invoke a] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}) -∗
+     EWP [AI_basic (BI_call i)] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hfuncs) "HΦ".
     iApply ewp_wasm_empty_ctx.
@@ -283,15 +283,15 @@ Qed.
     iApply "HΦ".
   Qed. 
 
-  Lemma ewp_call_indirect_success_ctx (E : coPset) Ψ (Φ : val -> iProp Σ) (f0 : frame) f' i j a c cl d lh :
+  Lemma ewp_call_indirect_success_ctx (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j a c cl d lh :
     stypes (f_inst f0) i = Some (cl_type cl) ->
     (inst_tab (f_inst f0)) !! 0 = Some j-> 
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a) -∗
     (N.of_nat a) ↦[wf] cl -∗
         ▷ ((N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a)
              -∗ (N.of_nat a) ↦[wf] cl
-                -∗ EWP [AI_invoke a] UNDER f0 @ E CTX d; lh <| Ψ |> {{ v, Φ v ; f' }}) -∗
-    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E CTX d; lh <| Ψ |> {{ v, Φ v ; f' }}.
+                -∗ EWP [AI_invoke a] UNDER f0 @ E CTX d; lh <| Ψ |> {{ v ; f , Φ v f }}) -∗
+    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E CTX d; lh <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Htype Hc) "Ha Hcl Hcont".
     iIntros (LI Hfill).
@@ -348,15 +348,15 @@ Qed.
       iSpecialize ("Hcont" $! _ Hfill'). destruct f0; iFrame.      
   Qed.
   
-  Lemma ewp_call_indirect_success (E : coPset) Ψ (Φ : val -> iProp Σ) (f0 : frame) f' i j a c cl :
+  Lemma ewp_call_indirect_success (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j a c cl :
     stypes (f_inst f0) i = Some (cl_type cl) ->
     (inst_tab (f_inst f0)) !! 0 = Some j-> 
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a) -∗
     (N.of_nat a) ↦[wf] cl -∗
        ▷ ((N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a)
           -∗ (N.of_nat a) ↦[wf] cl -∗
-                                      EWP [AI_invoke a] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; f'}}) -∗
-    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v, Φ v ;f' }}.
+                                      EWP [AI_invoke a] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}) -∗
+    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (? ?) "? ? H".
     iApply ewp_wasm_empty_ctx.
@@ -366,16 +366,16 @@ Qed.
     iApply ("H" with "[$] [$]").
   Qed.
 
-  Lemma ewp_call_indirect_failure_types (E : coPset) Ψ (Φ : val -> iProp Σ) (f0 : frame) i j a c cl Φf:
+  Lemma ewp_call_indirect_failure_types (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j a c cl:
     stypes (f_inst f0) i <> Some (cl_type cl) ->
     (inst_tab (f_inst f0)) !! 0 = Some j -> 
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a) -∗
     (N.of_nat a) ↦[wf] cl -∗
-                             ▷ (Φ trapV) -∗ ▷ Φf f0 -∗
-    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v, Φ v ∗ (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a)
-                                                                                          ∗ (N.of_nat a) ↦[wf] cl ; Φf }}.
+                             ▷ (Φ trapV f0) -∗ 
+    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f ∗ (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a)
+                                                                                          ∗ (N.of_nat a) ↦[wf] cl }}.
   Proof.
-    iIntros (Htype Hc) "Ha Hcl Hcont Hf".
+    iIntros (Htype Hc) "Ha Hcl Hcont".
     iApply ewp_lift_atomic_step => //.
     iIntros (?) "(Hσ1&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
     iApply fupd_frame_l.
@@ -412,13 +412,13 @@ Qed.
   Qed.
 
 
-  Lemma ewp_call_indirect_failure_notable (E : coPset) Ψ (Φ : val -> iProp Σ) (f0 : frame) i c Φf :
+  Lemma ewp_call_indirect_failure_notable (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i c :
     (inst_tab (f_inst f0)) !! 0 = None -> (* no function table *)
     
-    ▷ (Φ trapV) -∗ ▷ Φf f0 -∗
-    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+    ▷ (Φ trapV f0) -∗
+    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (Hc) "Hcont Hf".
+    iIntros (Hc) "Hcont".
     iApply ewp_lift_atomic_step => //.
     iIntros (?) "Hσ".
     iApply fupd_frame_l.
@@ -443,14 +443,14 @@ Qed.
       inversion Hfq; subst; destruct HH as [<- <-]. iFrame.  by destruct f0.
   Qed.
 
-  Lemma ewp_call_indirect_failure_noindex (E : coPset) Ψ (Φ : val -> iProp Σ) (f0 : frame) i j c Φf:
+  Lemma ewp_call_indirect_failure_noindex (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j c:
     (inst_tab (f_inst f0)) !! 0 = Some j -> (* current frame points to correct table *)
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] None -∗ (* but no index i *)
     
-    ▷ (Φ trapV) -∗ ▷ Φf f0 -∗
-    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v, Φ v ∗ (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] None; Φf }}.
+    ▷ (Φ trapV f0) -∗
+    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v ; h , Φ v h ∗ (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] None }}.
   Proof.
-    iIntros (Hc) "Ha Hcont Hf".
+    iIntros (Hc) "Ha Hcont".
     iApply ewp_lift_atomic_step => //.
     iIntros (?) "(Hσ1&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
     iApply fupd_frame_l.
@@ -482,14 +482,14 @@ Qed.
       iFrame. by destruct f0.
   Qed.
 
-  Lemma ewp_call_indirect_failure_outofbounds (E : coPset) Ψ (Φ : val -> iProp Σ) (f0 : frame) i j c max Φf :
+  Lemma ewp_call_indirect_failure_outofbounds (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j c max :
     (inst_tab (f_inst f0)) !! 0 = Some j -> (* current frame points to correct table *)
     max <= (Wasm_int.nat_of_uint i32m c) ->
     (N.of_nat j) ↪[wtsize] max -∗ (* but is out of bounds *)
-        ▷ (Φ trapV) -∗ ▷ Φf f0 -∗
-    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v, Φ v; Φf }}.
+        ▷ (Φ trapV f0) -∗
+    EWP [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (Hc Hge) "#Ha Hcont Hf".
+    iIntros (Hc Hge) "#Ha Hcont".
     iApply ewp_lift_atomic_step => //.
     iIntros (?) "(Hσ1&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6&Hσ7&Hσ8)".
     iApply fupd_frame_l.
@@ -528,12 +528,12 @@ Qed.
   Qed.
 
 
-  Lemma ewp_ref_func f k i E Ψ Φ Φf:
+  Lemma ewp_ref_func f k i E Ψ Φ:
     f.(f_inst).(inst_funcs) !! k = Some i ->
-     ▷ Φ (immV [VAL_ref (VAL_ref_func i)]) ∗ ▷ Φf f 
-      ⊢ EWP [AI_basic (BI_ref_func k)] UNDER f @ E <| Ψ |> {{ v, Φ v; Φf }}.
+     ▷ Φ (immV [VAL_ref (VAL_ref_func i)]) f
+      ⊢ EWP [AI_basic (BI_ref_func k)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (Hk) "[HΦ Hf]".
+    iIntros (Hk) "HΦ".
     iApply ewp_lift_atomic_step => //=.
     iIntros (σ) "Hσ".
     iModIntro.
@@ -553,12 +553,12 @@ Qed.
       destruct H0 as [[??] | (?&?&?&?&_)] => //.
   Qed.
 
-    Lemma ewp_call_reference_ctx (E : coPset) Ψ (Φ : val -> iProp Σ) f f' i a j lh tf cl:
+    Lemma ewp_call_reference_ctx (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f i a j lh tf cl:
       stypes f.(f_inst) i = Some tf ->
       cl_type cl = tf ->
     N.of_nat a ↦[wf] cl -∗
-     ▷ (N.of_nat a ↦[wf] cl -∗ EWP [AI_invoke a] UNDER f @ E CTX j; lh <| Ψ |> {{ v, Φ v ; f' }}) -∗
-     EWP [AI_ref a; AI_basic (BI_call_reference i)] UNDER f @ E CTX j; lh <| Ψ |> {{ v, Φ v ; f'}}.
+     ▷ (N.of_nat a ↦[wf] cl -∗ EWP [AI_invoke a] UNDER f @ E CTX j; lh <| Ψ |> {{ v ; f , Φ v f }}) -∗
+     EWP [AI_ref a; AI_basic (BI_call_reference i)] UNDER f @ E CTX j; lh <| Ψ |> {{ v ; f , Φ v f}}.
   Proof.
     iIntros (Hi Hcl) "Ha HΦ".
     iIntros (LI Hfill).
@@ -601,12 +601,12 @@ Qed.
         iApply ("HΦ" with "[$]"). auto.
       simpl. by subst.
   Qed.
-  Lemma ewp_call_reference (E : coPset) Ψ (Φ : val -> iProp Σ) f f' i a tf cl:
+  Lemma ewp_call_reference (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f i a tf cl:
       stypes f.(f_inst) i = Some tf ->
       cl_type cl = tf ->
     N.of_nat a ↦[wf] cl -∗
-     ▷ (N.of_nat a ↦[wf] cl -∗ EWP [AI_invoke a] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}) -∗
-     EWP [AI_ref a; AI_basic (BI_call_reference i)] UNDER f @ E <| Ψ |> {{ v, Φ v ; f'}}.
+     ▷ (N.of_nat a ↦[wf] cl -∗ EWP [AI_invoke a] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}) -∗
+     EWP [AI_ref a; AI_basic (BI_call_reference i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hi Hcl) "Ha HΦ".
     iApply ewp_wasm_empty_ctx.

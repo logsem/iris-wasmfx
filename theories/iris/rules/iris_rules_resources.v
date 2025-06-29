@@ -140,12 +140,12 @@ Qed.
 
 (* Instance related *)
 
-Lemma ewp_get_local (E : coPset) (v: value) (i: nat) Ψ (Φ: iris.val -> iProp Σ) f Φf:
+Lemma ewp_get_local (E : coPset) (v: value) (i: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) f:
   (f_locs f) !! i = Some v -> 
-  ▷Φ (immV [v]) -∗ ▷ Φf f -∗
-   EWP ([AI_basic (BI_get_local i)]) UNDER f @ E <| Ψ |> {{ w, Φ w ; Φf }}.
+  ▷Φ (immV [v]) f -∗
+   EWP ([AI_basic (BI_get_local i)]) UNDER f @ E <| Ψ |> {{ w ; h , Φ w h }}.
 Proof.
-  iIntros (Hlook) "HΦ Hf".
+  iIntros (Hlook) "HΦ".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
   rewrite - nth_error_lookup in Hlook.
@@ -162,12 +162,12 @@ Proof.
     unfold to_val => //=. rewrite to_val_instr_AI_const //=.
 Qed.
 
-Lemma ewp_set_local (E : coPset) (v : value) (i: nat) Ψ (Φ: iris.val -> iProp Σ) f Φf:
+Lemma ewp_set_local (E : coPset) (v : value) (i: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) f:
   i < length (f_locs f) ->
-  ▷ Φ (immV []) -∗ ▷ Φf (Build_frame (set_nth v (f_locs f) i v) (f_inst f)) -∗
-    EWP ([AI_const v; AI_basic (BI_set_local i)]) UNDER f @ E <| Ψ |> {{ w, Φ w ; Φf }}.
+  ▷ Φ (immV []) (Build_frame (set_nth v (f_locs f) i v) (f_inst f)) -∗
+    EWP ([AI_const v; AI_basic (BI_set_local i)]) UNDER f @ E <| Ψ |> {{ w ; h , Φ w h }}.
 Proof.
-  iIntros (Hlen) "HΦ Hf".
+  iIntros (Hlen) "HΦ".
   iApply ewp_lift_atomic_step => //=.
   rewrite /to_val /= merge_prepend to_val_instr_AI_const //.
   rewrite /to_eff /= merge_prepend to_val_instr_AI_const //.
@@ -194,12 +194,12 @@ Proof.
     rewrite -(rwP ssrnat.leP) /=. lia.
 Qed.
 
-Lemma ewp_tee_local (E : coPset) (v : value) (i : nat) Ψ (Φ : iris.val -> iProp Σ) f Φf :
+Lemma ewp_tee_local (E : coPset) (v : value) (i : nat) Ψ (Φ : iris.val -> frame -> iProp Σ) f :
   ⊢ 
     ▷ (EWP [AI_const v ; AI_const v ;
                        AI_basic (BI_set_local i)]
-                     UNDER f @ E <| Ψ |> {{ Φ ; Φf }}) -∗
-             EWP [AI_const v ; AI_basic (BI_tee_local i)] UNDER f @ E <| Ψ |> {{ Φ ; Φf}}.
+                     UNDER f @ E <| Ψ |> {{ Φ }}) -∗
+             EWP [AI_const v ; AI_basic (BI_tee_local i)] UNDER f @ E <| Ψ |> {{ Φ }}.
 Proof.
   iIntros "Hwp".
   iApply ewp_lift_step => //=.
@@ -232,15 +232,15 @@ Proof.
     rewrite /= const_const //.
 Qed.
 
-Lemma ewp_get_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> iProp Σ) (g: global) (k: nat) Φf:
+Lemma ewp_get_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat):
   (f_inst f).(inst_globs) !! n = Some k ->
   g.(g_val) = v ->
-  ▷ Φ(immV [v]) -∗ ▷ Φf f -∗
+  ▷ Φ(immV [v]) f -∗
     N.of_nat k ↦[wg] g -∗
-  EWP ([AI_basic (BI_get_global n)]) UNDER f @ E <| Ψ |> {{ w, Φ w ∗ N.of_nat k ↦[wg] g ; Φf }}.
+  EWP ([AI_basic (BI_get_global n)]) UNDER f @ E <| Ψ |> {{ w ; h, Φ w h ∗ N.of_nat k ↦[wg] g }}.
 Proof.
-  iIntros (Hinstg Hgval) "HΦ Hf Hglob".
-  iApply (ewp_wand _ _ _ _ _ (λ w, (Φ w ∗ N.of_nat k↦[wg]g))%I with "[-]") ;[|iIntros (?) "?";iFrame].
+  iIntros (Hinstg Hgval) "HΦ Hglob".
+  iApply (ewp_wand _ _ _ _ _ (λ w h, (Φ w h ∗ N.of_nat k↦[wg]g))%I with "[-]") ;[|by iIntros (??) "?";iFrame].
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hg & Hi & ? & ?)".
@@ -269,15 +269,14 @@ Proof.
     iFrame.
 Qed.
 
-Lemma ewp_set_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> iProp Σ) (g: global) (k: nat) Φf:
+Lemma ewp_set_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat):
   (f_inst f).(inst_globs) !! n = Some k ->
-  ▷ Φ (immV []) -∗
-  ▷ Φf f -∗
+  ▷ Φ (immV []) f -∗
   N.of_nat k ↦[wg] g -∗
-  EWP [AI_const v; AI_basic (BI_set_global n)] UNDER f @ E <| Ψ |> {{ w, Φ w ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v ; Φf }}.
+  EWP [AI_const v; AI_basic (BI_set_global n)] UNDER f @ E <| Ψ |> {{ w ; h , Φ w h ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v }}.
 Proof.
-  iIntros (Hinstg) "HΦ Hf Hglob".
-  iApply (ewp_wand _ _ _ _ _ (λ w, (Φ w ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v) )%I with "[-]");[|iIntros (?) "?";iFrame].
+  iIntros (Hinstg) "HΦ Hglob".
+  iApply (ewp_wand _ _ _ _ _ (λ w h, (Φ w h ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v) )%I with "[-]");[|by iIntros (??) "?";iFrame].
   iApply ewp_lift_atomic_step => //=.
   rewrite /to_val /= merge_prepend to_val_instr_AI_const //.
   rewrite /to_eff /= merge_prepend to_val_instr_AI_const //.
@@ -1775,17 +1774,17 @@ Proof.
     rewrite no_memory_no_memories in Hm => //=.
 Qed.
 
-Lemma ewp_load_deserialize Ψ (Φ:iris.val -> iProp Σ) (E:coPset) t (bv:bytes)
+Lemma ewp_load_deserialize Ψ (Φ:iris.val -> frame -> iProp Σ) (E:coPset) t (bv:bytes)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) Φf:
+      (k: i32) (n:nat) (f0: frame):
   length bv = length_tnum t ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
-  (▷ Φ (immV [VAL_num $ wasm_deserialise bv t]) ∗ ▷ Φf f0 ∗
+  (▷ Φ (immV [VAL_num $ wasm_deserialise bv t]) f0 ∗
      N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bv ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t None a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) ; Φf }})).
+          AI_basic (BI_load t None a off)] UNDER f0 @ E <| Ψ |> {{ w ; h , (Φ w h ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) }})).
 Proof.
-  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
   iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ)".
@@ -1822,36 +1821,34 @@ Proof.
     destruct H as [<- <-]. destruct f0; iFrame. 
 Qed.
 
-Lemma ewp_load Ψ (Φ:iris.val -> iProp Σ) (E:coPset) t v
+Lemma ewp_load Ψ (Φ:iris.val -> frame -> iProp Σ) (E:coPset) t v
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f: frame) Φf:
+      (k: i32) (n:nat) (f: frame):
   types_num_agree t v ->
   f.(f_inst).(inst_memory) !! 0 = Some n ->
-  (▷ Φ (immV [VAL_num v]) ∗
-   ▷ Φf f ∗
+  (▷ Φ (immV [VAL_num v]) f ∗
      N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]
      (bits v) ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t None a off)] UNDER f @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ](bits v)) ; Φf }})).
+          AI_basic (BI_load t None a off)] UNDER f @ E <| Ψ |> {{ w ; h , (Φ w h ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ](bits v)) }})).
 Proof.
-  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_load_deserialize;auto.
   { erewrite length_bits;eauto. }
   rewrite deserialise_bits;auto. iFrame.
 Qed.
 
-Lemma ewp_load_packed_deserialize Ψ (Φ:iris.val -> iProp Σ) (E:coPset) t (bv:bytes)
+Lemma ewp_load_packed_deserialize Ψ (Φ:iris.val -> frame -> iProp Σ) (E:coPset) t (bv:bytes)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) tp sx Φf:
+      (k: i32) (n:nat) (f0: frame) tp sx:
   length bv = length_tp tp ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
-  (▷ Φ (immV [VAL_num $ wasm_deserialise bv t]) ∗
-   ▷ Φf f0 ∗
+  (▷ Φ (immV [VAL_num $ wasm_deserialise bv t]) f0 ∗
      N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bv ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t (Some (tp, sx)) a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) ; Φf }})).
+          AI_basic (BI_load t (Some (tp, sx)) a off)] UNDER f0 @ E <| Ψ |> {{ w ; h , (Φ w h ∗ (N.of_nat n) ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ]bv) }})).
 Proof.
-  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -1890,16 +1887,16 @@ Proof.
     destruct H as [<- <-]. destruct f0; iFrame. 
 Qed.
 
-Lemma ewp_load_failure Ψ (Φ:iris.val -> iProp Σ) (E:coPset)
+Lemma ewp_load_failure Ψ (Φ:iris.val -> frame -> iProp Σ) (E:coPset)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) t len Φf:
+      (k: i32) (n:nat) (f0: frame) t len:
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tnum t)) > len)%N ->
-  (▷ Φ trapV ∗ ▷ Φf f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
+  (▷ Φ trapV f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t None a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wmlength] len); Φf }})).
+          AI_basic (BI_load t None a off)] UNDER f0 @ E <| Ψ |> {{ w ; h, (Φ w h ∗ (N.of_nat n) ↦[wmlength] len) }})).
 Proof.
-  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -1937,16 +1934,16 @@ Proof.
     iFrame. 
 Qed.
 
-Lemma ewp_load_packed_failure Ψ (Φ:iris.val -> iProp Σ) (E:coPset)
+Lemma ewp_load_packed_failure Ψ (Φ:iris.val -> frame -> iProp Σ) (E:coPset)
       (off: static_offset) (a: alignment_exponent)
-      (k: i32) (n:nat) (f0: frame) t len tp sx Φf :
+      (k: i32) (n:nat) (f0: frame) t len tp sx :
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tp tp)) > len)%N ->
-  (▷ Φ trapV ∗ ▷ Φf f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
+  (▷ Φ trapV f0 ∗ (N.of_nat n) ↦[wmlength] len  ⊢
      (EWP [AI_basic (BI_const (VAL_int32 k)) ;
-          AI_basic (BI_load t (Some (tp,sx)) a off)] UNDER f0 @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat n) ↦[wmlength] len) ; Φf }})).
+          AI_basic (BI_load t (Some (tp,sx)) a off)] UNDER f0 @ E <| Ψ |> {{ w ; h, (Φ w h ∗ (N.of_nat n) ↦[wmlength] len) }})).
 Proof.
-  iIntros (Htv Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -1985,16 +1982,16 @@ Proof.
 Qed.
 
 
-Lemma ewp_store Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f: frame) Φf:
+Lemma ewp_store Ψ (ϕ: iris.val -> frame -> iProp Σ) (E: coPset) t v
+      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f: frame):
   types_num_agree t v ->
   length bs = length_tnum t ->
   f.(f_inst).(inst_memory) !! 0 = Some n ->
-  (▷ ϕ (immV []) ∗ ▷ Φf f ∗
+  (▷ ϕ (immV []) f ∗
      N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bs) ⊢
-  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) UNDER f @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wms][ Wasm_int.N_of_uint i32m k + off ] (bits v)) ; Φf }}).
+  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) UNDER f @ E <| Ψ |> {{ w ; h, (ϕ w h ∗ (N.of_nat n) ↦[wms][ Wasm_int.N_of_uint i32m k + off ] (bits v)) }}).
 Proof.
-  iIntros (Hvt Hbs Hinstn) "(HΦ & HΦf & Hwms)".
+  iIntros (Hvt Hbs Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -2060,20 +2057,19 @@ Proof.
     iFrame. 
 Qed.
 
-Lemma ewp_store_packed Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) tp Φf:
+Lemma ewp_store_packed Ψ (ϕ: iris.val -> frame -> iProp Σ) (E: coPset) t v
+      (bs : bytes) (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) tp:
   types_num_agree t v ->
   length bs = length_tp tp ->
   length_tp tp <  length_tnum t ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
-  (▷ ϕ (immV []) ∗
-   ▷ Φf f0 ∗
+  (▷ ϕ (immV []) f0 ∗
   N.of_nat n ↦[wms][ N.add (Wasm_int.N_of_uint i32m k) off ] bs) ⊢
    (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]) UNDER f0 @ E <| Ψ |>
-                  {{ w, (ϕ w ∗ (N.of_nat n) ↦[wms][ Wasm_int.N_of_uint i32m k + off ] bytes_takefill #00%byte (length_tp tp) 
-             (bits v)) ; Φf }}).
+                  {{ w ; h, (ϕ w h ∗ (N.of_nat n) ↦[wms][ Wasm_int.N_of_uint i32m k + off ] bytes_takefill #00%byte (length_tp tp) 
+             (bits v))  }}).
 Proof.
-  iIntros (Hvt Hbs Hlt Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Hvt Hbs Hlt Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -2128,16 +2124,16 @@ Proof.
   + rewrite length_bytes_takefill. rewrite store_bytes_takefill_eq. by eauto.
 Qed. 
 
-Lemma ewp_store_failure Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-       (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len Φf:
+Lemma ewp_store_failure Ψ (ϕ: iris.val -> frame -> iProp Σ) (E: coPset) t v
+       (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len:
   types_num_agree t v ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tnum t)) > len)%N ->
-  (▷ ϕ (trapV) ∗ ▷ Φf f0 ∗
+  (▷ ϕ (trapV) f0 ∗
    (N.of_nat n) ↦[wmlength] len) ⊢
-  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) UNDER f0 @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wmlength] len) ; Φf }}).
+  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t None a off)]) UNDER f0 @ E <| Ψ |> {{ w ; h, (ϕ w h ∗ (N.of_nat n) ↦[wmlength] len) }}).
 Proof.
-  iIntros (Htypes Htv Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Htypes Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -2176,16 +2172,16 @@ Proof.
     iFrame. 
 Qed.
 
-Lemma ewp_store_packed_failure Ψ (ϕ: iris.val -> iProp Σ) (E: coPset) t v
-      (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len tp Φf:
+Lemma ewp_store_packed_failure Ψ (ϕ: iris.val -> frame -> iProp Σ) (E: coPset) t v
+      (off: static_offset) (a: alignment_exponent) (k: i32) (n: nat) (f0: frame) len tp:
   types_num_agree t v ->
   f0.(f_inst).(inst_memory) !! 0 = Some n ->
   ((Wasm_int.N_of_uint i32m k) + off + (N.of_nat (length_tp tp)) > len)%N ->
-  (▷ ϕ (trapV) ∗ ▷ Φf f0 ∗
+  (▷ ϕ (trapV) f0 ∗
    (N.of_nat n) ↦[wmlength] len) ⊢
-  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]) UNDER f0 @ E <| Ψ |> {{ w, (ϕ w ∗ (N.of_nat n) ↦[wmlength] len) ; Φf }}).
+  (EWP ([AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]) UNDER f0 @ E <| Ψ |> {{ w ; h, (ϕ w h ∗ (N.of_nat n) ↦[wmlength] len)}}).
 Proof.
-  iIntros (Htypes Htv Hinstn) "(HΦ & Hf & Hwms)".
+  iIntros (Htypes Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -2224,14 +2220,13 @@ Proof.
 Qed.
   
 
-Lemma ewp_current_memory (E: coPset) (k: nat) (n: N) (f:frame) Ψ (Φ: iris.val -> iProp Σ) Φf :
+Lemma ewp_current_memory (E: coPset) (k: nat) (n: N) (f:frame) Ψ (Φ: iris.val -> frame -> iProp Σ):
   f.(f_inst).(inst_memory) !! 0 = Some k ->
-  (▷ Φ (immV [VAL_num (VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (N.div n page_size))))]) ∗
-   ▷ Φf f ∗
+  (▷ Φ (immV [VAL_num (VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (N.div n page_size))))]) f ∗
    (N.of_nat k) ↦[wmlength] n) ⊢
-   EWP ([AI_basic (BI_current_memory)]) UNDER f @ E <| Ψ |> {{ w, (Φ w ∗ (N.of_nat k) ↦[wmlength] n) ; Φf }}.
+   EWP ([AI_basic (BI_current_memory)]) UNDER f @ E <| Ψ |> {{ w; h, (Φ w h∗ (N.of_nat k) ↦[wmlength] n) }}.
 Proof.
-  iIntros (Hf) "(HΦ & Hf & Hmemlength)".
+  iIntros (Hf) "(HΦ & Hmemlength)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -2495,22 +2490,22 @@ Qed.
 Definition mem_in_bound (c: N):= (c <= page_limit)%N.
 
 Lemma ewp_grow_memory (E: coPset) (k: nat) (f : frame)
-      (n: N) Ψ (Φ Φ' : iris.val -> iProp Σ) (c: i32) Φf:
+      (n: N) Ψ (Φ Φ' : iris.val -> frame -> iProp Σ) (c: i32):
   f.(f_inst).(inst_memory) !! 0 = Some k ->
   ( 
      (N.of_nat k) ↦[wmlength] n ∗
-     ▷ Φ (immV [VAL_num $ VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (n `div` page_size)%N))]) ∗
-     ▷ Φ' (immV [VAL_num $ VAL_int32 int32_minus_one]) ∗ ▷ Φf f)
+     ▷ Φ (immV [VAL_num $ VAL_int32 (Wasm_int.int_of_Z i32m (ssrnat.nat_of_bin (n `div` page_size)%N))]) f ∗
+     ▷ Φ' (immV [VAL_num $ VAL_int32 int32_minus_one]) f)
     ⊢ EWP [AI_basic (BI_const (VAL_int32 c)) ; AI_basic (BI_grow_memory)]
-    UNDER f @ E <| Ψ |> {{ w, ((Φ w ∗
+    UNDER f @ E <| Ψ |> {{ w ; h, ((Φ w h ∗
                     ((N.of_nat k) ↦[wms][ n ]
                     repeat #00%byte (N.to_nat (Wasm_int.N_of_uint i32m c * page_size))) ∗
                     (N.of_nat k) ↦[wmlength]
                     (n + Wasm_int.N_of_uint i32m c * page_size)%N) ∗
                     ⌜ mem_in_bound ((n `div` page_size + Wasm_int.N_of_uint i32m c)) ⌝
-                 ∨ (Φ' w ∗ (N.of_nat k) ↦[wmlength] n)) ; Φf }}.
+                 ∨ (Φ' w h ∗ (N.of_nat k) ↦[wmlength] n)) }}.
 Proof.
-  iIntros (Hfm) "(Hmlength & HΦ & HΨ & Hf)".
+  iIntros (Hfm) "(Hmlength & HΦ & HΨ)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
@@ -2598,10 +2593,11 @@ Proof.
           by apply HLP.
     }
     { (* grow_memory failed *)
-      iSplitR "HΨ Hmlength Hf"  => //.
+      iSplitR "HΨ Hmlength"  => //.
       iFrame => //.
-      iSplitR "Hf"; last by rewrite Heqf0; destruct f.
+      simpl.
       iRight.
+      rewrite Heqf0; destruct f;
       by iFrame.  }
     rewrite Heqes0 in H0.
     move/lfilledP in H0; inversion H0; subst.
@@ -2647,3 +2643,4 @@ Proof.
 Qed.
       
 End iris_rules_resources.
+

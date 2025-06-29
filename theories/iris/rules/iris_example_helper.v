@@ -20,17 +20,17 @@ Section Examples.
   Context `{!wasmG Σ}.
   
   (* Helper lemmas and tactics for necessary list manipulations for expressions *)
-  Lemma iRewrite_nil_l  (E : coPset) Ψ (Φ : val -> iProp Σ) (e : iris.expr) f Φf :
-    (EWP [] ++ e UNDER f @ E <| Ψ |> {{ Φ ; Φf }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ ; Φf }}).
+  Lemma iRewrite_nil_l  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) f :
+    (EWP [] ++ e UNDER f @ E <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_l. auto. Qed.
-  Lemma iRewrite_nil_r  (E : coPset) Ψ (Φ : val -> iProp Σ) (e : iris.expr) f Φf:
-    (EWP e ++ [] UNDER f @ E <| Ψ |> {{ Φ ; Φf }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ ; Φf }}).
+  Lemma iRewrite_nil_r  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) f:
+    (EWP e ++ [] UNDER f @ E <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_r. auto. Qed.
-  Lemma iRewrite_nil_l_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) (e : iris.expr) i lh f Φf:
-    (EWP [] ++ e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; Φf }} ⊢ EWP e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; Φf }}).
+  Lemma iRewrite_nil_l_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) i lh f:
+    (EWP [] ++ e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_l. auto. Qed.
-  Lemma iRewrite_nil_r_ctx  (E : coPset) Ψ (Φ : val -> iProp Σ) (e : iris.expr) i lh f Φf:
-    (EWP e ++ [] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; Φf }} ⊢ EWP e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; Φf }}).
+  Lemma iRewrite_nil_r_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) i lh f:
+    (EWP e ++ [] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_r. auto. Qed.
 
 End Examples.
@@ -38,22 +38,24 @@ End Examples.
 (* Tactics *)
 Ltac take_drop_app_rewrite n :=
   match goal with
-  | |- context [ EWP ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ ; _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _  }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
-  | |- context [ EWP ?e UNDER _ @ _ <| _ |> {{ _ ; _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ <| _ |> {{ _  }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
-  | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ CTX _; _ <| _ |>  {{ _, _  ; _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ CTX _; _ <| _ |>  {{ _ ; _ , _  }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
-  | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ <| _ |> {{ _ ; _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
   end.
 
 Ltac take_drop_app_rewrite_twice n m :=
   take_drop_app_rewrite n;
   match goal with
-  | |- context [ EWP _ ++ ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ ; _ }} %I ] =>
+  | |- context [ EWP _ ++ ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
-  | |- context [ EWP _ ++ ?e UNDER _ @ _ <| _ |> {{ _ ; _ }} %I ] =>
+  | |- context [ EWP _ ++ ?e UNDER _ @ _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
   end.
 
+Ltac auto_instantiate :=
+  by instantiate (1 := λ v f, (⌜ v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).

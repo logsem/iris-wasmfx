@@ -16,8 +16,8 @@ Context `{!wasmG Σ}.
 
 
 
-Lemma ewp_wasm_empty_ctx (E : coPset) f h (Ψ : effect_identifier -> iProt Σ) (Φ : iris.val -> iProp Σ) e :
-  ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ ; h }} ∗-∗ EWP e UNDER f @ E CTX_EMPTY <| Ψ |> {{ Φ ; h }}.
+Lemma ewp_wasm_empty_ctx (E : coPset) f (Ψ : effect_identifier -> iProt Σ) (Φ : iris.val -> frame -> iProp Σ) e :
+  ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }} ∗-∗ EWP e UNDER f @ E CTX_EMPTY <| Ψ |> {{ Φ }}.
 Proof.
   iSplit.
   { iIntros "HWP". iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -27,8 +27,8 @@ Proof.
     iPureIntro. cbn. rewrite app_nil_r eqseqE. apply eq_refl. }
 Qed.
 
-Lemma ewp_wasm_empty_ctx_frame (E : coPset) f h Ψ (Φ : iris.val -> iProp Σ) e n f' :
-  ⊢ EWP e UNDER f @ E FRAME n; f' <| Ψ |> {{ Φ ; h }} ∗-∗ EWP e UNDER f @ E FRAME n; f' CTX_EMPTY <| Ψ |> {{ v, Φ v ; h }}.
+Lemma ewp_wasm_empty_ctx_frame (E : coPset) f Ψ (Φ : iris.val -> frame -> iProp Σ) e n f' :
+  ⊢ EWP e UNDER f @ E FRAME n; f' <| Ψ |> {{ Φ }} ∗-∗ EWP e UNDER f @ E FRAME n; f' CTX_EMPTY <| Ψ |> {{ v ; h , Φ v h }}.
 Proof.
   iSplit.
   { iIntros "HWP". iIntros (LI Hfill%lfilled_Ind_Equivalent).
@@ -38,17 +38,17 @@ Proof.
     iPureIntro. cbn. rewrite app_nil_r eqseqE. apply eq_refl. }
 Qed.
 
-Lemma ewp_nil (E : coPset) f Ψ (Φ : iProp Σ) Φf :
-  Φ ∗ Φf f ⊢ EWP [] UNDER f @ E CTX_EMPTY <| Ψ |> {{ fun v => Φ ; Φf }}%I.
+Lemma ewp_nil (E : coPset) f Ψ (Φ : iProp Σ):
+  Φ ⊢ EWP [] UNDER f @ E CTX_EMPTY <| Ψ |> {{ fun v f => Φ }}%I.
 Proof.
   iIntros "H". iApply ewp_wasm_empty_ctx.
   rewrite ewp_unfold /ewp_pre /=. iFrame. eauto.
 Qed.
 
-Lemma ewp_val (E : coPset) f h Ψ (Φ : val -> iProp Σ) (v0 : value) (es : language.expr wasm_lang) :
-  ((¬ Φ trapV) ∗
-     EWP es UNDER f @ E <| Ψ |> {{ v, (Φ (val_combine (immV [v0]) v))  ; h }}
-     ⊢ EWP (AI_const v0 :: es) UNDER f @ E <| Ψ |> {{ v, Φ v ; h }})%I.
+Lemma ewp_val (E : coPset) f Ψ (Φ : val -> frame -> iProp Σ) (v0 : value) (es : language.expr wasm_lang) :
+  ((∀ f, ¬ Φ trapV f) ∗
+     EWP es UNDER f @ E <| Ψ |> {{ v ; h , (Φ (val_combine (immV [v0]) v) h)  }}
+     ⊢ EWP (AI_const v0 :: es) UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }})%I.
 Proof.
   iLöb as "IH" forall (v0 es f Φ).
   iIntros "(Hntrap & H)".
@@ -65,7 +65,7 @@ Proof.
       rewrite /= to_val_instr_AI_const.
       simpl.
       iIntros (?) "?".
-      iMod "H" as "[H Hf]".
+      iMod "H" as "H".
       by iSpecialize ("Hntrap" with "H").
     + erewrite to_val_cons_brV;eauto.
     + erewrite to_val_cons_retV;eauto.
@@ -141,22 +141,22 @@ Proof.
              unfold to_eff in H.
              simpl in H. destruct H => //. }
            repeat rewrite ewp_unfold /ewp_pre /=.
-           iMod "H" as "[H Hf]".
+           iMod "H" as "H".
            by iSpecialize ("Hntrap" with "H").
 Qed.
 
 
-Lemma ewp_val_app' (E : coPset) f h Ψ (Φ : val -> iProp Σ) vs (es : language.expr wasm_lang) :
-  (□ (¬ Φ trapV )) ∗
-    EWP es UNDER f @ E <| Ψ |> {{ v, (Φ (val_combine (immV vs) v)) ; h }}%I
-  ⊢ EWP ((v_to_e_list vs) ++ es) UNDER f @ E <| Ψ |> {{ v, Φ v ; h }}%I.
+Lemma ewp_val_app' (E : coPset) f Ψ (Φ : val -> frame -> iProp Σ) vs (es : language.expr wasm_lang) :
+  (□ (∀ f, ¬ Φ trapV f)) ∗
+    EWP es UNDER f @ E <| Ψ |> {{ v ; h , (Φ (val_combine (immV vs) v) h) }}%I
+  ⊢ EWP ((v_to_e_list vs) ++ es) UNDER f @ E <| Ψ |> {{ v ; h, Φ v h }}%I.
 
 Proof.
   iInduction vs as [|c vs] "IH" forall (Ψ  Φ E es).
   { simpl.
     iIntros "(#Hntrap & HWP)".
     iApply (ewp_wand with "HWP").
-    iIntros (v).
+    iIntros (v ?).
     destruct v => /=.
     all: iIntros "HΦ" => //=.
     all: unfold val_combine; simpl.
@@ -169,7 +169,7 @@ Proof.
     iApply "IH" => //=.
     iSplit => //.
     iApply (ewp_wand with "HWP").
-    iIntros (vs') "HΦ".
+    iIntros (vs' ?) "HΦ".
     iSimpl. unfold val_combine.
     destruct vs';auto; simpl.
     - iExFalso. iApply ("Hntrap" with "HΦ").
@@ -179,11 +179,11 @@ Proof.
   }
 Qed.
   
-Lemma ewp_val_app (E : coPset) f h Ψ (Φ : val -> iProp Σ) vs v' (es : language.expr wasm_lang) :
+Lemma ewp_val_app (E : coPset) f Ψ (Φ : val -> frame -> iProp Σ) vs v' (es : language.expr wasm_lang) :
   to_val vs = Some (immV v') ->
-  (□ (¬ Φ trapV )) ∗
-    EWP es UNDER f @ E <| Ψ |> {{ v, (Φ (val_combine (immV v') v)) ; h }}%I
-  ⊢ EWP (vs ++ es) UNDER f @ E <| Ψ |> {{ v, Φ v ; h }}%I.
+  (□ (∀ f, ¬ Φ trapV f)) ∗
+    EWP es UNDER f @ E <| Ψ |> {{ v ; h, (Φ (val_combine (immV v') v) h) }}%I
+  ⊢ EWP (vs ++ es) UNDER f @ E <| Ψ |> {{ v ; h, Φ v h }}%I.
 Proof.
   iIntros "%Hves [#Hntrap Hwp]".
   apply iris.of_to_val in Hves; subst.
@@ -251,8 +251,8 @@ Qed.
  Lemma ewp_bind es E Ψ i lh Φ:
   is_pure lh ->
   EWP es UNDER f @ E <| Ψ |> {{ w, ⌜ w <> trapV ⌝ ∗
-    EWP of_val w UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; h }} ; h }}
-    ⊢ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ Φ ; h }}.
+    EWP of_val w UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} }}
+    ⊢ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}.
 Proof.
   iLöb as "IH" forall (lh es Ψ).
  { iIntros (Hpure) "H".
@@ -378,12 +378,12 @@ Proof.
   Qed.  *)
 
 
-Lemma ewp_seq (E : coPset) f Φf h P (Φ Ψ : val -> iProp Σ) (es1 es2 : language.expr wasm_lang) :
+Lemma ewp_seq (E : coPset) f P (Φ Ψ : val -> frame -> iProp Σ) (es1 es2 : language.expr wasm_lang) :
   to_eff es2 = None ->
-  ( ¬ Ψ trapV ∗  
-     EWP es1 UNDER f @ E <| P |> {{ w, Ψ w ; Φf }} ∗
-  ∀ w f', Ψ w -∗ Φf f' -∗ EWP (iris.of_val w ++ es2) UNDER f' @ E <| P |> {{ v, Φ v ; h }})
-  ⊢ EWP (es1 ++ es2) UNDER f @ E <| P |> {{ v, Φ v ; h }}.
+  ( (∀ f, ¬ Ψ trapV f) ∗  
+     EWP es1 UNDER f @ E <| P |> {{ w ; h , Ψ w h}} ∗
+  ∀ w f', Ψ w f' -∗ EWP (iris.of_val w ++ es2) UNDER f' @ E <| P |> {{ v ; h , Φ v h }})
+  ⊢ EWP (es1 ++ es2) UNDER f @ E <| P |> {{ v ; h , Φ v h }}.
 Proof.
 (*  destruct (const_list es1) eqn:Hes1.
   { a dmit.  (*apply const_list_to_val in Hes1 as (vs & Htv & <-). 
@@ -410,8 +410,8 @@ Proof.
     eapply lfilled_to_val_app in Hfilled as Hv;eauto.
     destruct Hv as [vs' [Hvs' Hfilled']].
     rewrite Hvs'.
-    iMod "Hes1" as "[Hes1 Hf]".
-    iSpecialize ("Hes2" with "Hes1 Hf").
+    iMod "Hes1" as "Hes1".
+    iSpecialize ("Hes2" with "Hes1").
     apply lfilled_Ind_Equivalent in Hfilled';inversion Hfilled';simplify_eq.
     erewrite app_nil_r in H1.
     assert (iris.of_val vs' ++ es2 = es1 ++ es2) as ->;auto.
@@ -499,8 +499,8 @@ Proof.
     rewrite Hetof'.
     destruct (to_val es1) as [vs|] eqn:Hes.
     + apply of_to_val in Hes as <-.
-      iMod "Hes1" as "[Hes1 Hf]".
-      iSpecialize ("Hes2" with "Hes1 Hf").
+      iMod "Hes1" as "Hes1".
+      iSpecialize ("Hes2" with "Hes1").
       iDestruct (ewp_unfold with "Hes2") as "Hes2"; rewrite /ewp_pre /=.
       rewrite Hetov Hetof.
       iSpecialize ("Hes2" $! σ with "[$]").
@@ -561,28 +561,28 @@ Proof.
               simpl in Hy.
               destruct (flatten _) => //.  } 
            repeat rewrite ewp_unfold /ewp_pre /=.
-           iMod "H" as "[H Hf]".
+           iMod "H" as "H".
            by iSpecialize ("Hntrap" with "H").
 Qed.
 
-Lemma ewp_wand_ctx E e f h P Φ Ψ i lh :
-  EWP e UNDER f @ E CTX i; lh <| P |> {{ Φ ; h }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ EWP e UNDER f @ E CTX i; lh <| P |> {{ Ψ ; h }}.
+Lemma ewp_wand_ctx E e f P Φ Ψ i lh :
+  EWP e UNDER f @ E CTX i; lh <| P |> {{ Φ }} -∗ (∀ v f, Φ v f -∗ Ψ v f) -∗ EWP e UNDER f @ E CTX i; lh <| P |> {{ Ψ }}.
 Proof.
   iIntros "Hwp H". iIntros (LI HLI).
   iSpecialize ("Hwp" $! LI HLI).
   iApply (ewp_wand with "Hwp"). auto.
 Qed.
 
-Lemma ewp_seq_ctx (E : coPset) f Φf h Ψ (Φ Φ' : iris.val -> iProp Σ) (es1 es2 : language.expr wasm_lang) (i : nat) (lh : lholed) :
+Lemma ewp_seq_ctx (E : coPset) f Ψ (Φ Φ' : iris.val -> frame -> iProp Σ) (es1 es2 : language.expr wasm_lang) (i : nat) (lh : lholed) :
   to_eff es2 = None ->
   is_pure lh ->
   lh_eff_None lh ->
-  ((¬ (Φ' trapV)) ∗
-     EWP es1 UNDER f @ E <| Ψ |> {{ w, Φ' w ; Φf }} ∗
-  ∀ w f', (Φ' w -∗ Φf f' -∗ EWP (iris.of_val w ++ es2) UNDER f' @ E CTX i; lh <| Ψ |> {{ v, Φ v ; h }}))%I
-  ⊢ EWP (es1 ++ es2) UNDER f @ E CTX i; lh <| Ψ |> {{ v, Φ v ; h }}.
+  (((∀ f, ¬ Φ' trapV f )) ∗
+     EWP es1 UNDER f @ E <| Ψ |> {{ w ; h , Φ' w h  }} ∗
+  ∀ w f', (Φ' w f' -∗ EWP (iris.of_val w ++ es2) UNDER f' @ E CTX i; lh <| Ψ |> {{ v ; h , Φ v h }}))%I
+  ⊢ EWP (es1 ++ es2) UNDER f @ E CTX i; lh <| Ψ |> {{ v ; h , Φ v h }}.
 Proof.
-  iLöb as "IH" forall (E es1 es2 f h Φ Φ' Ψ i lh).
+  iLöb as "IH" forall (E es1 es2 f Φ Φ' Ψ i lh).
   iIntros (Hes2 Hpure Hlh) "[Hntrap [Hes1 Hes2]]".
   specialize (lh_eff_None_spec _ Hlh) as Hlh'. 
   iIntros (LI Hfilled).
@@ -595,9 +595,9 @@ Proof.
      eapply lfilled_to_val_app in Hfilled as Hv;eauto.
      destruct Hv as [vs' [Hvs' Hfilled']].
      rewrite Hvs'.
-     iMod "Hes1" as "[Hes1 Hf]".
+     iMod "Hes1" as "Hes1".
      
-     iSpecialize ("Hes2" with "Hes1 Hf").
+     iSpecialize ("Hes2" with "Hes1").
      iSpecialize ("Hes2" $! _ Hfilled').
      iDestruct (ewp_unfold with "Hes2") as "Hes2".
      rewrite /ewp_pre /= Hetov.
@@ -684,8 +684,8 @@ Proof.
      destruct (to_val es1) as [vs|] eqn:Hes;
        last destruct (iris.to_eff es1) as [eff |] eqn:Heff.
      + apply of_to_val in Hes as <-.
-       iMod "Hes1" as "[Hes1 Hf]".
-       iSpecialize ("Hes2" with "Hes1 Hf").
+       iMod "Hes1" as "Hes1".
+       iSpecialize ("Hes2" with "Hes1").
        iSpecialize ("Hes2" $! _ Hfilled).
        iDestruct (ewp_unfold with "Hes2") as "Hes2"; rewrite /ewp_pre /=.
        rewrite Hetov Hetof.
@@ -746,8 +746,8 @@ Proof.
             apply to_eff_filled_trap in Hfilled' as Hy.
             iApply fupd_ewp.
             rewrite Hy. done.
-            iMod "H" as "[H Hf]".
-            by iSpecialize ("Hntrap" with "H"). 
+            iMod "H" as "H".
+            by iSpecialize ("Hntrap" with "H").
 Qed. 
 
 
@@ -755,20 +755,20 @@ Qed.
 (* Contextual rules for Local computation *)
 
 
-Lemma ewp_frame_rewrite (E: coPset) f h Ψ (Φ: val -> iProp Σ) es n f':
-  EWP es UNDER f @ E FRAME n; f' <| Ψ |> {{ v, Φ v ; h }} ⊣⊢
-                        EWP [AI_local n f' es] UNDER f @ E <| Ψ |> {{ v, Φ v ; h }}.
+Lemma ewp_frame_rewrite (E: coPset) f Ψ (Φ: val -> frame -> iProp Σ) es n f':
+  EWP es UNDER f @ E FRAME n; f' <| Ψ |> {{ v ; h , Φ v h }} ⊣⊢
+                        EWP [AI_local n f' es] UNDER f @ E <| Ψ |> {{ v;h, Φ v h }}.
 Proof.
   trivial.
 Qed.
 
-Lemma ewp_frame_value (E : coPset) f Ψ (Φ : val -> iProp Σ) Φf es n f' vs :
+Lemma ewp_frame_value (E : coPset) f Ψ (Φ : val -> frame -> iProp Σ) es n f' vs :
   to_val es = Some (immV vs) ->
   length es = n ->
-  ▷ (Φ (immV vs)) -∗ ▷ Φf f -∗
-                     EWP es UNDER f @ E FRAME n; f' <| Ψ |> {{ v, Φ v ; Φf }}.
+  ▷ (Φ (immV vs) f) -∗
+                     EWP es UNDER f @ E FRAME n; f' <| Ψ |> {{ v;h, Φ v h }}.
 Proof.
-  iIntros (Hv Hlen) "H Hf".
+  iIntros (Hv Hlen) "H".
   rewrite ewp_frame_rewrite.
   apply to_val_const_list in Hv as Hconst.
   iApply (ewp_lift_atomic_step with "[-]"); simpl ; trivial;eauto.
@@ -797,14 +797,14 @@ Proof.
 Qed.
 
 
- Lemma ewp_seq_ctx_frame (E : coPset) P (Φ Ψ : val -> iProp Σ) (es1 es2 : language.expr wasm_lang) (i : nat) (lh : lholed) (n : nat) (f : frame) (f0 : frame) Φf h :
+ Lemma ewp_seq_ctx_frame (E : coPset) P (Φ Ψ : val -> frame -> iProp Σ) (es1 es2 : language.expr wasm_lang) (i : nat) (lh : lholed) (n : nat) (f : frame) (f0 : frame)  :
   to_eff es2 = None ->
   is_pure lh ->
   lh_eff_None lh ->
-  ((¬ (Ψ trapV)) ∗ 
-   (EWP es1 UNDER f @ E <| P |> {{ w, Ψ w ; Φf }}) ∗
-   ∀ w f1, Ψ w -∗ Φf f1 -∗ EWP (iris.of_val w ++ es2) UNDER f0 @ E FRAME n ; f1 CTX i; lh <| P |> {{ v, Φ v ; h }})%I
-  ⊢ EWP (es1 ++ es2) UNDER f0 @ E FRAME n ; f CTX i; lh <| P |> {{ v, Φ v ; h }}.
+  ((∀ f, ¬ (Ψ trapV f)) ∗ 
+   (EWP es1 UNDER f @ E <| P |> {{ w ; h , Ψ w h }}) ∗
+   ∀ w f1, Ψ w f1 -∗ EWP (iris.of_val w ++ es2) UNDER f0 @ E FRAME n ; f1 CTX i; lh <| P |> {{ v ; h , Φ v h }})%I
+  ⊢ EWP (es1 ++ es2) UNDER f0 @ E FRAME n ; f CTX i; lh <| P |> {{ v ; h , Φ v h }}.
 Proof.
   iLöb as "IH" forall (E es1 es2 P Φ Ψ i lh n f f0).
 { iIntros (Hes2 Hpure Hlh) "(Htrap & Hes1 & Hes2)".
@@ -827,8 +827,8 @@ Proof.
     exact Hfilled. exact HLI.
     rewrite ewp_unfold /ewp_pre.
     rewrite Hes1.
-    iMod "Hes1" as "[Hvs' Hf]".
-    iSpecialize ("Hes2" with "[$] [$]").
+    iMod "Hes1" as "Hvs'".
+    iSpecialize ("Hes2" with "[$]").
     iSpecialize ("Hes2" $! LI2 Hfillval).
     rewrite ewp_unfold /ewp_pre.
     rewrite Hetov.
@@ -939,9 +939,9 @@ Proof.
   iIntros (σ) "Hσ".
     
   destruct (to_val es1) eqn:Hetov'.
-  { iMod "Hes1" as "[HPsi Hf]".
+  { iMod "Hes1" as "HPsi".
 
-    iDestruct ("Hes2" with "[$] [$]") as "Hes2".
+    iDestruct ("Hes2" with "[$]") as "Hes2".
     erewrite of_to_val;[|eauto].
     iDestruct ("Hes2" with "[]") as "Hes2".
     { iPureIntro. eauto. }
@@ -1003,7 +1003,7 @@ Proof.
     replace [AI_trap] with (iris.of_val trapV); last done.
     iFrame.
     rewrite ewp_unfold /ewp_pre /=.
-    iMod "H" as "[H _]".
+    iMod "H" as "H".
     by iSpecialize ("Htrap" with "H"). } 
 Qed.  
 
@@ -1011,22 +1011,22 @@ Qed.
 
 
 
-Lemma ewp_frame_seq es1 es2 n f0 (f: frame) Φf Φf0 E P Ψ Φ :
+Lemma ewp_frame_seq es1 es2 n f0 (f: frame) E P Ψ Φ :
   (*  (to_val [AI_local n f (es1 ++ es2)] = None) -> *)
   to_eff es2 = None ->
-  ¬ Ψ trapV -∗ 
-  EWP es1 UNDER f @ E <| P |> {{ v, Ψ v ; Φf }} -∗
-                                                   (∀ w f', Ψ w -∗ Φf f' -∗ EWP (iris.of_val w ++ es2) UNDER f0 @ E FRAME n; f' <| P |> {{ v, Φ v ; Φf0 }}) -∗
+  (∀ f, ¬ Ψ trapV f) -∗ 
+  EWP es1 UNDER f @ E <| P |> {{ v ; h , Ψ v h }} -∗
+                                                   (∀ w f', Ψ w f' -∗ EWP (iris.of_val w ++ es2) UNDER f0 @ E FRAME n; f' <| P |> {{ v ; h , Φ v h }}) -∗
                                                                                          (*                                                                      Φf0 f0 -∗ *)
-  (EWP (es1 ++ es2) UNDER f0 @ E FRAME n ; f <| P |> {{ v, Φ v ; Φf0 }}).
+  (EWP (es1 ++ es2) UNDER f0 @ E FRAME n ; f <| P |> {{ v ; h , Φ v h }}).
 Proof.
   iIntros (Hes2) "Htrap Hes1 Hcont".
   iApply ewp_wasm_empty_ctx_frame.
   iApply (ewp_seq_ctx_frame with "[$Htrap $Hes1 Hcont]").
   done. constructor. done.
-  iIntros (w f1) "H Hf".
+  iIntros (w f1) "H".
   iApply ewp_wasm_empty_ctx_frame.
-  iApply ("Hcont" with "[$] [$]").
+  iApply ("Hcont" with "[$]").
 Qed.
 
   

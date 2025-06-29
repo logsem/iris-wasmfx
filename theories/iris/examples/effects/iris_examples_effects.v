@@ -110,7 +110,7 @@ Section Example1.
   Lemma spec_aux a f:
     N.of_nat a ↦[wf] FC_func_native inst aux_type [] aux_body ∗
       0%N ↦□[tag] Tf [] []
-      ⊢ EWP [AI_invoke a] UNDER f <| Ψaux |> {{ v, False ; λ f', ⌜ f' = f ⌝ }}.
+      ⊢ EWP [AI_invoke a] UNDER f <| Ψaux |> {{ v ; f' , False }}.
   Proof.
     iIntros "(Ha & Htag)".
     
@@ -125,7 +125,7 @@ Section Example1.
     (* Bind into the frame *)
     iApply ewp_frame_bind => //.
     iSplitR.
-    instantiate (1 := λ _, False%I).
+    instantiate (1 := λ _ _, False%I).
     iIntros "%" => //. 
     iSplitL "Htag".
         
@@ -146,24 +146,19 @@ Section Example1.
     rewrite -(N2Nat.id 0).
     iApply (ewp_suspend_desugar with "[$Htag]").
     done. done. instantiate (1 := []). done. done.
-    iIntros "Htag".
+(*    iIntros "Htag". *)
 
     (* Perform suspend operation *)
     iApply ewp_suspend.
     rewrite (upcl_tele' [tele ] [tele]).
     iSimpl.
-    iSplitL.
     iSplitL. done.
-    iSplitL. done. 
+    iSplitL. done.
     iIntros "H".
     done.
-    instantiate (1 := λ f, ⌜ f = Build_frame [] inst ⌝%I).
-    done.
-    
+        
     iIntros (w ?) "%" => //.
 
-    Unshelve.
-    exact (λ f', ⌜ f' = f ⌝%I).
   Qed. 
   
     
@@ -172,7 +167,7 @@ Section Example1.
   Lemma spec_main f a:
     N.of_nat a ↦[wf] FC_func_native inst main_type [] main_body
       ∗  0%N ↦□[tag] Tf [] [] ∗ 0%N ↦[wf] FC_func_native inst aux_type [] aux_body
-      ⊢ EWP [AI_invoke a] UNDER f {{ w, ⌜ w = immV [VAL_num $ xx 1] ⌝ ; λ f', ⌜ f' = f ⌝ }}.
+      ⊢ EWP [AI_invoke a] UNDER f {{ w ; f' , ⌜ w = immV [VAL_num $ xx 1] ⌝ ∗  ⌜ f' = f ⌝ }}.
   Proof.
     iIntros "(Ha & #Htag & Haux)".
     
@@ -255,11 +250,9 @@ Section Example1.
           iSplitR.
           iApply ewp_ref_func.
           done.
-          instantiate (2 := λ v, ⌜ v = immV _ ⌝%I).
-          instantiate (1 := λ f, ⌜ f = Build_frame _ _⌝%I).
-          done.
-          2: by iIntros "%".
-          iIntros (w f') "-> ->".
+          auto_instantiate.
+          2: by iIntros (?) "[% _]".
+          iIntros (w f') "[-> ->]".
           iSimpl.
 
 
@@ -270,9 +263,8 @@ Section Example1.
           iSplitR.
           iApply ewp_contnew.
           done.
-          instantiate (1 := λ f, ⌜ f = Build_frame [] inst ⌝%I) => //. 
-          2: by iIntros "(%kaddr & % & _)".
-          iIntros (w f') "(%kaddr & -> & Hcont) ->".
+          2: by iIntros (?) "(%kaddr & % & _)".
+          iIntros (w f') "(%kaddr & -> & -> & Hcont)".
           iSimpl.
 
           (* Two operations on the stack: resuming and breaking. Focus on the first *)
@@ -299,7 +291,7 @@ Section Example1.
             erewrite eq_refl. done.
             iSplitR; last first.
             iSplitR; last first.
-            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I).
+            (*            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
             iSplitR; last iSplitL; last iSplitR.
 
             (* Resume instruction premise 1: tag resources for the clauses *)
@@ -333,19 +325,17 @@ Section Example1.
                apply of_to_val.
                simpl. cbn. done.
                instantiate (1 := λ v, (∃ k tf h, ⌜ v = brV _ ⌝ ∗ N.of_nat k ↦[wcont] Cont_hh tf h)%I).
-               iSplitL; last done. iExists k, tf, h.
+               iExists k, tf, h.
                iFrame. done.
             ++ iIntros "(% & % & % & % & _)" => //.
-            ++ iIntros "%" => //.
+            ++ iIntros (?) "%" => //.
 
           -- (* 2. now focus on the Br after the resume *)
-            iIntros (w f') "(%k & %tf & %h & -> & Hcont) ->".
+            iIntros (w f') "[(%k & %tf & %h & -> & Hcont) ->]".
             iSimpl.
             iApply ewp_value.
             unfold IntoVal.
             apply of_to_val. cbn. done.
-            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I).
-            iIntros (f') "->".
             iIntros (LI HLI).
             move/lfilledP in HLI; inversion HLI; subst.
             inversion H8; subst.
@@ -359,24 +349,22 @@ Section Example1.
             iIntros "!>".
             iApply ewp_value.
             apply of_to_val => //.
-            instantiate (2 := λ v, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
-            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I).
+            instantiate (1 := λ v f, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
+(*            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
             iExists k, tf, h.
             iSplit; first done.
             iExact "Hcont".
-          -- by iIntros "(%k & %tf & %h & % & _)".
+          -- by iIntros (?) "[(%k & %tf & %h & % & _) _]".
 
 
         * (* 2. now focus on the drop after the block *)
-          iIntros (w f') "(%k & %tf & %h & -> & Hcont) ->".
+          iIntros (w f') "(%k & %tf & %h & -> & Hcont)".
           iSimpl.
           iApply (ewp_wand with "[]").
           fold (AI_const (VAL_ref (VAL_ref_cont k))).
           iApply ewp_drop.
-          by instantiate (1 := λ v, ⌜ v = immV _ ⌝%I).
-          by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I).
-          iIntros (w) "->".
-          iIntros (f') "->".
+          by instantiate (1 := λ v f, ⌜ v = immV _ ⌝%I).
+          iIntros (??) "->".
           iIntros (LI HLI).
           move/lfilledP in HLI.
           inversion HLI; subst.
@@ -385,22 +373,22 @@ Section Example1.
           iApply (ewp_wand with "[]").
           iApply ewp_label_value.
           done.
-          by instantiate (1 := λ v, ⌜ v = immV _ ⌝%I).
-          by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I).
-          iIntros (w) "->".
-          instantiate (1 := λ v, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
+          by instantiate (1 := λ v f, ⌜ v = immV _ ⌝%I).
+(*          by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
+          iIntros (w ?) "->".
+          instantiate (1 := λ v f, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
           iExists k, tf, h.
           iSplit; first done.
           iExact "Hcont".
 
-        * by iIntros "(%k & %tf & %h & % & _)".
+        * by iIntros (?) "(%k & %tf & %h & % & _)".
 
-      + iIntros (w f') "(%k & %tf & %h & -> & Hcont) ->".
+      + iIntros (w f') "(%k & %tf & %h & -> & Hcont)".
         iSimpl.
         iApply ewp_value.
         apply of_to_val => //.
-        iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I).
-        iIntros (f') "->".
+        (* iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
+        (* iIntros (f') "->". *)
         iIntros (LI HLI).
         move/lfilledP in HLI; inversion HLI; subst.
         inversion H8; subst.
@@ -408,23 +396,22 @@ Section Example1.
         iApply ewp_wand.
         iApply ewp_label_value.
         done.
-        by instantiate (1 := λ v, ⌜ v = immV _ ⌝%I).
-        by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I).
-        iIntros (w) "->".
-        instantiate (1 := λ v, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
+        by instantiate (1 := λ v f, ⌜ v = immV _ ⌝%I).
+        iIntros (w ?) "->".
+        instantiate (1 := λ v f, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
         iExists k, tf, h.
         iSplit; first done.
         iExact "Hcont".
 
-      + by iIntros "(% & % & % & % & _)".
+      + by iIntros (?) "(% & % & % & % & _)".
 
 
-    - iIntros (w f') "(%k & %tf & %h & -> & Hcont) ->".
+    - iIntros (w f') "(%k & %tf & %h & -> & Hcont)".
       iApply ewp_frame_value.
       rewrite to_of_val => //.
-      done. done. done.
+      done. done. 
 
-    - iIntros "(% & % & % & % & _)" => //.
+    - iIntros (?) "(% & % & % & % & _)" => //.
   Qed. 
         
         

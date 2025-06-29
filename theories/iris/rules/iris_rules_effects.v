@@ -31,16 +31,16 @@ Section clause_triple.
     | DC_catch taddr ilab =>
         ∀ vs kaddr tf h,
           N.of_nat kaddr ↦[wcont] Cont_hh tf h -∗
-            iProt_car (upcl $ Ψ $ SuspendE taddr) (immV vs) (λ w, ∀ LI, ⌜ hfilled No_var h (of_val w) LI ⌝ -∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ ; is_empty_frame }}) -∗
-            EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' ; is_empty_frame }}
+            iProt_car (upcl $ Ψ $ SuspendE taddr) (immV vs) (λ w, ∀ LI, ⌜ hfilled No_var h (of_val w) LI ⌝ -∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
+            EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
     | DC_switch _ => False
     end.
 
   Lemma monotonic_clause_triple E Ψ1 Ψ2 Φ1 Φ2 dcc Ψ'1 Ψ'2 Φ'1 Φ'2 :
     (∀ x, Ψ2 x ⊑ Ψ1 x)%iprot -∗
-        (∀ v, Φ2 v ={E}=∗ Φ1 v) -∗
+        (∀ v f , Φ2 v f ={E}=∗ Φ1 v f) -∗
         (∀ x, Ψ'1 x ⊑ Ψ'2 x)%iprot -∗
-        (∀ v, Φ'1 v ={E}=∗ Φ'2 v) -∗
+        (∀ v f, Φ'1 v f ={E}=∗ Φ'2 v f) -∗
     clause_triple E Ψ1 Φ1 dcc Ψ'1 Φ'1 -∗
         clause_triple E Ψ2 Φ2 dcc Ψ'2 Φ'2.
   Proof.
@@ -94,14 +94,14 @@ Section reasoning_rules.
 
   
 
-  Lemma ewp_suspend vs i E Ψ Φ f Φf:
-    iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) Φ ∗ Φf f 
-      ⊢ EWP [ AI_suspend_desugared vs i ] UNDER f @ E <| Ψ |> {{ v, Φ v ; Φf }}.
+  Lemma ewp_suspend vs i E Ψ Φ f:
+    iProt_car (upcl (Ψ $ SuspendE i)) (immV vs) (λ v, ▷ Φ v f) 
+      ⊢ EWP [ AI_suspend_desugared vs i ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
-    iIntros "[HΨ Hf]".
+    iIntros "HΨ".
     iApply ewp_effect_sus => //.
     iFrame.
-    iApply (monotonic_prot with "[Hf] HΨ").
+    iApply (monotonic_prot with "[] HΨ").
     iIntros (w) "Hw".
     iSimpl.
     rewrite app_nil_r.
@@ -117,14 +117,14 @@ Section reasoning_rules.
     done.
   Qed. 
 
-  Lemma ewp_suspend_desugar f f' ves vs i x a t1s t2s E Ψ Φ:
+  Lemma ewp_suspend_desugar f ves vs i x a t1s t2s E Ψ Φ:
     i = Mk_tagident x ->
     f.(f_inst).(inst_tags) !! x = Some a ->
     length vs = length t1s ->
     ves = v_to_e_list vs ->
     N.of_nat a ↦□[tag] Tf t1s t2s ∗
-      EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}
-    ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v, Φ v ; f' }}.
+      EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}
+    ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> Hx Hlen ->) "(Htag & H)".
     iApply ewp_lift_step.
@@ -623,16 +623,16 @@ Section reasoning_rules.
     
 *)
 
-  Lemma ewp_empty_frame es f E Ψ Φ Φf Φf' :
-    ¬ Φ trapV ∗ Φf f ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ ; Φf' }}
-      ⊢ EWP es UNDER f @ E <| Ψ |> {{ Φ ; Φf }}.
+  Lemma ewp_empty_frame es f E Ψ Φ :
+     ¬ Φ trapV ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ v ; _ , Φ v }}
+      ⊢ EWP es UNDER f @ E <| Ψ |> {{ v ; f' , Φ v ∗ ⌜ f' = f ⌝  }}.
   Proof.
-    iLöb as "IH" forall (es E Ψ Φ f Φf Φf').
-    iIntros "(Htrap & Hf & Hes)".
+    iLöb as "IH" forall (es E Ψ Φ f).
+    iIntros "(Htrap & Hes)".
     do 2 rewrite ewp_unfold /ewp_pre.
     destruct (to_val es) eqn:Htv.
-    { iMod "Hes" as "[Hv Hf']".
-      iFrame. done. }
+    { iMod "Hes" as "Hv".
+      iModIntro. iSplit; done. } 
     destruct (to_eff es) eqn:Htf.
     { destruct e.
       all: iApply (monotonic_prot with "[-Hes] Hes").
@@ -661,12 +661,11 @@ Section reasoning_rules.
       iMod "Hes" as "[Hs2 Hes2]".
       iModIntro.
       iFrame.
+      inversion Hf; subst.
+      destruct f.
       iApply "IH".
       iFrame.
-      destruct f.
-      simpl in Hf.
-      inversion Hf; subst.
-      iFrame.
+
     - iMod ("Hes" with "[]") as "Hes".
       iPureIntro.
       repeat split => //.
@@ -688,11 +687,11 @@ Section reasoning_rules.
 
   Lemma ewp_prompt_empty_frame ts dccs es E Ψ Ψ' Φ Φ' :
     agree_on_uncaptured dccs Ψ Ψ' ->
-    ( ¬ Φ trapV ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ ; is_empty_frame }} ∗
-      (∀ w, Φ w -∗ EWP [AI_prompt ts dccs (of_val w)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' ; is_empty_frame }}) ∗
+    ( (∀ f, ¬ Φ trapV f) ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
+      (∀ w, Φ w empty_frame -∗ EWP [AI_prompt ts dccs (of_val w)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}) ∗
       clause_resources dccs ∗
       [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc Ψ' Φ')%I
-      ⊢ EWP [AI_prompt ts dccs es] UNDER empty_frame @ E <| Ψ' |> {{ Φ' ; is_empty_frame }}.
+      ⊢ EWP [AI_prompt ts dccs es] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}.
   Proof.
     iLöb as "IH" forall (ts dccs es E Ψ Ψ' Φ Φ').
     iIntros (HΨ) "(Hntrap & Hes & HΦ & Hclres & Hclauses)".
@@ -705,7 +704,7 @@ Section reasoning_rules.
       unfold to_val in Htv.
       destruct (merge_values _) => //.
       destruct v0 => //.
-      iMod "Hes" as "[Hes Hf]".
+      iMod "Hes" as "Hes".
       iDestruct ("HΦ" with "Hes") as "Hres".
       iModIntro.
       erewrite of_to_val => //.
@@ -914,29 +913,30 @@ Section reasoning_rules.
       iDestruct ewp_value_fupd as "[H _]".
       unfold IntoVal.
       instantiate (2 := trapV) => //.
-      iMod ("H" with "Hes") as "[Habs <-]".
+      
+      iMod ("H" with "Hes") as "Habs".
       iDestruct ("Hntrap" with "Habs") as "Habs" => //.
   Admitted. 
 
 
-   Lemma ewp_prompt ts dccs es E Ψ Ψ' Φ Φ' f Φf :
+   Lemma ewp_prompt ts dccs es E Ψ Ψ' Φ Φ' f:
     agree_on_uncaptured dccs Ψ Ψ' ->
-    (¬ Φ trapV ∗ ¬ Φ' trapV ∗ Φf f ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ ; is_empty_frame }} ∗
-      (∀ w, Φ w -∗ EWP [AI_prompt ts dccs (of_val w)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' ; is_empty_frame }}) ∗
+    ((∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
+      (∀ w, Φ w empty_frame -∗ EWP [AI_prompt ts dccs (of_val w)] UNDER empty_frame @ E <| Ψ' |> {{ v ; _ , Φ' v }}) ∗
       clause_resources dccs ∗
-      [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc Ψ' Φ')%I
-      ⊢ EWP [AI_prompt ts dccs es] UNDER f @ E <| Ψ' |> {{ Φ' ; Φf }}.
+      [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc Ψ' (λ v _, Φ' v) )%I
+      ⊢ EWP [AI_prompt ts dccs es] UNDER f @ E <| Ψ' |> {{ v; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
    Proof.
-     iIntros (HΨ) "(HΦ & HΦ' & HΦf & Hes & Hnext & Hdccs & Htriples)".
+     iIntros (HΨ) "(HΦ & HΦ' & Hes & Hnext & Hdccs & Htriples)".
      iApply ewp_empty_frame.
-     instantiate (1 := is_empty_frame).
+(*     instantiate (1 := is_empty_frame). *)
      iFrame.
      iApply ewp_prompt_empty_frame.
      done.
      iFrame.
    Qed. 
 
-  Lemma ewp_resume vs addr i ccs dccs LI E Ψ Ψ' Φ Φ' t1s t2s h f Φf:
+  Lemma ewp_resume vs addr i ccs dccs LI E Ψ Ψ' Φ Φ' t1s t2s h f:
     const_list vs ->
     stypes f.(f_inst) i = Some (Tf t1s t2s) ->
     length vs = length t1s ->
@@ -946,15 +946,15 @@ Section reasoning_rules.
 
     
     (N.of_nat addr ↦[wcont] Cont_hh (Tf t1s t2s) h ∗
-       ¬ Φ trapV ∗ ¬ Φ' trapV ∗ Φf f ∗
+       (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ 
        clause_resources dccs ∗
-       EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ ; is_empty_frame }} ∗
-       (∀ w, Φ w -∗ EWP [AI_prompt t2s dccs (of_val w)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' ; is_empty_frame }}) ∗
-       [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc Ψ' Φ'
+       EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
+       (∀ w, Φ w empty_frame -∗ EWP [AI_prompt t2s dccs (of_val w)] UNDER empty_frame @ E <| Ψ' |> {{ v; _ , Φ' v }}) ∗
+       [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc Ψ' (λ v _, Φ' v)
         )%I
-      ⊢ EWP vs ++ [AI_ref_cont addr ; AI_basic $ BI_resume i ccs] UNDER f @ E <| Ψ' |> {{ Φ'; Φf }}.
+      ⊢ EWP vs ++ [AI_ref_cont addr ; AI_basic $ BI_resume i ccs] UNDER f @ E <| Ψ' |> {{ v ; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
   Proof.
-    iIntros (Hvs Hi Hlen Hclauses HLI HΨ) "(Hcont & Hntrap & Hntrap' & HΦf & Hclres & HΦ & Hnext & Hclauses)".
+    iIntros (Hvs Hi Hlen Hclauses HLI HΨ) "(Hcont & Hntrap & Hntrap' & Hclres & HΦ & Hnext & Hclauses)".
 (*    iApply (ewp_wand with "[-]"). *)
     iApply ewp_lift_step => //.
     { rewrite to_val_cat_None2 => //. destruct (const_list vs) => //. }
@@ -1009,20 +1009,19 @@ Section reasoning_rules.
         all: rewrite nth_error_lookup in Hlook.
         all: apply lookup_lt_Some in Hlook.
         all: done. }
-      iApply ewp_prompt.
+      destruct f. iApply ewp_prompt.
       done.
       iFrame.
-      destruct f; iFrame.
   Qed.
 
 
 
   
-  Lemma ewp_contnew addr i E Ψ ft f Φf:
+  Lemma ewp_contnew addr i E Ψ ft f:
     stypes (f_inst f) i = Some ft ->
-    Φf f ⊢ EWP [AI_ref addr; AI_basic $ BI_contnew i] UNDER f @ E <| Ψ |> {{ w, ∃ kaddr, ⌜ w = immV [VAL_ref $ VAL_ref_cont kaddr] ⌝ ∗ N.of_nat kaddr ↦[wcont] Cont_hh ft (HH_base [] [AI_ref addr; AI_basic $ BI_call_reference $ Type_explicit ft]) ; Φf }}.
+     ⊢ EWP [AI_ref addr; AI_basic $ BI_contnew i] UNDER f @ E <| Ψ |> {{ w ; f' , ∃ kaddr, ⌜ w = immV [VAL_ref $ VAL_ref_cont kaddr] ⌝ ∗ ⌜ f' = f ⌝ ∗ N.of_nat kaddr ↦[wcont] Cont_hh ft (HH_base [] [AI_ref addr; AI_basic $ BI_call_reference $ Type_explicit ft]) }}.
   Proof.
-    iIntros (Hi) "Hf".
+    iIntros (Hi).
     iApply ewp_lift_atomic_step => //=.
     iIntros (σ) "Hσ".
     iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Htabs & Hmem & Hglobs & Hframe & Hrest)".
@@ -1042,7 +1041,7 @@ Section reasoning_rules.
     inversion H0; subst; clear H0.
     destruct H1 as [[<- <-] | H0].
     - iModIntro. iFrame.
-      iSplitR "Hf".
+      iSplitL.
       unfold new_cont.
       iSimpl.
       erewrite <- gmap_of_list_append.
