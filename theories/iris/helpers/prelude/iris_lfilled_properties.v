@@ -1273,4 +1273,16 @@ Section lfilled_properties.
     by rewrite app_nil_r.
   Qed.
 
+      
+  Lemma hfilled_forget_avoiding x h es LI :
+    hfilled x h es LI -> hfilled No_var h es LI.
+  Proof.
+    intros H.
+    move/hfilledP in H.
+    induction H.
+    all: apply/hfilledP.
+    all: constructor => //.
+    all: by apply/hfilledP.
+  Qed. 
+
 End lfilled_properties.

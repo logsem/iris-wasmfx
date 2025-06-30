@@ -154,7 +154,7 @@ Section Example1.
     iSimpl.
     iSplitL. done.
     iSplitL. done.
-    iIntros "H".
+    iIntros "!> H".
     done.
         
     iIntros (w ?) "%" => //.
@@ -290,31 +290,26 @@ Section Example1.
             unfold hfilled, hfill => //=.
             erewrite eq_refl. done.
             iSplitR; last first.
-            iSplitR; last first.
+            iSplitR; last first. 
             (*            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
-            iSplitR; last iSplitL; last iSplitR.
+            iSplitL; last iSplitR.
 
-            (* Resume instruction premise 1: tag resources for the clauses *)
-            ++ unfold clause_resources.
-               iSimpl.
-               iSplitL; last done.
-               iExists [], []. iExact "Htag".
-
-            (* Resume instruction premise 2: ewp for the body *)      
+            (* Resume instruction premise 1: ewp for the body *)      
             ++ rewrite - (N2Nat.id 0).
                iApply (ewp_call_reference with "Haux").
                done. done.
-               iIntros "!> Haux".
+               iIntros "!> !> Haux".
                (* apply the spec for aux *)
                iApply spec_aux.
                iFrame. done.
 
-            (* Resume instruction presime 3: what happens if the computation terminates *)
+            (* Resume instruction presime 2: what happens if the computation terminates *)
             ++ iIntros (w) "%" => //.
 
-            (* Resume instruction premise 4: clause triples, i.e. what happens if an effect is triggered *)
+            (* Resume instruction premise 3: clause triples, i.e. what happens if an effect is triggered *)
             ++ Opaque upcl. iSimpl. iSplit; last done.
-               iIntros (vs k tf h) "Hcont HΨ".
+               iFrame "Htag".
+               iIntros "!>" (vs k h) "Hcont HΨ".
                (* we know that the triggered effect obeys the protocol *)
                rewrite (upcl_tele' [tele] [tele]).
                simpl.
@@ -324,14 +319,14 @@ Section Example1.
                unfold IntoVal.
                apply of_to_val.
                simpl. cbn. done.
-               instantiate (1 := λ v, (∃ k tf h, ⌜ v = brV _ ⌝ ∗ N.of_nat k ↦[wcont] Cont_hh tf h)%I).
-               iExists k, tf, h.
+               instantiate (1 := λ v, (∃ k h, ⌜ v = brV _ ⌝ ∗ N.of_nat k ↦[wcont] Cont_hh _ h)%I).
+               iExists k, h.
                iFrame. done.
-            ++ iIntros "(% & % & % & % & _)" => //.
+            ++ iIntros "(% & % & % & _)" => //.
             ++ iIntros (?) "%" => //.
 
           -- (* 2. now focus on the Br after the resume *)
-            iIntros (w f') "[(%k & %tf & %h & -> & Hcont) ->]".
+            iIntros (w f') "[(%k & %h & -> & Hcont) ->]".
             iSimpl.
             iApply ewp_value.
             unfold IntoVal.
@@ -349,16 +344,16 @@ Section Example1.
             iIntros "!>".
             iApply ewp_value.
             apply of_to_val => //.
-            instantiate (1 := λ v f, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
+            instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ _)%I).
 (*            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
-            iExists k, tf, h.
+            iExists k, h.
             iSplit; first done.
             iExact "Hcont".
-          -- by iIntros (?) "[(%k & %tf & %h & % & _) _]".
+          -- by iIntros (?) "[(%k & %h & % & _) _]".
 
 
         * (* 2. now focus on the drop after the block *)
-          iIntros (w f') "(%k & %tf & %h & -> & Hcont)".
+          iIntros (w f') "(%k & %h & -> & Hcont)".
           iSimpl.
           iApply (ewp_wand with "[]").
           fold (AI_const (VAL_ref (VAL_ref_cont k))).
@@ -376,14 +371,14 @@ Section Example1.
           by instantiate (1 := λ v f, ⌜ v = immV _ ⌝%I).
 (*          by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
           iIntros (w ?) "->".
-          instantiate (1 := λ v f, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
-          iExists k, tf, h.
+          instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ _)%I).
+          iExists k, h.
           iSplit; first done.
           iExact "Hcont".
 
-        * by iIntros (?) "(%k & %tf & %h & % & _)".
+        * by iIntros (?) "(%k & %h & % & _)".
 
-      + iIntros (w f') "(%k & %tf & %h & -> & Hcont)".
+      + iIntros (w f') "(%k & %h & -> & Hcont)".
         iSimpl.
         iApply ewp_value.
         apply of_to_val => //.
@@ -398,20 +393,20 @@ Section Example1.
         done.
         by instantiate (1 := λ v f, ⌜ v = immV _ ⌝%I).
         iIntros (w ?) "->".
-        instantiate (1 := λ v f, (∃ k tf h, ⌜ v = immV _ ⌝ ∗ _)%I).
-        iExists k, tf, h.
+        instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ _)%I).
+        iExists k, h.
         iSplit; first done.
         iExact "Hcont".
 
-      + by iIntros (?) "(% & % & % & % & _)".
+      + by iIntros (?) "(% & % & % & _)".
 
 
-    - iIntros (w f') "(%k & %tf & %h & -> & Hcont)".
+    - iIntros (w f') "(%k & %h & -> & Hcont)".
       iApply ewp_frame_value.
       rewrite to_of_val => //.
       done. done. 
 
-    - iIntros (?) "(% & % & % & % & _)" => //.
+    - iIntros (?) "(% & % & % & _)" => //.
   Qed. 
         
         
