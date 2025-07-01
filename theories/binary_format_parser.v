@@ -684,7 +684,7 @@ Definition parse_mut {n} : byte_parser mutability n :=
   exact_byte x01 $> MUT_mut.
 
 Definition parse_global_type {n} : byte_parser global_type n :=
-  ((fun x y => Build_global_type y x) <$> parse_value_type) <*> parse_mut.
+  ((fun x y => Build_global_type y x) <$> parse_number_type) <*> parse_mut.
 
 Definition parse_import_desc {n} : byte_parser import_desc n :=
   exact_byte x00 &> (extract_typeidx ID_func <$> parse_typeidx) <|>

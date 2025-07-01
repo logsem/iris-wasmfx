@@ -232,10 +232,10 @@ Proof.
     rewrite /= const_const //.
 Qed.
 
-Lemma ewp_get_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat):
+Lemma ewp_get_global (E : coPset) (v: value_num) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat):
   (f_inst f).(inst_globs) !! n = Some k ->
   g.(g_val) = v ->
-  ▷ Φ(immV [v]) f -∗
+  ▷ Φ(immV [VAL_num v]) f -∗
     N.of_nat k ↦[wg] g -∗
   EWP ([AI_basic (BI_get_global n)]) UNDER f @ E <| Ψ |> {{ w ; h, Φ w h ∗ N.of_nat k ↦[wg] g }}.
 Proof.
@@ -258,28 +258,26 @@ Proof.
   iSplit.
   - iPureIntro.
     unfold reducible, language.prim_step => /=.
-    eexists [], [AI_const (g_val g)], (_, _, _), [].
+    eexists [], [AI_basic (BI_const (g_val g))], (_, _, _), [].
     unfold iris.prim_step => /=.
     repeat split => //.
     by apply r_get_global.
   - iIntros "!>" (es ??? HStep) "!>".
     destruct HStep as [H _].
     only_one_reduction H. destruct f; iFrame.
-    rewrite to_val_AI_const.
-    iFrame.
+(*    rewrite to_val_AI_const.
+    iFrame. *)
 Qed.
 
-Lemma ewp_set_global (E : coPset) (v: value) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat):
+Lemma ewp_set_global (E : coPset) (v: value_num) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat):
   (f_inst f).(inst_globs) !! n = Some k ->
   ▷ Φ (immV []) f -∗
   N.of_nat k ↦[wg] g -∗
-  EWP [AI_const v; AI_basic (BI_set_global n)] UNDER f @ E <| Ψ |> {{ w ; h , Φ w h ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v }}.
+  EWP [AI_basic (BI_const v); AI_basic (BI_set_global n)] UNDER f @ E <| Ψ |> {{ w ; h , Φ w h ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v }}.
 Proof.
   iIntros (Hinstg) "HΦ Hglob".
   iApply (ewp_wand _ _ _ _ _ (λ w h, (Φ w h ∗ N.of_nat k ↦[wg] Build_global (g_mut g) v) )%I with "[-]");[|by iIntros (??) "?";iFrame].
   iApply ewp_lift_atomic_step => //=.
-  rewrite /to_val /= merge_prepend to_val_instr_AI_const //.
-  rewrite /to_eff /= merge_prepend to_val_instr_AI_const //.
   iIntros (σ) "Hσ !>".
 
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hg & Hi & ?)".
@@ -323,8 +321,8 @@ Proof.
     rewrite -fmap_insert_set_nth//.
     rewrite -gmap_of_list_insert;[|by rewrite Nat2N.id].
     rewrite Nat2N.id. by iFrame.
-    rewrite separate1 -cat_app first_instr_const // in Hstart.
-    rewrite /= const_const //.
+(*    rewrite separate1 -cat_app first_instr_const // in Hstart.
+    rewrite /= const_const //. *)
 Qed.
 
 (* Auxiliary lemmas for load/store *)

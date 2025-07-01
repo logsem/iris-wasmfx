@@ -495,7 +495,7 @@ Definition pp_mutability (m : mutability) : string :=
   end.
 
 Definition pp_global (g : global) : string :=
-  pp_mutability g.(g_mut) ++ " " ++ pp_value g.(g_val).
+  pp_mutability g.(g_mut) ++ " " ++ pp_value_num g.(g_val).
 
 Definition pp_globals (n : indentation) (gs : list global) : string :=
   String.concat "" (mapi (fun i g => indent n (string_of_nat i ++ ": " ++ pp_global g ++ newline)) gs).

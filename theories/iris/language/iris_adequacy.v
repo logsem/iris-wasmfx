@@ -3,38 +3,47 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import wsat.
 From iris.program_logic Require Export weakestpre.
 From iris.prelude Require Import options.
+From Wasm.iris.language Require Import iris_ewp.
 Import uPred.
 
 (** This file contains the adequacy statements of the Iris program logic. First
 we prove a number of auxilary results. *)
 
 Section adequacy.
-Context `{!irisGS Λ Σ}.
-Implicit Types e : expr Λ.
-Implicit Types P Q : iProp Σ.
-Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types Φs : list (val Λ → iProp Σ).
+  (* Context `{!irisGS Λ Σ}. *)
+  Context `{!wasmG Σ}.
+  Implicit Types e : expr.
+  Implicit Types P Q : iProp Σ.
+  Implicit Types Φ : val → frame -> iProp Σ.
+(* Implicit Types Φs : list (val Λ → iProp Σ). *)
 
-Notation wptp s t Φs := ([∗ list] e;Φ ∈ t;Φs, WP e @ s; ⊤ {{ Φ }})%I.
+(* Notation wptp s t Φs := ([∗ list] e;Φ ∈ t;Φs, WP e @ s; ⊤ {{ Φ }})%I. *)
 
-(* New wp definition requires british pounds. TODO: fix adequacy *)
-(*
 
-Lemma wp_step s e1 σ1 ns κ κs e2 σ2 efs nt Φ :
-  prim_step e1 σ1 κ e2 σ2 efs →
-  state_interp σ1 ns (κ ++ κs) nt -∗ WP e1 @ s; ⊤ {{ Φ }}
-    ={⊤,∅}=∗ |={∅}▷=>^(S $ num_laters_per_step ns) |={∅,⊤}=>
-    state_interp σ2 (S ns) κs (nt + length efs) ∗ WP e2 @ s; ⊤ {{ Φ }} ∗
-    wptp s efs (replicate (length efs) fork_post).
+Lemma ewp_step e1 σ1 f1 e2 σ2 f2 Φ κ efs:
+  prim_step e1 (σ1 , f_locs f1, f_inst f1) κ e2 (σ2, f_locs f2, f_inst f2) efs →
+  state_interp σ1 -∗ EWP e1 UNDER f1 @ ⊤ {{ Φ }}
+    ={⊤,∅}=∗ |={∅}▷=> |={∅,⊤}=>
+    state_interp σ2 ∗ EWP e2 UNDER f2 @ ⊤ {{ Φ }} 
+  .
 Proof.
-  rewrite {1}wp_unfold /wp_pre. iIntros (?) "Hσ H".
-  rewrite (val_stuck e1 σ1 κ e2 σ2 efs) //.
-  iMod ("H" $! σ1 ns with "Hσ") as "(_ & H)". iModIntro.
-  iApply (step_fupdN_wand with "[H]"); first by iApply "H". iIntros ">H".
-  by rewrite Nat.add_comm big_sepL2_replicate_r.
+  rewrite {1}ewp_unfold /ewp_pre. iIntros (?) "Hσ H".
+  erewrite val_stuck.
+  2: exact H.
+  destruct (to_eff e1).
+  { destruct e.
+    all: iDestruct "H" as (Ξ) "[H HΞ]".
+    all: done. } 
+  iMod ("H" $! σ1 with "Hσ") as "(_ & H)". iModIntro.
+  apply iris_reduce_properties.prim_step_obs_efs_empty in H as H'.
+  inversion H'; subst.
+  iSpecialize ("H" $! _ _ _ _ H).
+  destruct f2; iExact "H".
 Qed.
 
-Lemma wptp_step s es1 es2 κ κs σ1 ns σ2 Φs nt :
+
+  
+(* Lemma wptp_step s es1 es2 κ κs σ1 ns σ2 Φs nt :
   step (es1,σ1) κ (es2, σ2) →
   state_interp σ1 ns (κ ++ κs) nt -∗ wptp s es1 Φs -∗
   ∃ nt', |={⊤,∅}=> |={∅}▷=>^(S $ num_laters_per_step$ ns) |={∅,⊤}=>
@@ -48,7 +57,7 @@ Proof.
   iExists _. iMod (wp_step with "Hσ Ht") as "H"; first done. iModIntro.
   iApply (step_fupdN_wand with "H"). iIntros ">($ & He2 & Hefs) !>".
   rewrite -(assoc_L app) -app_comm_cons. iFrame.
-Qed.
+Qed. 
 
 (* The total number of laters used between the physical steps number
    [start] (included) to [start+ns] (excluded). *)
@@ -57,7 +66,7 @@ Local Fixpoint steps_sum (num_laters_per_step : nat → nat) (start ns : nat) : 
   | O => 0
   | S ns =>
     S $ num_laters_per_step start + steps_sum num_laters_per_step (S start) ns
-  end.
+  end. 
 
 Lemma wptp_steps s n es1 es2 κs κs' σ1 ns σ2 Φs nt :
   nsteps n (es1, σ1) κs (es2, σ2) →
@@ -78,17 +87,22 @@ Proof.
   iApply (step_fupdN_wand with "IH"). iIntros ">IH".
   iDestruct "IH" as (nt'') "[??]".
   rewrite -Nat.add_assoc -(assoc_L app) -replicate_plus. by eauto with iFrame.
-Qed.
+Qed. *)
 
-Lemma wp_not_stuck κs nt e σ ns Φ :
-  state_interp σ ns κs nt -∗ WP e {{ Φ }} ={⊤}=∗ ⌜not_stuck e σ⌝.
+(* Lemma ewp_not_stuck e f σ Φ :
+  state_interp σ -∗ EWP e UNDER f {{ Φ }} ={⊤}=∗ ⌜not_stuck e (σ, f_locs f, f_inst f)⌝.
 Proof.
-  rewrite wp_unfold /wp_pre /not_stuck. iIntros "Hσ H".
+  rewrite ewp_unfold /ewp_pre /not_stuck. iIntros "Hσ H".
   destruct (to_val e) as [v|] eqn:?; first by eauto.
-  iSpecialize ("H" $! σ ns [] κs with "Hσ"). rewrite sep_elim_l.
+  destruct (to_eff e).
+  { destruct e0. all: iDestruct "H" as (?) "[??]". all: done. } 
+  iSpecialize ("H" $! σ with "Hσ"). rewrite sep_elim_l.
   iMod (fupd_plain_mask with "H") as %?; eauto.
+  Unshelve.
+  { 
 Qed.
-
+*)
+(*
 Lemma wptp_strong_adequacy Φs κs' s n es1 es2 κs σ1 ns σ2 nt:
   nsteps n (es1, σ1) κs (es2, σ2) →
   state_interp σ1 ns (κs ++ κs') nt -∗ wptp s es1 Φs
@@ -121,14 +135,12 @@ Qed.
 End adequacy.
 
 
-(*
 
+(*
 (** Iris's generic adequacy result *)
-Theorem wp_strong_adequacy Σ Λ `{!invGpreS Σ} es σ1 n κs t2 σ2 φ
-        (num_laters_per_step : nat → nat) :
+Theorem ewp_strong_adequacy Σ `{!wasmG Σ} es σ1 n κs t2 σ2 φ :
   (∀ `{Hinv : !invGS Σ},
     ⊢ |={⊤}=> ∃
-         (s: stuckness)
          (stateI : state Λ → nat → list (observation Λ) → nat → iProp Σ)
          (Φs : list (val Λ → iProp Σ))
          (fork_post : val Λ → iProp Σ)

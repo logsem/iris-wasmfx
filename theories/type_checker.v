@@ -521,7 +521,7 @@ in
     then
       match List.nth_error (tc_global C) i with
       | None => CT_bot (* Isa mismatch *)
-      | Some xx => type_update ts [::] (CT_type [::tg_t xx])
+      | Some xx => type_update ts [::] (CT_type [::T_num (tg_t xx)])
       end
     else CT_bot
   | BI_set_global i =>
@@ -531,7 +531,7 @@ in
       | None => CT_bot (* Isa mismatch *)
       | Some xx =>
         if is_mut xx
-        then type_update ts [::CTA_some (tg_t xx)] (CT_type [::])
+        then type_update ts [::CTA_some (T_num (tg_t xx))] (CT_type [::])
         else CT_bot
       end
     else CT_bot

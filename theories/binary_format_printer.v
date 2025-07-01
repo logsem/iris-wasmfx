@@ -426,7 +426,7 @@ Definition binary_of_mutability (m : mutability) : list byte :=
   end.
 
 Definition binary_of_global_type (g_ty : global_type) : list byte :=
-  binary_of_value_type g_ty.(tg_t) ++
+  binary_of_number_type g_ty.(tg_t) ::
   binary_of_mutability g_ty.(tg_mut).
 
 Definition binary_of_memory_type (m : memory_type) : list byte :=

@@ -571,7 +571,7 @@ Definition sglob (s : store_record) (i : instance) (j : nat) : option global :=
   option_bind (List.nth_error (s_globals s))
     (sglob_ind s i j).
 
-Definition sglob_val (s : store_record) (i : instance) (j : nat) : option value :=
+Definition sglob_val (s : store_record) (i : instance) (j : nat) : option value_num :=
   option_map g_val (sglob s i j).
 
 Definition smem_ind (s : store_record) (i : instance) : option nat :=
@@ -620,7 +620,7 @@ Definition stab (s : store_record) (i : instance) (j : nat) : option function_cl
 Definition update_list_at {A : Type} (l : seq A) (k : nat) (a : A) :=
   take k l ++ [::a] ++ List.skipn (k + 1) l.
 
-Definition supdate_glob_s (s : store_record) (k : nat) (v : value) : option store_record :=
+Definition supdate_glob_s (s : store_record) (k : nat) (v : value_num) : option store_record :=
   option_map
     (fun g =>
       let: g' := Build_global (g_mut g) v in
@@ -628,14 +628,14 @@ Definition supdate_glob_s (s : store_record) (k : nat) (v : value) : option stor
       Build_store_record (s_funcs s) (s_tables s) (s_mems s) (s_tags s) gs' (s_exns s) (s_conts s))
     (List.nth_error (s_globals s) k).
 
-Definition supdate_glob (s : store_record) (i : instance) (j : nat) (v : value) : option store_record :=
+Definition supdate_glob (s : store_record) (i : instance) (j : nat) (v : value_num) : option store_record :=
   option_bind
     (fun k => supdate_glob_s s k v)
     (sglob_ind s i j).
 
 
 
-Definition glob_extension (s: store_record) (g1 g2: global) : bool.
+Definition glob_extension (* (s: store_record) *) (g1 g2: global) : bool.
 Proof.
   destruct (g_mut g1) eqn:gmut1.
   - (* Immut *)
@@ -643,7 +643,7 @@ Proof.
   - (* Mut *)
     destruct (g_mut g2) eqn:gmut2.
     + exact false.
-    + exact ((typeof s (g_val g1) == typeof s (g_val g2)) && (typeof s (g_val g1) != None)).
+    + exact ((typeof_num (g_val g1) == typeof_num (g_val g2)) (* && (typeof_num (g_val g1) != None) *)).
 (*
       destruct (g_val g1) as [n | n] eqn:T1;
         destruct n;
@@ -688,7 +688,7 @@ Definition cont_extension (cont1 cont2: continuation) :=
 (*     (s_conts s == take (length (s_conts s)) (s_conts s')) && *)
   (all2 tab_extension s.(s_tables) s'.(s_tables)) &&
   (all2 mem_extension s.(s_mems) s'.(s_mems)) &&
-     (all2 (glob_extension s) s.(s_globals) s'.(s_globals)) &&
+     (all2 (glob_extension (* s *) ) s.(s_globals) s'.(s_globals)) &&
      (s_exns s == take (length (s_exns s)) (s_exns s'))
 . 
 

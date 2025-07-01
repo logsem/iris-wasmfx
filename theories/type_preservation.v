@@ -3333,7 +3333,7 @@ Qed.
 Lemma Get_global_typing: forall C i t1s t2s,
     be_typing C [::BI_get_global i] (Tf t1s t2s) ->
     exists t, option_map tg_t (List.nth_error (tc_global C) i) = Some t /\
-    t2s = t1s ++ [::t] /\
+    t2s = t1s ++ [::T_num t] /\
     i < length (tc_global C).
 Proof.
   move => C i t1s t2s HType.
@@ -3353,7 +3353,7 @@ Lemma Set_global_typing: forall C i t1s t2s,
     exists g t, List.nth_error (tc_global C) i = Some g /\
     tg_t g = t /\
     is_mut g /\
-    t1s = t2s ++ [::t] /\
+    t1s = t2s ++ [::T_num t] /\
     i < length (tc_global C).
 Proof.
   move => C i t1s t2s HType.
@@ -3469,7 +3469,7 @@ Lemma global_type_reference: forall s i j C v t,
     inst_typing s i C ->
     sglob_val s i j = Some v ->
     option_map tg_t (List.nth_error (tc_global C) j) = Some t ->
-    typeof s v = Some t (* \/ typeof s v = T_ref T_corruptref *).
+    typeof_num v = t (* \/ typeof s v = T_ref T_corruptref *).
 Proof.
   move => s i j C v t HInstType Hvref Htref.
   unfold sglob_val in Hvref.
@@ -3551,12 +3551,12 @@ Proof.
 Qed.
 
 
-Lemma global_agree_extension: forall g0 g1 g s,
-    global_agree s g0 g ->
-    glob_extension s g0 g1 ->
-    global_agree s g1 g.
+Lemma global_agree_extension: forall g0 g1 g,
+    global_agree g0 g ->
+    glob_extension g0 g1 ->
+    global_agree g1 g.
 Proof.
-  move => g0 g1 g s H1 H2.
+  move => g0 g1 g H1 H2.
   unfold global_agree.
   unfold global_agree in H1. unfold glob_extension in H2.
   destruct g => //=.
@@ -3566,9 +3566,9 @@ Proof.
   remove_bools_options.
   subst.
   destruct g_mut; remove_bools_options; subst.
-  + apply/andP. split => //. by rewrite H0.
-  + destruct g_mut0 => //. apply/andP. split => //.
-    remove_bools_options. rewrite H0 H. done.
+  + apply/andP. split => //. (* by rewrite H0. *)
+  + destruct g_mut0 => //. (* apply/andP. split => //.
+    remove_bools_options. rewrite H0 H. done. *)
 (*    by rewrite H0. *)
 (*  - destruct g_mut; remove_bools_options; subst.
     + apply/andP; split; first done. apply/orP; right. by rewrite H0.
@@ -3577,14 +3577,14 @@ Proof.
 Qed.
 
 
-Lemma glob_extension_C: forall sg sg' ig tcg s,
-    all2 (globals_agree s sg) ig tcg ->
-    all2 (glob_extension s) sg sg' ->
-    all2 (globals_agree s sg') ig tcg.
+Lemma glob_extension_C: forall sg sg' ig tcg,
+    all2 (globals_agree sg) ig tcg ->
+    all2 (glob_extension) sg sg' ->
+    all2 (globals_agree sg') ig tcg.
 Proof.
   move => sg sg' ig.
   generalize dependent sg; generalize dependent sg'.
-  induction ig; move => sg' sg tcg s HA Hext => //=; destruct tcg => //=.
+  induction ig; move => sg' sg tcg HA Hext => //=; destruct tcg => //=.
   - simpl in HA. remove_bools_options.
     edestruct IHig; eauto.
     unfold globals_agree in H. remove_bools_options.
@@ -3708,8 +3708,8 @@ Qed.
 
 Lemma globals_agree_extension: forall s s' inst_globs tc_global,
     store_extension s s' ->
-    all2 (globals_agree s (s_globals s)) inst_globs tc_global ->
-    all2 (globals_agree s' (s_globals s)) inst_globs tc_global.
+    all2 (globals_agree (s_globals s)) inst_globs tc_global ->
+    all2 (globals_agree (s_globals s)) inst_globs tc_global.
 Proof.
   intros s s' inst_globs tc_global HST Hall.
   apply all2_Forall2.
@@ -3722,23 +3722,24 @@ Proof.
   f_equal. apply/andP.
   inversion Hagree. 
   unfold global_agree in H0; remove_bools_options.
-  destruct (typeof_extension (datatypes.g_val g) HST) as [Htypeof | [[Hcorrupt _] | [Hcorrupt _]]].
+  split; apply/eqP => //. 
+(*  destruct (typeof_extension (datatypes.g_val g) HST) as [Htypeof | [[Hcorrupt _] | [Hcorrupt _]]].
   + split => //; first by rewrite H. rewrite H0 Htypeof. done.
   + rewrite Hcorrupt in H0. done. 
-  + rewrite Hcorrupt in H0. done.
+  + rewrite Hcorrupt in H0. done. *)
 Qed.
 
 Lemma glob_extension_extension: forall s s',
     store_extension s s' ->
-    all2 (glob_extension s) (s_globals s) (s_globals s') ->
-    all2 (glob_extension s') (s_globals s) (s_globals s').
+    all2 (glob_extension) (s_globals s) (s_globals s') ->
+    all2 (glob_extension) (s_globals s) (s_globals s').
 Proof.
   intros s s' HST Hall.
   apply all2_Forall2.
   eapply List.Forall2_impl; last by apply all2_Forall2 in Hall; exact Hall.
   intros g g' Hext. simpl in Hext.
   unfold glob_extension. unfold glob_extension in Hext.
-  destruct (g_mut g) => //. destruct (g_mut g') => //.
+  destruct (g_mut g) => //. (* destruct (g_mut g') => //.
   destruct (typeof_extension (g_val g) HST) as [<- | [(Hcorrupt & tf & Habs) | [ Hcorrupt Habs]]].
   - destruct (typeof_extension (g_val g') HST) as [<- | [(Hcorrupt & tf & Habs) | [Hcorrupt Habs]]] => //.
     + rewrite Hcorrupt in Hext. remove_bools_options.    
@@ -3746,7 +3747,7 @@ Proof.
     + rewrite Hcorrupt in Hext. remove_bools_options.
       rewrite H in H0 => //.
   - rewrite Hcorrupt in Hext. move/andP in Hext. destruct Hext as [_ ?] => //.
-  - rewrite Hcorrupt in Hext. move/andP in Hext. destruct Hext as [_ ?] => //.
+  - rewrite Hcorrupt in Hext. move/andP in Hext. destruct Hext as [_ ?] => //. *)
 Qed. 
 
 
@@ -3765,7 +3766,7 @@ Proof.
   destruct tc_local => //. destruct tc_label => //. destruct tc_return => //.
   remove_bools_options. rewrite - H5.
   repeat (apply/andP; split => //=; subst => //=).
-  - eapply glob_extension_C. apply globals_agree_extension; eauto.
+  - eapply glob_extension_C. eapply globals_agree_extension; eauto.
     apply glob_extension_extension; eauto.
   - by eapply tab_extension_C; eauto.
   - by eapply mem_extension_C; eauto.
@@ -3951,21 +3952,21 @@ Proof.
   by apply N.leb_le; lias.
 Qed.
 
-Lemma all2_glob_extension_same: forall s t,
-    (forall x, List.In x t -> typeof s (g_val x) <> None) ->   
-    all2 (glob_extension s) t t.
+Lemma all2_glob_extension_same: forall t,
+(*    (forall x, List.In x t -> typeof_num (g_val x) <> None) ->    *)
+    all2 (glob_extension) t t.
 Proof. 
-  move => s t Hcorrupt.
+  move => t.
   induction t => //=.
   apply/andP.
   split.
   - unfold glob_extension.
     destruct (g_mut a) => //. apply/andP; split => //.
-    apply/andP; split => //.
+    (* apply/andP; split => //.
     destruct (typeof s (g_val a)) eqn:H => //.
     exfalso.
-    eapply Hcorrupt; last exact H. by left.
-  - apply IHt. intros x Hx. apply Hcorrupt. by right.
+    eapply Hcorrupt; last exact H. by left. *)
+  - apply IHt. (* intros x Hx. apply Hcorrupt. by right. *)
 Qed.
 
 Ltac convert_et_to_bet:=
@@ -4092,11 +4093,11 @@ Proof.
   + by apply all2_tab_extension_same.
   + by apply all2_mem_extension_same.
   + apply all2_glob_extension_same.
-    destruct s; destruct Hcorrupt as (_ & _ & _ & Hg).
+(*    destruct s; destruct Hcorrupt as (_ & _ & _ & Hg).
     rewrite List.Forall_forall in Hg.
     intros g Hin. apply Hg in Hin as [t Hgt].
     apply AI_const_typing in Hgt as (t0 & Hgt0 & _).
-    rewrite Hgt0. done.
+    rewrite Hgt0. done. *)
   + rewrite length_is_size. rewrite take_size. done.
 Qed.
 
@@ -4273,30 +4274,30 @@ Proof.
 Defined. 
 
 
-Lemma glob_extension_update_nth: forall sglobs n s g g',
-    (forall x, List.In x sglobs -> typeof s (g_val x) <> None) ->  
+Lemma glob_extension_update_nth: forall sglobs n g g',
+(*    (forall x, List.In x sglobs -> typeof_num (g_val x) <> None) ->   *)
   List.nth_error sglobs n = Some g ->
-  glob_extension s g g' ->
-  all2 (glob_extension s) sglobs (update_list_at sglobs n g').
+  glob_extension g g' ->
+  all2 (glob_extension) sglobs (update_list_at sglobs n g').
 Proof.
-  move => sglobs n s.
+  move => sglobs n.
   generalize dependent sglobs.
-  induction n; move => sglobs g g' Hcorrupt HN Hext => //=; destruct sglobs => //.
+  induction n; move => sglobs g g' HN Hext => //=; destruct sglobs => //.
   - simpl in HN. inversion HN. subst.
     apply/andP; split => //=.
     apply all2_glob_extension_same.
-    intros x Hx. apply Hcorrupt. by right.
+(*    intros x Hx. apply Hcorrupt. by right. *)
   - assert ((n.+1 < length (g0 :: sglobs))%coq_nat); first by rewrite -List.nth_error_Some; rewrite HN.
     erewrite <-update_list_at_is_set_nth; last by lias.
     simpl.
     apply/andP. split.
     + unfold glob_extension. destruct (g_mut g0) => //.
-      apply/andP; split => //. apply/andP; split => //.
+      apply/andP; split => //. (* apply/andP; split => //.
       destruct (typeof s (g_val g0)) eqn:Habs => //.
-      exfalso. eapply Hcorrupt; last exact Habs. by left.
+      exfalso. eapply Hcorrupt; last exact Habs. by left. *)
     + rewrite update_list_at_is_set_nth.
       * eapply IHn; eauto.
-        intros x Hx. apply Hcorrupt. by right.
+        (* intros x Hx. apply Hcorrupt. by right. *)
       * simpl in H. rewrite length_is_size in H. by lias.
 Qed. 
 
@@ -4305,7 +4306,7 @@ Lemma tc_reference_glob_type: forall s i C n m gt g,
     List.nth_error i.(inst_globs) n = Some m ->
     List.nth_error s.(s_globals) m = Some g ->
     List.nth_error C.(tc_global) n = Some gt ->
-    global_agree s g gt.
+    global_agree g gt.
 Proof.
   move => s i C n m gt g HIT HN1 HN2 HN3.
   unfold inst_typing in HIT. unfold typing.inst_typing in HIT.
@@ -4582,6 +4583,7 @@ Proof.
   intros Hext Hg.
   unfold glob_sound.
   destruct Hg as [t Ht]. exists t.
+  fold (AI_const (VAL_num (g_val g))).
   eapply value_typing_extension; eauto.
 Qed.
 
@@ -5189,11 +5191,11 @@ Proof.
   + by apply all2_tab_extension_same.
   + by apply all2_mem_extension_same.
   + apply all2_glob_extension_same.
-    destruct Hs as (_ & _ & _ & Hgs & _).
+(*    destruct Hs as (_ & _ & _ & Hgs & _).
     rewrite List.Forall_forall in Hgs.
     intros g Hin. apply Hgs in Hin as [t Ht].
     apply AI_const_typing in Ht as (t0 & Ht0 & _).
-    rewrite Ht0. done.
+    rewrite Ht0. done. *)
   + rewrite length_is_size take_size. done.
 Qed.
 
@@ -5221,11 +5223,11 @@ Proof.
   + by apply all2_tab_extension_same.
   + by apply all2_mem_extension_same.
   + apply all2_glob_extension_same.
-    destruct Hs as (_ & _ & _ & Hgs & _).
+    (* destruct Hs as (_ & _ & _ & Hgs & _).
     rewrite List.Forall_forall in Hgs.
     intros g Hin. apply Hgs in Hin as [t Ht].
     apply AI_const_typing in Ht as (t0 & Ht0 & _).
-    rewrite Ht0. done.
+    rewrite Ht0. done. *)
   + rewrite length_is_size take_size. done.
 Qed. 
 
@@ -6027,13 +6029,13 @@ Qed.
 
 
 Lemma store_extension_trans s1 s2 s3:
-  (forall x : global, List.In x (s_globals s3) -> typeof s1 (g_val x) <> None) ->
+(*  (forall x : global, List.In x (s_globals s3) -> typeof s1 (g_val x) <> None) -> *)
   store_extension s1 s2 ->
   store_extension s2 s3 ->
   store_extension s1 s3.
 Proof.
   unfold store_extension.
-  intros Hcorrupt H12 H23; remove_bools_options.
+  intros H12 H23; remove_bools_options.
   apply list_prefix_equiv in H7 as [additions2 Hexns2].
   apply list_prefix_equiv in H0 as [additions3 Hexns3].
   rewrite H12 H6 H5 H.
@@ -6060,7 +6062,7 @@ Proof.
     unfold glob_extension. intros g1 g2 g3 Hin Hg1 Hg2.
     destruct (g_mut g1), (g_mut g2), (g_mut g3); remove_bools_options => //.
     + rewrite H14 H7. apply/andP => //.
-    + apply/andP; split => //.
+    + by rewrite Hg1 Hg2. (* apply/andP; split => //.
       destruct (@typeof_extension s1 s2 (g_val g2)), (@typeof_extension s1 s2 (g_val g3)).
       all: try by repeat (apply/andP; split => //); try rewrite H12; try rewrite H6; try (apply/eqP; apply list_prefix_equiv; eexists; exact Hexns2).
       * rewrite H13 H15 H0 H16. done.
@@ -6069,7 +6071,7 @@ Proof.
       * destruct H15 as [[H15 _] | [H15 _]]; rewrite H13 H15 in H14; done.
       * destruct H15 as [[H15 _] | [H15 _]];
           destruct H16 as [[H16 _] | [H16 _]];
-          rewrite H13 H15 H16; done.
+          rewrite H13 H15 H16; done. *)
   - apply/eqP. apply list_prefix_equiv.  eexists. rewrite Hexns3 Hexns2.
     rewrite -catA. done.
 Qed.        
@@ -6704,11 +6706,11 @@ Proof.
   - rewrite all2_tab_extension_same => //.
   - rewrite all2_mem_extension_same => //.
   - rewrite all2_glob_extension_same => //.
-    destruct HST as (_ & _ & _ & Hgs & _).
+    (* destruct HST as (_ & _ & _ & Hgs & _).
     rewrite List.Forall_forall in Hgs.
     intros g Hin. apply Hgs in Hin as [t Htg].
     apply AI_const_typing in Htg as (t0 & Ht0 & _).
-    rewrite Ht0. done.
+    rewrite Ht0. done. *)
   - apply/eqP. apply list_prefix_equiv. exists [::e]. done.
 Qed. 
 
@@ -6905,20 +6907,24 @@ Proof.
   - (* Switch *)
     split.
     + eapply store_extension_trans; cycle 1.
-      * eapply store_extension_upd_cont.
+(*      * eapply store_extension_upd_cont.
         -- done.
         -- exact H1.
-        -- done.
+        -- done. *)
       * eapply store_extension_new_cont.
         eapply store_typing_upd_cont. done.
         exact H1. done.
-      * intros g Hin Habs.
+         * eapply store_extension_upd_cont.
+        -- done.
+        -- exact H1.
+        -- done.
+(*      * intros g Hin Habs.
         destruct s. destruct H6 as (_ & _ & _ & Hgs & _).
         simpl in *.
         rewrite List.Forall_forall in Hgs.
         apply Hgs in Hin as [t Ht].
         apply AI_const_typing in Ht as (t0 & Ht0 & _).
-        rewrite Ht0 in Habs. done.
+        rewrite Ht0 in Habs. done. *)
     + apply store_typing_new_cont.
       eapply store_typing_upd_cont; try exact H1; try done.
       apply c_typing_new_cont; try exact H2; try done.
@@ -6956,20 +6962,21 @@ Proof.
   - (* Contbind *)
     split.
     + eapply store_extension_trans; cycle 1.
+            * eapply store_extension_new_cont.
+        eapply store_typing_upd_cont. done.
+        exact H3. done.
+
       * eapply store_extension_upd_cont.
         -- done.
         -- exact H3.
         -- done. (* instantiate (1 := (Cont_dagger (Tf (ts ++ t1s) t2s))) => //.  *)
-      * eapply store_extension_new_cont.
-        eapply store_typing_upd_cont. done.
-        exact H3. done.
-      * intros g Hin Habs.
+(*      * intros g Hin Habs.
         destruct s. destruct HST as (_ & _ & _ & Hgs & _).
         simpl in *.
         rewrite List.Forall_forall in Hgs.
         apply Hgs in Hin as [t Ht].
         apply AI_const_typing in Ht as (t0 & Ht0 & _).
-        rewrite Ht0 in Habs. done.
+        rewrite Ht0 in Habs. done. *)
     + apply store_typing_new_cont.
       eapply store_typing_upd_cont; try exact H3; try done.
       eapply c_typing_new_cont; try exact H3; try done.
@@ -7049,13 +7056,13 @@ Proof.
         -- done.
       * apply store_extension_add_exn.
         exact HST.
-      * intros g Hin Habs.
+      (* * intros g Hin Habs.
         destruct s. destruct HST as (_ & _ & _ & Hgs & _).
         simpl in *.
         rewrite List.Forall_forall in Hgs.
         apply Hgs in Hin as [t Ht].
         apply AI_const_typing in Ht as (t0 & Ht0 & _).
-        rewrite Ht0 in Habs. done.
+        rewrite Ht0 in Habs. done. *)
     + eapply store_typing_upd_cont.
       * apply store_typing_add_exn.
         -- exact HST.
@@ -7070,11 +7077,12 @@ Proof.
       * exact H5.
       * done.
   - (* update glob *)
-    rewrite (separate1 (AI_const v)) in HType.
+    rewrite (separate1 (AI_basic _)) in HType.
     apply e_composition_typing in HType.
     destruct HType as [ts [t1s [t2s [t3s [H1 [H2 [H3 H4]]]]]]]. subst.
     apply et_to_bet in H4; auto_basic. simpl in H4.
     apply Set_global_typing in H4 as (g & t & Hg & <- & Hmut & -> & Hi).
+    fold (AI_const (VAL_num v)) in H3.
     apply AI_const_typing in H3 as (t & Ht & H3 & Hconst).
     apply concat_cancel_last in H3 as [-> H3]. 
     unfold supdate_glob in H.
@@ -7098,13 +7106,16 @@ Proof.
       - eapply glob_extension_update_nth ; eauto => //=.
         + destruct s. destruct HST as (_ & _ & _ & Hgs & _).
           rewrite List.Forall_forall in Hgs.
-          intros g Hin. apply Hgs in Hin as [t Hgt].
-          apply AI_const_typing in Hgt as (t0 & Ht0 & _).
+          unfold glob_extension. simpl.
+          simpl in Ht.
+          inversion Ht => //. 
+(*          intros g Hin. apply Hgs in Hin as [t Hgt].
+          apply AI_const_typing in Hgt as (t0 & Ht0 & _). 
           rewrite Ht0. done.
         + unfold glob_extension => //.
           unfold g_mut.
           apply/andP. unfold datatypes.g_val. 
-          rewrite - H0. split => //. rewrite Ht => //.
+          rewrite - H0. split => //. rewrite Ht => //. *)
       - rewrite length_is_size take_size. done.
     } 
     split => //.
@@ -7115,9 +7126,9 @@ Proof.
     eapply List.Forall_impl; last exact Hglobs.
     intros glob Hglob. eapply store_extension_glob_sound.
     exact Hext. exact Hglob.
-    exists (tg_t g).
+    exists (T_num (tg_t g)).
     eapply t_const_ignores_context.
-    simpl. rewrite const_const => //.
+    simpl. done. (* rewrite const_const => //. *)
     eapply store_extension_e_typing.
     exact HST. exact Hext. exact Hconst.
   - (* update memory : store none *)
@@ -7139,11 +7150,11 @@ Proof.
       * eapply mem_extension_update_nth; eauto => //=. 
         by eapply mem_extension_store; eauto.
       * apply all2_glob_extension_same.
-        destruct s; destruct HST as (_ & _ & _ & Hgs & _).
+        (* destruct s; destruct HST as (_ & _ & _ & Hgs & _).
         rewrite List.Forall_forall in Hgs.
         intros g Hin. apply Hgs in Hin as [t Htg].
         apply AI_const_typing in Htg as (t0 & Ht0 & _).
-        rewrite Ht0. done.
+        rewrite Ht0. done. *)
       * rewrite length_is_size take_size. done.
     + split => //.
       eapply store_memory_extension_store_typed; eauto => //=.
@@ -7177,11 +7188,11 @@ Proof.
       * eapply mem_extension_update_nth; eauto => //=.
         by eapply mem_extension_store; eauto.
       * apply all2_glob_extension_same.
-        destruct s; destruct HST as (_ & _ & _ & Hgs & _).
+        (* destruct s; destruct HST as (_ & _ & _ & Hgs & _).
         rewrite List.Forall_forall in Hgs.
         intros g Hin. apply Hgs in Hin as [t Htg].
         apply AI_const_typing in Htg as (t0 & Ht0 & _).
-        rewrite Ht0. done.
+        rewrite Ht0. done. *)
       * rewrite length_is_size take_size => //. 
     } 
     split => //.
@@ -7213,11 +7224,11 @@ Proof.
       * eapply mem_extension_update_nth; eauto => //=.
         by eapply mem_extension_grow_memory; eauto.
       * apply all2_glob_extension_same.
-        destruct s; destruct HST as (_ & _ & _ & Hgs & _).
+        (* destruct s; destruct HST as (_ & _ & _ & Hgs & _).
         rewrite List.Forall_forall in Hgs.
         intros g Hin. apply Hgs in Hin as [t Htg].
         apply AI_const_typing in Htg as (t0 & Ht0 & _).
-        rewrite Ht0. done.
+        rewrite Ht0. done. *)
       * rewrite length_is_size take_size => //. 
     }
     split => //.
@@ -7321,20 +7332,21 @@ Proof.
   - (* Switch *)
     split.
     + eapply store_extension_trans; cycle 1.
+            * eapply store_extension_new_cont.
+        eapply store_typing_upd_cont. done.
+        exact H1. done.
+
       * eapply store_extension_upd_cont.
         -- done.
         -- exact H1.
         -- done.
-      * eapply store_extension_new_cont.
-        eapply store_typing_upd_cont. done.
-        exact H1. done.
-      * intros g Hin Habs.
+(*      * intros g Hin Habs.
         destruct s. destruct H5 as (_ & _ & _ & Hgs & _).
         simpl in *.
         rewrite List.Forall_forall in Hgs.
         apply Hgs in Hin as [t Ht].
         apply AI_const_typing in Ht as (t0 & Ht0 & _).
-        rewrite Ht0 in Habs. done.
+        rewrite Ht0 in Habs. done. *)
     + apply store_typing_new_cont.
       eapply store_typing_upd_cont; try exact H1; try done.
       apply c_typing_new_cont; try exact H1; try done.
@@ -7372,20 +7384,21 @@ Proof.
   - (* Contbind *)
     split.
     + eapply store_extension_trans; cycle 1.
+            * eapply store_extension_new_cont.
+        eapply store_typing_upd_cont. done.
+        exact H3. done.
+
       * eapply store_extension_upd_cont.
         -- done.
         -- exact H3.
         -- done. 
-      * eapply store_extension_new_cont.
-        eapply store_typing_upd_cont. done.
-        exact H3. done.
-      * intros g Hin Habs.
+(*      * intros g Hin Habs.
         destruct s. destruct HST as (_ & _ & _ & Hgs & _).
         simpl in *.
         rewrite List.Forall_forall in Hgs.
         apply Hgs in Hin as [t Ht].
         apply AI_const_typing in Ht as (t0 & Ht0 & _).
-        rewrite Ht0 in Habs. done.
+        rewrite Ht0 in Habs. done. *)
     + apply store_typing_new_cont.
       eapply store_typing_upd_cont; try exact H3; try done.
       eapply c_typing_new_cont; try exact H3; try done.
@@ -7438,7 +7451,7 @@ Proof.
     destruct x => //. 
 
   - (* update glob *)
-    rewrite (separate1 (AI_const v)) in HType.
+    rewrite (separate1 (AI_basic _)) in HType.
     apply e_composition_typing in HType.
     destruct HType as [ts [t1s [t2s [t3s [H1 [H2 [H3 H4]]]]]]]. subst.
     apply et_to_bet in H4; auto_basic. simpl in H4.
@@ -9197,16 +9210,20 @@ Proof.
     rewrite List.Forall_forall in Hgs.
     apply Hgs in Hstoreg.
     destruct Hstoreg as [tg Htg].
+    fold (AI_const (VAL_num (g_val g1))) in Htg.
     apply AI_const_typing in Htg as (tg' & Htg' & Htypes & Htg).
     inversion Htypes; subst tg'.
     unfold global_agree in Hctxtg. remove_bools_options.
-    rewrite Htg' in H0. inversion H0; subst tg.
-    eapply t_const_ignores_context. simpl. rewrite const_const. done.
-    exact Htg. 
+    simpl in Htg'.
+    inversion Htg'; subst tg.
+(*    rewrite Htg' in H0. inversion H0; subst tg. *)
+    eapply t_const_ignores_context. simpl. done. (* rewrite const_const. done. *)
+    rewrite H0. exact Htg. 
   - (* Set_Global *)
     rewrite separate1 in HType.
     apply e_composition_typing in HType as (ts0 & t1s' & t2s' & t3s & -> & -> & Hv & Hsetglobal).
     convert_et_to_bet.
+    fold (AI_const (VAL_num v)) in Hv.
     apply AI_const_typing in Hv as (tv & Htv & -> & Hv).
     apply Set_global_typing in Hsetglobal as (g & t & Hg & <- & Hmut & Htypes & Hi).
         destruct C; inversion HC; subst.
@@ -9215,6 +9232,7 @@ Proof.
     rewrite separate1 in HType.
     apply e_composition_typing in HType as (ts0 & t1s' & t2s' & t3s & -> & -> & Hv & Hsetglobal).
     convert_et_to_bet.
+    fold (AI_const (VAL_num v)) in Hv.
     apply AI_const_typing in Hv as (tv & Htv & -> & Hv).
     apply Set_global_typing in Hsetglobal as (g & t & Hg & <- & Hmut & Htypes & Hi).
     apply concat_cancel_last in Htypes as [-> ->].

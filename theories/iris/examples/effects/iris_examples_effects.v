@@ -408,7 +408,8 @@ Section Example1.
 
     - iIntros (?) "(% & % & % & _)" => //.
   Qed. 
-        
+
+End Example1.
         
           
 

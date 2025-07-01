@@ -6,29 +6,27 @@ Set Bullet Behavior "Strict Subproofs".
 
 Lemma set_global_det v s2 i s f s' f' es:
   supdate_glob s (f_inst f) i v = Some s2 ->
-  reduce s f [AI_const v; AI_basic $ BI_set_global i] s' f' es ->
-  reduce_det_goal s2 f [] s' f' es [AI_const v; AI_basic $ BI_set_global i]. 
+  reduce s f [AI_basic (BI_const v); AI_basic $ BI_set_global i] s' f' es ->
+  reduce_det_goal s2 f [] s' f' es [AI_basic (BI_const v); AI_basic $ BI_set_global i]. 
 Proof.
   move => Hs2 Hred.
-  destruct v; destruct v;
-    only_one.
-  all: try by inversion Heqesnew; subst;
-    destruct v; destruct v => //;
-    inversion H1; subst;
-    rewrite H in Hs2; inversion Hs2; subst;
-                             repeat split => //; left.
-
-  all: inversion H3; subst.
-  all: destruct vs; inversion H4; subst => //.
-  all: destruct esnewest; first empty_list_no_reduce.
-  all: inversion H1; subst.
-  all: destruct esnewest => //. 
-  all: clear -Hred.
-  all: lazymatch goal with
+  only_one.
+  - inversion Heqesnew; subst.
+    rewrite Hs2 in H; inversion H; subst.
+    repeat split => //.
+    left.
+    repeat split => //.
+  - inversion H3; subst.
+   destruct vs; inversion H4; subst => //.
+   destruct esnewest; first empty_list_no_reduce.
+   inversion H1; subst.
+   destruct esnewest => //. 
+   clear -Hred.
+   lazymatch goal with
     | _ : reduce _ _ ?esn _ _ _ |- _ => remember esn as ves
     end.
-  all: exfalso. 
-  all: induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
+   exfalso. 
+   induction Hred as [? ? ? ? H02 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H02 H03 | ];
         first destruct H02 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
         try (by inversion Heqves);
         try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
@@ -46,5 +44,5 @@ Proof.
               destruct es => //; apply IHHred => //
               )
         ].
-  all: inversion H3; subst => //.
+   inversion H3; subst => //.
 Qed.

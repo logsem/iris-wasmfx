@@ -322,7 +322,7 @@ Definition global_type_eq_dec : forall g1 g2: global_type,
 Proof.
   intros g1 g2; destruct g1, g2.
   destruct (mutability_eq_dec tg_mut tg_mut0); last by right; intros Habs; inversion Habs; subst.
-  destruct (value_type_eq_dec tg_t tg_t0); last by right; intros Habs; inversion Habs; subst.
+  destruct (number_type_eq_dec tg_t tg_t0); last by right; intros Habs; inversion Habs; subst.
   subst; by left.
 Qed. 
 Definition global_type_eqb v1 v2 : bool := global_type_eq_dec v1 v2.
@@ -425,6 +425,18 @@ Definition eqcvtopP : Equality.axiom cvtop_eqb :=
 
 Canonical Structure cvtop_eqMixin := Equality.Mixin eqcvtopP.
 Canonical Structure cvtop_eqType := Eval hnf in Equality.Pack (sort := cvtop) (Equality.Class cvtop_eqMixin).
+
+ Definition value_num_eq_dec : forall v1 v2 : value_num, {v1 = v2} + {v1 <> v2}.
+Proof. decidable_equality. Defined.
+
+Definition value_num_eqb v1 v2 : bool := value_num_eq_dec v1 v2.
+Definition eqvalue_numP : Equality.axiom value_num_eqb :=
+  eq_dec_Equality_axiom value_num_eq_dec.
+
+Canonical Structure value_num_eqMixin := Equality.Mixin eqvalue_numP.
+Canonical Structure value_num_eqType := Eval hnf in Equality.Pack (sort := value_num) (Equality.Class value_num_eqMixin). 
+
+
 
  Definition value_eq_dec : forall v1 v2 : value, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.

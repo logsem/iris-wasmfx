@@ -1,4 +1,4 @@
-(* adequacy.v *)
+(* adequacy.v from Hazel. Useful? *)
 
 (* This theory shows that reasoning in terms of [EWP] is sound: at the end of a
    verification task, the derivation of an [EWP] assertion entails that the
@@ -7,7 +7,7 @@
    either diverges or terminates with a value, but it never performs operations
    without meaning, such as calling a function with the wrong number of
    arguments or performing an unhandled effect. *)
-
+(*
 From iris.proofmode Require Import base tactics classes.
 From iris.base_logic.lib Require Import iprop wsat.
 From iris.program_logic Require Import weakestpre adequacy.
@@ -109,3 +109,4 @@ Section adequacy.
   Qed.
 
 End adequacy.
+*)

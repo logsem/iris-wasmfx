@@ -242,13 +242,13 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
 | bet_get_global : forall C i t,
   i < length (tc_global C) ->
   option_map tg_t (List.nth_error (tc_global C) i) = Some t ->
-  be_typing C [::BI_get_global i] (Tf [::] [::t])
+  be_typing C [::BI_get_global i] (Tf [::] [::T_num t])
 | bet_set_global : forall C i g t,
   i < length (tc_global C) ->
   List.nth_error (tc_global C) i = Some g ->  
   tg_t g = t ->
   is_mut g ->
-  be_typing C [::BI_set_global i] (Tf [::t] [::])
+  be_typing C [::BI_set_global i] (Tf [::T_num t] [::])
 | bet_load : forall C a off tp_sx t,
   tc_memory C <> nil ->
   load_store_t_bounds a (option_projl tp_sx) t ->
@@ -360,14 +360,14 @@ Definition upd_local_label_return C loc lab ret :=
    specifying the value (with type).
  **)
 
-Definition global_agree C (g : global) (tg : global_type) : bool :=
-  (tg_mut tg == g_mut g) && (Some (tg_t tg) == typeof C (g_val g)). 
+Definition global_agree (g : global) (tg : global_type) : bool :=
+  (tg_mut tg == g_mut g) && ((tg_t tg) == typeof_num (g_val g)). 
 
 
 (* || ((typeof C (g_val g) == T_ref T_corruptref) && (match tg_t tg with | T_ref _ => true | _ => false end))). (* references are allowed to be corrupt *) *)
 
-Definition globals_agree C (gs : seq global) (n : nat) (tg : global_type) : bool :=
-  (n < length gs) && (option_map (fun g => global_agree C g tg) (List.nth_error gs n) == Some true).
+Definition globals_agree (gs : seq global) (n : nat) (tg : global_type) : bool :=
+  (n < length gs) && (option_map (fun g => global_agree g tg) (List.nth_error gs n) == Some true).
 
 Definition mem_typing (m : memory) (m_t : memory_type) : bool :=
   (N.leb m_t.(lim_min) (mem_size m)) &&
@@ -420,7 +420,7 @@ Definition inst_typing (s : store_record) (inst : instance) (C : t_context) : bo
     |} =>
       (ts == ts') &&
     (all2 (functions_agree s.(s_funcs)) fs tfs) &&
-    (all2 (globals_agree s s.(s_globals)) gs tgs) &&
+    (all2 (globals_agree s.(s_globals)) gs tgs) &&
     (all2 (tabi_agree s.(s_tables)) tbs tabs_t) &&
         (all2 (memi_agree s.(s_mems)) ms mems_t) &&
         (all2 (tag_agree s.(s_tags)) tag_ids tags)
@@ -664,7 +664,7 @@ Definition mem_agree (m : memory) : Prop :=
 
 
 Definition glob_sound s g :=
-  exists t, e_typing s empty_context [:: AI_const (g_val g)] (Tf [::] [:: t]).
+  exists t, e_typing s empty_context [:: AI_basic (BI_const (g_val g))] (Tf [::] [:: t]).
 (*  typeof s (g_val g) <> None.   *)
 
 Definition exn_sound s e :=

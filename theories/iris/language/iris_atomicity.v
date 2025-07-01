@@ -365,7 +365,7 @@ Proof.
   - inversion H;simpl;eauto; subst; exfalso.
     + do 2 (destruct vs;inversion H0;try done).
     + do 2 (destruct vs;inversion H0;try done). 
-  - destruct v; destruct v => //. 
+(*  - destruct v; destruct v => //.  *)
   - eapply atomic_no_hole_load in Hstep as HH;eauto.
     destruct HH as [Hlh Hk];eauto. subst k. subst lh.
     apply lfilled_Ind_Equivalent in H.

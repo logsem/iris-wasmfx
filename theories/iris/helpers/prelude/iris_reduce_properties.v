@@ -1467,7 +1467,7 @@ Section reduce_properties_lemmas.
       repeat apply const_list_concat => //.
       apply v_to_e_is_const_list.
     - destruct v; (try destruct v); do 3 destruct vs1 => //.
-    - destruct v; (try destruct v); do 3 destruct vs1 => //.
+(*    - destruct v; (try destruct v); do 3 destruct vs1 => //. *)
     - move/lfilledP in H.
       inversion H; subst.
       all: try by apply first_values in H1 as (? & ? & ?).

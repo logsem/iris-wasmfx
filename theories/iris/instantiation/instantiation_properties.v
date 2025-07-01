@@ -164,7 +164,11 @@ Proof.
       by subst.
     }
     { (* tag *)
-      destruct n => //.
+      move/eqP in H1.
+      rewrite H1 in H4.
+      move/eqP in H4.
+      inversion H4; subst.
+      done.
     } 
   - by rewrite <- H in H3.
   - by rewrite <- H in H0.
@@ -195,6 +199,7 @@ Definition ext_func_addrs := (map (fun x => match x with | Mk_funcidx i => i end
 Definition ext_tab_addrs := (map (fun x => match x with | Mk_tableidx i => i end)) ∘ ext_tabs.
 Definition ext_mem_addrs := (map (fun x => match x with | Mk_memidx i => i end)) ∘ ext_mems.
 Definition ext_glob_addrs := (map (fun x => match x with | Mk_globalidx i => i end)) ∘ ext_globs.
+Definition ext_tag_addrs := (map (fun x => match x with | Mk_tagidx i => i end)) ∘ ext_tags.
 
 Lemma ext_func_addrs_aux l:
   ext_func_addrs l = fmap (fun '(Mk_funcidx i) => i) (ext_funcs l).
@@ -219,6 +224,13 @@ Lemma ext_glob_addrs_aux l:
 Proof.
   by [].
 Qed.
+
+Lemma ext_tag_addrs_aux l:
+  ext_tag_addrs l = fmap (fun '(Mk_tagidx i) => i) (ext_tags l).
+Proof.
+  by [].
+Qed. 
+                         
 
 (* Getting the count of each type of imports from a module. This is to calculate the correct shift for indices of the exports in the Wasm store later. *)
 Definition get_import_func_count (m: module) :=
@@ -312,6 +324,26 @@ Proof.
   all: by exists (S k).
 Qed.
 
+Lemma ext_tags_lookup_exist (modexps: list module_export_desc) n tf:
+  (ext_tags modexps) !! n = Some tf ->
+  exists k, modexps !! k = Some (MED_tag tf).
+Proof.
+  move: n tf.
+  induction modexps; move => n tf Hexttaglookup => //=.
+  simpl in Hexttaglookup.
+  destruct a => //. 
+  5: { simpl in *.
+       destruct n; simpl in *; first try by inversion Hexttaglookup; subst; exists 0.
+       apply IHmodexps in Hexttaglookup.
+       destruct Hexttaglookup as [k ?].
+       by exists (S k).
+  }
+  all: simpl in *. 
+  all: apply IHmodexps in Hexttaglookup.
+  all: destruct Hexttaglookup as [k ?].
+  all: by exists (S k).
+Qed.
+
 Lemma ext_globs_lookup_exist (modexps: list module_export_desc) n fn:
   (ext_globs modexps) !! n = Some fn ->
   exists k, modexps !! k = Some (MED_global fn).
@@ -363,6 +395,20 @@ Qed.
 Lemma ext_mems_lookup_exist_inv (modexps: list module_export_desc) n idx:
   modexps !! n = Some (MED_mem idx) ->
   exists k, ((ext_mems modexps) !! k = Some idx).
+Proof.
+  move : n idx.
+  induction modexps; move => n idx H => //=.
+  destruct n; simpl in *.
+  { inversion H; subst; by exists 0 => /=. }
+  apply IHmodexps in H.
+  destruct H as [k Hl].
+  destruct a; try by exists k.
+  by exists (S k).
+Qed.
+
+Lemma ext_tags_lookup_exist_inv (modexps: list module_export_desc) n idx:
+  modexps !! n = Some (MED_tag idx) ->
+  exists k, ((ext_tags modexps) !! k = Some idx).
 Proof.
   move : n idx.
   induction modexps; move => n idx H => //=.
@@ -820,7 +866,7 @@ Qed.
 
 Lemma reduce_get_global s f s' f' i e:
   reduce s f [AI_basic (BI_get_global i)] s' f' e ->
-  exists v, sglob_val s (f_inst f) i = Some v /\ e = [AI_const v].
+  exists v, sglob_val s (f_inst f) i = Some v /\ e = [AI_basic (BI_const v)].
 Proof.
   move => Hred.
   dependent induction Hred; subst; (try by do 2 destruct vs => //); try by repeat destruct vcs => //.
@@ -847,22 +893,23 @@ Proof.
 Qed.
     
 Lemma reduce_trans_get_global s f s' f' i v:
-  reduce_trans (s, f, [AI_basic (BI_get_global i)]) (s', f', [AI_const v]) ->
+  reduce_trans (s, f, [AI_basic (BI_get_global i)]) (s', f', [AI_basic (BI_const v)]) ->
   sglob_val s (f_inst f) i = Some v.
 Proof.
   move => Hred.
   unfold reduce_trans in *.
   apply Operators_Properties.clos_rt_rt1n_iff in Hred.
   inversion Hred; subst; clear Hred.
-  { destruct v => //. destruct v => //. } 
+(*  { destruct v => //. destruct v => //. }  *)
   destruct y as [[??]?].
   unfold reduce_tuple in H.
   apply reduce_get_global in H.
   destruct H as [v' [Hsgv ->]].
   inversion H0; subst; clear H0 => //.
-  { apply const_inj in H3 as ->. done. } 
+(*  { apply const_inj in H3 as ->. done. }  *)
   unfold reduce_tuple in H.
   destruct y as [[??]?].
+  fold (AI_const (VAL_num v')) in H.
   by apply const_no_reduce in H.
 Qed.
   
@@ -905,7 +952,9 @@ Proof.
     destruct Hbet as [e [-> Hconste]].
     unfold const_exprs, const_expr in Hconste.
     destruct e => //; simpl in *.
-    + apply reduce_trans_get_global in H1.
+    + fold (AI_const (VAL_num v1)) in H1.
+      apply reduce_trans_get_global in H1.
+      fold (AI_const (VAL_num v2)) in H3.
       apply reduce_trans_get_global in H3.
       specialize (Hsgveq i0).
       simpl in H1, H3.
@@ -915,12 +964,14 @@ Proof.
       destruct Hconst as [Hilen _].
       move/ssrnat.ltP in Hilen.
       rewrite <- Hsgveq in H3 => //.
-      by rewrite H3 in H1.
+      by rewrite H3 in H1; inversion H1; subst.
     + fold (AI_const (VAL_num v)) in H1.
+      fold (AI_const (VAL_num v1)) in H1.
       apply reduce_trans_const in H1.
       fold (AI_const (VAL_num v)) in H3.
+      fold (AI_const (VAL_num v2)) in H3.
       apply reduce_trans_const in H3.
-      by subst.
+      by rewrite H3 in H1; inversion H1. 
 Qed.
 
 Lemma module_elem_init_det m v_imps t_imps inst s eo1 eo2:

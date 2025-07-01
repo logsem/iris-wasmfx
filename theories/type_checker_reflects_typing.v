@@ -2148,10 +2148,10 @@ Proof with auto_rewrite_cond.
       apply bet_weakening_empty_1.
       apply bet_get_global => //=; by auto_rewrite_cond.
     + (* Set_global *)
-      replace ([::CTA_some (tg_t g)]) with (to_ct_list [::tg_t g]) in Hct2 => //=.
+      replace ([::CTA_some (T_num (tg_t g))]) with (to_ct_list [::T_num (tg_t g)]) in Hct2 => //=.
       apply type_update_type_agree in Hct2.
       destruct Hct2 as [tn' [Hct bet]]; subst.
-      exists (tn' ++ [::tg_t g]); split => //.
+      exists (tn' ++ [::T_num (tg_t g)]); split => //.
       apply bet_weakening.
       by eapply bet_set_global; eauto.
     + (* Load *)

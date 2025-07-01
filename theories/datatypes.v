@@ -146,7 +146,7 @@ Global types classify global variables, which hold a value and can either be mut
 *)
 Record global_type : Type := (* tg *) {
   tg_mut : mutability;
-  tg_t : value_type
+  tg_t : number_type
 }.
 
 
@@ -505,7 +505,7 @@ https://webassembly.github.io/spec/core/syntax/types.html#global-types
 *)
 Record global : Type := {
   g_mut : mutability;
-  g_val : value;
+  g_val : value_num;
 }.
 
 

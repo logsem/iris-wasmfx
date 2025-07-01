@@ -412,11 +412,11 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
   | r_get_global :
       forall s f i v,
         sglob_val s f.(f_inst) i = Some v ->
-        reduce s f [::AI_basic (BI_get_global i)] s f [::AI_const v]
+        reduce s f [::AI_basic (BI_get_global i)] s f [::AI_basic (BI_const v)]
   | r_set_global :
       forall s f i v s',
         supdate_glob s f.(f_inst) i v = Some s' ->
-        reduce s f [::AI_const v; AI_basic (BI_set_global i)] s' f [::]
+        reduce s f [::AI_basic (BI_const v); AI_basic (BI_set_global i)] s' f [::]
   | r_load_success :
     forall s i f t bs k a off m,
       smem_ind s f.(f_inst) = Some i ->

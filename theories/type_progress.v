@@ -1338,11 +1338,19 @@ Proof.
     { unfold sglob_val. unfold option_map.
       by destruct (operations.sglob s f.(f_inst) i). }
     destruct (sglob_val s f.(f_inst) i) eqn:Hglobval => //=.
-    exists s, f, [::AI_const v].
+    exists s, f, [::AI_basic (BI_const v)].
     by apply r_get_global.
 
   - (* Set_global *)
     right. invert_typeof_vcs.
+    destruct v => //.
+    2:{ destruct v => //.
+        all: simpl in H10.
+        1-2: destruct (List.nth_error _ f0) => //.
+        destruct (List.nth_error _ e) => //.
+        destruct (e_tag e0 == _) => //. } 
+        
+        
     destruct (supdate_glob s f.(f_inst) i v) eqn:Hs.
     + exists s0, f, [::].
       by apply r_set_global.

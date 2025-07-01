@@ -76,6 +76,8 @@ Proof. decidable_equality. Qed.
 
 Definition gen_heap_wasm_store `{!wasmG Σ} (s: store_record) : iProp Σ :=
   ((gen_heap_interp (gmap_of_list s.(s_funcs))) ∗
+     (gen_heap_interp (gmap_of_list s.(s_conts))) ∗
+     (gen_heap_interp (gmap_of_list s.(s_tags))) ∗
    (gen_heap_interp (gmap_of_table s.(s_tables))) ∗
    (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
    (gen_heap_interp (gmap_of_list s.(s_globals))) ∗

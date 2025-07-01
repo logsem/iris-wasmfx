@@ -122,13 +122,13 @@ Definition add_glob (s : store_record) (m_g : global) : store_record :=
     s_tags := s.(s_tags);
 |}.
 
-Definition alloc_glob (s : store_record) (m_g_v : module_glob * value) : store_record * globalidx :=
+Definition alloc_glob (s : store_record) (m_g_v : module_glob * value_num) : store_record * globalidx :=
   let '(m_g, v) := m_g_v in
   let globaddr := Mk_globalidx (List.length s.(s_globals)) in
   let globinst := Build_global m_g.(modglob_type).(tg_mut) v in
   (add_glob s globinst, globaddr).
 
-Definition alloc_globs s m_gs vs :=
+Definition alloc_globs s m_gs (vs : list value_num) :=
   alloc_Xs alloc_glob s (List.combine m_gs vs).
 
 Definition add_tag (s : store_record) m_tg : store_record :=
@@ -241,7 +241,8 @@ Definition ext_t_globs :=
       | _ => None
       end).
 
-Definition alloc_module (s : store_record) (m : module) (imps : list v_ext) (gvs : list value)
+
+Definition alloc_module (s : store_record) (m : module) (imps : list v_ext) (gvs : list value_num)
     (s'_inst_exps : store_record * instance * seq module_export) : bool :=
   let '(s'_goal, inst, exps) := s'_inst_exps in
   let '(s1, i_fs) := alloc_funcs s m.(mod_funcs) inst in
@@ -259,7 +260,7 @@ Definition alloc_module (s : store_record) (m : module) (imps : list v_ext) (gvs
   (inst.(inst_globs) == List.map (fun '(Mk_globalidx i) => i) (List.app (ext_globs imps) i_gs)) &&
   (exps == (List.map (fun m_exp => {| modexp_name := m_exp.(modexp_name); modexp_desc := (export_get_v_ext inst m_exp.(modexp_desc)) |}) m.(mod_exports) : seq module_export)).
 
-Definition interp_alloc_module (s : store_record) (m : module) (imps : list v_ext) (gvs : list value) : (store_record * instance * list module_export) :=
+Definition interp_alloc_module (s : store_record) (m : module) (imps : list v_ext) (gvs : list value_num) : (store_record * instance * list module_export) :=
   let i_fs := List.map (fun i => Mk_funcidx i) (seq.iota (List.length s.(s_funcs)) (List.length m.(mod_funcs))) in
   let i_ts := List.map (fun i => Mk_tableidx i) (seq.iota (List.length s.(s_tables)) (List.length m.(mod_tables))) in
   let i_ms := List.map (fun i => Mk_memidx i) (seq.iota (List.length s.(s_mems)) (List.length m.(mod_mems))) in
@@ -377,7 +378,7 @@ Definition module_glob_typing (c : t_context) (g : module_glob) (tg : global_typ
   let '{| modglob_type := tg'; modglob_init := es |} := g in
   const_exprs c es /\
   tg = tg' /\
-  typing.be_typing c es (Tf nil [::tg.(tg_t)]).
+  typing.be_typing c es (Tf nil [::T_num tg.(tg_t)]).
 
 Definition module_elem_typing (c : t_context) (e : module_element) : Prop :=
   let '{| modelem_table := Mk_tableidx t; modelem_offset := es; modelem_init := is_ |} := e in
@@ -462,7 +463,8 @@ Definition module_typing (m : module) (impts : list extern_t) (expts : list exte
     mod_mems := ms;
     mod_globals := gs;
     mod_elem := els;
-    mod_data := ds;
+          mod_data := ds;
+          mod_tags := tags;
     mod_start := i_opt;
     mod_imports := imps;
     mod_exports := exps;
@@ -471,9 +473,10 @@ Definition module_typing (m : module) (impts : list extern_t) (expts : list exte
   let its := ext_t_tabs impts in
   let ims := ext_t_mems impts in
   let igs := ext_t_globs impts in
+  let itags := ext_t_tags impts in
   let c := {|
             tc_types_t := tfs;
-            tc_tags_t := nil;
+            tc_tags_t := List.app itags tags;
             tc_refs := nil;
     tc_func_t := List.app ifts fts;
     tc_global := List.app igs gts;
@@ -528,14 +531,20 @@ Inductive external_typing : store_record -> v_ext -> extern_t -> Prop :=
   forall (s : store_record) (i : nat) (g : global) (gt : global_type),
   i < List.length s.(s_globals) ->
   List.nth_error s.(s_globals) i = Some g ->
-  typing.global_agree s g gt ->
-  external_typing s (MED_global (Mk_globalidx i)) (ET_glob gt).
+  typing.global_agree g gt ->
+  external_typing s (MED_global (Mk_globalidx i)) (ET_glob gt)
+| ETY_tag :
+  forall s i tf,
+    i < List.length s.(s_tags) ->
+    List.nth_error s.(s_tags) i = Some tf ->
+  external_typing s (MED_tag (Mk_tagidx i)) (ET_tag tf)
+.
 
 
-Definition instantiate_globals inst (s' : store_record) m g_inits : Prop :=
-  List.Forall2 (fun g v =>
+Definition instantiate_globals inst (s' : store_record) m (g_inits: list value_num) : Prop :=
+  List.Forall2 (fun g (v: value_num) =>
       opsem.reduce_trans (s', (Build_frame nil inst), operations.to_e_list g.(modglob_init))
-                         (s', (Build_frame nil inst), [::AI_const v]))
+                         (s', (Build_frame nil inst), [::AI_basic (BI_const v)]))
     m.(mod_globals) g_inits.
 
 Definition instantiate_elem inst (s' : store_record) m e_offs : Prop :=
@@ -603,7 +612,7 @@ Definition instantiate
                        (s : store_record) (m : module) (v_imps : list v_ext)
                        (z : (store_record * instance * list module_export) * option nat) : Prop :=
   let '((s_end, inst, v_exps), start) := z in
-  exists t_imps t_exps s' g_inits e_offs d_offs,
+  exists t_imps t_exps s' (g_inits : list value_num) e_offs d_offs,
     module_typing m t_imps t_exps /\
     List.Forall2 (external_typing s) v_imps t_imps /\
     alloc_module s m v_imps g_inits (s', inst, v_exps) /\

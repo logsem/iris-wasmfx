@@ -2022,10 +2022,10 @@ Proof.
   - (* set_local *)
     rewrite_cats1_list.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
-
+(*
   - (* set_global *)
-        rewrite_cats1_list.
-    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
+    rewrite_cats1_list.
+    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done. *)
   - (* label *)
     destruct (lfilled_trans H Hfill) as [lh' Hfill'].
     apply length_lfilled_rec' in H as [H | (-> & -> & ->)].
@@ -2146,9 +2146,9 @@ Proof.
     rewrite_cats1_list.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
 
-  - (* set_global *)
+(*  - (* set_global *)
         rewrite_cats1_list.
-    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
+    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done. *)
   - (* label *)
     destruct (lfilled_trans H Hfill) as [lh' Hfill'].
     apply length_lfilled_rec' in H as [H | (-> & -> & ->)].
@@ -2424,10 +2424,10 @@ Proof.
     specialize (llfill_first_values H1 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-  - (* set_global *)
+(*  - (* set_global *)
     rewrite_cats1_list.
     specialize (llfill_first_values H1 Hfill) as [Habs _] => //=.
-    repeat rewrite const_const. done.
+    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & _ & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -2834,10 +2834,10 @@ Proof.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-  - (* set_global *)
+(*  - (* set_global *)
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
-    repeat rewrite const_const. done.
+    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & _ & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -3142,10 +3142,10 @@ Proof.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-  - (* set_global *)
+(*   - (* set_global *)
     rewrite_cats1_list.
-    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
-    repeat rewrite const_const. done.
+    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=. 
+    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & Hlh & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -3510,10 +3510,10 @@ Proof.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-  - (* set_global *)
+(*  - (* set_global *)
     rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
-    repeat rewrite const_const. done.
+    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & _ & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -3658,9 +3658,9 @@ Proof.
     rewrite_cats1_list.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
 
-  - (* set_global *)
+(*  - (* set_global *)
         rewrite_cats1_list.
-    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
+    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done. *)
   - (* label *)
     destruct (lfilled_trans H Hfill) as [lh' Hfill'].
     apply length_lfilled_rec' in H as [H | (-> & -> & ->)].
