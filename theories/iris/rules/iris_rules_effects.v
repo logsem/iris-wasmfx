@@ -935,13 +935,11 @@ Section reasoning_rules.
     agree_on_uncaptured dccs Ψ Ψ' ->
     ((∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
       (∀ w, Φ w empty_frame -∗ EWP [AI_prompt ts dccs (of_val w)] UNDER empty_frame @ E <| Ψ' |> {{ v ; _ , Φ' v }}) ∗
-      (* clause_resources dccs ∗ *)
       [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc ts Ψ' (λ v _, Φ' v) )%I
       ⊢ EWP [AI_prompt ts dccs es] UNDER f @ E <| Ψ' |> {{ v; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
    Proof.
      iIntros (HΨ) "(HΦ & HΦ' & Hes & Hnext & Htriples)".
      iApply ewp_empty_frame.
-(*     instantiate (1 := is_empty_frame). *)
      iFrame.
      iApply ewp_prompt_empty_frame.
      done.

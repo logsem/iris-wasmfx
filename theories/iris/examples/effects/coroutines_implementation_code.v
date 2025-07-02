@@ -144,13 +144,56 @@ Section yield_par.
   Definition closure_par yield_addr par_addr tag_addr :=
     FC_func_native (coroutine_inst yield_addr par_addr tag_addr) par_type par_locs par.
 
-  Opaque upcl. 
+  Opaque upcl.
 
+  Definition yield_spec `{!wasmG Σ} addr_yield cl_yield Ψ I : iProp Σ :=
+    (□ (∀ f, I -∗
+             N.of_nat addr_yield ↦[wf] cl_yield  -∗
+                   EWP [AI_invoke addr_yield] UNDER f <| Ψ |> {{ v ; f' ,
+                       ⌜ v = immV [] ⌝ ∗
+                       ⌜ f' = f ⌝ ∗
+                       I ∗
+                       N.of_nat addr_yield ↦[wf] cl_yield }})).
+
+  Definition par_spec `{!wasmG Σ} addr_par cl_par Ψ P1 P2 I Q1 Q2 : iProp Σ :=
+    (∀ f1 f2, □ (∀ f,
+                    P1 -∗
+                    P2 -∗
+                    I -∗
+                    (□ (∀ f, P1 -∗
+                             I -∗
+                             EWP [AI_ref f1;
+                                  AI_basic (BI_call_reference
+                                              (Type_explicit emptyt))]
+                             UNDER f <| Ψ |> {{ v ; f' ,
+                                   ⌜ v = immV [] ⌝ ∗
+                                   ⌜ f' = f ⌝ ∗
+                                   Q1 ∗
+                                   I }})) -∗
+                     (□ (∀ f, P2 -∗
+                              I -∗
+                              EWP [AI_ref f2;
+                                   AI_basic (BI_call_reference
+                                               (Type_explicit emptyt))]
+                              UNDER f <| Ψ |> {{ v ; f' ,
+                                   ⌜ v = immV [] ⌝ ∗
+                                   ⌜ f' = f ⌝ ∗
+                                   Q2 ∗
+                                   I }})) -∗
+                     N.of_nat addr_par ↦[wf] cl_par -∗
+                        EWP [AI_ref f1; AI_ref f2;
+                             AI_invoke addr_par] UNDER f {{ v ; f' ,
+                                   ⌜ v = immV [] ⌝ ∗
+                                   ⌜ f' = f ⌝ ∗
+                                   Q1 ∗
+                                   Q2 ∗
+                                   I ∗
+                                   N.of_nat addr_par ↦[wf] cl_par  }})).
+
+  
   Definition yield_par_spec `{!wasmG Σ} addr_yield addr_par cl_yield cl_par : iProp Σ :=
       (∀ P1 P2 Q1 Q2 I, ∃ Ψ,
-
-                                              (□ (∀ f, I -∗ N.of_nat addr_yield ↦[wf] cl_yield  -∗ EWP [AI_invoke addr_yield] UNDER f <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ I ∗ N.of_nat addr_yield ↦[wf] cl_yield }})) ∗
-                                              (∀ f1 f2, □ (∀ f,  P1 -∗ P2 -∗ I -∗ (□ (P1 -∗ I -∗ EWP [AI_ref f1; AI_basic (BI_call_reference (Type_explicit emptyt))] UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I }})) -∗ (□ (P2 -∗ I -∗ EWP [AI_ref f2; AI_basic (BI_call_reference (Type_explicit emptyt))] UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I }})) -∗ N.of_nat addr_par ↦[wf] cl_par -∗ EWP [AI_ref f1; AI_ref f2; AI_invoke addr_par] UNDER f {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ Q2 ∗ I ∗  N.of_nat addr_par ↦[wf] cl_par  }}))
+          yield_spec addr_yield cl_yield Ψ I ∗ par_spec addr_par cl_par Ψ P1 P2 I Q1 Q2                                           
       )%I.
   
   Lemma yield_par_spec_proof  addr_yield addr_par cl_yield cl_par `{!wasmG Σ}:
@@ -378,14 +421,21 @@ Section yield_par.
           iIntros "HI".
           iExists _; iSplit; first iPureIntro.
           rewrite /hfilled /hfill //=.
-          iApply ("Hspec1" with "HP1 HI").
+          iApply (ewp_wand with "[HP1 HI]").
+          iApply ("Hspec1" $! empty_frame with "HP1 HI").
+          iIntros "!>" (??) "(-> & -> & HQ1 & HI)".
+          iFrame. done.
           iLeft.
           iSplit; first done.
           iFrame "Hcont2".
           iIntros "HI".
           iExists _; iSplit; first iPureIntro.
           rewrite /hfilled /hfill //=.
-          iApply ("Hspec2" with "HP2 HI"). }
+          iApply (ewp_wand with "[-]").
+          iApply ("Hspec2" with "HP2 HI").
+          iIntros "!>" (??) "(-> & -> & ? & ?)".
+          iFrame. done.
+      }
       iLöb as "IH".
       iIntros (kaddra kaddrb b conta) "H".
       iDestruct "H" as "[H | H]".

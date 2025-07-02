@@ -232,15 +232,15 @@ Proof.
     rewrite /= const_const //.
 Qed.
 
-Lemma ewp_get_global (E : coPset) (v: value_num) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat):
+Lemma ewp_get_global (E : coPset) (v: value_num) (f: frame) (n: nat) Ψ (Φ: iris.val -> frame -> iProp Σ) (g: global) (k: nat) q:
   (f_inst f).(inst_globs) !! n = Some k ->
   g.(g_val) = v ->
   ▷ Φ(immV [VAL_num v]) f -∗
-    N.of_nat k ↦[wg] g -∗
-  EWP ([AI_basic (BI_get_global n)]) UNDER f @ E <| Ψ |> {{ w ; h, Φ w h ∗ N.of_nat k ↦[wg] g }}.
+    N.of_nat k ↦[wg]{ q } g -∗
+  EWP ([AI_basic (BI_get_global n)]) UNDER f @ E <| Ψ |> {{ w ; h, Φ w h ∗ N.of_nat k ↦[wg]{ q } g }}.
 Proof.
   iIntros (Hinstg Hgval) "HΦ Hglob".
-  iApply (ewp_wand _ _ _ _ _ (λ w h, (Φ w h ∗ N.of_nat k↦[wg]g))%I with "[-]") ;[|by iIntros (??) "?";iFrame].
+  iApply (ewp_wand _ _ _ _ _ (λ w h, (Φ w h ∗ N.of_nat k↦[wg]{ q } g))%I with "[-]") ;[|by iIntros (??) "?";iFrame].
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hg & Hi & ? & ?)".
