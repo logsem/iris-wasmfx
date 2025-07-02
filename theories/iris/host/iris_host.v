@@ -153,7 +153,7 @@ Inductive host_reduce: store_record -> vi_store -> list module -> list host_e ->
 | HR_get_global: ∀ s f vis ms g v_glob fs vs,
     (s_globals s) !! g = Some v_glob ->
     const_list vs ->
-    host_reduce s vis ms [H_get_global g] fs f vs s vis ms [] fs f (AI_const (g_val v_glob) :: vs)
+    host_reduce s vis ms [H_get_global g] fs f vs s vis ms [] fs f (AI_basic (BI_const (g_val v_glob)) :: vs)
 | HR_trap: ∀ s vis ms g fs f,
     host_reduce s vis ms [H_get_global g] fs f [::AI_trap] s vis ms [] fs f [::AI_trap]
 
@@ -593,7 +593,7 @@ Qed.
 
 Lemma wp_get_global_host s E g v vs (Φ : host_val -> iProp Σ) fr:
   N.of_nat g ↦[wg] v -∗
-  ▷ (N.of_nat g ↦[wg] v -∗ Φ (immHV ((g_val v) :: vs), fr)) -∗
+  ▷ (N.of_nat g ↦[wg] v -∗ Φ (immHV (VAL_num (g_val v) :: vs), fr)) -∗
   WP (([H_get_global g], v_to_e_list vs, fr) : host_expr) @ s; E {{ Φ }}.
 Proof.
   iIntros "Hglob HΦ".
@@ -616,10 +616,10 @@ Proof.
     simpl in HStep. destruct HStep as [H [-> ->]].
     eapply get_global_host_det in H;[..|apply HR_get_global;eauto];[|apply v_to_e_is_const_list..].
     inversion H;subst. iFrame. iSimpl.
-    assert (iris.to_val (AI_const (g_val v) :: v_to_e_list vs)%SEQ =
-              Some (immV (g_val v :: vs))).
+    assert (iris.to_val (AI_basic (BI_const (g_val v)) :: v_to_e_list vs)%SEQ =
+              Some (immV (VAL_num (g_val v) :: vs))).
     { rewrite separate1.
-      assert ([AI_const (g_val v)] = v_to_e_list [(g_val v)]) as ->;auto.
+      assert ([AI_basic (BI_const (g_val v))] = v_to_e_list [VAL_num (g_val v)]) as ->;auto.
       erewrite v_to_e_cat. rewrite to_val_cons_immV. auto. }
     rewrite H0. iSimpl. iSplit => //.  iApply "HΦ". iFrame.
 Qed.
@@ -1060,18 +1060,18 @@ Proof.
   - by iApply ("IH" with "[$]").   
 Qed.
 
-Definition instantiation_resources_pre hs_mod m s hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps : iProp Σ :=
+Definition instantiation_resources_pre hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps : iProp Σ :=
   hs_mod ↪[mods] m ∗
   import_resources_host hs_imps v_imps ∗
-  instantiation_resources_pre_wasm m s v_imps t_imps wfs wts wms wgs wtags ∗       
+  instantiation_resources_pre_wasm m v_imps t_imps wfs wts wms wgs wtags ∗       
   export_ownership_host hs_exps ∗
   ⌜ length hs_exps = length m.(mod_exports) ⌝.
 
-Definition instantiation_resources_post hs_mod m s hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps (idfstart: option nat) : iProp Σ :=
+Definition instantiation_resources_post hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps (idfstart: option nat) : iProp Σ :=
   hs_mod ↪[mods] m ∗
   import_resources_host hs_imps v_imps ∗ (* vis, for the imports stored in host *)
   ∃ (inst: instance), 
-  instantiation_resources_post_wasm m s v_imps t_imps wfs wts wms wgs wtags idfstart inst ∗       
+  instantiation_resources_post_wasm m v_imps t_imps wfs wts wms wgs wtags idfstart inst ∗       
   module_export_resources_host hs_exps m.(mod_exports) inst. (* export resources, in the host store *)
 
 Lemma insert_exports_none_len vis iexps exps:
@@ -1133,14 +1133,14 @@ Proof.
 (*    by iExists (modexp_name m). *)
 Qed.
 
-Lemma instantiation_spec_operational_no_start (s: stuckness) E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) st t_imps t_exps wfs wts wms wgs wtags fr :
+Lemma instantiation_spec_operational_no_start (s: stuckness) E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs wtags fr :
   m.(mod_start) = None ->
   module_typing m t_imps t_exps ->
   module_restrictions m ->
-  instantiation_resources_pre hs_mod m st hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps -∗
+  instantiation_resources_pre hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps -∗
   WP (([:: ID_instantiate hs_exps hs_mod hs_imps], [::], fr): host_expr) @ s; E
    {{ v, ⌜ v = (immHV [], fr) ⌝ ∗
-        instantiation_resources_post hs_mod m st hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps None }}.
+        instantiation_resources_post hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps None }}.
 Proof.
   
   move => Hmodstart Hmodtype Hmodrestr.
@@ -1173,7 +1173,8 @@ Proof.
                   inst_funcs := ext_func_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_funcs)) (length m.(mod_funcs)));
                   inst_tab := ext_tab_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_tables)) (length m.(mod_tables)));
                   inst_memory := ext_mem_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_mems)) (length m.(mod_mems)));
-                  inst_globs := ext_glob_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_globals)) (length m.(mod_globals)))
+             inst_globs := ext_glob_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_globals)) (length m.(mod_globals)));
+             inst_tags := ext_tag_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_tags)) (length m.(mod_tags)))
                |} as inst_res.
   
   unfold module_restrictions in Hmodrestr.
@@ -1200,7 +1201,7 @@ Proof.
     by rewrite length_fmap.
   }
   
-  assert (fmap typeof g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) as Hginitstype.
+  assert (fmap typeof_num g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) as Hginitstype.
   {
     unfold module_typing in Hmodtype.
     destruct m => /=.
@@ -1239,11 +1240,12 @@ Proof.
   destruct (alloc_tabs s0 (map modtab_type (mod_tables m))) eqn:Halloctab.
   destruct (alloc_mems s1 (mod_mems m)) eqn:Hallocmem.
   destruct (alloc_globs s2 (mod_globals m) g_inits) eqn:Hallocglob.
+  destruct (alloc_tags s3 (mod_tags m)) eqn:Halloctag.
 
   remember (fmap (fun m_exp => {| modexp_name := modexp_name m_exp; modexp_desc := export_get_v_ext inst_res (modexp_desc m_exp) |}) m.(mod_exports)) as v_exps.
 
   remember (init_mems 
-    (init_tabs s3 inst_res
+    (init_tabs s4 inst_res
        [seq Z.to_nat (Wasm_int.Int32.intval o) | o <- e_inits] 
        (mod_elem m)) inst_res
     [seq Z.to_N (Wasm_int.Int32.intval o) | o <- d_inits] 
@@ -1256,7 +1258,7 @@ Proof.
     unfold alloc_module => /=.
 
 
-    exists t_imps, t_exps, s3, g_inits.
+    exists t_imps, t_exps, s4, g_inits.
 
     exists e_inits, d_inits.
     repeat split.
@@ -1277,7 +1279,7 @@ Proof.
       simpl in Himpwasm.
       destruct modexp_desc.
       + (* functions *)
-        destruct f0.
+        destruct f.
         destruct Himpwasm as [cl [Hws [? ->]]].
         eapply ETY_func => //; last by rewrite nth_error_lookup.
         apply lookup_lt_Some in Hws.
@@ -1305,9 +1307,26 @@ Proof.
         eapply ETY_glob => //; last by rewrite nth_error_lookup.
         apply lookup_lt_Some in Hwg.
         by lias.
+      + (* tags *)
+        destruct t0.
+        destruct Himpwasm as (tf & Hwm & Hwm' & ->).
+        apply ETY_tag => //; last by rewrite nth_error_lookup.
+        apply lookup_lt_Some in Hwm.
+        by lias.
     - (* alloc module *)
-      rewrite Hallocfunc Halloctab Hallocmem Hallocglob.
+      rewrite Hallocfunc Halloctab Hallocmem Hallocglob Halloctag.
       repeat (apply/andP; split); try apply/eqP; subst => //=.
+      + (* Tags *)
+        unfold ext_tag_addrs => /=.
+        rewrite map_app.
+        f_equal.
+        apply alloc_tag_gen_index in Halloctag as [-> ?].
+        apply alloc_glob_gen_index in Hallocglob as (? & ? & ? & ? & ? & <- & ?);
+          last by lias.
+        apply alloc_mem_gen_index in Hallocmem as (? & ? & ? & ? & ? & <- & ?).
+        apply alloc_tab_gen_index in Halloctab as (? & ? & ? & ? & ? & <- & ?).
+        apply alloc_func_gen_index in Hallocfunc as (? & ? & ? & ? & ? & <- & ?).
+        done.
       + (* Functions *)
         unfold ext_func_addrs => /=.
         rewrite map_app => /=.
@@ -1332,9 +1351,9 @@ Proof.
         rewrite map_app => /=.
         f_equal.
         apply alloc_glob_gen_index in Hallocglob as [-> ?]; last by lias.
-        apply alloc_mem_gen_index in Hallocmem as [? [? [? [? <-]]]].
-        apply alloc_tab_gen_index in Halloctab as [? [? [? [? <-]]]].
-        by apply alloc_func_gen_index in Hallocfunc as [? [? [? [? <-]]]].
+        apply alloc_mem_gen_index in Hallocmem as [? [? [? [? [<- ?]]]]].
+        apply alloc_tab_gen_index in Halloctab as [? [? [? [? [<- ?]]]]].
+        by apply alloc_func_gen_index in Hallocfunc as [? [? [? [? [<- ?]]]]].
     - (* global initializers *)
       unfold instantiation.instantiate_globals.
       rewrite Forall2_lookup.
@@ -1399,11 +1418,12 @@ Proof.
         by constructor.
     - (* table initializers bound check *)
 
-      apply alloc_glob_gen_index in Hallocglob as [? [? [? [? ?]]]]; last by lias.
-      apply alloc_mem_gen_index in Hallocmem as [? [? [? [? ?]]]].
-      apply alloc_tab_gen_index in Halloctab as [? [? [? [? ?]]]].
-      apply alloc_func_gen_index in Hallocfunc as [? [? [? [? ?]]]].
-      destruct ws, s0, s1, s2, s3.
+      apply alloc_glob_gen_index in Hallocglob as (? & ? & ? & ? & ? & ? & ? & ?); last by lias.
+      apply alloc_mem_gen_index in Hallocmem as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tab_gen_index in Halloctab as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_func_gen_index in Hallocfunc as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tag_gen_index in Halloctag as (? & ? & ? & ? & ? & ? & ? & ?).
+      destruct ws, s0, s1, s2, s3, s4.
       simpl in *; subst; simpl in *.
 
       unfold module_elem_bound_check_gmap in Hebound.
@@ -1469,7 +1489,7 @@ Proof.
           destruct Himpwasm as [tab [tt [Htablookup [Hwtslookup2 [-> Htabtype]]]]].
           rewrite - nth_error_lookup in Hexttablookup.
           rewrite Hexttablookup.
-          simpl.
+          simpl. 
           rewrite nth_error_app1; last by apply lookup_lt_Some in Htablookup.
           rewrite nth_error_lookup.
           rewrite Htablookup.
@@ -1532,6 +1552,10 @@ Proof.
                 destruct Himpwasm as [? [? [? [? [-> ?]]]]].
                 apply H.
                 by apply Hp.
+              * destruct t.
+                destruct Himpwasm as (? & ? & ? & ->).
+                apply H.
+                by apply Hp.
           }
           rewrite nth_error_lookup gen_index_lookup length_map => //=.
           rewrite nth_error_app2; last by lias.
@@ -1557,12 +1581,12 @@ Proof.
         by constructor.
     - (* memory initializers bound check *)
 
-      
-      apply alloc_glob_gen_index in Hallocglob as [? [? [? [? ?]]]]; last by lias.
-      apply alloc_mem_gen_index in Hallocmem as [? [? [? [? ?]]]].
-      apply alloc_tab_gen_index in Halloctab as [? [? [? [? ?]]]].
-      apply alloc_func_gen_index in Hallocfunc as [? [? [? [? ?]]]].
-      destruct ws, s0, s1, s2, s3.
+        apply alloc_glob_gen_index in Hallocglob as (? & ? & ? & ? & ? & ? & ? & ?); last by lias.
+      apply alloc_mem_gen_index in Hallocmem as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tab_gen_index in Halloctab as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_func_gen_index in Hallocfunc as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tag_gen_index in Halloctag as (? & ? & ? & ? & ? & ? & ? & ?).
+      destruct ws, s0, s1, s2, s3, s4.
       simpl in *; subst; simpl in *.
 
       unfold module_data_bound_check_gmap in Hdbound.
@@ -1686,6 +1710,10 @@ Proof.
                 destruct Himpwasm as [? [? [? [? [-> ?]]]]].
                 apply H.
                 by apply Hp.
+              * destruct t.
+                destruct Himpwasm as (? & ? & ? & ->).
+                apply H.
+                by apply Hp.
           }
           rewrite nth_error_lookup gen_index_lookup length_map => //=.
           rewrite nth_error_app2; last by lias.
@@ -1772,10 +1800,10 @@ Proof.
   - destruct s => //.
     iPureIntro.
     unfold language.reducible, language.prim_step.
-    exists [::], ([::], map_start None), (ws_res, vis', ms, has, f), [::].
+    exists [::], ([::], map_start None, fr), (ws_res, vis', ms, has), [::].
     repeat split => //.
     by eapply HR_host_step.
-  - iIntros ([hes' wes'] [[[[ws3 vis3] ms3] has3] f3] efs HStep).
+  - iIntros ([[hes' wes'] f3] [[[ws3 vis3] ms3] has3] efs HStep).
     destruct HStep as [HStep [-> ->]].
     revert Heqinst_res.
     inversion HStep; subst; clear HStep; move => Heqinst_res.
@@ -1837,19 +1865,19 @@ Proof.
 
     (* Wasm state update, using the instantiation characterisation lemma *)
     iDestruct (instantiation_wasm_spec with "") as "H" => //.
-    iDestruct ("H" with "[Himpwasm] [Hwf Hwt Hwm Hwg Hmsize Htsize Hmlimit Htlimit]") as "Hq".
+    iDestruct ("H" with "[Himpwasm] [Hwf Hwt Hwm Hwg Hwcont Hwtag Hmsize Htsize Hmlimit Htlimit]") as "Hq".
     { unfold instantiation_resources_pre_wasm.
       by iFrame.
     }
     { unfold gen_heap_wasm_store.
-      by iFrame.
+      iFrame.
     }
 
     iClear "H".
 
     iMod "Hq" as "(Hwasmpost & Hσ)".
     unfold gen_heap_wasm_store => /=.
-    iDestruct "Hσ" as "(?&?&?&?&?&?&?&?)".
+    iDestruct "Hσ" as "(?&?&?&?&?&?&?&?&?)".
     iFrame.
 
     rewrite <- H3.
@@ -1875,7 +1903,7 @@ Proof.
 
     iModIntro.
 
-    iApply weakestpre.wp_value; first by instantiate (1 := immHV []) => //.
+    iApply (weakestpre.wp_value _ _ _ (_ : host_expr)) ; first by instantiate (1 := (immHV [], f3)) => //.
 
     iSplit => //.
 
@@ -1886,25 +1914,25 @@ Proof.
 Qed.
 
 (* Instantiating modules with a start function. We combine the handling of sequence here all in one. *)
-Lemma instantiation_spec_operational_start_seq s E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs nstart (Φ: host_val -> iProp Σ) idecls:
+Lemma instantiation_spec_operational_start_seq s E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs wtags nstart (Φ: host_val -> iProp Σ) idecls fr:
   m.(mod_start) = Some (Build_module_start (Mk_funcidx nstart)) ->
   module_typing m t_imps t_exps ->
   module_restrictions m ->
-  ↪[frame] empty_frame -∗                            
-  instantiation_resources_pre hs_mod m hs_imps v_imps t_imps wfs wts wms wgs hs_exps -∗
-  (∀ idnstart, (↪[frame] empty_frame) -∗ (instantiation_resources_post hs_mod m hs_imps v_imps t_imps wfs wts wms wgs hs_exps (Some idnstart)) -∗ WP ((idecls, [::AI_invoke idnstart]) : host_expr) @ s; E {{ Φ }}) -∗
-  WP (((ID_instantiate hs_exps hs_mod hs_imps) :: idecls, [::]): host_expr) @ s; E {{ Φ }}.
+  
+  instantiation_resources_pre hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps -∗
+  (∀ idnstart, (instantiation_resources_post hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps (Some idnstart)) -∗ WP ((idecls, [::AI_invoke idnstart], fr) : host_expr) @ s; E {{ Φ }}) -∗
+  WP (((ID_instantiate hs_exps hs_mod hs_imps) :: idecls, [::], fr (* or empty_frame? *)): host_expr) @ s; E {{ Φ }}.
 Proof.
   move => Hmodstart Hmodtype Hmodrestr.
   assert (module_restrictions m) as Hmodrestr2 => //.
   
-  iIntros "Hframeown (Hmod & Himphost & Himpwasmpre & Hexphost & %Hlenexp) Hwpstart".
+  iIntros "(Hmod & Himphost & Himpwasmpre & Hexphost & %Hlenexp) Hwpstart".
   iDestruct "Himpwasmpre" as "(Himpwasm & %Hebound & %Hdbound)".
   
   repeat rewrite weakestpre.wp_unfold /weakestpre.wp_pre /=.
   
-  iIntros ([[[[ws vis] ms] has] f] ns κ κs nt) "Hσ".
-  iDestruct "Hσ" as "(Hwf & Hwt & Hwm & Hwg & Hvis & Hms & Hhas & Hframe & Hmsize & Htsize & Hmlimit & Htlimit)".
+  iIntros ([[[ws vis] ms] has] ns κ κs nt) "Hσ".
+  iDestruct "Hσ" as "(Hwf & Hwcont & Hwtag & Hwt & Hwm & Hwg & Hvis & Hms & Hhas & Hmsize & Htsize & Hmlimit & Htlimit)".
 
   (* module declaration *)
   iDestruct (ghost_map_lookup with "Hms Hmod") as "%Hmod".
@@ -1916,14 +1944,15 @@ Proof.
   
   (* Imported resources in Wasm and typing information *)
 
-  iDestruct (import_resources_wasm_lookup with "Hwf Hwt Hwm Hwg Htsize Htlimit Hmsize Hmlimit Himpwasm") as "%Himpwasm".
+  iDestruct (import_resources_wasm_lookup with "Hwf Hwtag Hwt Hwm Hwg Htsize Htlimit Hmsize Hmlimit Himpwasm") as "%Himpwasm".
   destruct Himpwasm as [Hvtlen Himpwasm].
 
   remember {| inst_types := m.(mod_types);
                   inst_funcs := ext_func_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_funcs)) (length m.(mod_funcs)));
                   inst_tab := ext_tab_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_tables)) (length m.(mod_tables)));
                   inst_memory := ext_mem_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_mems)) (length m.(mod_mems)));
-                  inst_globs := ext_glob_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_globals)) (length m.(mod_globals)))
+             inst_globs := ext_glob_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_globals)) (length m.(mod_globals))) ;
+             inst_tags := ext_tag_addrs (fmap modexp_desc v_imps) ++ (gen_index (length ws.(s_tags)) (length m.(mod_tags)))
                |} as inst_res.
   
   unfold module_restrictions in Hmodrestr.
@@ -1950,7 +1979,7 @@ Proof.
     by rewrite length_fmap.
   }
   
-  assert (fmap typeof g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) as Hginitstype.
+  assert (fmap typeof_num g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) as Hginitstype.
   {
     unfold module_typing in Hmodtype.
     destruct m => /=.
@@ -1989,11 +2018,12 @@ Proof.
   destruct (alloc_tabs s0 (map modtab_type (mod_tables m))) eqn:Halloctab.
   destruct (alloc_mems s1 (mod_mems m)) eqn:Hallocmem.
   destruct (alloc_globs s2 (mod_globals m) g_inits) eqn:Hallocglob.
+  destruct (alloc_tags s3 (mod_tags m)) eqn:Halloctag.
 
   remember (fmap (fun m_exp => {| modexp_name := modexp_name m_exp; modexp_desc := export_get_v_ext inst_res (modexp_desc m_exp) |}) m.(mod_exports)) as v_exps.
 
   remember (init_mems 
-    (init_tabs s3 inst_res
+    (init_tabs s4 inst_res
        [seq Z.to_nat (Wasm_int.Int32.intval o) | o <- e_inits] 
        (mod_elem m)) inst_res
     [seq Z.to_N (Wasm_int.Int32.intval o) | o <- d_inits] 
@@ -2008,7 +2038,7 @@ Proof.
     unfold alloc_module => /=.
 
 
-    exists t_imps, t_exps, s3, g_inits.
+    exists t_imps, t_exps, s4, g_inits.
 
     exists e_inits, d_inits.
     repeat split.
@@ -2029,7 +2059,7 @@ Proof.
       simpl in Himpwasm.
       destruct modexp_desc.
       + (* functions *)
-        destruct f0.
+        destruct f.
         destruct Himpwasm as [cl [Hws [? ->]]].
         eapply ETY_func => //; last by rewrite nth_error_lookup.
         apply lookup_lt_Some in Hws.
@@ -2057,9 +2087,25 @@ Proof.
         eapply ETY_glob => //; last by rewrite nth_error_lookup.
         apply lookup_lt_Some in Hwg.
         by lias.
+      + (* tags *)
+        destruct t0.
+        destruct Himpwasm as (? & Hwtag & ? & ->).
+        eapply ETY_tag => //; last by rewrite nth_error_lookup.
+        apply lookup_lt_Some in Hwtag.
+        by lias.
     - (* alloc module *)
-      rewrite Hallocfunc Halloctab Hallocmem Hallocglob.
+      rewrite Hallocfunc Halloctab Hallocmem Hallocglob Halloctag.
       repeat (apply/andP; split); try apply/eqP; subst => //=.
+      + (* Tags *)
+        unfold ext_tag_addrs => /=.
+        rewrite map_app.
+        f_equal.
+        apply alloc_tag_gen_index in Halloctag as [-> ?].
+        apply alloc_glob_gen_index in Hallocglob as (? & ? & ? & ? & ? & <- & ?); last lias.
+        apply alloc_mem_gen_index in Hallocmem as (? & ? & ? & ? & ? & <- & ?).
+        apply alloc_tab_gen_index in Halloctab as (? & ? & ? & ? & ? & <- & ?).
+        apply alloc_func_gen_index in Hallocfunc as (? & ? & ? & ? & ? & <- & ?).
+        done.
       + (* Functions *)
         unfold ext_func_addrs => /=.
         rewrite map_app => /=.
@@ -2084,9 +2130,9 @@ Proof.
         rewrite map_app => /=.
         f_equal.
         apply alloc_glob_gen_index in Hallocglob as [-> ?]; last by lias.
-        apply alloc_mem_gen_index in Hallocmem as [? [? [? [? <-]]]].
-        apply alloc_tab_gen_index in Halloctab as [? [? [? [? <-]]]].
-        by apply alloc_func_gen_index in Hallocfunc as [? [? [? [? <-]]]].
+        apply alloc_mem_gen_index in Hallocmem as [? [? [? [? [<- ?]]]]].
+        apply alloc_tab_gen_index in Halloctab as [? [? [? [? [<- ?]]]]].
+        by apply alloc_func_gen_index in Hallocfunc as [? [? [? [? [<- ?]]]]].
     - (* global initializers *)
       unfold instantiation.instantiate_globals.
       rewrite Forall2_lookup.
@@ -2151,11 +2197,13 @@ Proof.
         by constructor.
     - (* table initializers bound check *)
 
-      apply alloc_glob_gen_index in Hallocglob as [? [? [? [? ?]]]]; last by lias.
-      apply alloc_mem_gen_index in Hallocmem as [? [? [? [? ?]]]].
-      apply alloc_tab_gen_index in Halloctab as [? [? [? [? ?]]]].
-      apply alloc_func_gen_index in Hallocfunc as [? [? [? [? ?]]]].
-      destruct ws, s0, s1, s2, s3.
+       apply alloc_glob_gen_index in Hallocglob as (? & ? & ? & ? & ? & ? & ? & ?); last by lias.
+      apply alloc_mem_gen_index in Hallocmem as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tab_gen_index in Halloctab as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_func_gen_index in Hallocfunc as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tag_gen_index in Halloctag as (? & ? & ? & ? & ? & ? & ? & ?).
+   
+      destruct ws, s0, s1, s2, s3, s4.
       simpl in *; subst; simpl in *.
 
       unfold module_elem_bound_check_gmap in Hebound.
@@ -2284,6 +2332,10 @@ Proof.
                 destruct Himpwasm as [? [? [? [? [-> ?]]]]].
                 apply H.
                 by apply Hp.
+              * destruct t.
+                destruct Himpwasm as (? & ? & ? & ->).
+                apply H.
+                by apply Hp.
           }
           rewrite nth_error_lookup gen_index_lookup length_map => //=.
           rewrite nth_error_app2; last by lias.
@@ -2311,11 +2363,13 @@ Proof.
 
       
       (* Method is similar to table initialisers, but details are a bit simpler *)
-      apply alloc_glob_gen_index in Hallocglob as [? [? [? [? ?]]]]; last by lias.
-      apply alloc_mem_gen_index in Hallocmem as [? [? [? [? ?]]]].
-      apply alloc_tab_gen_index in Halloctab as [? [? [? [? ?]]]].
-      apply alloc_func_gen_index in Hallocfunc as [? [? [? [? ?]]]].
-      destruct ws, s0, s1, s2, s3.
+       apply alloc_glob_gen_index in Hallocglob as (? & ? & ? & ? & ? & ? & ? & ?); last by lias.
+      apply alloc_mem_gen_index in Hallocmem as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tab_gen_index in Halloctab as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_func_gen_index in Hallocfunc as (? & ? & ? & ? & ? & ? & ? & ?).
+      apply alloc_tag_gen_index in Halloctag as (? & ? & ? & ? & ? & ? & ? & ?).
+   
+      destruct ws, s0, s1, s2, s3, s4.
       simpl in *; subst; simpl in *.
 
       unfold module_data_bound_check_gmap in Hdbound.
@@ -2440,6 +2494,10 @@ Proof.
                 destruct Himpwasm as [? [? [? [? [-> ?]]]]].
                 apply H.
                 by apply Hp.
+              * destruct t.
+                destruct Himpwasm as (? & ? & ? & ->).
+                apply H.
+                apply Hp.
           }
           rewrite nth_error_lookup gen_index_lookup length_map => //=.
           rewrite nth_error_app2; last by lias.
@@ -2521,7 +2579,9 @@ Proof.
     length (ext_func_addrs (modexp_desc <$> v_imps)) = length (ext_t_funcs t_imps) /\
     length (ext_tab_addrs (modexp_desc <$> v_imps)) = length (ext_t_tabs t_imps) /\
     length (ext_mem_addrs (modexp_desc <$> v_imps)) = length (ext_t_mems t_imps) /\
-    length (ext_glob_addrs (modexp_desc <$> v_imps)) = length (ext_t_globs t_imps)) as Hvtcomplen.
+      length (ext_glob_addrs (modexp_desc <$> v_imps)) = length (ext_t_globs t_imps) /\
+      length (ext_tag_addrs (modexp_desc <$> v_imps)) = length (ext_t_tags t_imps)
+    ) as Hvtcomplen.
     {
       clear - Himpwasm Hvtlen.
       move: Hvtlen Himpwasm.
@@ -2536,7 +2596,7 @@ Proof.
         simpl in *.
         by specialize (Himpwasm H H0).
       }
-      destruct IHv_imps as [Hflen [Htlen [Hmlen Hglen]]].
+      destruct IHv_imps as [Hflen [Htlen [Hmlen [Hglen Htaglen]]]].
       specialize (Himpwasm 0 a e).
       do 2 forward Himpwasm Himpwasm => //.
       
@@ -2557,9 +2617,13 @@ Proof.
         destruct Himpwasm as [? [? [? [? [-> ?]]]]] => /=.
         repeat split => //.
         by f_equal.
+      - destruct t.
+        destruct Himpwasm as (? & ? & ? & ->) => /=.
+        repeat split => //.
+        by f_equal.
     }
 
-  destruct Hvtcomplen as [Hvtflen [Hvttlen [Hvtmlen Hvtglen]]].
+  destruct Hvtcomplen as [Hvtflen [Hvttlen [Hvtmlen [Hvtglen Hvttaglen]]]].
   destruct ostart as [idfstart | ]; last first.
   {
     destruct m; simpl in *.
@@ -2594,10 +2658,10 @@ Proof.
   - destruct s => //.
     iPureIntro.
     unfold language.reducible, language.prim_step.
-    exists [::], (idecls, map_start (Some idfstart)), (ws_res, vis', ms, has, f), [::].
+    exists [::], (idecls, map_start (Some idfstart), fr), (ws_res, vis', ms, has), [::].
     repeat split => //.
     by eapply HR_host_step.
-  - iIntros ([hes' wes'] [[[[ws3 vis3] ms3] has3] f3] efs HStep).
+  - iIntros ([[hes' wes'] f3] [[[ws3 vis3] ms3] has3] efs HStep).
     destruct HStep as [HStep [-> ->]].
     revert Heqinst_res.
     inversion HStep; subst; clear HStep; move => Heqinst_res.
@@ -2659,7 +2723,7 @@ Proof.
 
     (* Wasm state update, using the instantiation characterisation lemma *)
     iDestruct (instantiation_wasm_spec with "") as "H" => //.
-    iDestruct ("H" with "[Himpwasm] [Hwf Hwt Hwm Hwg Hmsize Htsize Hmlimit Htlimit]") as "Hq".
+    iDestruct ("H" with "[Himpwasm] [Hwf Hwt Hwm Hwg Hwcont Hwtag Hmsize Htsize Hmlimit Htlimit]") as "Hq".
     { unfold instantiation_resources_pre_wasm.
       by iFrame.
     }
@@ -2700,24 +2764,23 @@ Proof.
 
     (* Apply the wp spec premise for start function *)
     iSpecialize ("Hwpstart" $! idfstart).
-    iApply ("Hwpstart" with "[$Hframeown]") => //.
+    iApply "Hwpstart" => //.
 
     unfold instantiation_resources_post.
     iFrame.
 
 Qed.
     
-Lemma instantiation_spec_operational_start s E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs nstart (Φ: host_val -> iProp Σ):
+Lemma instantiation_spec_operational_start s E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs wtags nstart (Φ: host_val -> iProp Σ) fr:
   m.(mod_start) = Some (Build_module_start (Mk_funcidx nstart)) ->
   module_typing m t_imps t_exps ->
   module_restrictions m ->
-  ↪[frame] empty_frame -∗                            
-  instantiation_resources_pre hs_mod m hs_imps v_imps t_imps wfs wts wms wgs hs_exps -∗
-  (∀ idnstart, (↪[frame] empty_frame) -∗ (instantiation_resources_post hs_mod m hs_imps v_imps t_imps wfs wts wms wgs hs_exps (Some idnstart)) -∗ WP (([::], [::AI_invoke idnstart]) : host_expr) @ s; E {{ Φ }}) -∗
-  WP (([:: ID_instantiate hs_exps hs_mod hs_imps], [::]): host_expr) @ s; E {{ Φ }}.
+  instantiation_resources_pre hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps -∗
+  (∀ idnstart, (instantiation_resources_post hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps (Some idnstart)) -∗ WP (([::], [::AI_invoke idnstart], fr) : host_expr) @ s; E {{ Φ }}) -∗
+  WP (([:: ID_instantiate hs_exps hs_mod hs_imps], [::], fr): host_expr) @ s; E {{ Φ }}.
 Proof.
   iIntros.
-  by iApply (instantiation_spec_operational_start_seq with "[$] [$] [$]").
+  by iApply (instantiation_spec_operational_start_seq with "[$] [$]").
 Qed.
   
 End Instantiation_spec_operational.

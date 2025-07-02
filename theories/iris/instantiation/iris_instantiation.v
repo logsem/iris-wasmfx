@@ -185,10 +185,10 @@ Definition mem_typecheck v_imps t_imps (wms: gmap N memory): Prop :=
   | _ => True
   end) v_imps t_imps.
 
-Definition glob_typecheck s v_imps t_imps (wgs: gmap N global) : Prop :=
+Definition glob_typecheck v_imps t_imps (wgs: gmap N global) : Prop :=
   Forall2 (fun v t =>
   match v.(modexp_desc) with
-  | MED_global (Mk_globalidx i) => (∃ g gt, wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree s g gt)
+  | MED_global (Mk_globalidx i) => (∃ g gt, wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree g gt)
   | _ => True
   end) v_imps t_imps.
 
@@ -214,9 +214,9 @@ Definition import_mem_wasm_check v_imps t_imps wms : iProp Σ:=
   ⌜mem_typecheck v_imps t_imps wms /\
   mem_domcheck v_imps wms⌝.
 
-Definition import_glob_wasm_check s v_imps t_imps wgs : iProp Σ:=
+Definition import_glob_wasm_check v_imps t_imps wgs : iProp Σ:=
   import_glob_resources wgs ∗
-  ⌜glob_typecheck s v_imps t_imps wgs /\
+  ⌜glob_typecheck v_imps t_imps wgs /\
     glob_domcheck v_imps wgs⌝.
 
 Definition import_tag_wasm_check v_imps t_imps wtags : iProp Σ :=
@@ -225,11 +225,11 @@ Definition import_tag_wasm_check v_imps t_imps wtags : iProp Σ :=
     tag_domcheck v_imps wtags ⌝.
     
 
-Definition import_resources_wasm_typecheck s v_imps t_imps wfs wts wms wgs wtags: iProp Σ :=
+Definition import_resources_wasm_typecheck v_imps t_imps wfs wts wms wgs wtags: iProp Σ :=
   import_func_wasm_check v_imps t_imps wfs ∗
   import_tab_wasm_check v_imps t_imps wts ∗
   import_mem_wasm_check v_imps t_imps wms ∗
-  import_glob_wasm_check s v_imps t_imps wgs ∗
+  import_glob_wasm_check v_imps t_imps wgs ∗
   import_tag_wasm_check v_imps t_imps wtags
 .
 
@@ -251,14 +251,14 @@ Definition import_resources_wasm_typecheck s v_imps t_imps wfs wts wms wgs wtags
     unfold mem_domcheck;
     unfold glob_domcheck.
   
-Definition import_resources_wasm_typecheck_sepL2 s v_imps t_imps wfs wts wms wgs wtags: iProp Σ :=
+Definition import_resources_wasm_typecheck_sepL2 v_imps t_imps wfs wts wms wgs wtags: iProp Σ :=
   import_resources_wasm_domcheck v_imps wfs wts wms wgs wtags ∗
   [∗ list] i ↦ v; t ∈ v_imps; t_imps,
   match v.(modexp_desc) with
   | MED_func (Mk_funcidx i) => ((∃ cl, N.of_nat i ↦[wf] cl ∗ ⌜ wfs !! (N.of_nat i) = Some cl /\ t = ET_func (cl_type cl) ⌝)%I)
   | MED_table (Mk_tableidx i) => (∃ tab tt, N.of_nat i ↦[wtblock] tab ∗ ⌜ wts !! (N.of_nat i) = Some tab /\ t = ET_tab tt /\ tab_typing tab tt ⌝)
   | MED_mem (Mk_memidx i) => (∃ mem mt, N.of_nat i ↦[wmblock] mem ∗ ⌜ wms !! (N.of_nat i) = Some mem /\ t = ET_mem mt /\ mem_typing mem mt ⌝) 
-  | MED_global (Mk_globalidx i) => (∃ g gt, N.of_nat i ↦[wg] g ∗ ⌜ wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree s g gt ⌝)
+  | MED_global (Mk_globalidx i) => (∃ g gt, N.of_nat i ↦[wg] g ∗ ⌜ wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree g gt ⌝)
   | MED_tag (Mk_tagidx i) => (∃ tf, N.of_nat i ↦□[tag] tf ∗ ⌜ wtags !! (N.of_nat i) = Some tf /\ t = ET_tag tf ⌝ ) 
   end.
 
@@ -318,11 +318,11 @@ Proof.
     by specialize (Hnv m).
 Qed.
 
-Lemma igwc_cons_ne s v_imps t_imps wgs v t:
+Lemma igwc_cons_ne v_imps t_imps wgs v t:
   (forall idx, modexp_desc v <> MED_global idx) ->
   (forall tt, t <> ET_glob tt) ->
-  import_glob_wasm_check s v_imps t_imps wgs -∗
-  import_glob_wasm_check s (v :: v_imps) (t :: t_imps) wgs.
+  import_glob_wasm_check v_imps t_imps wgs -∗
+  import_glob_wasm_check (v :: v_imps) (t :: t_imps) wgs.
 Proof.
   move => Hnv Hnt.
   unfold_irwt_all.
@@ -1330,10 +1330,10 @@ Qed.
 
 Lemma import_glob_wasm_lookup v_imps t_imps wgs ws :
   ⊢ gen_heap_interp (gmap_of_list (s_globals ws)) -∗
-    import_glob_wasm_check ws v_imps t_imps wgs -∗
+    import_glob_wasm_check v_imps t_imps wgs -∗
     ⌜ length v_imps = length t_imps /\ ∀ k v t, v_imps !! k = Some v -> t_imps !! k = Some t ->
       match modexp_desc v with
-      | MED_global (Mk_globalidx i) => ∃ g gt, ws.(s_globals) !! i = Some g /\ wgs !! N.of_nat i = Some g /\ t = ET_glob gt /\ global_agree ws g gt
+      | MED_global (Mk_globalidx i) => ∃ g gt, ws.(s_globals) !! i = Some g /\ wgs !! N.of_nat i = Some g /\ t = ET_glob gt /\ global_agree g gt
       | _ => True
       end ⌝.
 Proof.
@@ -1369,13 +1369,13 @@ Lemma import_resources_wasm_lookup v_imps t_imps wfs wts wms wgs ws wtags :
     @gen_heap_interp _ _ _ _ _ tablimit_hsG (gmap_of_list (fmap table_max_opt (s_tables ws))) -∗
     gen_heap_interp (gmap_of_list (fmap length_mem (s_mems ws))) -∗
     @gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt (s_mems ws))) -∗
-    import_resources_wasm_typecheck ws v_imps t_imps wfs wts wms wgs wtags -∗
+    import_resources_wasm_typecheck v_imps t_imps wfs wts wms wgs wtags -∗
     ⌜ length v_imps = length t_imps /\ ∀ k v t, v_imps !! k = Some v -> t_imps !! k = Some t ->
       match modexp_desc v with
       | MED_func (Mk_funcidx i) => ∃ cl, ws.(s_funcs) !! i = Some cl /\ wfs !! N.of_nat i = Some cl /\ t = ET_func (cl_type cl) 
       | MED_table (Mk_tableidx i) => ∃ tab tt, ws.(s_tables) !! i = Some tab /\ wts !! N.of_nat i = Some tab /\ t = ET_tab tt /\ tab_typing tab tt
       | MED_mem (Mk_memidx i) => ∃ mem mt, ws.(s_mems) !! i = Some {| mem_data := {| ml_data := mem.(mem_data).(ml_data) |}; mem_max_opt := mem.(mem_max_opt) |} /\ wms !! N.of_nat i = Some mem /\ t = ET_mem mt /\ mem_typing mem mt
-| MED_global (Mk_globalidx i) => ∃ g gt, ws.(s_globals) !! i = Some g /\ wgs !! N.of_nat i = Some g /\ t = ET_glob gt /\ global_agree ws g gt
+| MED_global (Mk_globalidx i) => ∃ g gt, ws.(s_globals) !! i = Some g /\ wgs !! N.of_nat i = Some g /\ t = ET_glob gt /\ global_agree g gt
 | MED_tag (Mk_tagidx i) => ∃ tf, ws.(s_tags) !! i = Some tf /\ wtags !! N.of_nat i = Some tf /\ t = ET_tag tf
       end ⌝.
 Proof. 
@@ -1534,8 +1534,8 @@ Qed.
    Memory initiliasers work similarly.
 *)
 
-Definition instantiation_resources_pre_wasm m s v_imps t_imps wfs wts wms wgs wtags : iProp Σ :=
-  import_resources_wasm_typecheck s v_imps t_imps wfs wts wms wgs wtags ∗
+Definition instantiation_resources_pre_wasm m v_imps t_imps wfs wts wms wgs wtags : iProp Σ :=
+  import_resources_wasm_typecheck v_imps t_imps wfs wts wms wgs wtags ∗
   ⌜ module_elem_bound_check_gmap wts (fmap modexp_desc v_imps) m ⌝ ∗
   ⌜ module_data_bound_check_gmap wms (fmap modexp_desc v_imps) m ⌝.
 
@@ -1573,7 +1573,7 @@ Fixpoint module_mem_init_values (m: module) (moddata: list module_data) : gmap (
 
 (* g_inits have the correct types and values. Typing is redundant given the current restriction *)
 Definition module_glob_init_values m g_inits :=
-  (fmap (T_num ∘ typeof_num) g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) /\
+  (fmap (typeof_num) g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) /\
   module_glob_init_value m.(mod_globals) = Some g_inits.
 
 (* The starting point for newly allocated tables. *)
@@ -1721,9 +1721,9 @@ Definition module_import_init_mems (m: module) (inst: instance) (wms: gmap N mem
 (* Again the allocated resources but for globals. Note that the initial value
    here is purely dummy. *)
 Definition module_inst_build_globals (mglobs: list module_glob) : list global :=
-  fmap (fun '{| modglob_type := {| tg_mut := tgm; tg_t := tgvt |} ; modglob_init := mgi |} => (Build_global tgm (default_val tgvt))) mglobs.
+  fmap (fun '{| modglob_type := {| tg_mut := tgm; tg_t := tgvt |} ; modglob_init := mgi |} => (Build_global tgm (bitzero tgvt))) mglobs.
 
-Definition global_init_replace_single (g: global) (v: value) : global :=
+Definition global_init_replace_single (g: global) (v: value_num) : global :=
   Build_global g.(g_mut) v.
 
 Fixpoint module_inst_global_init (gs: list global) (g_inits: list value_num) : list global :=
@@ -1732,7 +1732,7 @@ Fixpoint module_inst_global_init (gs: list global) (g_inits: list value_num) : l
   | g :: gs' =>
     match g_inits with
     | [::] => g :: gs'
-    | gi :: g_inits' => global_init_replace_single g (VAL_num gi) :: module_inst_global_init gs' g_inits'
+    | gi :: g_inits' => global_init_replace_single g (gi) :: module_inst_global_init gs' g_inits'
     end
   end.
 
@@ -1777,12 +1777,19 @@ Definition module_inst_resources_glob (globs: list global) (inst_g: list globala
     N.of_nat addr ↦[wg] g
   ).
 
-(* The collection of the four types of newly allocated resources *)
-Definition module_inst_resources_wasm (m: module) (inst: instance) (tab_inits: list tableinst) (mem_inits: list memory) (glob_inits: list global) : iProp Σ :=
+Definition module_inst_resources_tag (tags : list function_type) (inst_tag : list tagaddr) : iProp Σ :=
+  ([∗ list] i↦g; addr ∈ tags; inst_tag,
+     N.of_nat addr ↦□[tag] g
+  ).
+
+(* The collection of the five types of newly allocated resources *)
+Definition module_inst_resources_wasm (m: module) (inst: instance) (tab_inits: list tableinst) (mem_inits: list memory) (glob_inits: list global) (tag_inits : list function_type) : iProp Σ :=
   (module_inst_resources_func m.(mod_funcs) inst (drop (get_import_func_count m) inst.(inst_funcs)) ∗
   module_inst_resources_tab tab_inits (drop (get_import_table_count m) inst.(inst_tab)) ∗
   module_inst_resources_mem mem_inits (drop (get_import_mem_count m) inst.(inst_memory)) ∗                        
-  module_inst_resources_glob glob_inits (drop (get_import_global_count m) inst.(inst_globs)))%I.
+  module_inst_resources_glob glob_inits (drop (get_import_global_count m) inst.(inst_globs)) ∗
+  module_inst_resources_tag tag_inits (drop (get_import_tag_count m) inst.(inst_tags))
+  )%I.
 
 Definition module_restrictions (m: module) : Prop :=
   (* We further restrict the offsets and global initialisers to values only. 
@@ -1793,9 +1800,9 @@ Definition module_restrictions (m: module) : Prop :=
   (exists (vi32s: list i32), fmap modelem_offset m.(mod_elem) = fmap (fun v => [BI_const (VAL_int32 v)]) vi32s) /\
   (exists (vi32s: list i32), fmap moddata_offset m.(mod_data) = fmap (fun v => [BI_const (VAL_int32 v)]) vi32s).
 
-Definition instantiation_resources_post_wasm m s v_imps t_imps wfs wts wms wgs wtags (idfstart: option nat) (inst: instance) : iProp Σ :=
-  ∃ (g_inits: list value_num) tab_allocs mem_allocs glob_allocs wts' wms',  
-  import_resources_wasm_typecheck s v_imps t_imps wfs wts' wms' wgs wtags ∗ (* locations in the wasm store and type-checks; this described the new contents of tables and memories that have been modified by the initialisers *)
+Definition instantiation_resources_post_wasm m v_imps t_imps wfs wts wms wgs wtags (idfstart: option nat) (inst: instance) : iProp Σ :=
+  ∃ (g_inits: list value_num) tab_allocs mem_allocs glob_allocs tag_allocs wts' wms',  
+  import_resources_wasm_typecheck v_imps t_imps wfs wts' wms' wgs wtags ∗ (* locations in the wasm store and type-checks; this described the new contents of tables and memories that have been modified by the initialisers *)
     ⌜ inst.(inst_types) = m.(mod_types) /\
     (* We know what the imported part of the instance must be. *)
   let v_imp_descs := map (fun mexp => mexp.(modexp_desc)) v_imps in
@@ -1815,7 +1822,8 @@ Definition instantiation_resources_post_wasm m s v_imps t_imps wfs wts wms wgs w
     ⌜ module_data_bound_check_gmap wms (fmap modexp_desc v_imps) m ⌝ ∗
     ⌜ module_glob_init_values m g_inits ⌝ ∗
     ⌜ glob_allocs = module_inst_global_init (module_inst_build_globals m.(mod_globals)) g_inits ⌝ ∗
-    module_inst_resources_wasm m inst tab_allocs mem_allocs glob_allocs. (* allocated wasm resources *)
+    ⌜ tag_allocs = m.(mod_tags) ⌝ ∗
+    module_inst_resources_wasm m inst tab_allocs mem_allocs glob_allocs tag_allocs. (* allocated wasm resources *)
 
 Lemma BI_const_assert_const1_i32 (es: list expr) (vs: list i32):
   es = fmap (fun v => [BI_const (VAL_int32 v)]) vs ->
@@ -3832,9 +3840,9 @@ Lemma instantiation_wasm_spec (v_imps: list module_export) (m: module) t_imps t_
   module_typing m t_imps t_exps ->
   module_restrictions m ->
   instantiate s m (fmap modexp_desc v_imps) (s', inst, v_exps, start) ->
-  (instantiation_resources_pre_wasm m s (* or s'? *) v_imps t_imps wfs wts wms wgs wtags -∗
+  (instantiation_resources_pre_wasm m v_imps t_imps wfs wts wms wgs wtags -∗
    gen_heap_wasm_store s -∗
-   |==> (instantiation_resources_post_wasm m s (* or s'? *) v_imps t_imps wfs wts wms wgs wtags start) inst ∗
+   |==> (instantiation_resources_post_wasm m v_imps t_imps wfs wts wms wgs wtags start) inst ∗
    gen_heap_wasm_store s').
 Proof.
   move => Hmodtype Hmodrestr Hinstantiate.
@@ -3893,7 +3901,7 @@ Proof.
   symmetry in Hginitseq.
   subst.
 
-  assert (fmap (T_num ∘ typeof_num) g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) as Hginitstype.
+  assert (fmap (typeof_num) g_inits = fmap (tg_t ∘ modglob_type) m.(mod_globals)) as Hginitstype.
   {
     unfold module_typing in Hmodtype.
     destruct m => /=.
@@ -3938,7 +3946,7 @@ Proof.
   }
   
   assert (length g_inits = length m.(mod_globals)) as Hginitslen.
-  { assert (length (T_num ∘typeof_num <$> g_inits) = length (tg_t ∘ modglob_type <$> m.(mod_globals))) as Heq ; first by rewrite Hginitstype => //.
+  { assert (length (typeof_num <$> g_inits) = length (tg_t ∘ modglob_type <$> m.(mod_globals))) as Heq ; first by rewrite Hginitstype => //.
     by repeat rewrite length_fmap in Heq.
   }
   
@@ -6126,7 +6134,7 @@ Proof.
             iFrame.
   iModIntro. 
 
-  iExists g_inits, (* (module_inst_build_tables m inst), (module_inst_build_mems m inst),*)  (module_inst_global_init (module_inst_build_globals (mod_globals m)) g_inits)(* , (module_import_init_tabs m inst wts), (module_import_init_mems m inst wms) *) .
+  iExists g_inits, (* (module_inst_build_tables m inst), (module_inst_build_mems m inst),*)  (module_inst_global_init (module_inst_build_globals (mod_globals m)) g_inits), (mod_tags m)(* , (module_import_init_tabs m inst wts), (module_import_init_mems m inst wms) *) .
     
   iFrame.
 
@@ -6227,7 +6235,8 @@ Proof.
         by f_equal.
     }
 
-  destruct Hvtcomplen as (Hvtflen & Hvttlen & Hvtmlen & Hvtglen & Hvttaglen).
+    destruct Hvtcomplen as (Hvtflen & Hvttlen & Hvtmlen & Hvtglen & Hvttaglen).
+    iSplit; first done.
 
   (* Functions *)
   iSplitL "Hfmapsto".
@@ -6270,6 +6279,7 @@ Proof.
   
 
   (* Globals *)
+  iSplitL "Hwgmapsto".
   {
     unfold module_inst_resources_glob.
     rewrite Himpglen - Hvtglen.
@@ -6311,7 +6321,7 @@ Proof.
     rewrite length_repeat.
     rewrite big_sepL_app.
     iDestruct "Hwgmapsto" as "(Hh & Ht)".
-    iDestruct ("IH" with "Hwtagmapsto Hh") as "Hh".
+    iDestruct ("IH" with "Hh") as "Hh".
     iClear "IH".
     iSpecialize ("Hh" with "[%]"); first by lias.
     unfold module_inst_build_globals.
@@ -6336,6 +6346,38 @@ Proof.
 
     by iApply "Ht".
   }
+
+  (* tags *)
+  unfold module_inst_resources_tag.
+  rewrite Himptaglen - Hvttaglen.
+  move/eqP in H3.
+  rewrite H3.
+  repeat rewrite map_app.
+  rewrite drop_app.
+  remember (mod_tags m) as mtags.
+  rewrite Htagindex.
+  clear.
+  iRevert "Hwtagmapsto".
+  iInduction mtags as [ | g'] "IH" using List.rev_ind => //=.
+  all: rewrite drop_all length_map Nat.sub_diag.
+  simpl. done. simpl. 
+  iIntros "Hwtagmapsto".
+  unfold gen_index.
+  rewrite length_app repeat_app imap_app => /=.
+  unfold drop.
+  rewrite length_repeat.
+  rewrite big_sepL_app.
+  iDestruct "Hwtagmapsto" as "(Hh & Ht)".
+  iDestruct ("IH" with "Hh") as "Hh".
+  iClear "IH".
+  simpl.
+  iFrame => /=.
+  repeat rewrite Nat.add_0_r.
+  iDestruct "Ht" as "(Ht & _)".
+  iSplit => //.
+  rewrite Nat.add_comm.
+  iFrame.
+
 Qed.
   
 

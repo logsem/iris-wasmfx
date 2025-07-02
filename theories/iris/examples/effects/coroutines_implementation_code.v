@@ -59,14 +59,14 @@ Section yield_par.
     ].
 
   Definition t_ctxt :=
-      {| tc_types_t := [emptyt];
+      {| tc_types_t := [emptyt; par_type];
       tc_func_t := [emptyt; par_type];
       tc_global := [];
       tc_table := [];
       tc_memory := [];
       tc_local := [];
-      tc_label := [];
-      tc_return := None;
+      tc_label := [[]];
+      tc_return := Some [];
       tc_refs := [];
         tc_tags_t := [emptyt] |}.
 
@@ -77,7 +77,7 @@ Section yield_par.
   Qed.
 
   Definition t_ctxt_par :=
-      {| tc_types_t := [emptyt];
+      {| tc_types_t := [emptyt; par_type];
       tc_func_t := [emptyt; par_type];
       tc_global := [];
       tc_table := [];
@@ -131,7 +131,7 @@ Section yield_par.
 
 
   Definition coroutine_inst yield_addr par_addr tag_addr :=
-    {| inst_types := [ emptyt ];
+    {| inst_types := [ emptyt; par_type ];
       inst_funcs := [ yield_addr; par_addr ] ;
       inst_tab := [];
       inst_memory := [];
@@ -145,22 +145,27 @@ Section yield_par.
     FC_func_native (coroutine_inst yield_addr par_addr tag_addr) par_type par_locs par.
 
   Opaque upcl. 
-  
-  Lemma yield_par_spec `{!wasmG Σ}:
-    ⊢ (∀ addr_yield addr_par addr_tag,
-        ∀ P1 P2 Q1 Q2 I, ∃ Ψ,
-(*          (□ ¬ Q1 trapV) -∗ (□ ¬ Q2 trapV) -∗ *)
-        N.of_nat addr_tag ↦□[tag] Tf [] [] -∗
-                                              (□ (∀ f, I -∗ N.of_nat addr_yield ↦[wf] closure_yield addr_yield addr_par addr_tag  -∗ EWP [AI_invoke addr_yield] UNDER f <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ I ∗ N.of_nat addr_yield ↦[wf] closure_yield addr_yield addr_par addr_tag }})) ∗
-                                              (∀ f1 f2, □ (∀ f,  P1 -∗ P2 -∗ I -∗ (□ (P1 -∗ I -∗ EWP [AI_ref f1; AI_basic (BI_call_reference (Type_explicit emptyt))] UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I }})) -∗ (□ (P2 -∗ I -∗ EWP [AI_ref f2; AI_basic (BI_call_reference (Type_explicit emptyt))] UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I }})) -∗ N.of_nat addr_par ↦[wf] closure_par addr_yield addr_par addr_tag -∗ EWP [AI_ref f1; AI_ref f2; AI_invoke addr_par] UNDER f {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ Q2 ∗ I ∗  N.of_nat addr_par ↦[wf] closure_par addr_yield addr_par addr_tag  }}))
+
+  Definition yield_par_spec `{!wasmG Σ} addr_yield addr_par cl_yield cl_par : iProp Σ :=
+      (∀ P1 P2 Q1 Q2 I, ∃ Ψ,
+
+                                              (□ (∀ f, I -∗ N.of_nat addr_yield ↦[wf] cl_yield  -∗ EWP [AI_invoke addr_yield] UNDER f <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ I ∗ N.of_nat addr_yield ↦[wf] cl_yield }})) ∗
+                                              (∀ f1 f2, □ (∀ f,  P1 -∗ P2 -∗ I -∗ (□ (P1 -∗ I -∗ EWP [AI_ref f1; AI_basic (BI_call_reference (Type_explicit emptyt))] UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I }})) -∗ (□ (P2 -∗ I -∗ EWP [AI_ref f2; AI_basic (BI_call_reference (Type_explicit emptyt))] UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I }})) -∗ N.of_nat addr_par ↦[wf] cl_par -∗ EWP [AI_ref f1; AI_ref f2; AI_invoke addr_par] UNDER f {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ Q2 ∗ I ∗  N.of_nat addr_par ↦[wf] cl_par  }}))
       )%I.
+  
+  Lemma yield_par_spec_proof  addr_yield addr_par cl_yield cl_par `{!wasmG Σ}:
+    forall addr_tag,
+    cl_yield = closure_yield addr_yield addr_par addr_tag ->
+    cl_par = closure_par addr_yield addr_par addr_tag ->
+    N.of_nat addr_tag ↦□[tag] Tf [] []
+    ⊢ yield_par_spec addr_yield addr_par cl_yield cl_par.
   Proof.
-    iIntros (addr_yield addr_par addr_tag P1 P2 Q1 Q2 I).
+    iIntros (addr_tag -> ->) "#Htag".
+    iIntros (P1 P2 Q1 Q2 I).
     iExists (λ eid, match eid with
                     | SuspendE (Mk_tagidx n) => if (Nat.eqb n addr_tag) then (! immV [] {{ I }} ; ? immV [] {{ I }})%iprot else iProt_bottom
                     | _ => iProt_bottom
                     end).
-    iIntros "#Htag".
     iSplit.
     - (* yield *)
       iIntros "!>" (f) "HI Hcl".
