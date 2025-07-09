@@ -88,6 +88,8 @@ Section CoroutinesModule.
                                                     modexp_desc := MED_func (Mk_funcidx addr_yield) |} ∗
                               par_exp_addr ↪[vis] {| modexp_name := name_par;
                                                     modexp_desc := MED_func (Mk_funcidx addr_par) |} ∗
+                              ⌜ cl_type cl_yield = emptyt ⌝ ∗
+                              ⌜ cl_type cl_par = par_type ⌝ ∗
                               N.of_nat addr_yield ↦[wf] cl_yield ∗
                               N.of_nat addr_par ↦[wf] cl_par ∗
                               yield_par_spec addr_yield addr_par cl_yield cl_par
@@ -152,6 +154,8 @@ Section CoroutinesModule.
       destruct Hprefixes as [-> Hprefixes].
 
       iFrame.
+      iSplit; first done.
+      iSplit; first done.
       iApply yield_par_spec_proof.
       done.
       done.
