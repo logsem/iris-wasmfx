@@ -33,7 +33,7 @@ Compiling the development requires at least 8GB of RAM and may take over 30 minu
 Browsing proofs can be done conveniently in emacs. For example:
 
 ```bash
-esy theories/iris/examples/iris_examples.v
+emacs theories/iris/examples/iris_examples.v
 ```
 This opens the file containing some direct examples of using the program logic in Emacs, assuming Emacs and Proof General are installed. Other proofs can be browsed similarly. Emacs can be installed via command line:
 ```bash
