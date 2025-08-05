@@ -19,80 +19,71 @@ Section prim_step_split_properties.
   Let val := iris.val.
   Let to_val := iris.to_val.
   
-  Lemma lfilled_prim_step_split_reduce_r i lh es1 es2 σ LI e2 σ2 obs2 efs2 :
+  Lemma lfilled_prim_step_split_reduce_r i lh es1 es2 σ LI e2 σ2 f1 f2 obs2 efs2 :
     lfilled i lh (es1 ++ es2)%list LI ->
-    reducible es1 σ ->
-    prim_step LI σ obs2 e2 σ2 efs2 ->
-    (∃ e', prim_step es1 σ obs2 e' σ2 efs2 ∧ lfilled i lh (e' ++ es2) e2)
-    \/ (exists lh, lfilled 0 lh [AI_trap] es1) /\ σ = σ2.
+    reducible (es1, f1) σ ->
+    prim_step (LI, f1) σ obs2 (e2, f2) σ2 efs2 ->
+    (∃ e', prim_step (es1, f1) σ obs2 (e', f2) σ2 efs2 ∧ lfilled i lh (e' ++ es2) e2)
+    \/ (exists lh, lfilled 0 lh [AI_trap] es1) /\ σ = σ2 /\ f1 = f2.
   Proof.
     intros Hfill Hred Hstep.
     edestruct lfilled_reduce as [(es' & Hstep' & Hfill') | (lh0 & Htrap & Hσ) ] => //=.
-    - destruct σ as [[s locs ] inst ].
-      destruct Hred as (obs & e1 & [[ s1 locs1 ] inst1] & efs & (Hes1 & -> & ->)).
-      exists [], (e1 ++ es2), (s1, locs1, inst1), [].
+    - destruct Hred as (obs & [e1 f1'] & s1 & efs & (Hes1 & -> & ->)).
+      exists [], (e1 ++ es2, f1'), s1, [].
       repeat split => //=.
       eapply (r_label (k:=0) (lh := LH_base [] es2)) ; try done ;
         unfold lfilled, lfill => //=.
     - eapply prim_step_split_reduce_r in Hstep' as
-          [ (es'' & Hes' & Hes1) | (n & m & lh0 & Htrap' & Htrap & Hσ)].
+          [ (es'' & Hes' & Hes1) | (n & m & lh0 & Htrap' & Htrap & -> & ->)].
       + left. eexists ; split => //=.
         replace (cat es'' es2) with (app es'' es2) ; last done.
         rewrite - Hes'.
         done.
       + right. split => //=.
         by eexists.
-      + destruct (iris.to_val es1) eqn:Htv => //=.
-        destruct σ as [[ ?  ? ] ?].
-        destruct Hred as (? & ? & [[ ?  ? ] ? ] & ? & (? & ? & ?)).
+      + destruct (iris.to_val0 es1) eqn:Htv => //=.
+        destruct Hred as (? & [??] & ? & ? & (? & ? & ?)).
         apply val_head_stuck_reduce in H. congruence.
     - right. split => //=.
       move/lfilledP in Htrap; inversion Htrap; subst.
-      + destruct σ2 as [[s  locs ] inst ].
-        destruct Hred as (?&?&[[??]?]&?&(?&?&?)).
-        edestruct first_non_value_reduce as (vs' & e & afte & Hvs & He & Hes1) => //=.
+      + destruct Hred as (?&[??]&?&?&(?&?&?)).
+        edestruct first_non_value_reduce as (vs' & e' & afte & Hvs & He & Hes1) => //=.
         rewrite Hes1 in H.
         rewrite - app_assoc in H.
         rewrite - app_comm_cons in H.
         apply first_values in H as (<- & <- & ->) => //=.
-        2: by destruct He as [He | ->] => //; destruct e => //; destruct b.
+        2: by destruct He as [He | ->] => //; destruct e' => //; destruct b.
         exists (LH_base vs afte).
         rewrite Hes1; apply/lfilledP; constructor => //.
-      + destruct σ2 as [[s  locs ] inst ].
-        destruct Hred as (?&?&[[??]?]&?&(?&?&?)).
-        edestruct first_non_value_reduce as (vs' & e & afte & Hvs & He & Hes1) => //=.
+      + destruct Hred as (?&[??]&?&?&(?&?&?)).
+        edestruct first_non_value_reduce as (vs' & e' & afte & Hvs & He & Hes1) => //=.
         rewrite Hes1 in H.
         rewrite - app_assoc in H.
         rewrite - app_comm_cons in H.
         apply first_values in H as (<- & <- & ->) => //=.
-        2: by destruct He as [He | ->] => //; destruct e => //; destruct b.
+        2: by destruct He as [He | ->] => //; destruct e' => //; destruct b.
         exists (LH_handler bef hs lh' afte).
         rewrite Hes1; apply/lfilledP; constructor => //.
-      + destruct σ2 as [[s  locs ] inst ].
-        destruct Hred as (?&?&[[??]?]&?&(?&?&?)).
-        edestruct first_non_value_reduce as (vs' & e & afte & Hvs & He & Hes1) => //=.
+      + destruct Hred as (?&[??]&?&?&(?&?&?)).
+        edestruct first_non_value_reduce as (vs' & e' & afte & Hvs & He & Hes1) => //=.
         rewrite Hes1 in H.
         rewrite - app_assoc in H.
         rewrite - app_comm_cons in H.
         apply first_values in H as (<- & <- & ->) => //=.
-        2: by destruct He as [He | ->] => //; destruct e => //; destruct b.
+        2: by destruct He as [He | ->] => //; destruct e' => //; destruct b.
         exists (LH_prompt bef ts hs lh' afte).
         rewrite Hes1; apply/lfilledP; constructor => //.
   Qed.
 
 
-  Lemma local_frame_lfilled_prim_step_split_reduce_r es1 es2 s v i n v' i' e2 s2 v2 i2 efs2 obs2 j lh LI :
+  Lemma local_frame_lfilled_prim_step_split_reduce_r es1 es2 s f n f' e2 s2 f2 efs2 obs2 j lh LI :
     lfilled j lh (es1 ++ es2)%list LI ->
-    reducible es1 (s,v,i) ->
-    prim_step [AI_local n (Build_frame v i) LI] (s,v',i') obs2 e2 (s2,v2,i2) efs2 ->
-    (∃ e' v'' i'' LI', prim_step es1 (s,v,i) obs2 e' (s2,v'',i'') efs2 ∧ v' = v2 ∧ i' = i2 ∧ e2 = [AI_local n (Build_frame v'' i'') LI'] ∧ lfilled j lh (e' ++ es2) LI') \/
-      ∃ lh0, lfilled 0 lh0 [AI_trap] es1 /\ (s,v',i') = (s2,v2,i2) .
+    reducible (es1, f) s ->
+    prim_step ([AI_local n f LI], f') s obs2 (e2, f2) s2 efs2 ->
+    (∃ e' f'' LI', prim_step (es1, f) s obs2 (e', f'') s2 efs2 ∧ f' = f2 ∧ e2 = [AI_local n f'' LI'] ∧ lfilled j lh (e' ++ es2) LI') \/
+      ∃ lh0, lfilled 0 lh0 [AI_trap] es1 /\ s = s2 /\ f' = f2 .
   Proof.
-    intros Hfill (obs & e1 & [[s1  v1 ] i1] & efs & (Hes1 & -> & ->)) (Hstep & -> & ->).
-    remember {| f_locs := v ; f_inst := i |} as f.
-    remember {| f_locs := v1 ; f_inst := i1 |} as f1.
-    remember {| f_locs := v' ; f_inst := i' |} as f'.
-    remember {| f_locs := v2 ; f_inst := i2 |} as f2.
+    intros Hfill (obs & [e1 f1] & s1 & efs & (Hes1 & -> & ->)) (Hstep & -> & ->).
     remember [AI_local n f LI] as es.
     induction Hstep ; try (by inversion Heqes) ;
       try (by rewrite <- (app_nil_l [AI_local _ _ _]) in Heqes ;
@@ -144,20 +135,17 @@ Section prim_step_split_properties.
       move/eqP in H0; rewrite H0.
       apply IHHstep => //=.
     - inversion Heqes ; subst n0 f0 es ; clear Heqes.
-      rewrite Heqf' in Heqf2 ; inversion Heqf2 ; subst v' i'.
-      assert (reducible es1 (s, v, i)).
-      { eexists _, _ , (_,_,_), _. repeat split => //=.
-        subst ; exact Hes1. }
-      destruct f' as [v' i'] eqn:Hf'.
-      assert (prim_step LI (s, v, i) [] es' (s', v', i') []).
-      { repeat split => //=. subst ; exact Hstep. }
+      assert (reducible (es1, f) s).
+      { eexists _, (_,_) , _, _. repeat split => //=. } 
+      assert (prim_step (LI, f) s [] (es', f') s' []).
+      { repeat split => //=. }
       edestruct lfilled_prim_step_split_reduce_r
         as [(e' & Hes1' & Hfill') | [[lh0 Htrap] Hσ]].
       exact Hfill.
       exact H.
       exact H0.
       left.
-      eexists _,_,_,_. repeat split => //=.
+      eexists _,_,_. repeat split => //=.
       right.
       eexists.
       split => //=.
@@ -166,17 +154,17 @@ Section prim_step_split_properties.
   Qed.    
 
 
-  Lemma local_frame_prim_step_split_reduce_r es1 es2 s v i n v' i' e2 s2 v2 i2 efs2 obs2 :
-    reducible es1 (s,v,i) ->
-    prim_step [AI_local n (Build_frame v i) (es1 ++ es2)] (s,v',i') obs2 e2 (s2,v2,i2) efs2 ->
-    (∃ e' v'' i'', prim_step es1 (s,v,i) obs2 e' (s2,v'',i'') efs2 ∧ v' = v2 ∧ i' = i2 ∧ e2 = [AI_local n (Build_frame v'' i'') (e' ++ es2)]) \/
-      (∃ lh0, lfilled 0 lh0 [AI_trap] es1 /\ (s,v',i') = (s2,v2,i2)).
+  Lemma local_frame_prim_step_split_reduce_r es1 es2 s f n f' e2 s2 f2 efs2 obs2 :
+    reducible (es1, f) s ->
+    prim_step ([AI_local n f (es1 ++ es2)], f') s obs2 (e2, f2) s2 efs2 ->
+    (∃ e' f'', prim_step (es1, f) s obs2 (e', f'') s2 efs2 ∧ f' = f2 ∧ e2 = [AI_local n f'' (e' ++ es2)]) \/
+      (∃ lh0, lfilled 0 lh0 [AI_trap] es1 /\ s = s2 /\ f' = f2).
   Proof.
     intros Hred Hprim.
     apply local_frame_lfilled_prim_step_split_reduce_r with (es1 := es1) (es2:=es2) (j:=0) (lh:= LH_base [] []) in Hprim;auto.
-    destruct Hprim as [[e' [v'' [i'' [LI' Hprim]]]]|[lh' [Hlh' HH]]].
-    destruct Hprim as [Hprim [-> [-> [-> Hfill]]]].
-    { left. eexists _,_,_. split.  apply Hprim. repeat split;eauto.
+    destruct Hprim as [[e' [f'' [LI' Hprim]]]|[lh' [Hlh' HH]]].
+    destruct Hprim as [Hprim [-> [-> Hfill]]].
+    { left. eexists _,_. split.  apply Hprim. repeat split;eauto.
       apply lfilled_Ind_Equivalent in Hfill. inversion Hfill;subst.
       erewrite app_nil_l; erewrite app_nil_r. auto. }
     { right. simplify_eq. eexists. eauto. }

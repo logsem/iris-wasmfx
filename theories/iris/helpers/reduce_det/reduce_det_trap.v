@@ -190,8 +190,8 @@ Proof.
     edestruct lfilled_llfill_first_values as (? & ?);
       try (instantiate (3 := []); exact H8);
       try (instantiate (2 := []); exact Hllh).
-    all: try by
-      apply hfilled_to_llfill in H2 as [llh Hllh];
+
+    by apply hfilled_to_llfill in H2 as [llh Hllh];
     move/lfilledP in H9;
     edestruct lfilled_llfill_first_values as (? & ?);
       try (instantiate (3 := []); exact H9);

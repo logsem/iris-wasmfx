@@ -11,7 +11,7 @@ Lemma try_table_det cs vs i n csd t1s t2s s f es s' f' es' :
   length vs = length t1s ->
   [seq desugar_exception_clause (f_inst f) i | i <- cs] = [seq Some i | i <- csd] ->
   reduce s f (vs ++ [AI_basic (BI_try_table i cs es)]) s' f' es' ->
-  reduce_det_goal s f [AI_handler csd [AI_label n [] (vs ++ to_e_list es)]] s' f' es' (vs ++ [AI_basic (BI_try_table i cs es)]). 
+  reduce_det_strong_goal s f [AI_handler csd [AI_label n [] (vs ++ to_e_list es)]] s' f' es' .
 Proof.
   move => H H0 H1 H2 Hdesug Hred.
   (* Here, in the block case, the left-hand-side of Hred2 is
@@ -39,7 +39,7 @@ Proof.
     by apply first_values in H10 as (? & ? & ?).
   - apply concat_cancel_last in Heqes0 as [-> Heq].
     inversion Heq; subst.
-    repeat split => //; left. rewrite H7 in Hdesug.
+    repeat split => //. rewrite H7 in Hdesug.
     rewrite H3 in H; inversion H; subst.
     assert (csd0 = csd) as -> => //.
     clear -Hdesug.
@@ -60,7 +60,7 @@ Proof.
       apply const_list_split in H1 as [??].
       apply const_list_split in H0 as [??] => //. 
     + destruct vs0.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es0; last by empty_list_no_reduce.

@@ -14,7 +14,22 @@ Unset Printing Implicit Defensive.
 
 Set Bullet Behavior "Strict Subproofs".
 
+Definition AI_const v :=
+  match v with
+  | VAL_num n => AI_basic (BI_const n)
+  | VAL_ref r =>
+      match r with
+      | VAL_ref_null t => AI_basic (BI_ref_null t)
+      | VAL_ref_func x => AI_ref x
+      | VAL_ref_cont x => AI_ref_cont x
+      | VAL_ref_exn x i => AI_ref_exn x i
+      end
+  end
+  .
 
+
+Definition empty_frame :=
+    Build_frame [::] (Build_instance [::] [::] [::] [::] [::] [::]).
 
 (** read `len` bytes from `m` starting at `start_idx` *)
 Definition read_bytes (m : memory) (start_idx : N) (len : nat) : option bytes :=

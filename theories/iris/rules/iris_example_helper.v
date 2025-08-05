@@ -20,16 +20,16 @@ Section Examples.
   Context `{!wasmG Σ}.
   
   (* Helper lemmas and tactics for necessary list manipulations for expressions *)
-  Lemma iRewrite_nil_l  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) f :
+  Lemma iRewrite_nil_l  (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (e : iris.expr0) f :
     (EWP [] ++ e UNDER f @ E <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_l. auto. Qed.
-  Lemma iRewrite_nil_r  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) f:
+  Lemma iRewrite_nil_r  (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (e : iris.expr0) f:
     (EWP e ++ [] UNDER f @ E <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_r. auto. Qed.
-  Lemma iRewrite_nil_l_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) i lh f:
+  Lemma iRewrite_nil_l_ctx  (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (e : iris.expr0) i lh f:
     (EWP [] ++ e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_l. auto. Qed.
-  Lemma iRewrite_nil_r_ctx  (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (e : iris.expr) i lh f:
+  Lemma iRewrite_nil_r_ctx  (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (e : iris.expr0) i lh f:
     (EWP e ++ [] UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}).
   Proof. rewrite app_nil_r. auto. Qed.
 

@@ -4,7 +4,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 
 Lemma ref_is_null_det t s f s' f' es:
   reduce s f [AI_const (VAL_ref (VAL_ref_null t)); AI_basic BI_ref_is_null] s' f' es ->
-  reduce_det_goal s f [AI_const (VAL_num (VAL_int32 Wasm_int.Int32.one))] s' f' es [AI_const (VAL_ref (VAL_ref_null t)); AI_basic BI_ref_is_null].
+  reduce_det_strong_goal s f [AI_const (VAL_num (VAL_int32 Wasm_int.Int32.one))] s' f' es .
 Proof.
   move => Hred.
   - (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -55,7 +55,7 @@ Qed.
 Lemma ref_is_not_null_det ref s f s' f' es:
   (forall t, ref <> VAL_ref_null t) ->
   reduce s f [AI_const (VAL_ref ref); AI_basic BI_ref_is_null] s' f' es ->
-  reduce_det_goal s f [AI_const (VAL_num (VAL_int32 Wasm_int.Int32.zero))] s' f' es [AI_const (VAL_ref ref); AI_basic BI_ref_is_null].
+  reduce_det_strong_goal s f [AI_const (VAL_num (VAL_int32 Wasm_int.Int32.zero))] s' f' es .
 Proof.
   move => Href Hred.
   - (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is

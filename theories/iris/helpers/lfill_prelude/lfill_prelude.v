@@ -2997,8 +2997,8 @@ Lemma hfilled_switch_and_reduce s f es LI s' f' es' vs k0 tf i sh k lh:
   lfilled k lh es LI ->
   exists tf' sh hh,
       llfill sh [AI_switch_desugared vs k0 tf i] = es /\
-        List.nth_error (s_conts s) k0 = Some (Cont_dagger tf') /\
-        s = s' /\ f = f' /\ hfilled No_var hh [::AI_trap] es'.
+        List.nth_error (s_conts s) k0 = Some (Cont_dagger tf') /\ 
+        s = s' /\ f = f' /\ hfilled No_var hh [::AI_trap] es' .
 Proof.
   intros Hred H1 Hes.
   apply lfilled_implies_llfill in Hes as (lh' & _ & Hlh').
@@ -3006,10 +3006,10 @@ Proof.
     rewrite H1 in Hh; *)
   remember H1 as Hh; clear HeqHh;
     apply hfilled_to_llfill in Hh as [lh0 Hlh0].
-  cut (forall n, length_rec es < n ->
+  cut (forall n, length_rec es < n -> 
        ∃ (tf' : function_type) sh0 (hh : hholed),
     llfill sh0 [AI_switch_desugared vs k0 tf i] = es
-    ∧ nth_error (s_conts s) k0 = Some (Cont_dagger tf') ∧ s = s' ∧ f = f' ∧ hfilled No_var hh [AI_trap] es').
+    ∧ nth_error (s_conts s) k0 = Some (Cont_dagger tf') ∧ s = s' ∧ f = f' ∧ hfilled No_var hh [AI_trap] es'). 
   { intro Hn ; apply (Hn (S (length_rec es))) ; lia. }
   intro n0. 
   generalize dependent es. generalize dependent es'. 
@@ -3116,6 +3116,17 @@ Proof.
       inversion Habs; subst. done. }
     erewrite prompt_in_hfilled_switch in H.
     done. exact H1. exact Hfill.
+(*  - rewrite separate1 -cat_app catA in Hfill.
+    specialize (llfill_first_values Hlh0 Hfill) as [??] => //.
+    apply const_list_concat => //.
+  - rewrite separate1 -cat_app catA in Hfill.
+    specialize (llfill_first_values Hlh0 Hfill) as [??] => //.
+    apply const_list_concat => //.
+    subst ves; apply v_to_e_is_const_list.
+  - rewrite_cats1_list.
+    specialize (llfill_first_values Hlh0 Hfill) as [??] => //.
+    rewrite /= const_const //.  *)
+    
   - (* switch failure *)
     do 2 rewrite_cats1_list.
     specialize (llfill_first_values Hlh0 Hfill) as [Hsw Hrc] => //.
@@ -3124,7 +3135,7 @@ Proof.
     repeat eexists.
     instantiate (1 := LL_base [] []). done.
     done. instantiate (1 := HH_base [] []).
-    unfold hfilled, hfill => //. 
+    unfold hfilled, hfill => //.  
  
   - (* contbind *)
     rewrite separate1 in Hfill.
@@ -3151,12 +3162,12 @@ Proof.
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
     remember H as H'; clear HeqH'.
     apply length_llfill_rec' in H as [H | (-> & ->)].
-    + destruct (IHn0 _ _ _ _ _ Hred2 Hfill') as (tf1 & sh0 & hh0 & Hsw & Hdag & -> & -> & Htrap) => //.
+    + destruct (IHn0 _ _ _ _ _ Hred2 Hfill') as (tf1 & sh0 & hh0 & Hsw & Hdag & -> & -> & Htrap) => //. 
       lias.
       destruct (llfill_trans Hsw H') as [lll Hlll].
       destruct (lfilled_hfilled_trans Htrap H0) as [lll' Hlll'].
       repeat eexists.
-      exact Hlll. done. exact Hlll'.
+      exact Hlll. done. exact Hlll'. 
     + eapply llh_of_lh_empty in Hlh.
       2: exact H0.
       subst.
@@ -3165,17 +3176,18 @@ Proof.
     assert (llfill (LL_local [::] n f (LL_base [::] [::]) [::]) es = [::AI_local n f es]) as H => //=.
     { by rewrite List.app_nil_r. }
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
-    destruct (IHn0 _ _ _ _ _ Hred2 Hfill') as (tf1 & sh0 & hh0 & Hsw & Hdag & -> & -> & Htrap) => //.
+    destruct (IHn0 _ _ _ _ _ Hred2 Hfill') as (tf1 & sh0 & hh0 & Hsw & Hdag & -> & -> & Htrap) => //. 
     unfold length_rec in Hlab; simpl in Hlab.
     unfold length_rec. lias.
     repeat eexists.
+(*    instantiate (1 := tf1). *)
     instantiate (1 := LL_local [] n f' sh0 []).
-    simpl. simpl in Hsw. rewrite Hsw. done. done.
+    simpl. simpl in Hsw. rewrite Hsw. done. done. 
     instantiate (1 := HH_local [] n f' hh0 []).
     unfold hfilled, hfill; fold hfill => /=.
     unfold hfilled in Htrap.
     destruct (hfill _ _ _) => //.
-    move/eqP in Htrap; subst => //. 
+    move/eqP in Htrap; subst => //.  
 Qed.
 
 Lemma swfill_switch_and_reduce s f es LI s' f' es' vs k0 tf i sh k lh:
@@ -3184,8 +3196,8 @@ Lemma swfill_switch_and_reduce s f es LI s' f' es' vs k0 tf i sh k lh:
   lfilled k lh es LI ->
   exists tf' sh hh,
       llfill sh [AI_switch_desugared vs k0 tf i] = es /\
-        List.nth_error (s_conts s) k0 = Some (Cont_dagger tf') /\
-        s = s' /\ f = f' /\ hfilled No_var hh [::AI_trap] es'.
+        List.nth_error (s_conts s) k0 = Some (Cont_dagger tf') /\ 
+        s = s' /\ f = f' /\ hfilled No_var hh [::AI_trap] es'. 
 Proof.
   intros Hred H1 Hes.
   specialize (swfill_to_hfilled i sh [AI_switch_desugared vs k0 tf i]) as Hh;

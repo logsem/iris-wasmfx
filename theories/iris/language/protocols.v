@@ -15,6 +15,9 @@ Set Default Proof Using "Type".
 Set Bullet Behavior "Strict Subproofs".
 Close Scope byte_scope.
 
+Definition protocol_value := list value.
+Canonical Structure protocol_valueO := leibnizO protocol_value.
+
 (* ========================================================================== *)
 (** * Protocols. *)
 
@@ -23,7 +26,7 @@ Close Scope byte_scope.
 
 Section iProt.
 Set Primitive Projections.
-Record iProt Σ := IProt { iProt_car : val -d> (val -d> iPropO Σ) -n> iPropO Σ }.
+Record iProt Σ := IProt { iProt_car : protocol_value -d> (protocol_value -d> iPropO Σ) -n> iPropO Σ }.
 End iProt.
 Arguments IProt {_} _.
 Arguments iProt_car {_} _.
@@ -182,7 +185,7 @@ Instance iProt_bottom {Σ} : Bottom (iProt Σ) := IProt (λ _, λne _, False%I).
    - Precondition is given by the pair of [v] and [P].
    - Postcondition is given by the predicate [Φ]. *)
 Program Definition iProtPre_base_def {Σ}
-  (v : val) (P : iProp Σ) (Φ : val -d> iPropO Σ) : iProt Σ :=
+  (v : protocol_value) (P : iProp Σ) (Φ : protocol_value -d> iPropO Σ) : iProt Σ :=
   IProt (λ v', λne Φ', ⌜ v = v' ⌝ ∗ P ∗ (∀ w, Φ w -∗ Φ' w))%I.
 Next Obligation. by intros ???; simpl; repeat f_equiv. Qed.
 Definition iProtPre_base_aux : seal (@iProtPre_base_def). by eexists. Qed.
@@ -209,7 +212,7 @@ Definition iProtPre_texist {Σ} {TT : tele} (e : TT → iProt Σ) : iProt Σ :=
 Arguments iProtPre_texist {_ _} _%_iprot /.
 
 (* Construct a predicate from a pair of a value [w] and an assertion [Q]. *)
-Definition iProtPost_base_def {Σ} (w : val) (Q : iProp Σ) : val -d> iPropO Σ
+Definition iProtPost_base_def {Σ} (w : protocol_value) (Q : iProp Σ) : protocol_value -d> iPropO Σ
   := (λ w', ⌜ w = w' ⌝ ∗ Q)%I.
 Definition iProtPost_base_aux : seal (@iProtPost_base_def). by eexists. Qed.
 Definition iProtPost_base := iProtPost_base_aux.(unseal).
@@ -220,7 +223,7 @@ Instance: Params (@iProtPost_base) 2 := {}.
 
 (* Close a predicate with an existential quantifier. *)
 Program Definition iProtPost_exist_def {Σ A}
-  (e : A → (val -d> iPropO Σ)) : val -d> iPropO Σ :=
+  (e : A → (protocol_value -d> iPropO Σ)) : protocol_value -d> iPropO Σ :=
   (λ w', ∃ a, e a w')%I.
 Definition iProtPost_exist_aux : seal (@iProtPost_exist_def). by eexists. Qed.
 Definition iProtPost_exist := iProtPost_exist_aux.(unseal).
@@ -230,12 +233,12 @@ Arguments iProtPost_exist {_ _} _%_iprot.
 Instance: Params (@iProtPost_exist) 2 := {}.
 
 Definition iProtPost_texist {Σ} {TT : tele}
-  (e : TT → (val -d> iPropO Σ)) : val -d> iPropO Σ :=
+  (e : TT → (protocol_value -d> iPropO Σ)) : protocol_value -d> iPropO Σ :=
   tele_fold (@iProtPost_exist Σ) (λ x, x) (tele_bind e).
 Arguments iProtPost_texist {_ _} _%_iprot /.
 
 (* Protocol marked by a function [f]. *)
-Program Definition iProt_marker_def {Σ} (f : val → val) (e : iProt Σ) : iProt Σ :=
+Program Definition iProt_marker_def {Σ} (f : protocol_value → protocol_value) (e : iProt Σ) : iProt Σ :=
   IProt (λ v', λne q', ∃ w', ⌜ v' = f w' ⌝ ∗ iProt_car e w' q')%I.
 Next Obligation. solve_proper. Qed.
 Definition iProt_marker_aux : seal (@iProt_marker_def). by eexists. Qed.
@@ -247,7 +250,7 @@ Instance: Params (@iProt_marker) 3 := {}.
 
 (* Extend a given protocol with the constraint
    that the sent values satisfy [P]. *)
-Program Definition iProt_filter_def {Σ} (P : val → Prop) (e : iProt Σ) : iProt Σ :=
+Program Definition iProt_filter_def {Σ} (P : protocol_value → Prop) (e : iProt Σ) : iProt Σ :=
   IProt (λ v', λne q', ⌜ P v' ⌝ ∗ iProt_car e v' q')%I.
 Next Obligation. solve_proper. Qed.
 Definition iProt_filter_aux : seal (@iProt_filter_def). by eexists. Qed.
@@ -343,8 +346,8 @@ Qed.
    number of binders are correspondingly interpreted as
    existential/universal quantifiers. *)
 Lemma iProt_tele_eq {Σ} {TT1 TT2 : tele}
-  (v : TT1 →       val) (P : TT1 →       iProp Σ)
-  (w : TT1 → TT2 → val) (Q : TT1 → TT2 → iProp Σ) v' Φ' :
+  (v : TT1 →       protocol_value) (P : TT1 →       iProp Σ)
+  (w : TT1 → TT2 → protocol_value) (Q : TT1 → TT2 → iProp Σ) v' Φ' :
     iProt_car (>>.. x >> ! (v x  ) {{ P x   }};
               <<.. y << ? (w x y) {{ Q x y }}) v' Φ'
    ⊣⊢
@@ -369,9 +372,8 @@ Section protocol_operators_properties.
   Implicit Types Ψ : iProt Σ.
 
 
-  
   (* Non-expansiveness. *)
-
+  
   Global Instance iProtPre_base_ne n :
     Proper
       ((dist n) ==> (dist n) ==> (dist n) ==> (dist n)) (iProtPre_base (Σ:=Σ)).
@@ -499,18 +501,18 @@ Section protocol_operators_properties.
     iSplit; [iIntros "[H _]"|iIntros "H"]; by auto.
   Qed.
   Lemma iProt_filter_filter P Q (Ψ : iProt Σ) :
-    (P ?> (Q ?> Ψ) ≡ (λ (v : val), P v ∧ Q v) ?> Ψ)%iprot.
+    (P ?> (Q ?> Ψ) ≡ (λ (v : protocol_value), P v ∧ Q v) ?> Ψ)%iprot.
   Proof.
     intros v q. rewrite iProt_filter_eq /iProt_filter_def //=.
     iSplit; [iIntros "(% & % & H)"|iIntros "[[% %] H]"]; by auto.
   Qed.
-  Lemma iProt_filter_filter_l (P Q : val → Prop) (Ψ : iProt Σ) :
+  Lemma iProt_filter_filter_l (P Q : protocol_value → Prop) (Ψ : iProt Σ) :
     (∀ v, P v → Q v) → (P ?> (Q ?> Ψ) ≡ P ?> Ψ)%iprot.
   Proof.
     intros H v q. rewrite iProt_filter_eq /iProt_filter_def //=.
     iSplit; [iIntros "(% & % & H)"|iIntros "[% H]"]; by auto.
   Qed.
-  Lemma iProt_filter_filter_r (P Q : val → Prop) Ψ :
+  Lemma iProt_filter_filter_r (P Q : protocol_value → Prop) Ψ :
     (∀ v, Q v → P v) → (P ?> (Q ?> Ψ) ≡ Q ?> Ψ)%iprot.
   Proof.
     intros H v q. rewrite iProt_filter_eq /iProt_filter_def //=.
@@ -524,7 +526,7 @@ Section protocol_operators_properties.
     simpl. iSplit; [iIntros "[% [H|H]]"|iIntros "[[% H]|[% H]]"]; by auto.
   Qed.
 
-  Lemma iProt_sum_filter_eq (P : val → Prop) `{!∀ v, Decision (P v)} Ψ :
+  Lemma iProt_sum_filter_eq (P : protocol_value → Prop) `{!∀ v, Decision (P v)} Ψ :
     (Ψ ≡ (P ?> Ψ) <+> ((λ v, ¬ P v) ?> Ψ))%iprot.
   Proof.
     intros v q. rewrite iProt_sum_eq iProt_filter_eq /iProt_sum_def /iProt_filter_def.
@@ -557,8 +559,8 @@ Section protocol_operators_properties.
   Qed.
 
   Lemma iProt_marker_tele {TT1 TT2 : tele} f
-  (v : TT1 →       val) (P : TT1 →       iProp Σ)
-  (w : TT1 → TT2 → val) (Q : TT1 → TT2 → iProp Σ) :
+  (v : TT1 →       protocol_value) (P : TT1 →       iProp Σ)
+  (w : TT1 → TT2 → protocol_value) (Q : TT1 → TT2 → iProp Σ) :
     (f #> (>>.. x >> !    (v x  )  {{ P x }};
            <<.. y << ?    (w x y)  {{ Q x y }}))
    ≡
@@ -574,8 +576,8 @@ Section protocol_operators_properties.
       iSplit; [done|]. rewrite iProtPre_texist_eq. iExists u. by iFrame. }
   Qed.
   Lemma iProt_marker_tele' (TT1 TT2 : tele) f
-  (v : TT1 -t>         val) (P : TT1 -t>         iProp Σ)
-  (w : TT1 -t> TT2 -t> val) (Q : TT1 -t> TT2 -t> iProp Σ) :
+  (v : TT1 -t>         protocol_value) (P : TT1 -t>         iProp Σ)
+  (w : TT1 -t> TT2 -t> protocol_value) (Q : TT1 -t> TT2 -t> iProp Σ) :
     (f #> (>>.. x >> !           (tele_app v x)
                      {{          (tele_app P x)   }};
            <<.. y << ? (tele_app (tele_app w x) y)
@@ -592,8 +594,8 @@ Section protocol_operators_properties.
 
 
   Global Instance send_recv_mono_prot {TT1 TT2 : tele}
-    (v' : TT1 →       val) (P : TT1 →       iProp Σ)
-    (w' : TT1 → TT2 → val) (Q : TT1 → TT2 → iProp Σ) :
+    (v' : TT1 →       protocol_value) (P : TT1 →       iProp Σ)
+    (w' : TT1 → TT2 → protocol_value) (Q : TT1 → TT2 → iProp Σ) :
       MonoProt (>>.. x >> ! (v' x)   {{ P x   }};
                 <<.. y << ? (w' x y) {{ Q x y }}).
   Proof.
@@ -612,8 +614,8 @@ Section protocol_operators_properties.
   Proof. by iSplit; [iIntros "[%Q [H _]]"|iIntros "H"]. Qed.
 
   Lemma upcl_m_tele {TT1 TT2 : tele}
-    (v' : TT1 →       val) (P : TT1 →       iProp Σ)
-    (w' : TT1 → TT2 → val) (Q : TT1 → TT2 → iProp Σ) v Φ :
+    (v' : TT1 →       protocol_value) (P : TT1 →       iProp Σ)
+    (w' : TT1 → TT2 → protocol_value) (Q : TT1 → TT2 → iProp Σ) v Φ :
     iProt_car (upcl
       (>>.. x >> ! (v' x)   {{ P x   }};
        <<.. y << ? (w' x y) {{ Q x y }})) v Φ ≡
@@ -642,8 +644,8 @@ Section protocol_operators_properties.
         iDestruct "HQ'" as (y) "[<- HQ']". by iApply "HQ".
   Qed.
   Lemma upcl_tele {TT1 TT2 : tele}
-    (v' : TT1 →       val) (P : TT1 →       iProp Σ)
-    (w' : TT1 → TT2 → val) (Q : TT1 → TT2 → iProp Σ) v Φ :
+    (v' : TT1 →       protocol_value) (P : TT1 →       iProp Σ)
+    (w' : TT1 → TT2 → protocol_value) (Q : TT1 → TT2 → iProp Σ) v Φ :
     iProt_car (upcl
       (>>.. x >> ! (v' x)   {{ P x   }};
        <<.. y << ? (w' x y) {{ Q x y }})) v Φ ≡
@@ -652,8 +654,8 @@ Section protocol_operators_properties.
   Proof. by apply (upcl_m_tele _ _ _ _). Qed.
 
   Lemma upcl_m_tele' (TT1 TT2 : tele)
-    (v' : TT1 -t>         val) (P : TT1 -t>         iProp Σ)
-    (w' : TT1 -t> TT2 -t> val) (Q : TT1 -t> TT2 -t> iProp Σ) v Φ :
+    (v' : TT1 -t>         protocol_value) (P : TT1 -t>         iProp Σ)
+    (w' : TT1 -t> TT2 -t> protocol_value) (Q : TT1 -t> TT2 -t> iProp Σ) v Φ :
     iProt_car (upcl 
       (>>.. x >> !           (tele_app v' x)
                  {{          (tele_app P  x)   }};
@@ -667,8 +669,8 @@ Section protocol_operators_properties.
                     (λ x y, tele_app (tele_app Q  x) y)).
   Qed.
   Lemma upcl_tele' (TT1 TT2 : tele)
-    (v' : TT1 -t>         val) (P : TT1 -t>         iProp Σ)
-    (w' : TT1 -t> TT2 -t> val) (Q : TT1 -t> TT2 -t> iProp Σ) v Φ :
+    (v' : TT1 -t>         protocol_value) (P : TT1 -t>         iProp Σ)
+    (w' : TT1 -t> TT2 -t> protocol_value) (Q : TT1 -t> TT2 -t> iProp Σ) v Φ :
     iProt_car (upcl
       (>>.. x >> !           (tele_app v' x)
                  {{          (tele_app P  x)   }};
@@ -680,8 +682,8 @@ Section protocol_operators_properties.
   Proof. by apply upcl_m_tele'. Qed.
 
   Lemma upcl_marker_tele {TT1 TT2 : tele} f
-    (v' : TT1 →       val) (P : TT1 →       iProp Σ)
-    (w' : TT1 → TT2 → val) (Q : TT1 → TT2 → iProp Σ) :
+    (v' : TT1 →       protocol_value) (P : TT1 →       iProp Σ)
+    (w' : TT1 → TT2 → protocol_value) (Q : TT1 → TT2 → iProp Σ) :
     upcl 
       (f #> (>>.. x >> !    (v' x  )  {{ P x   }};
              <<.. y << ?    (w' x y)  {{ Q x y }})) ≡

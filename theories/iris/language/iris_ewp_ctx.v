@@ -13,20 +13,20 @@ From Wasm.iris.language Require Export iris_ewp.
 
 
 Definition ewp_wasm_ctx `{!wasmG Σ}
-          (* s : stuckness *) (E : coPset) (e : language.expr wasm_lang)
-  f Ψ (Φ : val -> frame -> iProp Σ) (i : nat) (lh : lholed) : iProp Σ := 
+          (* s : stuckness *) (E : coPset) (e : expr0)
+  f Ψ (Φ : val0 -> frame -> iProp Σ) (i : nat) (lh : lholed) : iProp Σ := 
   ∀ LI, ⌜lfilled i lh e LI⌝ -∗ EWP LI UNDER f @ E <| Ψ |> {{ Φ }}.
 
 
 Definition ewp_wasm_frame `{!wasmG Σ}
-  (* s : stuckness*) (E : coPset) (es : language.expr wasm_lang)
-  f Ψ (Φ : val -> frame -> iProp Σ) (n: nat) (f': frame) : iProp Σ :=
+  (* s : stuckness*) (E : coPset) (es : expr0)
+  f Ψ (Φ : val0 -> frame -> iProp Σ) (n: nat) (f': frame) : iProp Σ :=
   
   EWP [AI_local n f' es] UNDER f @ E <| Ψ |> {{ Φ }}.
 
 Definition ewp_wasm_ctx_frame `{!wasmG Σ}
-          (*s : stuckness *) (E : coPset) (es : language.expr wasm_lang)
-  f' Ψ (Φ : val -> frame -> iProp Σ) (n: nat) (f: frame) (i : nat) (lh : lholed) : iProp Σ :=
+          (*s : stuckness *) (E : coPset) (es : expr0)
+  f' Ψ (Φ : val0 -> frame -> iProp Σ) (n: nat) (f: frame) (i : nat) (lh : lholed) : iProp Σ :=
   
   ∀ LI, ⌜lfilled i lh es LI⌝ -∗ EWP [AI_local n f LI] UNDER f' @ E <| Ψ |> {{ Φ }}.
 

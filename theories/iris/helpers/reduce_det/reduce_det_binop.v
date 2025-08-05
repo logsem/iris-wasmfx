@@ -5,11 +5,11 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 Lemma binop_det v1 v2 v op t s f s' f' es:
   app_binop op v1 v2 = Some v ->
   reduce s f [AI_basic (BI_const v1); AI_basic (BI_const v2); AI_basic (BI_binop t op)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_const v)] s' f' es [AI_basic (BI_const v1); AI_basic (BI_const v2); AI_basic (BI_binop t op)].
+  reduce_det_strong_goal s f [AI_basic (BI_const v)] s' f' es.
 Proof.
   move => H Hred.
   only_one.
-  1-2: inversion Heqesnew; subst; repeat split => //; left; rewrite H in H0; inversion H0; subst => //. 
+  1-2: inversion Heqesnew; subst; repeat split => //; rewrite H in H0; inversion H0; subst => //. 
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.
@@ -103,11 +103,11 @@ Qed.
 Lemma binop_none_det v1 v2 op t s f s' f' es:
   app_binop op v1 v2 = None ->
   reduce s f [AI_basic (BI_const v1); AI_basic (BI_const v2); AI_basic (BI_binop t op)] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const v1); AI_basic (BI_const v2); AI_basic (BI_binop t op)].
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => H Hred.
   only_one.
-  inversion Heqesnew; subst; repeat split => //; left; rewrite H in H0; inversion H0; subst => //. 
+  inversion Heqesnew; subst; repeat split => //; rewrite H in H0; inversion H0; subst => //. 
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.

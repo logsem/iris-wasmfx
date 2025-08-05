@@ -29,21 +29,21 @@ Section split_reduce_properties.
   Let to_val := iris.to_val.
 
   
-  Lemma prim_step_split_reduce_r (es1 es2 es' : list administrative_instruction) σ σ' obs efs :
-    iris.to_val es1 = None -> 
-    prim_step (es1 ++ es2) σ obs es' σ' efs ->
-    (exists es'', es' = es'' ++ es2 /\ prim_step es1 σ obs es'' σ' efs) \/
+  Lemma prim_step_split_reduce_r (es1 es2 es' : list administrative_instruction) σ σ' f f' obs efs :
+    iris.to_val0 es1 = None -> 
+    prim_step (es1 ++ es2, f) σ obs (es', f') σ' efs ->
+    (exists es'', es' = es'' ++ es2 /\ prim_step (es1, f) σ obs (es'', f') σ' efs) \/
       (exists n m lh, lfilled 0 (LH_base (take n es1)
                                     (drop m (es1 ++ es2)))
-                         [AI_trap] es' /\ lfilled 0 lh [AI_trap] es1 ∧ σ' = σ). 
+                         [AI_trap] es' /\ lfilled 0 lh [AI_trap] es1 ∧ σ' = σ /\ f = f' ). 
   Proof.
     intros Hes1 Hstep. 
     cut (forall n, length es' < n ->
-              (exists es'', es' = es'' ++ es2 /\ prim_step es1 σ obs es'' σ' efs) \/
+              (exists es'', es' = es'' ++ es2 /\ prim_step (es1, f) σ obs (es'', f') σ' efs) \/
                 (exists n m lh, n <= length es1 /\ m <= length (es1 ++ es2) /\
                              lfilled 0 (LH_base (take n es1)
                                                 (drop m (es1 ++ es2)))
-                                     [AI_trap] es' /\ lfilled 0 lh [AI_trap] es1 ∧ σ'=σ)). 
+                                     [AI_trap] es' /\ lfilled 0 lh [AI_trap] es1 ∧ σ'=σ /\ f = f')). 
     { intro Hn ; assert (length es' < S (length es')) as Hlen ; first lia.
       destruct (Hn (S (length es')) Hlen) as [ Hl | (n0 & m & lh & _ & _ & ? & ? & ?) ].
       by left. right ; exists n0, m, lh. 
@@ -52,12 +52,8 @@ Section split_reduce_properties.
     generalize dependent es' ; generalize dependent es1 ; generalize dependent es2.
     induction len ; intros es2 es1 Hes1 es' Hstep Hlen ; first lia.
     unfold prim_step, iris.prim_step in Hstep.
-    destruct σ as [[[??]?]?] ;
-      destruct σ' as [[[??]?]?] ;
-      destruct Hstep as (Hstep & -> & ->).
+    destruct Hstep as (Hstep & -> & ->).
     remember (es1 ++ es2) as es.
-    remember {| f_locs := l ; f_inst := i |} as f.
-    remember {| f_locs := l0 ; f_inst := i0 |} as f0.
     induction Hstep.
     destruct H.
     all: repeat (destruct es1 ; first (by inversion Heqes ; subst ; try destruct v; try destruct v1,v2; try destruct v; try destruct v0; inversion Hes1)) ;
@@ -79,8 +75,8 @@ Section split_reduce_properties.
       all: solve_prim_step_split_reduce_r.
       all: constructor.
       exfalso; by eapply H.
-      fold (AI_const (VAL_ref (VAL_ref_func f))).
-      2: fold (AI_const (VAL_ref $ VAL_ref_cont f)).
+      fold (AI_const (VAL_ref (VAL_ref_func f0))).
+      2: fold (AI_const (VAL_ref $ VAL_ref_cont f0)).
       3: fold (AI_const (VAL_ref (VAL_ref_exn e t))).
       all: by apply rs_ref_is_null_false.
     - destruct es1. subst. destruct a ; try by inversion H.
@@ -93,27 +89,43 @@ Section split_reduce_properties.
       all: destruct (const_list l) eqn:Hl1 => //.
       2-3: destruct (lfill _ _ _) eqn:Hfill => //.
       all: move/eqP in H0.
-      all: rewrite Hes'1 in H0.
-      all: rewrite (separate1 e1) in H0. 
-      all: repeat rewrite -app_assoc in H0.
+      all: rewrite Hes'1 in H1.
+      all: rewrite (separate1 e1) in H1. 
+      all: repeat rewrite -app_assoc in H1.
+      all: rewrite H1 in H0.
       all: apply first_values in H0 as (-> & -> & <-) => //=. 
       all: try by destruct He1; destruct e1 => //=; destruct b => //=.
       + exists (LH_base l es'1). repeat split => //=. lia.
         unfold lfilled, lfill; subst; rewrite Hl1 Hes'1. done.
-      + exists (LH_handler l l1 lh es'1). repeat split => //=. lia.
+      + exists (LH_handler l l0 lh es'1). repeat split => //=. lia.
         unfold lfilled, lfill; fold lfill; subst; rewrite Hl1 Hfill Hes'1 //.
-      + exists (LH_prompt l l1 l2 lh es'1). repeat split => //=. lia.
+      + exists (LH_prompt l l0 l1 lh es'1). repeat split => //=. lia.
         unfold lfilled, lfill; fold lfill; subst; rewrite Hl1 Hfill Hes'1 //.
-    - unfold lfilled, lfill in H.
+    - destruct es1, es2 => //.
+      left. eexists. rewrite app_nil_r.
+      split; first done.
+      repeat split => //.
+      eapply r_throw_ref_desugar => //.
+    - destruct es1, es2 => //.
+      left. eexists. rewrite app_nil_r.
+      split; first done.
+      repeat split => //.
+      eapply r_current_memory => //.
+    - destruct es1, es2 => //.
+      left. eexists. rewrite app_nil_r.
+      split; first done.
+      repeat split => //.
+      eapply r_grow_memory_success => //.
+    - unfold lfilled, lfill in H. 
       destruct lh; fold lfill in H.
       1-2: destruct k => //.
-      all: destruct (const_list l1) eqn:Hl1 => //.
+      all: destruct (const_list l) eqn:Hl1 => //.
       2-4: destruct (lfill _ _ _) eqn:Hfill => //.
       all: move/eqP in H; subst les.
       + unfold lfilled, lfill in H0.
         rewrite Hl1 in H0. move/eqP in H0; subst les'.
-        destruct l1.
-        * destruct (separate_last l2) as [[??]|] eqn:Hlast; last first.
+        destruct l.
+        * destruct (separate_last l0) as [[??]|] eqn:Hlast; last first.
           -- apply separate_last_None in Hlast as ->.
              rewrite app_nil_l app_nil_r in H.
              rewrite app_nil_l app_nil_r.
@@ -122,29 +134,29 @@ Section split_reduce_properties.
           -- apply separate_last_spec in Hlast as ->.
              destruct (separate_last es2) as [[??]|] eqn:Hlast; last first.
              ++ apply separate_last_None in Hlast as ->.
-                left. exists (es' ++ l1 ++ [a0]).
+                left. exists (es' ++ l ++ [a0]).
                 repeat split => //=.
                 by rewrite app_nil_r. rewrite app_nil_r in H.
                 rewrite H.
                 apply (r_label (es:=es) (es':=es') (k:=0)
-                         (lh:=LH_base [] (l1 ++ [a0]))).
+                         (lh:=LH_base [] (l ++ [a0]))).
                 by subst. unfold lfilled, lfill => //=.
                 unfold lfilled, lfill => //=. 
              ++ apply separate_last_spec in Hlast as ->.
                 simpl in H. rewrite separate1 in H.
                 repeat rewrite app_assoc in H.
                 apply app_inj_tail in H as [Heqes ->].
-                assert (prim_step ((a :: es1) ++ l2) (s,l,i) [] (es' ++ l1)
-                          (s',l0,i0) []) as Hstep'.
+                assert (prim_step ((a :: es1) ++ l0, f) s [] (es' ++ l, f')
+                          s' []) as Hstep'.
                 { repeat split => //=.
                   simpl in Heqes. rewrite Heqes.
-                  apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base [] l1)) ;
+                  apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base [] l)) ;
                     try by unfold lfilled, lfill ; simpl.
-                  by subst. } 
-                assert (length (es' ++ l1) < len) as Hlen'.
+                } 
+                assert (length (es' ++ l) < len) as Hlen'.
                 { simpl in Hlen. repeat rewrite length_app /= in Hlen.
                   rewrite length_app. lia. }
-                destruct (IHlen l2 _ Hes1 (es' ++ l1) Hstep' Hlen')
+                destruct (IHlen l0 _ Hes1 (es' ++ l) Hstep' Hlen')
                   as [(es'' & Heq & Hred) | (n & m & lh & Hn & Hm & Hfill & Hcontext)].
                 ** left. 
                    exists es''. repeat split => //=.
@@ -161,7 +173,7 @@ Section split_reduce_properties.
                    rewrite length_app in Hm. lia.
                    cut (forall es0, m <= length es0 -> drop m es0 ++ [a0] =
                                                   drop m (es0 ++ [a0])).
-                   intro Hdrop. rewrite (Hdrop ((a :: es1) ++ l2) Hm).
+                   intro Hdrop. rewrite (Hdrop ((a :: es1) ++ l0) Hm).
                    rewrite <- app_assoc. rewrite app_comm_cons. done.
                    clear Hm Hfill.
                    induction m ; intros es0 Hm => //=.
@@ -181,7 +193,7 @@ Section split_reduce_properties.
               all: rewrite H2 => //. }
           apply to_val_cat_None2 => //. *)
           apply to_val_cons_None_inv in Hes1 as [?| -> ] => //.
-          2:{ destruct l1; last by inversion H3; subst.
+          2:{ destruct l; last by inversion H3; subst.
               destruct es; first by empty_list_no_reduce.
               inversion H3; subst.
               destruct es; first by exfalso; eapply AI_trap_irreducible.
@@ -338,13 +350,13 @@ Section split_reduce_properties.
           { simplify_eq. }
           { simplify_eq. } } *)
         clear IHHstep.
-        assert (prim_step (es1 ++ es2) (s, l, i) [] (l1 ++ es' ++ l2)
-                          (s', l0, i0) []).
+        assert (prim_step (es1 ++ es2, f) s [] (l ++ es' ++ l0, f')
+                          s' []).
         { repeat split => //=.
-          apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base l1 l2)) ;
+          apply (r_label (es:=es) (es':=es') (k:=0) (lh:=LH_base l l0)) ;
             try by unfold lfilled, lfill ; rewrite H2 ; try rewrite H3.
           by subst. }
-        assert (length (l1 ++ es' ++ l2) < len).
+        assert (length (l ++ es' ++ l0) < len).
         { simpl in Hlen. by apply Nat.succ_lt_mono. }
         edestruct IHlen (* (IHlen es2 es1 H4 (l1 ++ es' ++ l2) H2 H5) *)
           as [(es'' & Heq & Hred) | (n & m & lh & Hn & Hm & Hfill & Hcontext & Hσ)].
@@ -388,11 +400,11 @@ Section split_reduce_properties.
         rewrite Hl1 in H0.
         destruct (lfill k lh es') eqn:Hfill' => //.  
         move/eqP in H0; subst les'.
-        left ; exists (l1 ++ AI_label n l2 l5 :: ult).
+        left ; exists (l ++ AI_label n l0 l3 :: ult).
         repeat split => //=.
         rewrite <- app_assoc. rewrite <- app_comm_cons. by rewrite Hlast.
         rewrite Hult. rewrite Hlab. rewrite Hvsl1.
-        apply (r_label (es:=es) (es':=es') (k:=S k) (lh:=LH_rec l1 n l2 lh ult)) ;
+        apply (r_label (es:=es) (es':=es') (k:=S k) (lh:=LH_rec l n l0 lh ult)) ;
           first (by subst) ;
           unfold lfilled, lfill ; fold lfill ; rewrite Hl1.
         by rewrite Hfill.
@@ -407,11 +419,11 @@ Section split_reduce_properties.
         rewrite Hl1 in H0.
         destruct (lfill k lh es') eqn:Hfill' => //.  
         move/eqP in H0; subst les'.
-        left ; exists (l1 ++ AI_handler l2 l5 :: ult).
+        left ; exists (l ++ AI_handler l0 l3 :: ult).
         repeat split => //=.
         rewrite <- app_assoc. rewrite <- app_comm_cons. by rewrite Hlast.
         rewrite Hult. rewrite Hlab. rewrite Hvsl1.
-        apply (r_label (es:=es) (es':=es') (k:=k) (lh:=LH_handler l1 l2 lh ult)) ;
+        apply (r_label (es:=es) (es':=es') (k:=k) (lh:=LH_handler l l0 lh ult)) ;
           first (by subst) ;
           unfold lfilled, lfill ; fold lfill ; rewrite Hl1.
         by rewrite Hfill.
@@ -426,11 +438,11 @@ Section split_reduce_properties.
         rewrite Hl1 in H0.
         destruct (lfill k lh es') eqn:Hfill' => //.  
         move/eqP in H0; subst les'.
-        left ; exists (l1 ++ AI_prompt l2 l3 l6 :: ult).
+        left ; exists (l ++ AI_prompt l0 l1 l4 :: ult).
         repeat split => //=.
         rewrite <- app_assoc. rewrite <- app_comm_cons. by rewrite Hlast.
         rewrite Hult. rewrite Hlab. rewrite Hvsl1.
-        apply (r_label (es:=es) (es':=es') (k:=k) (lh:=LH_prompt l1 l2 l3 lh ult)) ;
+        apply (r_label (es:=es) (es':=es') (k:=k) (lh:=LH_prompt l l0 l1 lh ult)) ;
           first (by subst) ;
           unfold lfilled, lfill ; fold lfill ; rewrite Hl1.
         by rewrite Hfill.
@@ -438,34 +450,33 @@ Section split_reduce_properties.
   Qed.
 
   
-  Lemma reduce_ves: forall v es es' σ σ' efs obs,
-      reducible es σ ->
-      prim_step ([AI_const v] ++ es) σ obs es' σ' efs ->
-      (es' = [AI_const v] ++ drop 1 es' /\ prim_step es σ obs (drop 1 es') σ' efs)
-      \/ (exists lh lh', lfilled 0 lh [AI_trap] es' /\ lfilled 0 lh' [AI_trap] es /\ σ = σ'). 
+  Lemma reduce_ves: forall v es es' σ σ' f f' efs obs,
+      reducible (es, f) σ ->
+      prim_step ([AI_const v] ++ es, f) σ obs (es', f') σ' efs ->
+      (es' = [AI_const v] ++ drop 1 es' /\ prim_step (es, f) σ obs (drop 1 es', f') σ' efs)
+      \/ (exists lh lh', lfilled 0 lh [AI_trap] es' /\ lfilled 0 lh' [AI_trap] es /\ σ = σ' /\ f = f' ). 
   Proof.
-    cut (forall n v es es' σ σ' efs obs,
+    cut (forall n v es es' σ σ' f f' efs obs,
             length es < n ->
-            reducible es σ ->
-            prim_step ([AI_const v] ++ es) σ obs es' σ' efs ->
+            reducible (es, f) σ ->
+            prim_step ([AI_const v] ++ es, f) σ obs (es', f') σ' efs ->
             (es' = [AI_const v] ++ drop 1 es' /\
-               prim_step es σ obs (drop 1 es') σ' efs)
+               prim_step (es, f) σ obs (drop 1 es', f') σ' efs)
             \/ (exists lh lh', lfilled 0 lh [AI_trap] es' /\
-                           lfilled 0 lh' [AI_trap] es /\ σ = σ')).
-    { intros H v es es' σ σ' efs obs. apply (H (S (length es)) v es). lia. } 
+                           lfilled 0 lh' [AI_trap] es /\ σ = σ' /\ f = f' )).
+    { intros H v es es' σ σ' f f' efs obs. apply (H (S (length es)) v es). lia. } 
     intro len. induction len.
-    { intros v es es' σ σ' efs obs Habs ; inversion Habs. }
-    intros v es es' σ σ' efs obs Hlen Hes Hves.
+    { intros v es es' σ σ' f f' efs obs Habs ; inversion Habs. }
+    intros v es es' σ σ' f f' efs obs Hlen Hes Hves.
     destruct Hes as (obs0 & es0 & σ0 & efs0 & H).
     unfold prim_step, iris.prim_step in Hves.
-    destruct σ as [[??]?].
-    destruct σ' as [[??]?]. 
+
     destruct Hves as (Hred & Hobs & Hefs).
     remember ([AI_const v] ++ es)%list as ves.
-    remember {| f_locs := l ; f_inst := i |} as f.
-    remember {| f_locs := l0 ; f_inst := i0 |} as f0.
+
     unfold language.prim_step, wasm_lang, iris.prim_step in H.
-    destruct σ0 as [[[??]?]?] ; destruct H as (Hred0 & Hobs0 & Hefs0).
+    destruct es0.
+    destruct H as (Hred0 & Hobs0 & Hefs0).
     induction Hred.
     destruct H.
     28:{ (* block *)
@@ -655,7 +666,6 @@ Section split_reduce_properties.
          exists (LH_base vs es').
          2: eexists (LH_handler bef hs lh' aft).
          3: eexists (LH_prompt bef ts hs lh' aft).
-         all: inversion Heqf0; subst.
          all: repeat split => //.
          all: apply/lfilledP.
          all: constructor => //.  } 
@@ -664,14 +674,14 @@ Section split_reduce_properties.
          move/lfilledP in H0.
          inversion H; subst; inversion H0; subst.
          - destruct vs.
-           + destruct es1 ; first by empty_list_no_reduce.
+           + destruct es0 ; first by empty_list_no_reduce.
              inversion H5; subst.
              destruct es'0.
              * rewrite cats0. rewrite cats0 in IHHred.
                 repeat rewrite cats0 /=.
                 rewrite cats0 in Hred0.
                 apply IHHred => //.
-             * clear IHHred. destruct (to_val es1) eqn:Htv.
+             * clear IHHred. destruct (to_val0 es0) eqn:Htv.
                -- destruct v0.
                   ++ exfalso ; values_no_reduce.
                      rewrite const_const => //=.
@@ -693,8 +703,6 @@ Section split_reduce_properties.
                         destruct vs; last by destruct vs; inversion H10.
                         inversion H10; subst.
                         split ; unfold lfilled, lfill => //=.
-                        split => //.
-                        inversion Heqff'; subst. done.
                      ** move/lfilledP in H2; move/lfilledP in H3.
                         inversion H2; subst; inversion H3; subst.
                         all: try by destruct v; try destruct v; do 3 destruct vs => //.
@@ -716,23 +724,23 @@ Section split_reduce_properties.
                             destruct es; first by empty_list_no_reduce.
                             inversion H11; subst. destruct es, es'1 => //.
                             apply AI_trap_irreducible in Hred => //.
-                  ++ exfalso. unfold to_val, iris.to_val in Htv.
+                  ++ exfalso. unfold to_val, iris.to_val0 in Htv.
                      apply reduce_val_false in Hred;[done|].
-                     unfold iris.to_val => /=.
+                     unfold iris.to_val0 => /=.
                      rewrite merge_prepend.
                      destruct (merge_values _) => //.
                      inversion Htv => //=. destruct v => //.
                      destruct v => //.
-                  ++ exfalso. unfold to_val, iris.to_val in Htv.
+                  ++ exfalso. unfold to_val, iris.to_val0 in Htv.
                      apply reduce_val_false in Hred;[done|].
-                     unfold iris.to_val => /=.
+                     unfold iris.to_val0 => /=.
                      rewrite merge_prepend.
                      destruct (merge_values _) => //.
                      inversion Htv => //=. destruct v => //.
                      destruct v => //.
-                  ++ exfalso. unfold to_val, iris.to_val in Htv.
+                  ++ exfalso. unfold to_val, iris.to_val0 in Htv.
                      apply reduce_val_false in Hred;[done|].
-                     unfold iris.to_val => /=.
+                     unfold iris.to_val0 => /=.
                      rewrite merge_prepend.
                      destruct (merge_values _) => //.
                      inversion Htv => //=. destruct v => //.
@@ -740,17 +748,16 @@ Section split_reduce_properties.
                -- edestruct prim_step_split_reduce_r as
                     [ (es'' & H01 & H2) | (n & m & lh & H01 & H2 & Hσ) ].
                   exact Htv. unfold prim_step.
-                  instantiate (5 := (_, _, _)).
-                  instantiate (8 := (_, _, _)).
                   simpl. split; first exact Hred0. split => //.
                   ++ subst.
                      edestruct IHlen as [[Hdrop Hstep] | (lh & lh' & Hfill & Hfill' & Hσ)].
                      2:{ unfold reducible, language.reducible.
                          repeat eexists.
                          unfold language.prim_step. simpl.
+                         instantiate (7 := (_, _)).
                          exact H2. }
                      rewrite length_app /= in Hlen. lia.
-                     unfold prim_step. instantiate (5 := (_,_,_)) => /=.
+                     unfold prim_step. 
                      split; first exact Hred. split => //.
                      ** left. repeat split => //=.
                         rewrite Hdrop. rewrite <- app_assoc.
@@ -784,13 +791,13 @@ Section split_reduce_properties.
                             move/lfilledP in H7.
                             unfold lfilled in H7.
                             destruct (lfill _ _ _) => //.
-                            move/eqP in H7; subst l2.
+                            move/eqP in H7; subst l.
                             rewrite -catA //.
                         --- instantiate (1 := LH_prompt bef ts hs lh'0 (aft ++ a :: es'0)).
                             rewrite /= H6.
                             move/lfilledP in H7. unfold lfilled in H7.
                             destruct (lfill _ _ _) => //.
-                            move/eqP in H7; subst l2.
+                            move/eqP in H7; subst l.
                             rewrite -catA //.
                         --- instantiate (1 := LH_base vs (es' ++ a :: es'0)).
                             rewrite /= H7 -cat_app -catA //.
@@ -798,14 +805,14 @@ Section split_reduce_properties.
                             rewrite /= H7. move/lfilledP in H8.
                             unfold lfilled in H8.
                             destruct (lfill _ _ _) => //.
-                            move/eqP in H8; subst l2.
+                            move/eqP in H8; subst l.
                             rewrite -catA //.
                         --- instantiate (1 := (LH_prompt bef0 ts hs0 lh'1 (aft0 ++ a :: es'0))).
                             rewrite /= H7.
                             move/lfilledP in H8.
                             unfold lfilled in H8.
                             destruct (lfill _ _ _) => //.
-                            move/eqP in H8; subst l2.
+                            move/eqP in H8; subst l.
                             rewrite -catA //.
                         --- instantiate (1 := (LH_base vs (es' ++ a :: es'0))).
                             rewrite /= H7 -cat_app -catA //.
@@ -813,13 +820,13 @@ Section split_reduce_properties.
                             rewrite /= H7.
                             move/lfilledP in H8. unfold lfilled in H8.
                             destruct (lfill _ _ _) => //.
-                            move/eqP in H8; subst l2.
+                            move/eqP in H8; subst l.
                             rewrite -catA //.
                         --- instantiate (1 := (LH_prompt bef0 ts0 hs0 lh'1 (aft0 ++ a :: es'0))).
                             rewrite /= H7.
                             move/lfilledP in H8. unfold lfilled in H8.
                             destruct (lfill _ _ _) => //.
-                            move/eqP in H8; subst l2.
+                            move/eqP in H8; subst l.
                             rewrite -catA //.
                   ++ right.
                      edestruct lfilled_prepend_append as [? Hfillres].
@@ -886,30 +893,28 @@ Section split_reduce_properties.
 
     20:{ (* select *)
       exfalso; clear Hlen IHlen; induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
-        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-      [ by move/lfilledP in H01; inversion H01; subst ;
-          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
-        destruct v1, v2; destruct v0, v1; do 4 destruct bef => // 
-      |  move/lfilledP in H00; inversion H00; subst;
-          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
-          try (by destruct v1, v2; destruct v0, v1; do 4 destruct bef => //);
-          destruct vs;
-          first (
-              repeat (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0; try rewrite /= const_const);
-
-              inversion Heqves; subst;
-              destruct es => //; apply IHHred0 => //
-      )].
-      apply const_inj in H1 as -> => //.
-      inversion Heqves; subst.
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]. 
+      all: try (by inversion Heqves).
+      all: try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves).
+      all: try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves).
+      - move/lfilledP in H01; inversion H01; subst.
+        all: try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //).
+        all: destruct v1, v2; destruct v0, v1; do 4 destruct bef => //.
+      -  move/lfilledP in H00; inversion H00; subst.
+         all: try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //).
+         all: try (by destruct v1, v2; destruct v0, v1; do 4 destruct bef => //).
+         destruct vs.
+         do 3 (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0; try rewrite /= const_const).
+         destruct es; first by inversion Heqves; subst.
+         inversion Heqves => //.
+         inversion Heqves => //.
+         apply const_inj in H1 as ->.
+         subst a.
       destruct vs.
-      - destruct es; first empty_list_no_reduce.
+      + destruct es; first empty_list_no_reduce.
         inversion H3; subst.
         destruct es; first by apply values_no_reduce in Hred0.
-        inversion H4; subst.
+        inversion H2; subst.
         destruct es, es'0 => //.
         clear - Hred0.
         lazymatch goal with
@@ -958,10 +963,10 @@ Section split_reduce_properties.
               destruct es => //; apply IHHred0 => //
       )].
         inversion H3; subst => //.
-      - inversion H3; subst => //.
+      + inversion H3; subst => //.
           destruct vs; last by destruct vs, es, es'0 => //; empty_list_no_reduce.
         destruct es; first by empty_list_no_reduce.
-        inversion H4; destruct es, es'0 => //; subst.
+        inversion H2; destruct es, es'0 => //; subst.
         clear - Hred0.
              lazymatch goal with
         | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
@@ -984,32 +989,30 @@ Section split_reduce_properties.
               destruct es => //; apply IHHred0 => //
       )].
         inversion H3; subst => //. }
-   20:{ (* select *)
+     20:{ (* select *)
       exfalso; clear Hlen IHlen; induction Hred0 as [? ? ? ? H00 | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ???????????? H00 H01 | ];
-        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]; 
-        try (by inversion Heqves);
-        try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves);
-      try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves);
-      [ by move/lfilledP in H01; inversion H01; subst ;
-          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
-        destruct v1, v2; destruct v0, v1; do 4 destruct bef => // 
-      |  move/lfilledP in H00; inversion H00; subst;
-          try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //);
-          try (by destruct v1, v2; destruct v0, v1; do 4 destruct bef => //);
-          destruct vs;
-          first (
-              do 4 try (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0; try rewrite /= const_const);
-
-              inversion Heqves; subst;
-              destruct es => //; apply IHHred0 => //
-      )].
-      apply const_inj in H2 as -> => //.
-      inversion Heqves; subst.
+        first destruct H00 as [| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | ??? H01 ]. 
+      all: try (by inversion Heqves).
+      all: try (by destruct vs; try destruct vs; try destruct vs; try destruct vs; inversion Heqves).
+      all: try (by destruct ves; try destruct ves; try destruct ves; try destruct ves; inversion Heqves).
+      - move/lfilledP in H01; inversion H01; subst.
+        all: try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //).
+        all: destruct v1, v2; destruct v0, v1; do 4 destruct bef => //.
+      -  move/lfilledP in H00; inversion H00; subst.
+         all: try (by destruct v1, v2; destruct v0, v1; do 4 destruct vs => //).
+         all: try (by destruct v1, v2; destruct v0, v1; do 4 destruct bef => //).
+         destruct vs.
+         do 3 (destruct es; first by inversion Heqves; subst; apply values_no_reduce in Hred0; try rewrite /= const_const).
+         destruct es; first by inversion Heqves; subst.
+         inversion Heqves => //.
+         inversion Heqves => //.
+         apply const_inj in H2 as ->.
+         subst a.
       destruct vs.
-      - destruct es; first empty_list_no_reduce.
-        inversion H4; subst.
+      + destruct es; first empty_list_no_reduce.
+        inversion H4 ; subst.
         destruct es; first by apply values_no_reduce in Hred0.
-        inversion H5; subst.
+        inversion H3; subst.
         destruct es, es'0 => //.
         clear - Hred0.
         lazymatch goal with
@@ -1058,10 +1061,10 @@ Section split_reduce_properties.
               destruct es => //; apply IHHred0 => //
       )].
         inversion H3; subst => //.
-      - inversion H4; subst => //.
+      + inversion H4; subst => //.
           destruct vs; last by destruct vs, es, es'0 => //; empty_list_no_reduce.
         destruct es; first by empty_list_no_reduce.
-        inversion H5; destruct es, es'0 => //; subst.
+        inversion H3; destruct es, es'0 => //; subst.
         clear - Hred0.
              lazymatch goal with
         | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves end.
@@ -1084,6 +1087,7 @@ Section split_reduce_properties.
               destruct es => //; apply IHHred0 => //
       )].
         inversion H3; subst => //. }
+  
     
     all: try subst vs.
       

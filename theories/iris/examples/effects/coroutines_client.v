@@ -770,13 +770,14 @@ Section coroutines_client_module.
     iApply ewp_val_app.
     done.
     iSplitR; last first.
+    instantiate (1 := λ v f, (⌜ v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
     iApply ewp_wand.
     iApply ewp_ref_func.
     done.
     auto_instantiate.
     iIntros (??) "[->->]".
     iSimpl.
-    auto_instantiate.
+    done.
     by iIntros "!>" (?) "[% _]".
     2: by iIntros (?) "[% _]".
     iIntros (??) "[->->]".
@@ -875,7 +876,7 @@ Section coroutines_client_adequacy.
   Context {ms_preg: gen_heapGpreS N module Σ}.
   Context {has_preg: gen_heapGpreS N host_action Σ}.
   Context {tag_preg: gen_heapGpreS N function_type Σ}.
-  Context {cont_preg: gen_heapGpreS N continuation Σ}.
+  Context {cont_preg: gen_heapGpreS N continuation_resource Σ}.
   Context {one_shotg: one_shotG Σ}.
 
   Definition near_empty_store : store_record := Build_store_record [] [] [] [] [ {| g_mut := MUT_mut; g_val := xx 0 |};  {| g_mut := MUT_mut; g_val := xx 0 |} ] [] [].
@@ -926,7 +927,7 @@ Section coroutines_client_adequacy.
       iMod (@gen_heap_init _ _ _ _ _ memlimit_preg (∅:gmap N (option N))) as (memlimit_heapg) "[Hmemlimit_ctx _]".
       iMod (gen_heap_init (∅:gmap N global)) as (global_heapg) "[Hglobal_ctx _]".
       iMod (gen_heap_init (∅: gmap N function_type)) as (tag_heapg) "[Htag_ctx _]".
-      iMod (gen_heap_init (∅: gmap N continuation)) as (cont_heapg) "[Hcont_ctx _]".
+      iMod (gen_heap_init (∅: gmap N continuation_resource)) as (cont_heapg) "[Hcont_ctx _]".
       
 (*      apply (@gen_heapGpreS_heap) in locs_preg as frame_heapg.
       iMod (ghost_map_alloc (∅:gmap unit frame)) as (γframe) "[Hframe_ctx _]". *)
@@ -973,7 +974,8 @@ Section coroutines_client_adequacy.
 
       iDestruct ("HH" with "[]") as "HH";[auto|].
       iModIntro.
-      iExists _,_. iFrame "HH". iFrame. }
+      iExists _,_. iFrame "HH".
+      simpl. iFrame. }
     intros v Hval.
     destruct X. eapply adequate_result with (t2 := []).
     apply iris_host.of_to_val in Hval as <-. eauto.
@@ -1002,7 +1004,7 @@ Proof.
               gen_heapΣ N module;
                gen_heapΣ N host_action;
                gen_heapΣ N function_type;
-               gen_heapΣ N continuation;
+               gen_heapΣ N continuation_resource;
                one_shotΣ
       ]).
   eapply (@coroutines_client_adequacy Σ); typeclasses eauto.

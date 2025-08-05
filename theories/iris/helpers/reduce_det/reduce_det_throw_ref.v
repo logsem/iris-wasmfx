@@ -6,7 +6,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Lemma throw_ref_null_det tf s f s' f' es:
   reduce s f [AI_basic (BI_ref_null tf); AI_basic BI_throw_ref] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_ref_null tf); AI_basic BI_throw_ref]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => Hred.
   only_one.
@@ -46,13 +46,13 @@ Lemma throw_ref_desugar_det vs a exn i s f s' f' es:
   nth_error (s_exns s) a = Some exn ->
   vs = e_fields exn ->
   reduce s f [AI_ref_exn a i; AI_basic BI_throw_ref] s' f' es ->
-  reduce_det_goal s f [AI_throw_ref_desugared vs a i] s' f' es [AI_ref_exn a i; AI_basic BI_throw_ref]. 
+  reduce_det_strong_goal s f [AI_throw_ref_desugared vs a i] s' f' es.
 Proof.
   move => Hexn -> Hred.
   only_one.
   inversion Heqesnew; subst.
   rewrite Hexn in H; inversion H; subst.
-  repeat split => //; by left.
+  repeat split => //.
   inversion H3; subst.
     destruct vs0; inversion H4; subst => //.
     destruct esnewest; first empty_list_no_reduce.
@@ -88,7 +88,7 @@ Lemma throw_ref_det i hh vs a LI l hs s f s' f' es':
   hfilled (Var_handler i) hh [AI_throw_ref_desugared vs a i] LI ->
   firstx_exception hs i = Clause_label l ->
   reduce s f [AI_handler hs LI] s' f' es' ->
-  reduce_det_goal s f (v_to_e_list vs ++ [AI_basic (BI_br l)]) s' f' es' [AI_handler hs LI]. 
+  reduce_det_strong_goal s f (v_to_e_list vs ++ [AI_basic (BI_br l)]) s' f' es' .
 Proof.
   intros Hfill Hfirst Hred.
    lazymatch goal with
@@ -124,7 +124,7 @@ Proof.
     all: try done.
     destruct H2 as [_ ->] => //.
     inversion H1; subst.
-    rewrite H0 in Hfirst; inversion Hfirst; subst. repeat split => //; by left.
+    rewrite H0 in Hfirst; inversion Hfirst; subst. repeat split => //.
   - inversion Heqves'; subst.
     edestruct hfilled_first_values as (? & ?).
     instantiate (3 := []).
@@ -157,7 +157,7 @@ Lemma throw_ref_ref_det i hh vs a LI l hs s f s' f' es':
   hfilled (Var_handler i) hh [AI_throw_ref_desugared vs a i] LI ->
   firstx_exception hs i = Clause_label_ref l ->
   reduce s f [AI_handler hs LI] s' f' es' ->
-  reduce_det_goal s f (v_to_e_list vs ++ [AI_ref_exn a i; AI_basic (BI_br l)]) s' f' es' [AI_handler hs LI]. 
+  reduce_det_strong_goal s f (v_to_e_list vs ++ [AI_ref_exn a i; AI_basic (BI_br l)]) s' f' es'.
 Proof.
   intros Hfill Hfirst Hred.
    lazymatch goal with
@@ -202,7 +202,7 @@ Proof.
     all: try done.
     destruct H2 as [_ ->] => //.
     inversion H1; subst.
-    rewrite H0 in Hfirst; inversion Hfirst; subst. repeat split => //; by left.
+    rewrite H0 in Hfirst; inversion Hfirst; subst. repeat split => //.
 
 
   - move/lfilledP in H; inversion H; subst.

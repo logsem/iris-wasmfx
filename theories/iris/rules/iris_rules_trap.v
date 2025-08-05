@@ -10,18 +10,18 @@ Set Bullet Behavior "Strict Subproofs".
 Section trap_rules.
   Context `{!wasmG Σ}.
 
-  Lemma ewp_trap (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) (vs1 es2 : iris.expr) f:
+  Lemma ewp_trap (E : coPset) Ψ (Φ : iris.val0 -> frame -> iProp Σ) (vs1 es2 : expr0) f:
     const_list vs1 ->
     Φ trapV f -∗
     EWP vs1 ++ [AI_trap] ++ es2 UNDER f @ E <| Ψ |> {{ v ; f, Φ v f }}.
   Proof.
     iLöb as "IH" forall (E vs1 es2 f). 
     iIntros (Hconst) "HΦ".
-    destruct (iris.to_val (vs1 ++ [AI_trap] ++ es2)) eqn:Hsome.
+    destruct (iris.to_val0 (vs1 ++ [AI_trap] ++ es2)) eqn:Hsome.
     { destruct vs1,es2 => //;[|by erewrite to_val_not_trap_interweave in Hsome;auto..].
       rewrite app_nil_l app_nil_r.
       iApply ewp_value;[|iFrame]. done. }
-    assert (to_eff (vs1 ++ [AI_trap] ++ es2) = None) as Hsome'.
+    assert (to_eff0 (vs1 ++ [AI_trap] ++ es2) = None) as Hsome'.
     { apply to_eff_cat_None2 => //.
       apply to_eff_cat_None1 => //. } 
     iApply ewp_unfold.
@@ -31,14 +31,14 @@ Section trap_rules.
     iApply fupd_frame_l.
     iSplit.
     { iPureIntro.
-      eexists _,[AI_trap],(_,_,_),_.
+      eexists _,([AI_trap], _),_,_.
       repeat split;eauto.
       eapply r_simple,rs_trap.
       2: instantiate (1 := LH_base vs1 es2);apply lfilled_Ind_Equivalent;by constructor.
       destruct vs1,es2 => //; destruct vs1 => //. }
     { iApply fupd_mask_intro;[solve_ndisj|].
       iIntros "Hcls".
-      iIntros (e2 σ2 ?? Hstep).
+      iIntros ([e2 ?] σ2 Hstep).
       iModIntro. iNext. iModIntro.
       iMod "Hcls". iModIntro.
       assert (lfilled 0 (LH_base vs1 es2) [AI_trap] (vs1 ++ (AI_trap :: es2))) as Hfill.
@@ -51,7 +51,7 @@ Section trap_rules.
       simplify_eq.
       iFrame. 
       apply lfilled_Ind_Equivalent in Hfill';inversion Hfill';subst.
-      destruct f; iApply ("IH" with "[] HΦ"). auto.
+      iApply ("IH" with "[] HΦ"). auto.
     }
   Qed.
 
@@ -499,7 +499,7 @@ Section trap_rules.
     }
   Qed.
   
-  Lemma ewp_frame_trap (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) n f f0 :
+  Lemma ewp_frame_trap (E : coPset) Ψ (Φ : iris.val0 -> frame -> iProp Σ) n f f0 :
     ↪[frame] f0 -∗
      ▷ (Φ trapV) -∗
      EWP [AI_trap] @ E FRAME n; f <| Ψ |> {{ v, Φ v ∗ ↪[frame] f0 }}.
@@ -670,7 +670,7 @@ Section trap_rules.
           
 (* Sequencing rule which is always allowed to trap *)
 (* This rule is useful in particular for semantic type soundness, which allows traps *)
-  Lemma ewp_seq_can_trap_ctx (E : coPset) Ψ (Φ Ψ : iris.val -> frame -> iProp Σ) (es1 es2 : language.expr wasm_lang) (i : nat) (lh : lholed) (Φf : frame -> iProp Σ) f :
+  Lemma ewp_seq_can_trap_ctx (E : coPset) Ψ (Φ Ψ : iris.val0 -> frame -> iProp Σ) (es1 es2 : language.expr wasm_lang) (i : nat) (lh : lholed) (Φf : frame -> iProp Σ) f :
     (((Ψ trapV ={E}=∗ ⌜False⌝)) ∗ (∀ f, ↪[frame] f ∗ Φf f -∗ Φ trapV) ∗ ↪[frame] f ∗
     (↪[frame] f -∗ EWP es1 @ NotStuck; E {{ w, (⌜w = trapV⌝ ∨ Ψ w) ∗ ∃ f0, ↪[frame] f0 ∗ Φf f0 }}) ∗
     ∀ w f0, Ψ w ∗ ↪[frame] f0 ∗ Φf f0 -∗ EWP (iris.of_val w ++ es2) @ E CTX i; lh <| Ψ |> {{ v, Φ v }})%I
@@ -805,7 +805,7 @@ Section trap_rules.
 } } }
   Qed.
 
-  Lemma ewp_val_can_trap (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (v0 : value) (es : language.expr wasm_lang) f Φf :
+  Lemma ewp_val_can_trap (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (v0 : value) (es : language.expr wasm_lang) f Φf :
     ((Φ trapV ={E}=∗ ⌜False⌝) ∗ ↪[frame] f ∗
        (↪[frame] f -∗ EWP es @ NotStuck ; E {{ v, (⌜v = trapV⌝ ∨ (Φ (val_combine (immV [v0]) v))) ∗ ∃ f, ↪[frame] f ∗ Φf f }})
        ⊢ EWP ((AI_basic (BI_const v0)) :: es) @ E <| Ψ |> {{ v, (⌜v = trapV⌝ ∨ Φ v) ∗ ∃ f, ↪[frame] f ∗ Φf f }})%I.
@@ -917,7 +917,7 @@ Section trap_rules.
 
   (* Some alternative formulations, useful for soundness proof *)
 
-  Lemma ewp_val_can_trap_app' (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs (es : language.expr wasm_lang) f Φf :
+  Lemma ewp_val_can_trap_app' (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) vs (es : language.expr wasm_lang) f Φf :
     (□ ((Φ trapV ={E}=∗ ⌜False⌝))) ∗ ↪[frame] f ∗
                      (↪[frame] f -∗  EWP es @ NotStuck ; E {{ v, (⌜v = trapV⌝ ∨ (Φ (val_combine (immV vs) v))) ∗ ∃ f, ↪[frame] f ∗ Φf f }}%I)
                      ⊢ EWP ((v_to_e_list vs) ++ es) @ E <| Ψ |> {{ v, (⌜v = trapV⌝ ∨ Φ v) ∗ ∃ f, ↪[frame] f ∗ Φf f }}%I.
@@ -949,7 +949,7 @@ Section trap_rules.
     }
   Qed.
 
-  Lemma ewp_val_return' (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs vs' es' es'' n f0 Φf :
+  Lemma ewp_val_return' (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) vs vs' es' es'' n f0 Φf :
     const_list vs ->
     ↪[frame] f0 -∗
      (↪[frame] f0 -∗ EWP vs' ++ vs ++ es'' @ E <| Ψ |> {{ v, Φ v ∗ ∃ f, ↪[frame] f ∗ Φf f }})
@@ -978,7 +978,7 @@ Section trap_rules.
       by iApply "HWP".
   Qed.
 
-  Lemma ewp_val_can_trap_app (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) vs v' (es : language.expr wasm_lang) f Φf :
+  Lemma ewp_val_can_trap_app (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) vs v' (es : language.expr wasm_lang) f Φf :
     iris.to_val vs = Some (immV v') ->
     (□ ((Φ trapV ={E}=∗ ⌜False⌝))) ∗ ↪[frame] f ∗
                      (↪[frame] f -∗ EWP es @ NotStuck ; E {{ v, (⌜v = trapV⌝ ∨ Φ (val_combine (immV v') v)) ∗ ∃ f, ↪[frame] f ∗ Φf f }})%I
@@ -991,7 +991,7 @@ Section trap_rules.
   Qed.
   
 
-Lemma ewp_seq_can_trap_same_ctx Ψ (Φ Ψ : iris.val -> frame -> iProp Σ) (E : coPset) (es1 es2 : language.expr wasm_lang) f i lh :
+Lemma ewp_seq_can_trap_same_ctx Ψ (Φ Ψ : iris.val0 -> frame -> iProp Σ) (E : coPset) (es1 es2 : language.expr wasm_lang) f i lh :
     (Ψ trapV ={E}=∗ False) ∗ (Φ trapV) ∗ ↪[frame] f ∗
     (↪[frame] f -∗ EWP es1 @ NotStuck; E {{ w, (⌜w = trapV⌝ ∨ Ψ w) ∗ ↪[frame] f }}) ∗
     (∀ w, Ψ w ∗ ↪[frame] f -∗ EWP (iris.of_val w ++ es2) @ E CTX i; lh <| Ψ |> {{ v, Φ v ∗ ↪[frame] f }})%I
@@ -1013,7 +1013,7 @@ Lemma ewp_seq_can_trap_same_ctx Ψ (Φ Ψ : iris.val -> frame -> iProp Σ) (E : 
       iIntros (v) "[$ Hv]". iExists _. iFrame. eauto. }
   Qed.
 
-Lemma ewp_seq_can_trap_same_empty_ctx Ψ (Φ Ψ : iris.val -> frame -> iProp Σ) (E : coPset) (es1 es2 : language.expr wasm_lang) f :
+Lemma ewp_seq_can_trap_same_empty_ctx Ψ (Φ Ψ : iris.val0 -> frame -> iProp Σ) (E : coPset) (es1 es2 : language.expr wasm_lang) f :
     (Ψ trapV ={E}=∗ False) ∗ (Φ trapV) ∗ ↪[frame] f ∗
     (↪[frame] f -∗ EWP es1 @ NotStuck; E {{ w, (⌜w = trapV⌝ ∨ Ψ w) ∗ ↪[frame] f }}) ∗
     (∀ w, Ψ w ∗ ↪[frame] f -∗ EWP (iris.of_val w ++ es2) @ E <| Ψ |> {{ v, Φ v ∗ ↪[frame] f }})%I

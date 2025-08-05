@@ -257,8 +257,8 @@ Lemma call_host_no_reduce tf h vcs s0 f s'0 f' es' llh LI:
 Proof.
   intros HLI Hred.
   apply val_head_stuck_reduce in Hred.
-  replace (llfill llh [AI_call_host tf h vcs]) with (of_val (callHostV tf h vcs llh)) in HLI => //. 
-  subst. rewrite to_of_val in Hred => //.
+  replace (llfill llh [AI_call_host tf h vcs]) with (of_val0 (callHostV tf h vcs llh)) in HLI => //. 
+  subst. rewrite to_of_val0 in Hred => //.
 Qed.
 
 Lemma execute_action_det f s vcs s1 f0 res1 s2 res2 :
@@ -379,7 +379,7 @@ Definition state : Type := store_record * vi_store * (list module) * (list host_
 Definition observation := unit. 
 
 Definition of_val (v: host_val) : host_expr :=
-  let '(v, f) := v in ([::], iris.of_val (val_of_host_val v), f).
+  let '(v, f) := v in ([::], iris.of_val0 (val_of_host_val v), f).
 
 Lemma of_val_imm (vs : list value) f:
   ([::], ((λ v : value, AI_const v) <$> vs), f) = of_val (immHV vs, f).
@@ -388,7 +388,7 @@ Proof. done. Qed.
 Definition to_val (e: host_expr) : option host_val :=
   match e with
   | (e' :: es, _,_) => None
-  | ([::], wes, f) => match iris.to_val wes with
+  | ([::], wes, f) => match iris.to_val0 wes with
                  | Some (immV vs) => Some (immHV vs, f)
                  | Some (trapV) => Some (trapHV, f)
                  | Some (brV _ _) 
@@ -411,7 +411,7 @@ Lemma to_of_val v : to_val (of_val v) = Some v.
 Proof.
   unfold to_val, of_val.
   destruct v => //=. 
-  rewrite iris.to_of_val.
+  rewrite iris.to_of_val0.
   destruct h => //=.
 Qed.
 
@@ -421,8 +421,8 @@ Proof.
   destruct hes => //.
   destruct l => //. 
   move => Htv.
-  destruct (iris.to_val l0) eqn:Hwes => //.
-  apply iris.of_to_val in Hwes.
+  destruct (iris.to_val0 l0) eqn:Hwes => //.
+  apply iris.of_to_val0 in Hwes.
   destruct v0 => //= ; try by simplify_eq. 
 Qed.
 
@@ -433,13 +433,13 @@ Proof.
   rewrite /prim_step.
   move => [[hes wes] f] [[[ws vis] hprog] fs] κ [[hes' wes'] f'] [[[ws' vis'] hprog'] fs'] efs [HRed _].
   induction HRed ; (try destruct idecs) => //=.
-  - destruct (iris.to_val LI) eqn:Hwes => //.
+  - destruct (iris.to_val0 LI) eqn:Hwes => //.
     destruct v => //.
     apply to_val_const_list in Hwes.
     apply llfill_const in H2 => //.
     apply to_val_trap_is_singleton in Hwes as ->.
     apply llfill_trap_singleton in H2 as [??] => //.
-  - destruct (iris.to_val LI) eqn:Hwes => //=.
+  - destruct (iris.to_val0 LI) eqn:Hwes => //=.
     destruct v => //.
     apply to_val_const_list in Hwes.
     apply llfill_const in H1 => //.
@@ -522,7 +522,11 @@ Global Instance host_heapG_irisG `{!wasmG Σ, !hvisG Σ, !hmsG Σ, !hasG Σ} : w
   state_interp σ _ κs _  :=
     let: (s, vis, ms, fs) := σ in
     ((gen_heap_interp (gmap_of_list s.(s_funcs))) ∗
-       (gen_heap_interp (gmap_of_list s.(s_conts))) ∗
+       match resources_of_s_cont s.(s_conts) with 
+     | Some rs => (@gen_heap_interp _ _ _ _ _ cont_gen_hsG (gmap_of_list rs))
+     | None => False
+     end ∗
+(*       (gen_heap_interp (gmap_of_list s.(s_conts))) ∗ *)
      (gen_heap_interp (gmap_of_list s.(s_tags))) ∗
       (gen_heap_interp (gmap_of_table s.(s_tables))) ∗
       (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
@@ -563,8 +567,8 @@ Proof.
   iIntros (Hh HLI HLI' Hexec) "(Hhi & Hwp)".
   iApply (lifting.wp_lift_step s E Φ (hes, LI, fr)).
   - destruct hes => //.
-    fold (iris.of_val (callHostV tf h vcs llh)) in HLI.
-    subst. Opaque iris.of_val. simpl. rewrite iris.to_of_val => //. 
+    fold (iris.of_val0 (callHostV tf h vcs llh)) in HLI.
+    subst. Opaque iris.of_val0. simpl. rewrite iris.to_of_val0 => //. 
   - iIntros (σ ns κ κs nt) "Hσ".
     iApply fupd_mask_intro ; first by solve_ndisj.
     iIntros "Hfupd".
@@ -660,9 +664,9 @@ Proof.
   iIntros (Hh HLI HLI') "(Hhi & Hwp)".
   iApply (lifting.wp_lift_step _ _ _ (_ : host_expr)) => //=.
   - destruct hes => //. subst.
-    Transparent iris.of_val.
-    fold (iris.of_val (callHostV (Tf [] []) (Mk_hostfuncidx hi) [] llh)).
-    rewrite iris.to_of_val => //. 
+    Transparent iris.of_val0.
+    fold (iris.of_val0 (callHostV (Tf [] []) (Mk_hostfuncidx hi) [] llh)).
+    rewrite iris.to_of_val0 => //. 
   - iIntros (σ ns κ κs nt) "Hσ".
     iApply fupd_mask_intro ; first by solve_ndisj.
     iIntros "Hfupd".
@@ -708,8 +712,8 @@ Proof.
   iIntros (Hh HLI HLI' Ha Hn) "(Hhi & Hwt & Hwp)".
   iApply (lifting.wp_lift_step _ _ _ (_ : host_expr)) => //=.
   - destruct hes => //. subst.
-    fold (iris.of_val (callHostV (Tf [T_num T_i32 ; T_num T_i32] []) (Mk_hostfuncidx hi) [VAL_num (VAL_int32 tab_idx) ; VAL_num (VAL_int32 func_idx) ] llh)).
-    rewrite iris.to_of_val => //. 
+    fold (iris.of_val0 (callHostV (Tf [T_num T_i32 ; T_num T_i32] []) (Mk_hostfuncidx hi) [VAL_num (VAL_int32 tab_idx) ; VAL_num (VAL_int32 func_idx) ] llh)).
+    rewrite iris.to_of_val0 => //. 
   - iIntros (σ ns κ κs nt) "Hσ".
     destruct σ as [[[ws vi] ms] has].
     iDestruct "Hσ" as "(Hfunc & ? & ? & Htab & ? & ? & ? & ? & Hha & Hf1 & ? & Htabsize & ?)".
@@ -802,7 +806,7 @@ Proof.
 Qed.
 
 Lemma wp_lift_wasm s E δ es fr Φ:
-  EWP es UNDER fr @ E {{ v ; f , WP ((δ, iris.of_val v, f) : host_expr) @ s; E {{ Φ }} }}
+  EWP es UNDER fr @ E {{ v ; f , WP ((δ, iris.of_val0 v, f) : host_expr) @ s; E {{ Φ }} }}
      ⊢ WP ((δ, es, fr) : host_expr) @ s; E {{ Φ }}.
 Proof.
   iLöb as "IH"
@@ -815,8 +819,8 @@ forall (s E es Φ fr).
     rewrite /ewp_pre /=.
     destruct δ => //.
     simpl in Htv.
-    destruct (iris.to_val es) => //.
-    rewrite weakestpre.wp_unfold /weakestpre.wp_pre /= iris.to_of_val.
+    destruct (iris.to_val0 es) => //.
+    rewrite weakestpre.wp_unfold /weakestpre.wp_pre /= iris.to_of_val0.
     destruct v ; by iMod "Hwp". }
   rewrite weakestpre.wp_unfold.
   iDestruct (ewp_unfold with "Hwp") as "Hwp".
@@ -824,15 +828,15 @@ forall (s E es Φ fr).
   rewrite /weakestpre.wp_pre /=.
   unfold to_val in Htv ; rewrite Htv.
   iIntros (σ ns κ κs nt) "Hσ".
-  destruct (iris.to_val es) eqn:Hes.
-  { apply iris.of_to_val in Hes as <-.
+  destruct (iris.to_val0 es) eqn:Hes.
+  { apply iris.of_to_val0 in Hes as <-.
     iMod "Hwp".
     iDestruct (weakestpre.wp_unfold with "Hwp") as "Hwp".
     rewrite /weakestpre.wp_pre /=.
-    rewrite iris.to_of_val Htv.
+    rewrite iris.to_of_val0 Htv.
     iSpecialize ("Hwp" $! σ ns κ κs nt with "[$]").
     by iApply "Hwp". }
-  destruct (to_eff es) eqn:Hes'.
+  destruct (to_eff0 es) eqn:Hes'.
   { destruct e.
     all: iDestruct "Hwp" as (?) "[??]".
     all: done. } 
@@ -844,21 +848,20 @@ forall (s E es Φ fr).
   iSplit.
   { destruct s => //.
     iPureIntro.
-    destruct Hs as (obs & es' & [[??]?] & efs & ? & -> & ->).
+    destruct Hs as (obs & [es' ?] & ? & efs & ? & -> & ->).
     eexists [], (_,_,_), (_,_,_,_), [].
     repeat split => //.
     eapply HR_wasm_step.
     destruct fr; exact H. }
   iIntros ([[δ2 es2] f2] [[[s2 vis2] ms2] has2] efs (Hred & -> & ->)).
-  destruct Hs as (obs & es' & [[??]?] & efs & Hredes & -> & ->).
+  destruct Hs as (obs & [es' ?] & ? & efs & Hredes & -> & ->).
   inversion Hred ; simplify_eq ; 
     (try by exfalso ; eapply values_no_reduce) ;
     try by subst ; exfalso ; eapply call_host_no_reduce.
-  destruct f2 as [l2 i2].
-  assert (iris.prim_step es (s0, f_locs fr, f_inst fr) [] es2 (s2, l2, i2) []) as Hstep.
+  assert (iris.prim_step (es, fr) s0 [] (es2, f2) s2 []) as Hstep.
   repeat split => //.
-  by destruct fr.
-  iSpecialize ("He2" $! es2 s2 i2 l2 Hstep).
+  
+  iSpecialize ("He2" $! (es2, f2) s2 Hstep).
   iMod "He2".
   iIntros "Hpound". 
   repeat iModIntro.

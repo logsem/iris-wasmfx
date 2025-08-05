@@ -369,6 +369,7 @@ Definition global_agree (g : global) (tg : global_type) : bool :=
 Definition globals_agree (gs : seq global) (n : nat) (tg : global_type) : bool :=
   (n < length gs) && (option_map (fun g => global_agree g tg) (List.nth_error gs n) == Some true).
 
+
 Definition mem_typing (m : memory) (m_t : memory_type) : bool :=
   (N.leb m_t.(lim_min) (mem_size m)) &&
   (m.(mem_max_opt) == m_t.(lim_max)) (* TODO: mismatch *).

@@ -5,7 +5,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 Lemma tee_local_det v i s f s' f' es:
   is_const v ->
   reduce s f [v; AI_basic (BI_tee_local i)] s' f' es ->
-  reduce_det_goal s f [v; v; AI_basic (BI_set_local i)] s' f' es [v; AI_basic (BI_tee_local i)]. 
+  reduce_det_strong_goal s f [v; v; AI_basic (BI_set_local i)] s' f' es.
 Proof.
   move => H Hred.
   destruct v => //; first destruct b => //. 

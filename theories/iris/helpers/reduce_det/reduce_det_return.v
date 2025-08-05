@@ -9,7 +9,7 @@ Lemma return_det vs n i lh s f f0 es s' f' es' :
   length vs = n ->
   lfilled i lh (vs ++ [AI_basic BI_return]) es ->
   reduce s f [AI_local n f0 es] s' f' es' ->
-  reduce_det_goal s f vs s' f' es' [AI_local n f0 es].
+  reduce_det_strong_goal s f vs s' f' es'.
 Proof.
   move => H H0 H1 Hred.
   (* this is the rs_return case. It combines the difficulties of rs_br with
@@ -33,7 +33,7 @@ Proof.
     edestruct lfilled_first_values as (_ & _ & Hsol).
     exact H5. exact H1. all: try done.
     apply Hsol in H4 as [-> ->] => //.
-    repeat split => //. by left.
+
   - move/lfilledP in H4; inversion H4; subst.
     do 2 destruct vs0 => //.
     all: do 2 destruct bef => //.

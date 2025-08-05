@@ -6,7 +6,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Lemma contbind_null_det tf i i' s f s' f' es:
   reduce s f [AI_basic (BI_ref_null tf); AI_basic $ BI_contbind i' i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_ref_null tf); AI_basic $ BI_contbind i' i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -58,7 +58,7 @@ Lemma contbind_det i ts t1s t2s vs k i' hh s f s' f' es' :
   length ts = length vs ->
   nth_error (s_conts s) k = Some (Cont_hh (Tf (ts ++ t1s) t2s) hh) ->
   reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_contbind i i')]) s' f' es' ->
-  reduce_det_goal (new_cont (upd_s_cont s k (Cont_dagger (Tf (ts ++ t1s) t2s))) (Cont_hh (Tf t1s t2s) (hhplug vs hh))) f [AI_ref_cont (length (s_conts s))] s' f' es' (vs ++ [AI_ref_cont k; AI_basic (BI_contbind i i')]).
+  reduce_det_strong_goal (new_cont (upd_s_cont s k (Cont_dagger (Tf (ts ++ t1s) t2s))) (Cont_hh (Tf t1s t2s) (hhplug vs hh))) f [AI_ref_cont (length (s_conts s))] s' f' es'.
 Proof.
   move => Hvs H H0 H1 H2 Hred.
   lazymatch goal with
@@ -87,7 +87,7 @@ Proof.
     rewrite H5 in H0; inversion H0; subst.
     rewrite H7 in H2; inversion H2; subst.
     apply app_inj_2 in H10 as [-> _] => //. 
-    repeat split => //. by left.
+
   - repeat destruct vs => //.
     inversion Heqes0; subst.
     rewrite H3 in H2 => //. 
@@ -105,7 +105,7 @@ Proof.
       apply const_list_split in H6 as [??].
       apply const_list_split in H6 as [??] => //. 
     + destruct vs0.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es; last by empty_list_no_reduce.
@@ -161,7 +161,7 @@ Qed.
 Lemma contbind_dagger_det k tf i i' s f s' f' es:
   nth_error (s_conts s) k = Some (Cont_dagger tf) ->
   reduce s f [AI_ref_cont k; AI_basic $ BI_contbind i' i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_ref_cont k; AI_basic $ BI_contbind i' i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => Hk Hred.
   only_one.

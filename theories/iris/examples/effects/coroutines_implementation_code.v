@@ -223,7 +223,7 @@ Section yield_par.
     iIntros (P1 P2 Q1 Q2 I).
     remember (N.of_nat addr_yield ↦[wf] closure_yield addr_yield addr_par addr_tag)%I as J.
     iExists (λ eid, match eid with
-                    | SuspendE (Mk_tagidx n) => if (Nat.eqb n addr_tag) then (! immV [] {{ I ∗ J }} ; ? immV [] {{ I ∗ J }})%iprot else iProt_bottom
+                    | SuspendE (Mk_tagidx n) => if (Nat.eqb n addr_tag) then (!  [] {{ I ∗ J }} ; ? [] {{ I ∗ J }})%iprot else iProt_bottom
                     | _ => iProt_bottom
                     end).
     iSplit.
@@ -246,12 +246,12 @@ Section yield_par.
           instantiate (5 := []) => /=.
           rewrite app_nil_r. done. }
       rewrite - (app_nil_l [AI_basic _]).
-      iApply ewp_suspend_desugar.
+      iApply ewp_suspend.
       done. done.
       2: by instantiate (1 := []).
       by instantiate (1 := []).
       iFrame "Htag".
-      iApply ewp_suspend.
+(*      iApply ewp_suspend. *)
 
       rewrite Nat.eqb_refl.
       rewrite (upcl_tele' [tele] [tele]).
@@ -292,7 +292,7 @@ Section yield_par.
       iSplitR "Hcl" ; last first.
       { iIntros (??) "(-> & HQ1 & HQ2 & HI & Hf1 & Hf2 & Hyield)".
         iApply ewp_frame_value.
-        rewrite to_of_val //.
+        rewrite to_of_val0 //.
         done.
         subst J.
         iFrame. done. }
@@ -396,7 +396,7 @@ Section yield_par.
                    match eid with
                    | SuspendE (Mk_tagidx n) =>
                        if n =? addr_tag
-                       then (!immV []{{ I ∗ J }};? immV [] {{ I ∗ J }} )%iprot
+                       then (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot
                        else iProt_bottom
                    | _ => iProt_bottom
                    end
@@ -406,12 +406,12 @@ Section yield_par.
       instantiate (1 := λ v, (⌜ v = immV [] ⌝ ∗ Q1 v ∗ Q2 v ∗ I)%I). *)
       
       iAssert ( ∀ kaddra kaddrb b conta,
-                  (I ∗ J ∗ N.of_nat kaddra ↦[wcont] Cont_hh emptyt conta  ∗
-                     (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var conta [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ J }})  ∗
-                     ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Cont_hh emptyt contb ∗ (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var contb [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }})) ∨ (⌜ b = 1 ⌝ ∗ Q2 ∗ N.of_nat f2 ↦[wf] cl2 ))) ∨
-                    (I ∗ J ∗ N.of_nat kaddra ↦[wcont] Cont_hh emptyt conta  ∗
-                       (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var conta [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }})  ∗
-                       ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Cont_hh emptyt contb ∗ (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var contb [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ J }})) ∨ (⌜ b = 1 ⌝ ∗ Q1 ∗ N.of_nat f1 ↦[wf] cl1 )))  -∗
+                  (I ∗ J ∗ N.of_nat kaddra ↦[wcont] Live emptyt conta  ∗
+                     (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed conta) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ J }})  ∗
+                     ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Live emptyt contb ∗ (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed contb) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }})) ∨ (⌜ b = 1 ⌝ ∗ Q2 ∗ N.of_nat f2 ↦[wf] cl2 ))) ∨
+                    (I ∗ J ∗ N.of_nat kaddra ↦[wcont] Live emptyt conta  ∗
+                       (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed conta) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }})  ∗
+                       ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Live emptyt contb ∗ (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed contb) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ J }})) ∨ (⌜ b = 1 ⌝ ∗ Q1 ∗ N.of_nat f1 ↦[wf] cl1 )))  -∗
                                                                                                                                                                                                                                               EWP [] ++
                                                                                                                                                                                                                                               [AI_basic
                                                                                                                                                                                                                                                  (BI_loop (Tf [] [])
@@ -428,8 +428,8 @@ Section yield_par.
                                                                                                                                                                                                                                                    VAL_ref (VAL_ref_cont kaddra); VAL_ref (VAL_ref_cont kaddrb);
                                                                                                                                                                                                                                                    VAL_num (xx b)];
                                                                                                                                                                                                                                                 f_inst := coroutine_inst addr_yield addr_par addr_tag
-                                                                                                                                                                                                                                              |} {{w;f0,ewp_wasm_ctx ⊤ (of_val w) f0 (λ _ : effect_identifier, iProt_bottom)
-                                                                                                                                                                                                                                                          (λ (w0 : iris_resources.val) (_ : frame), ⌜
+                                                                                                                                                                                                                                              |} {{w;f0,ewp_wasm_ctx ⊤ (of_val0 w) f0 (λ _ : effect_identifier, iProt_bottom)
+                                                                                                                                                                                                                                                          (λ (w0 : val0) (_ : frame), ⌜
                                                                                                                                                                                                                                                                                                       w0 = immV []⌝ ∗ Q1 ∗ Q2 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ N.of_nat f2 ↦[wf] cl2 ∗ J ) 1
                                                                                                                                                                                                                                                           (LH_rec [] 0 [] (LH_base [] []) [])  }}
               )%I as "H".
@@ -500,7 +500,7 @@ Section yield_par.
         iSplitR "Hb".
         rewrite -(app_nil_l [AI_ref_cont _;_]).
         
-        iApply (ewp_resume with "[$Hconta $Hruna]").
+        iApply (ewp_resume). (* with "[Hconta Hruna]"). *)
         done. done. done.
         simpl. instantiate (1 := [_]) => //.
         unfold agree_on_uncaptured => /=.
@@ -509,6 +509,7 @@ Section yield_par.
         destruct (i == Mk_tagidx addr_tag) eqn:Hi => //.
         move/eqP in Hi.
         intros _.
+        instantiate (1 := Ψ).
         subst Ψ; simpl.
         destruct i => //.
         destruct (n =? addr_tag) eqn:Hn => //.
@@ -516,7 +517,9 @@ Section yield_par.
         exfalso; by apply Hi.
         by subst Ψ.
         by subst Ψ.
-        by destruct (hfilled No_var conta [] LI).
+        done.
+        iFrame "Hconta".
+        iFrame "Hruna".
         iSplitR.
         by iIntros (?) "[% ?]".
         iSplitR; last first.
@@ -524,21 +527,19 @@ Section yield_par.
         iSplitR.
         iIntros "!>" (w) "(-> & HQ & HI & Hf1 & Hyield)".
         iApply (ewp_prompt_value with "[-]").
-        rewrite to_of_val => //.
+        rewrite to_of_val0 => //.
         instantiate (1 := λ v, ((⌜ v = immV [] ⌝ ∗ I ∗ J ∗ Q1 ∗ N.of_nat f1 ↦[wf] cl1) ∨ _)%I).
         iLeft. iFrame. done. 
         iSimpl.
         iSplitL; last done.
         iIntros "!>" (vs kaddr h) "Hcont HΨ".
         iApply ewp_value.
-        unfold IntoVal.
-        apply of_to_val.
-        unfold to_val.
+        unfold to_val0.
         rewrite map_app merge_app.
         specialize (@const_list_to_val (v_to_e_list vs)) as (vs' & Htv & Hinj).
         apply v_to_e_is_const_list.
         apply v_to_e_inj in Hinj as ->.
-        unfold to_val in Htv.
+        unfold to_val0 in Htv.
         destruct (merge_values _); try by exfalso.
         inversion Htv; subst.
         simpl.
@@ -617,7 +618,7 @@ Section yield_par.
             iIntros (??) "[-> ->]".
             iSimpl.
             iApply ewp_value.
-            apply of_to_val. done.
+            done.
             (*            iSplitL; last first.
             instantiate (1 := λ f, (⌜ b = 0 ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∨ ⌜ b = 1 ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∨ ⌜ f = Build_frame _ _ ⌝ )%I).  
             by iLeft. 
@@ -627,7 +628,7 @@ Section yield_par.
             inversion H8; subst.
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             iSimpl.
             instantiate (1 := λ v f, ((∃ contb, ⌜ v = brV (VH_rec [] 1 [] (VH_base 0 [] []) []) ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∗ _) ∨ (⌜ v = brV (VH_rec [] 1 []
@@ -650,7 +651,7 @@ Section yield_par.
             iApply ewp_br_if_true.
             by subst.
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             iNext.
             by instantiate (1 := λ v f, (⌜ v = brV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
@@ -658,7 +659,7 @@ Section yield_par.
             iIntros (??) "[-> ->]".
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             (*            iSplitL; last first.
             by iRight.
@@ -668,7 +669,7 @@ Section yield_par.
             inversion H8; subst.
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
+
             done. simpl in *.
             iRight. iLeft. iSimpl.
             iSplit; first done.
@@ -677,7 +678,7 @@ Section yield_par.
             iExact "H".
         * (* Case 2: the continuation yielded *)
           iSimpl.
-          replace (Ψ (SuspendE (Mk_tagidx addr_tag))) with (!immV []{{ I ∗ J }};? immV [] {{ I ∗ J }} )%iprot.
+          replace (Ψ (SuspendE (Mk_tagidx addr_tag))) with (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot.
           2:{ subst Ψ. rewrite Nat.eqb_refl. done. }
           rewrite (upcl_tele' [tele] [tele]).
           simpl.
@@ -685,21 +686,25 @@ Section yield_par.
           inversion Heq; subst.
           iSimpl.
           iApply ewp_value.
-          apply of_to_val.
           done.
           iIntros (LI' HLI').
           move/lfilledP in HLI'; inversion HLI'; subst.
           inversion H8; subst.
           iSimpl.
           iApply ewp_br.
-          3:{ instantiate (1 := 0).
+          3:{ simpl in H9.  simpl in HLI'.
+              instantiate (1 := 0).
               instantiate (1 := [AI_ref_cont kaddr]).
               instantiate (1 := LH_base [] _).
-              rewrite /lfilled /lfill //=. } 
+              rewrite /lfilled /lfill //=.
+              inversion H9; subst.
+              simpl.
+              done.
+          } 
           done.
           done.
           iApply ewp_value.
-          apply of_to_val.
+
           done.
           iRight. iRight.
           iExists kaddr, h.
@@ -712,7 +717,6 @@ Section yield_par.
           iDestruct "H" as "[(%contb & -> & -> & Hcontb & Hrunb & HI & Hyield & HQ1 & Hf1) | [(-> & -> & HQ1 & HQ2 & Hf1 & Hf2 & HI & Hyield) | (%kaddr & %h & -> & -> & Hb & Hcont & [HI Hyield] & Hrunb)]]".
           -- (* Case 1a *)
             iApply ewp_value.
-            apply of_to_val.
             done.
             iIntros (LI HLI).
             move/lfilledP in HLI; inversion HLI; subst.
@@ -734,14 +738,14 @@ Section yield_par.
             by iRight.
           -- (* Case 1b *)
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             iIntros (LI HLI).
             move/lfilledP in HLI; inversion HLI; subst.
             inversion H8; subst.
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             iIntros (LI' HLI').
             move/lfilledP in HLI'; inversion HLI'; subst.
@@ -757,7 +761,7 @@ Section yield_par.
             done.
 (*            iNext. *)
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             iFrame.
             done.
@@ -820,6 +824,8 @@ Section yield_par.
               iApply ewp_val_app.
               done.
               iSplitR; last first.
+              iSimpl.
+              instantiate (1 := λ v f, (⌜ v = immV [_] ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
               rewrite (separate1 (AI_basic (BI_get_local 3))).
               iApply ewp_wand_r. iSplitR.
               iApply ewp_seq.
@@ -839,7 +845,9 @@ Section yield_par.
               auto_instantiate.
               iIntros (??) "[-> ->]".
               unfold val_combine. iSimpl.
-              auto_instantiate.
+              done.
+              
+              (* auto_instantiate. *)
               by iIntros "!>" (?) "[% _]".
               2: by iIntros (?) "[% _]".
               iIntros (??) "[->->]".
@@ -858,7 +866,7 @@ Section yield_par.
               iIntros (??) "[-> ->]".
               iSimpl.
               iApply ewp_value.
-              apply of_to_val.
+
               done.
               iIntros (LI HLI).
               move/lfilledP in HLI; inversion HLI; subst.
@@ -883,7 +891,7 @@ Section yield_par.
               iIntros "HI Hyield".
               iDestruct ("Hrunb" with "[$HI $Hyield]") as "(%LI' & %HLI' & Hewp)".
               iExists LI'.
-              iSplit; first by iPureIntro; destruct (hfilled No_var h [] LI').
+              iSplit; first by iPureIntro ; destruct (hfilled No_var _ [] LI').
               iExact "Hewp".
             ++ (* Case 2b: the other continuation is also done *)
               rewrite (separate2 (AI_basic (BI_const _))).
@@ -894,7 +902,7 @@ Section yield_par.
               iApply ewp_br_if_true.
               by subst.
               iApply ewp_value.
-              apply of_to_val.
+
               done.
               iNext.
               by instantiate (1 := λ v f, (⌜ v = brV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
@@ -902,7 +910,7 @@ Section yield_par.
               iIntros (??) "[-> ->]".
               iSimpl.
               iApply ewp_value.
-              apply of_to_val.
+
               done.
               iSimpl.
               iIntros (LI HLI).
@@ -925,7 +933,7 @@ Section yield_par.
               iIntros "!> HI Hyield".
               iDestruct ("Hrunb" with "[$HI $Hyield]") as "(%LI' & %HLI' & Hewp)".
               iExists LI'.
-              iSplit; first by iPureIntro; destruct (hfilled No_var h [] LI').
+              iSplit; first by iPureIntro; destruct (hfilled No_var _ [] LI').
               iExact "Hewp".
               iRight.
               iFrame. done.
@@ -975,7 +983,7 @@ Section yield_par.
         iSplitR "Hb".
         rewrite -(app_nil_l [AI_ref_cont _;_]).
         
-        iApply (ewp_resume with "[$Hconta $Hruna]").
+        iApply (ewp_resume) (* with "[$Hconta $Hruna]") *) . 
         done. done. done.
         simpl. instantiate (1 := [_]) => //.
         unfold agree_on_uncaptured => /=.
@@ -983,6 +991,7 @@ Section yield_par.
         intros i.
         destruct (i == Mk_tagidx addr_tag) eqn:Hi => //.
         move/eqP in Hi.
+        instantiate (1 := Ψ).
         intros _.
         subst Ψ; simpl.
         destruct i => //.
@@ -991,29 +1000,29 @@ Section yield_par.
         exfalso; by apply Hi.
         by subst Ψ.
         by subst Ψ.
-        by destruct (hfilled No_var conta [] LI).
+        exact HLI.
+        iFrame "Hconta Hruna".
         iSplitR.
+
         by iIntros (?) "[% ?]".
         iSplitR; last first.
         iFrame "Htag".
         iSplitR.
         iIntros "!>" (w) "(-> & HQ & HI & Hf & Hyield)".
         iApply (ewp_prompt_value with "[-]").
-        rewrite to_of_val => //.
+        rewrite to_of_val0 => //.
         instantiate (1 := λ v, ((⌜ v = immV [] ⌝ ∗ I ∗ J ∗ Q2 ∗ N.of_nat f2 ↦[wf] cl2) ∨ _)%I).
         iLeft. iFrame. done. 
         iSimpl.
         iSplitL; last done.
         iIntros "!>" (vs kaddr h) "Hcont HΨ".
         iApply ewp_value.
-        unfold IntoVal.
-        apply of_to_val.
-        unfold to_val.
+        unfold to_val0.
         rewrite map_app merge_app.
         specialize (@const_list_to_val (v_to_e_list vs)) as (vs' & Htv & Hinj).
         apply v_to_e_is_const_list.
         apply v_to_e_inj in Hinj as ->.
-        unfold to_val in Htv.
+        unfold to_val0 in Htv.
         destruct (merge_values _); try by exfalso.
         inversion Htv; subst.
         simpl.
@@ -1092,7 +1101,7 @@ Section yield_par.
             iIntros (??) "[-> ->]".
             iSimpl.
             iApply ewp_value.
-            apply of_to_val. done.
+            done.
             (*            iSplitL; last first.
             instantiate (1 := λ f, (⌜ b = 0 ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∨ ⌜ b = 1 ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∨ ⌜ f = Build_frame _ _ ⌝ )%I).  
             by iLeft. 
@@ -1102,7 +1111,7 @@ Section yield_par.
             inversion H8; subst.
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             iSimpl.
             instantiate (1 := λ v f, ((∃ contb, ⌜ v = brV (VH_rec [] 1 [] (VH_base 0 [] []) []) ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∗ _) ∨ (⌜ v = brV (VH_rec [] 1 []
@@ -1125,7 +1134,7 @@ Section yield_par.
             iApply ewp_br_if_true.
             by subst.
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             iNext.
             by instantiate (1 := λ v f, (⌜ v = brV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
@@ -1133,7 +1142,7 @@ Section yield_par.
             iIntros (??) "[-> ->]".
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
+
             done.
             (*            iSplitL; last first.
             by iRight.
@@ -1143,7 +1152,6 @@ Section yield_par.
             inversion H8; subst.
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
             done. simpl in *.
             iRight. iLeft. iSimpl.
             iSplit; first done.
@@ -1152,7 +1160,7 @@ Section yield_par.
             iExact "H".
         * (* Case 2: the continuation yielded *)
           iSimpl.
-          replace (Ψ (SuspendE (Mk_tagidx addr_tag))) with (!immV []{{ I ∗ J }};? immV [] {{ I ∗ J }} )%iprot.
+          replace (Ψ (SuspendE (Mk_tagidx addr_tag))) with (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot.
           2:{ subst Ψ. rewrite Nat.eqb_refl. done. }
           rewrite (upcl_tele' [tele] [tele]).
           simpl.
@@ -1160,7 +1168,6 @@ Section yield_par.
           inversion Heq; subst.
           iSimpl.
           iApply ewp_value.
-          apply of_to_val.
           done.
           iIntros (LI' HLI').
           move/lfilledP in HLI'; inversion HLI'; subst.
@@ -1170,11 +1177,12 @@ Section yield_par.
           3:{ instantiate (1 := 0).
               instantiate (1 := [AI_ref_cont kaddr]).
               instantiate (1 := LH_base [] _).
-              rewrite /lfilled /lfill //=. } 
+              rewrite /lfilled /lfill //=.
+              inversion H9; subst. simpl. done.
+          } 
           done.
           done.
           iApply ewp_value.
-          apply of_to_val.
           done.
           iRight. iRight.
           iExists kaddr, h.
@@ -1187,7 +1195,6 @@ Section yield_par.
           iDestruct "H" as "[(%contb & -> & -> & Hcontb & Hrunb & HI & Hyield & HQ1 & Hf) | [(-> & -> & HQ1 & HQ2 & Hf1 & Hf2 & HI & Hyield) | (%kaddr & %h & -> & -> & Hb & Hcont & HI & Hyield & Hrunb)]]".
           -- (* Case 1a *)
             iApply ewp_value.
-            apply of_to_val.
             done.
             iIntros (LI HLI).
             move/lfilledP in HLI; inversion HLI; subst.
@@ -1209,14 +1216,12 @@ Section yield_par.
             by iRight.
           -- (* Case 1b *)
             iApply ewp_value.
-            apply of_to_val.
             done.
             iIntros (LI HLI).
             move/lfilledP in HLI; inversion HLI; subst.
             inversion H8; subst.
             iSimpl.
             iApply ewp_value.
-            apply of_to_val.
             done.
             iIntros (LI' HLI').
             move/lfilledP in HLI'; inversion HLI'; subst.
@@ -1232,7 +1237,6 @@ Section yield_par.
             done.
 (*            iNext. *)
             iApply ewp_value.
-            apply of_to_val.
             done.
             iFrame.
             done.
@@ -1296,6 +1300,7 @@ Section yield_par.
               done.
               iSplitR; last first.
               rewrite (separate1 (AI_basic (BI_get_local 3))).
+              instantiate (1 := λ v f, (⌜ v = immV [_] ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
               iApply ewp_wand_r. iSplitR.
               iApply ewp_seq.
               done.
@@ -1314,7 +1319,7 @@ Section yield_par.
               auto_instantiate.
               iIntros (??) "[-> ->]".
               unfold val_combine. iSimpl.
-              auto_instantiate.
+              done.
               by iIntros "!>" (?) "[% _]".
               2: by iIntros (?) "[% _]".
               iIntros (??) "[->->]".
@@ -1333,7 +1338,6 @@ Section yield_par.
               iIntros (??) "[-> ->]".
               iSimpl.
               iApply ewp_value.
-              apply of_to_val.
               done.
               iIntros (LI HLI).
               move/lfilledP in HLI; inversion HLI; subst.
@@ -1355,7 +1359,7 @@ Section yield_par.
               iIntros "HI Hyield".
               iDestruct ("Hrunb" with "[$HI $Hyield]") as "(%LI' & %HLI' & Hewp)".
               iExists LI'.
-              iSplit; first by iPureIntro; destruct (hfilled No_var h [] LI').
+              iSplit; first by iPureIntro; destruct (hfilled No_var _ [] LI').
               iExact "Hewp".
             ++ (* Case 2b: the other continuation is also done *)
               rewrite (separate2 (AI_basic (BI_const _))).
@@ -1366,7 +1370,6 @@ Section yield_par.
               iApply ewp_br_if_true.
               by subst.
               iApply ewp_value.
-              apply of_to_val.
               done.
               iNext.
               by instantiate (1 := λ v f, (⌜ v = brV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
@@ -1374,7 +1377,6 @@ Section yield_par.
               iIntros (??) "[-> ->]".
               iSimpl.
               iApply ewp_value.
-              apply of_to_val.
               done.
               iSimpl.
               iIntros (LI HLI).
@@ -1396,7 +1398,7 @@ Section yield_par.
               iIntros "!> HI Hyield".
               iDestruct ("Hrunb" with "[$HI $Hyield]") as "(%LI' & %HLI' & Hewp)".
               iExists LI'.
-              iSplit; first by iPureIntro; destruct (hfilled No_var h [] LI').
+              iSplit; first by iPureIntro; destruct (hfilled No_var _ [] LI').
               iExact "Hewp".
               iRight.
               iFrame. done.

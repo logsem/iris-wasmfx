@@ -6,11 +6,11 @@ Lemma cvtop_convert_det v v' t1 t2 sx s f s' f' es:
   types_num_agree t1 v ->
   cvt t2 sx v = Some v' ->
   reduce s f [AI_basic (BI_const v); AI_basic (BI_cvtop t2 CVO_convert t1 sx)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_const v')] s' f' es [AI_basic (BI_const v); AI_basic (BI_cvtop t2 CVO_convert t1 sx)].
+  reduce_det_strong_goal s f [AI_basic (BI_const v')] s' f' es.
 Proof.
   move => H H0 Hred.
   only_one.
-  1-2: inversion Heqesnew; repeat split => //; left; subst;
+  1-2: inversion Heqesnew; repeat split => //; subst;
   rewrite H0 in H2; inversion H2; subst => //.
   inversion H5; subst.
   destruct vs; inversion H6; subst => //.
@@ -47,11 +47,11 @@ Lemma cvtop_convert_none_det v t1 t2 sx s f s' f' es:
   types_num_agree t1 v ->
   cvt t2 sx v = None ->
   reduce s f [AI_basic (BI_const v); AI_basic (BI_cvtop t2 CVO_convert t1 sx)] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const v); AI_basic (BI_cvtop t2 CVO_convert t1 sx)].
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
     move => H H0 Hred.
   only_one.
-  inversion Heqesnew; repeat split => //; left; subst;
+  inversion Heqesnew; repeat split => //; subst;
   rewrite H0 in H2; inversion H2; subst => //.
   inversion H5; subst.
   destruct vs; inversion H6; subst => //.
@@ -88,8 +88,8 @@ Qed.
 Lemma cvtop_reinterpret_det v t1 t2 s f s' f' es:
   types_num_agree t1 v ->
   reduce s f [AI_basic (BI_const v); AI_basic (BI_cvtop t2 CVO_reinterpret t1 None)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_const (wasm_deserialise (bits v) t2))] s' f' es
-    [AI_basic (BI_const v); AI_basic (BI_cvtop t2 CVO_reinterpret t1 None)].
+  reduce_det_strong_goal s f [AI_basic (BI_const (wasm_deserialise (bits v) t2))] s' f' es
+.
 Proof.
   move => H Hred.
   only_one.

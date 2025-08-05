@@ -6,7 +6,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Lemma resume_throw_null_det tf j i i' s f s' f' es:
   reduce s f [AI_basic (BI_ref_null tf); AI_basic $ BI_resume_throw j i' i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_ref_null tf); AI_basic $ BI_resume_throw j i' i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es .
 Proof.
   move => Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -63,7 +63,7 @@ Lemma resume_throw_det ves vcs x a i ts s2 s'' k t1s t2s hh hs hsd LI s f s' f' 
   hfilled No_var hh [AI_ref_exn (length (s_exns s)) (Mk_tagidx a); AI_basic BI_throw_ref] LI ->
   [seq desugar_continuation_clause (f_inst f) i | i <- hs] = [seq Some i | i <- hsd] ->
   reduce s f (ves ++ [AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]) s' f' es' ->
-  reduce_det_goal s'' f [AI_prompt t2s hsd LI] s' f' es' (ves ++ [AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]).
+  reduce_det_strong_goal s'' f [AI_prompt t2s hsd LI] s' f' es' .
 Proof.
   move => -> H H0 H1 Hves H2 Hcont Hi Hfill Hdesug Hred.
   lazymatch goal with
@@ -98,7 +98,7 @@ Proof.
     rewrite H11 in Hdesug.
     apply map_Some_inj in Hdesug as ->.
     apply v_to_e_inj in H5 as <-.
-    repeat split => //. by left.
+    repeat split => //. 
   - repeat destruct vcs => //.
     inversion Heqes0; subst.
     rewrite H3 in Hcont => //. 
@@ -116,7 +116,7 @@ Proof.
       apply const_list_split in H2 as [??].
       apply const_list_split in H2 as [??] => //. 
     + destruct vs.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es; last by empty_list_no_reduce.
@@ -172,7 +172,7 @@ Qed.
 Lemma resume_throw_dagger_det k tf x i i' s f s' f' es:
   nth_error (s_conts s) k = Some (Cont_dagger tf) ->
   reduce s f [AI_ref_cont k; AI_basic $ BI_resume_throw x i' i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_ref_cont k; AI_basic $ BI_resume_throw x i' i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => Hk Hred.
   only_one.

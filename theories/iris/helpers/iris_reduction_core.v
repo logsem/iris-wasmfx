@@ -176,8 +176,7 @@ Section reduction_core.
             - apply Nat.ltb_lt in Hlenvs. rewrite - H2 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r.
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
                   rewrite separate1 in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -217,8 +216,8 @@ Section reduction_core.
             - apply Nat.ltb_lt in Hlenvs. rewrite - H2 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r.
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step.
+
                   rewrite separate1 in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -258,8 +257,8 @@ Section reduction_core.
             - apply Nat.ltb_lt in Hlenvs. rewrite -H4 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
+
                   rewrite separate1 in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -302,8 +301,8 @@ Section reduction_core.
             - apply Nat.ltb_lt in Hlenvs. rewrite -H3 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
+
                   rewrite separate1 in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -346,8 +345,7 @@ Section reduction_core.
             - apply Nat.ltb_lt in Hlenvs. rewrite H2 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r.
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
                   rewrite separate1 in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -388,8 +386,7 @@ Section reduction_core.
             - apply Nat.ltb_lt in Hlenvs. rewrite H1 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
                   rewrite separate1 in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -441,8 +438,7 @@ Section reduction_core.
               rewrite H4 in H7.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
                   rewrite (separate1 $ AI_basic _) in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -481,8 +477,7 @@ Section reduction_core.
           done.
        - clear - Hred0. exfalso. destruct f, f0. 
          edestruct prim_step_split_reduce_r as [Hres | Hres].
-         2:{ unfold prim_step. instantiate (7 := (_,_,_)).
-             instantiate (6 := (_,_,_)) => /=.
+         2:{ unfold prim_step.
              rewrite /= separate1 in Hred0.
              repeat split => //. }
          done.
@@ -527,8 +522,7 @@ Section reduction_core.
                rewrite H2 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step.
                   rewrite separate1 in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -579,8 +573,7 @@ Section reduction_core.
               rewrite H1 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
                   rewrite (separate1 $ AI_basic _) in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -616,8 +609,7 @@ Section reduction_core.
           done.
        - clear - Hred0. exfalso. destruct f, f0. 
          edestruct prim_step_split_reduce_r as [Hres | Hres].
-         2:{ unfold prim_step. instantiate (7 := (_,_,_)).
-             instantiate (6 := (_,_,_)) => /=.
+         2:{ unfold prim_step. 
              rewrite /= separate1 in Hred0.
              repeat split => //. }
          done.
@@ -669,8 +661,7 @@ Section reduction_core.
               rewrite -H2 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
                   rewrite (separate1 $ AI_basic _) in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -706,8 +697,8 @@ Section reduction_core.
           done.
        - clear - Hred0. exfalso. destruct f, f0. 
          edestruct prim_step_split_reduce_r as [Hres | Hres].
-         2:{ unfold prim_step. instantiate (7 := (_,_,_)).
-             instantiate (6 := (_,_,_)) => /=.
+         2:{ unfold prim_step. 
+
              rewrite /= separate1 in Hred0.
              repeat split => //. }
          done.
@@ -759,8 +750,8 @@ Section reduction_core.
               rewrite length_map in H2. rewrite H2 in Hlenvs.
               exfalso. destruct f, f0.
               edestruct prim_step_split_reduce_r as [Hres | Hres].
-              2:{ unfold prim_step. instantiate (7 := (_, _,_)).
-                  instantiate (6 := (_,_,_)) => /=.
+              2:{ unfold prim_step. 
+
                   rewrite (separate1 $ AI_basic _) in Hred0.
                   rewrite app_assoc in Hred0.
                   repeat split => //. }
@@ -801,8 +792,8 @@ Section reduction_core.
           done.
        - clear - Hred0. exfalso. destruct f, f0. 
          edestruct prim_step_split_reduce_r as [Hres | Hres].
-         2:{ unfold prim_step. instantiate (7 := (_,_,_)).
-             instantiate (6 := (_,_,_)) => /=.
+         2:{ unfold prim_step. 
+
              rewrite /= separate1 in Hred0.
              repeat split => //. }
          done.
@@ -984,12 +975,13 @@ Section reduction_core.
           | _ : reduce _ _ (_ :: _) _ _ _ |- _ =>
               rewrite separate1 in Hred0
           end.
-     all: destruct f, f0.
+(*     all: destruct f, f0. *)
      all: edestruct prim_step_split_reduce_r as [Hres | Hres].
-     all: try by unfold prim_step; instantiate (7 := (_, _, _));
-       instantiate (6 := (_,_,_)); simpl; repeat split.
+     all: try by unfold prim_step; 
+       simpl; repeat split.
      all: try done.
-     51, 58: by destruct v2; try destruct v.
+(*     76, 85: by destruct v2; try destruct v. *)
+     51, 58: by destruct v2; try destruct v. 
      all: try by destruct Hres as (? & ? & ? & _ & Habs & _);
        move/lfilledP in Habs; inversion Habs; subst;
        try (by repeat destruct vs => //);

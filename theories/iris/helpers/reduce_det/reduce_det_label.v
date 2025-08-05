@@ -45,18 +45,18 @@ Proof.
            we know es2 ends in y and [ es ++ ys -> take (all but 1) es2 ].
            We can thus apply IHnnn to [ es ++ ys ] (shorter than les since we 
            removed y) *)
-        assert (reducible (es ++ l) (s, f_locs f, f_inst f)) as Hred.
-        { exists [], (es' ++ l), (s', f_locs f', f_inst f'), [].
+        assert (reducible (es ++ l, f) s) as Hred.
+        { exists [], (es' ++ l, f'), s', [].
           repeat split => //=.
           apply (r_label (k:=0) (lh:=LH_base [] l) (es:=es) (es':=es')) ;
             unfold lfilled, lfill => //=.
-          destruct f ; destruct f' => //=. }
-        assert (prim_step ((es ++ l) ++ [a]) (s, f_locs f, f_inst f)
-                  [] es2 (ws2, f_locs f2, f_inst f2) []) as Hstep.
-        { repeat split => //=. rewrite -app_assoc. by destruct f ; destruct f2. }
-        destruct (reduce_append _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
+        } 
+        assert (prim_step ((es ++ l) ++ [a], f) s
+                  [] (es2, f2) ws2 []) as Hstep.
+        { repeat split => //=. rewrite -app_assoc. done. } 
+        destruct (reduce_append _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
                                                                (lh & lh' & Htrap &
-                                                                  Htrap' & Hσ)].
+                                                                  Htrap' & -> & ->)].
         -- assert (reduce s f (es ++ l) s' f' (es' ++ l)).
            { apply (r_label (k:=0) (lh:=LH_base [] l) (es:=es) (es':=es')) ;
                (try done) ; by unfold lfilled, lfill => //=. }
@@ -82,13 +82,14 @@ Proof.
               rewrite -(take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
         -- do 2 rewrite /= catA.
-           assert (reduce s f (es ++ l) s' f' (es' ++ l)) as Hles.
+           assert (reduce ws2 f2 (es ++ l) s' f' (es' ++ l)) as Hles.
            { apply (r_label (k:=0) (lh:=LH_base [] l) (es:=es) (es':=es')) => //=.
              unfold lfilled, lfill => //=.
              unfold lfilled, lfill => //=. }
-           destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-           inversion Hσ; inversion Hσ'; subst.
-           repeat split => //. destruct f', f2; simpl in *; subst => //. repeat right.
+           destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & Hnew & Hσ').
+           inversion Hσ'; subst.
+           repeat split => //.
+           repeat right.
            exists 0, 0, 0.
            repeat split => //= ; try by try apply first_instr_app; eapply lfilled_implies_starts.
     + (* if bef is nonempty, then we proceed like before, but on the left side.
@@ -103,18 +104,16 @@ Proof.
       { apply (r_label (k:=0) (lh:=LH_base vs es'0) (es:=es) (es':=es')) => //=.
         unfold lfilled, lfill ; by rewrite H2. 
         unfold lfilled, lfill ; by rewrite H2. }
-      assert (reducible (vs ++ es ++ es'0) (s, f.(f_locs), f.(f_inst))) as Hred.
-      { exists [], (vs ++ es' ++ es'0), (s', f_locs f', f_inst f'), [].
-        repeat split => //=. destruct f ; destruct f' => //=. }
+      assert (reducible (vs ++ es ++ es'0, f) s) as Hred.
+      { exists [], (vs ++ es' ++ es'0, f'), s', [].
+        repeat split => //=. }
       apply const_const_inv in H1 as [v ->].
-      assert (prim_step ([AI_const v] ++ vs ++ es ++ es'0)
-                      (s, f_locs f, f_inst f) [] es2
-                      (ws2, f_locs f2, f_inst f2) []) as Hstep.
-    { repeat split => //=.
-        by destruct f ; destruct f2. } 
-    destruct (reduce_ves _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
-                                                       ( lh & lh' & Htrap & Htrap' &
-                                                         Hσ )].
+      assert (prim_step ([AI_const v] ++ vs ++ es ++ es'0, f)
+                      s [] (es2, f2)
+                      ws2 []) as Hstep.
+    { repeat split => //=. } 
+    destruct (reduce_ves _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
+                                                       ( lh & lh' & Htrap & Htrap' & -> & -> )].
       * assert (reduce s f (vs ++ es ++ es'0) s' f' (vs ++ es' ++ es'0)).
         { apply (r_label (k:=0) (lh:=LH_base vs es'0) (es:=es) (es':=es'))
         ; (try done) ; by unfold lfilled, lfill; rewrite H2. }
@@ -147,8 +146,8 @@ Proof.
            rewrite first_instr_const //.
            rewrite Hves2 /= const_const //. 
       * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-        inversion Hσ; inversion Hσ'; subst.
-        repeat split => //. destruct f', f2; simpl in *; subst => //.
+        inversion Hσ'; subst.
+        repeat split => //. 
         repeat right. exists 0,0,0.
 
         repeat split => //= ; try by try rewrite separate1 -cat_app first_instr_const //; try eapply lfilled_implies_starts; try rewrite /= const_const //.
@@ -229,19 +228,19 @@ Proof.
                  unfold first_instr in Hstart3 ; rewrite Hstart3 => //=. 
       * (* in the cases where aft is nonempty or bef is nonempty, we proceed exactly
            like in the corresponding cases when k was 0 *)
-        assert (reducible (AI_label n es'0 LI :: l) (s, f_locs f, f_inst f)) as Hred.
-        { exists [], (AI_label n es'0 LI0 :: l), (s', f_locs f', f_inst f'), [].
+        assert (reducible (AI_label n es'0 LI :: l, f) s) as Hred.
+        { exists [], (AI_label n es'0 LI0 :: l, f'), s', [].
           repeat split => //=.
           apply (r_label (k:=S k0) (lh:=LH_rec [] n es'0 lh' l) (es:=es) (es':=es')) ;
             try by apply/lfilledP; rewrite -(app_nil_l (_ :: _)); constructor.
           destruct f ; destruct f' => //=.
         }
-        assert (prim_step ((AI_label n es'0 LI :: l) ++ [a]) (s, f_locs f, f_inst f)
-                        [] es2 (ws2, f_locs f2, f_inst f2) []) as Hstep.
-        { repeat split => //=. by destruct f ; destruct f2. }
-        destruct (reduce_append _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
+        assert (prim_step ((AI_label n es'0 LI :: l) ++ [a], f) s
+                        [] (es2, f2) ws2 []) as Hstep.
+        { repeat split => //=. }
+        destruct (reduce_append _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
                                                             (lh0 & lh'' & Htrap &
-                                                             Htrap' & Hσ)].
+                                                             Htrap' & -> & -> )].
         -- assert (reduce s f (AI_label n es'0 LI :: l) s' f'
                        (AI_label n es'0 LI0 :: l)).
            { apply (r_label (k:=S k0) (lh:=LH_rec [] n es'0 lh' l) (es:=es) (es':=es')) ;
@@ -273,14 +272,14 @@ Proof.
               apply first_instr_app => //.
               rewrite - (take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
-        -- assert (reduce s f (AI_label n es'0 LI :: l) s' f'
+        -- assert (reduce ws2 f2 (AI_label n es'0 LI :: l) s' f'
                      (AI_label n es'0 LI0 :: l)) as Hles.
            { apply (r_label (k:=S k0) (lh:=LH_rec [] n es'0 lh' l) (es:=es) (es':=es')) => //=.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //. } 
            destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-           inversion Hσ; inversion Hσ'; subst.
-           repeat split => //. destruct f', f2; simpl in *; subst => //.
+           inversion Hσ'; subst.
+           repeat split => //. 
            repeat right. 
            exists 0, 0, 0.
            repeat split; try by try rewrite cat0s -cat_app catA; try apply first_instr_app; eapply lfilled_implies_starts.
@@ -289,19 +288,18 @@ Proof.
                 (vs ++ AI_label n es'0 LI0 :: es'')) as Hles.
       { apply (r_label (k:=S k0) (lh:=LH_rec vs n es'0 lh' es'') (es:=es) (es':=es')) => //=.
         all: apply/lfilledP; constructor => //. } 
-      assert (reducible (vs ++ AI_label n es'0 LI :: es'')
-                      (s, f.(f_locs), f.(f_inst))) as Hred.
-    { exists [], (vs ++ AI_label n es'0 LI0 :: es''), (s', f_locs f', f_inst f'), [].
-      repeat split => //=. destruct f ; destruct f' => //=. }
+      assert (reducible (vs ++ AI_label n es'0 LI :: es'', f)
+                      s) as Hred.
+    { exists [], (vs ++ AI_label n es'0 LI0 :: es'', f'), s', [].
+      repeat split => //=. }
     apply const_const_inv in H1 as [v ->].
-    assert (prim_step ([AI_const v] ++ vs ++ AI_label n es'0 LI :: es'')
-                      (s, f_locs f, f_inst f) [] es2
-                      (ws2, f_locs f2, f_inst f2) []) as Hstep.
-    { repeat split => //=. 
-        by destruct f ; destruct f2. } 
-    destruct (reduce_ves _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
+    assert (prim_step ([AI_const v] ++ vs ++ AI_label n es'0 LI :: es'', f)
+                      s [] (es2, f2)
+                      ws2 []) as Hstep.
+    { repeat split => //=.  } 
+    destruct (reduce_ves _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
                                                        ( lh0 & lh'' & Htrap & Htrap' &
-                                                         Hσ )].
+                                                         -> & -> )].
     * destruct Hdropstep as (H2' & _ & _).
       destruct f ; simpl in H2'. destruct f2 ; simpl in H2'.
       assert (length_rec (vs ++ AI_label n es'0 LI :: es'') < nnn).
@@ -327,8 +325,8 @@ Proof.
          rewrite - (take_drop 1 es2) first_instr_const //.
          rewrite Hves2 /= const_const //.
     * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-      inversion Hσ ; inversion Hσ'; subst.
-      repeat split => //. destruct f', f2; simpl in *; subst => //. 
+      inversion Hσ'; subst.
+      repeat split => //. 
       repeat right.
       exists 0, 0, 0.
       repeat split => //= ; try by try rewrite separate1 -cat_app first_instr_const; try rewrite /= const_const //; eapply lfilled_implies_starts.
@@ -433,19 +431,19 @@ Proof.
                  unfold first_instr in Hstart3 ; rewrite Hstart3 => //=. 
       * (* in the cases where aft is nonempty or bef is nonempty, we proceed exactly
            like in the corresponding cases when k was 0 *)
-        assert (reducible (AI_handler hs LI :: l) (s, f_locs f, f_inst f)) as Hred.
-        { exists [], (AI_handler hs LI0 :: l), (s', f_locs f', f_inst f'), [].
+        assert (reducible (AI_handler hs LI :: l, f) s) as Hred.
+        { exists [], (AI_handler hs LI0 :: l, f'), s', [].
           repeat split => //=.
           apply (r_label (k:=k) (lh:=LH_handler [] hs lh' l) (es:=es) (es':=es')) ;
             try by apply/lfilledP; rewrite -(app_nil_l (_ :: _)); constructor.
           destruct f ; destruct f' => //=.
         }
-        assert (prim_step ((AI_handler hs LI :: l) ++ [a]) (s, f_locs f, f_inst f)
-                        [] es2 (ws2, f_locs f2, f_inst f2) []) as Hstep.
-        { repeat split => //=. by destruct f ; destruct f2. }
-        destruct (reduce_append _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
+        assert (prim_step ((AI_handler hs LI :: l) ++ [a], f) s
+                        [] (es2, f2) ws2 []) as Hstep.
+        { repeat split => //=. } 
+        destruct (reduce_append _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
                                                             (lh0 & lh'' & Htrap &
-                                                             Htrap' & Hσ)].
+                                                             Htrap' & -> & ->)].
         -- assert (reduce s f (AI_handler hs LI :: l) s' f'
                        (AI_handler hs LI0 :: l)).
            { apply (r_label (k:=k) (lh:=LH_handler [] hs lh' l) (es:=es) (es':=es')) ;
@@ -477,14 +475,14 @@ Proof.
               apply first_instr_app => //.
               rewrite - (take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
-        -- assert (reduce s f (AI_handler hs LI :: l) s' f'
+        -- assert (reduce ws2 f2 (AI_handler hs LI :: l) s' f'
                      (AI_handler hs LI0 :: l)) as Hles.
            { apply (r_label (k:=k) (lh:=LH_handler [] hs lh' l) (es:=es) (es':=es')) => //=.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //. } 
            destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-           inversion Hσ; inversion Hσ'; subst.
-           repeat split => //. destruct f', f2; simpl in *; subst => //. 
+           inversion Hσ'; subst.
+           repeat split => //. 
            repeat right. exists 0, 0, 0.
            repeat split; try by try rewrite cat0s -cat_app catA; try apply first_instr_app; eapply lfilled_implies_starts.
     + simpl in H1; remove_bools_options.
@@ -492,19 +490,19 @@ Proof.
                 (bef ++ AI_handler hs LI0 :: aft)) as Hles.
       { apply (r_label (k:=k) (lh:=LH_handler bef hs lh' aft) (es:=es) (es':=es')) => //=.
         all: apply/lfilledP; constructor => //. } 
-      assert (reducible (bef ++ AI_handler hs LI :: aft)
-                      (s, f.(f_locs), f.(f_inst))) as Hred.
-    { exists [], (bef ++ AI_handler hs LI0 :: aft), (s', f_locs f', f_inst f'), [].
-      repeat split => //=. destruct f ; destruct f' => //=. }
+      assert (reducible (bef ++ AI_handler hs LI :: aft, f)
+                      s) as Hred.
+    { exists [], (bef ++ AI_handler hs LI0 :: aft, f'), s', [].
+      repeat split => //=. } 
     apply const_const_inv in H1 as [v ->].
-    assert (prim_step ([AI_const v] ++ bef ++ AI_handler hs LI :: aft)
-                      (s, f_locs f, f_inst f) [] es2
-                      (ws2, f_locs f2, f_inst f2) []) as Hstep.
-    { repeat split => //=. 
-        by destruct f ; destruct f2. } 
-    destruct (reduce_ves _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
+    assert (prim_step ([AI_const v] ++ bef ++ AI_handler hs LI :: aft, f)
+                      s [] (es2, f2)
+                      ws2 []) as Hstep.
+    { repeat split => //=. } 
+
+    destruct (reduce_ves _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
                                                        ( lh0 & lh'' & Htrap & Htrap' &
-                                                         Hσ )].
+                                                         -> & -> )].
     * destruct Hdropstep as (H2' & _ & _).
       destruct f ; simpl in H2'. destruct f2 ; simpl in H2'.
       assert (length_rec (bef ++ AI_handler hs LI :: aft) < nnn).
@@ -531,8 +529,8 @@ Proof.
          rewrite Hves2 /= const_const //.
     * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
       
-      inversion Hσ ; inversion Hσ'; subst.
-      repeat split => //=. destruct f', f2; simpl in *; subst => //.
+      inversion Hσ'; subst.
+      repeat split => //=.
       repeat right.
       exists 0,0,0.
       repeat split => //= ; try by try rewrite separate1 -cat_app first_instr_const; try rewrite /= const_const //; eapply lfilled_implies_starts.
@@ -597,7 +595,7 @@ Proof.
            3: exact H2. exact Hred1. done.
         -- inversion Heq; subst.
            exfalso. move/lfilledP in H2.
-           eapply hfilled_switch_and_reduce in Hred1 as (tfn & sh & hhn & Hsw & Hdag & -> & -> & Htrap) => //.
+            eapply hfilled_switch_and_reduce in Hred1 as (tfn & sh & hhn & Hsw & Hdag & -> & -> & Htrap) => //.
            rewrite H5 in Hdag => //. 
         -- move/lfilledP in H3; inversion H3; subst.
            all: try by do 2 destruct bef => //.
@@ -637,19 +635,19 @@ Proof.
                  unfold first_instr in Hstart3 ; rewrite Hstart3 => //=. 
       * (* in the cases where aft is nonempty or bef is nonempty, we proceed exactly
            like in the corresponding cases when k was 0 *)
-        assert (reducible (AI_prompt ts hs LI :: l) (s, f_locs f, f_inst f)) as Hred.
-        { exists [], (AI_prompt ts hs LI0 :: l), (s', f_locs f', f_inst f'), [].
+        assert (reducible (AI_prompt ts hs LI :: l, f) s) as Hred.
+        { exists [], (AI_prompt ts hs LI0 :: l, f'), s', [].
           repeat split => //=.
           apply (r_label (k:=k) (lh:=LH_prompt [] ts hs lh' l) (es:=es) (es':=es')) ;
             try by apply/lfilledP; rewrite -(app_nil_l (_ :: _)); constructor.
           destruct f ; destruct f' => //=.
         }
-        assert (prim_step ((AI_prompt ts hs LI :: l) ++ [a]) (s, f_locs f, f_inst f)
-                        [] es2 (ws2, f_locs f2, f_inst f2) []) as Hstep.
-        { repeat split => //=. by destruct f ; destruct f2. }
-        destruct (reduce_append _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
+        assert (prim_step ((AI_prompt ts hs LI :: l) ++ [a], f) s
+                        [] (es2, f2) ws2 []) as Hstep.
+        { repeat split => //=. } 
+        destruct (reduce_append _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hes2y Htakestep ]|
                                                             (lh0 & lh'' & Htrap &
-                                                             Htrap' & Hσ)].
+                                                             Htrap' & -> & -> )].
         -- assert (reduce s f (AI_prompt ts hs LI :: l) s' f'
                        (AI_prompt ts hs LI0 :: l)).
            { apply (r_label (k:=k) (lh:=LH_prompt [] ts hs lh' l) (es:=es) (es':=es')) ;
@@ -681,14 +679,14 @@ Proof.
               apply first_instr_app => //.
               rewrite - (take_drop (length es2 - 1) es2).
               apply first_instr_app => //. 
-        -- assert (reduce s f (AI_prompt ts hs LI :: l) s' f'
+        -- assert (reduce ws2 f2 (AI_prompt ts hs LI :: l) s' f'
                      (AI_prompt ts hs LI0 :: l)) as Hles.
            { apply (r_label (k:=k) (lh:=LH_prompt [] ts hs lh' l) (es:=es) (es':=es')) => //=.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //.
              rewrite -(app_nil_l (_ :: _)). apply/lfilledP. constructor => //. } 
            destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-           inversion Hσ; inversion Hσ'; subst.
-           repeat split => //. destruct f', f2; simpl in *; subst => //.
+           inversion Hσ'; subst.
+           repeat split => //. 
            repeat right.
            exists 0, 0, 0.
            repeat split; try by try rewrite cat0s -cat_app catA; try apply first_instr_app; eapply lfilled_implies_starts.
@@ -697,19 +695,18 @@ Proof.
                 (bef ++ AI_prompt ts hs LI0 :: aft)) as Hles.
       { apply (r_label (k:=k) (lh:=LH_prompt bef ts hs lh' aft) (es:=es) (es':=es')) => //=.
         all: apply/lfilledP; constructor => //. } 
-      assert (reducible (bef ++ AI_prompt ts hs LI :: aft)
-                      (s, f.(f_locs), f.(f_inst))) as Hred.
-    { exists [], (bef ++ AI_prompt ts hs LI0 :: aft), (s', f_locs f', f_inst f'), [].
-      repeat split => //=. destruct f ; destruct f' => //=. }
+      assert (reducible (bef ++ AI_prompt ts hs LI :: aft, f)
+                      s) as Hred.
+    { exists [], (bef ++ AI_prompt ts hs LI0 :: aft, f'), s', [].
+      repeat split => //=. } 
     apply const_const_inv in H1 as [v ->].
-    assert (prim_step ([AI_const v] ++ bef ++ AI_prompt ts hs LI :: aft)
-                      (s, f_locs f, f_inst f) [] es2
-                      (ws2, f_locs f2, f_inst f2) []) as Hstep.
-    { repeat split => //=. 
-        by destruct f ; destruct f2. } 
-    destruct (reduce_ves _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
+    assert (prim_step ([AI_const v] ++ bef ++ AI_prompt ts hs LI :: aft, f)
+                      s [] (es2, f2)
+                      ws2 []) as Hstep.
+    { repeat split => //=.  } 
+    destruct (reduce_ves _ _ _ _ _ _ _ _ _ Hred Hstep) as [[ Hves2 Hdropstep] |
                                                        ( lh0 & lh'' & Htrap & Htrap' &
-                                                         Hσ )].
+                                                         <- & <- )].
     * destruct Hdropstep as (H2' & _ & _).
       destruct f ; simpl in H2'. destruct f2 ; simpl in H2'.
       assert (length_rec (bef ++ AI_prompt ts hs LI :: aft) < nnn).
@@ -735,9 +732,9 @@ Proof.
          rewrite - (take_drop 1 es2) first_instr_const //.
          rewrite Hves2 /= const_const //.
     * destruct (trap_reduce _ _ _ _ _ _ _ Htrap' Hles) as (lh''' & ? & Hσ').
-      inversion Hσ; inversion Hσ' ; subst.
+      inversion Hσ' ; subst.
       repeat split => //.
-      destruct f', f2; simpl in *; subst => //. 
+
       repeat right.
       exists 0, 0, 0. 
 

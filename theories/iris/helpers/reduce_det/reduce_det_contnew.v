@@ -4,7 +4,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 
 Lemma contnew_null_det tf i s f s' f' es:
   reduce s f [AI_basic (BI_ref_null tf); AI_basic $ BI_contnew i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_ref_null tf); AI_basic $ BI_contnew i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -53,12 +53,12 @@ Lemma contnew_det tf i hh x s f s' f' es:
   stypes (f_inst f) i = Some tf ->
   hh = HH_base [] [AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))] ->
   reduce s f [AI_ref x; AI_basic $ BI_contnew i] s' f' es ->
-  reduce_det_goal (new_cont s (Cont_hh tf hh)) f [AI_ref_cont (length (s_conts s))] s' f' es [AI_ref x; AI_basic $ BI_contnew i]. 
+  reduce_det_strong_goal (new_cont s (Cont_hh tf hh)) f [AI_ref_cont (length (s_conts s))] s' f' es.
 Proof.
   move => Htf -> Hred.
   only_one.
   inversion Heqesnew; subst.
-  rewrite H in Htf; inversion Htf; subst. repeat split => //. by left.
+  rewrite H in Htf; inversion Htf; subst. repeat split => //. 
   inversion H3; subst.
     destruct vs; inversion H4; subst => //.
     destruct esnewest; first empty_list_no_reduce.

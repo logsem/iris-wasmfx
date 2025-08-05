@@ -1342,7 +1342,7 @@ Proof.
     by apply r_get_global.
 
   - (* Set_global *)
-    right. invert_typeof_vcs.
+        right. invert_typeof_vcs.
     destruct v => //.
     2:{ destruct v => //.
         all: simpl in H10.

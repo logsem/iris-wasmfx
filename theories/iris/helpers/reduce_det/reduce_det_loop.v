@@ -8,7 +8,7 @@ Lemma loop_det vs n m t1s t2s s f es s' f' es' :
   length t1s = n ->
   length t2s = m ->
   reduce s f (vs ++ [AI_basic (BI_loop (Tf t1s t2s) es)]) s' f' es' ->
-  reduce_det_goal s f [AI_label n [AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] s' f' es' (vs ++ [AI_basic (BI_loop (Tf t1s t2s) es)]).
+  reduce_det_strong_goal s f [AI_label n [AI_basic (BI_loop (Tf t1s t2s) es)] (vs ++ to_e_list es)] s' f' es'.
 Proof.
   move => H H0 H1 H2 Hred.
   (* Here, in the block case, the left-hand-side of Hred2 is
@@ -29,7 +29,7 @@ Proof.
       apply first_values in Heqes0 as (? & ? & ?);
     try apply const_list_concat; subst; try apply v_to_e_is_const_list.
   - apply concat_cancel_last in Heqes0 as [-> Heq].
-    inversion Heq; subst. repeat split => //. left. done.
+    inversion Heq; subst. repeat split => //. 
   - move/lfilledP in H4; inversion H4; subst.
     by apply first_values in H9 as (? & ? & ?).
     by apply first_values in H10 as (? & ? & ?).
@@ -45,7 +45,7 @@ Proof.
       apply const_list_split in H as [??].
       apply const_list_split in H as [??] => //. 
     + destruct vs0.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es0; last by empty_list_no_reduce.

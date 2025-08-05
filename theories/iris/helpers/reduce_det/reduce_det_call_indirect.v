@@ -7,14 +7,14 @@ Lemma call_indirect_det c i cl a s f s' f' es:
    nth_error (s_funcs s) a = Some cl ->
   stypes (f_inst f) i = Some (cl_type cl) ->
   reduce s f [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] s' f' es ->
-  reduce_det_goal s f [AI_invoke a]
-    s' f' es [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)].
+  reduce_det_strong_goal s f [AI_invoke a]
+    s' f' es.
 Proof.
   move => Ha Hcl Hclt Hred.
   only_one.
   1-3: inversion Heqesnew; subst.
   1-3: rewrite H in Ha; inversion Ha; subst.
-  repeat split => //. by left. rewrite H0 in Hcl. inversion Hcl; subst.
+  repeat split => //. rewrite H0 in Hcl. inversion Hcl; subst.
   apply H1 in Hclt => //. 
   inversion H3; subst.
   destruct vs; inversion H4; subst => //.
@@ -53,8 +53,8 @@ Lemma call_indirect_failure1_det c i cl a s f s' f' es:
    nth_error (s_funcs s) a = Some cl ->
   stypes (f_inst f) i <> Some (cl_type cl) ->
   reduce s f [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] s' f' es ->
-  reduce_det_goal s f [AI_trap]
-    s' f' es [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)].
+  reduce_det_strong_goal s f [AI_trap]
+    s' f' es.
 Proof.
   move => Ha Hcl Hclt Hred.
   only_one.
@@ -97,8 +97,8 @@ Qed.
 Lemma call_indirect_failure2_det c i s f s' f' es:
   stab_addr s f (Wasm_int.nat_of_uint i32m c) = None ->
   reduce s f [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] s' f' es ->
-  reduce_det_goal s f [AI_trap]
-    s' f' es [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)].
+  reduce_det_strong_goal s f [AI_trap]
+    s' f' es.
 Proof.
   move => Ha Hred.
   only_one.

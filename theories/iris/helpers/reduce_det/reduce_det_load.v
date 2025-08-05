@@ -9,7 +9,7 @@ Lemma load_det i m k off t bs a s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   load m (Wasm_int.N_of_uint i32m k) off (length_tnum t) = Some bs ->
   reduce s f [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t None a off)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_const (wasm_deserialise bs t))] s' f' es [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t None a off)]. 
+  reduce_det_strong_goal s f [AI_basic (BI_const (wasm_deserialise bs t))] s' f' es.
 Proof.
   move => Hmem Hi Hload Hred.
   only_one.
@@ -17,7 +17,7 @@ Proof.
   1-2: rewrite H in Hmem; inversion Hmem; subst.
   1-2: rewrite H0 in Hi; inversion Hi; subst.
   1-2: rewrite H1 in Hload; inversion Hload; subst.
-  repeat split => //. by left.
+  repeat split => //. 
   
   inversion H3; subst.
   destruct vs; inversion H4; subst => //.
@@ -56,7 +56,7 @@ Lemma load_failure_det i m k off t a s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   load m (Wasm_int.N_of_uint i32m k) off (length_tnum t) = None ->
   reduce s f [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t None a off)] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t None a off)]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es .
 Proof.
   move => Hmem Hi Hload Hred.
   only_one.
@@ -103,7 +103,7 @@ Lemma load_packed_det i m k off t bs sx tp a s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   load_packed sx m (Wasm_int.N_of_uint i32m k) off (length_tp tp) (length_tnum t) = Some bs ->
   reduce s f [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t (Some (tp, sx)) a off)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_const (wasm_deserialise bs t))] s' f' es [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t (Some (tp, sx)) a off)]. 
+  reduce_det_strong_goal s f [AI_basic (BI_const (wasm_deserialise bs t))] s' f' es.
 Proof.
   move => Hmem Hi Hload Hred.
   only_one.
@@ -111,7 +111,7 @@ Proof.
   1-2: rewrite H in Hmem; inversion Hmem; subst.
   1-2: rewrite H0 in Hi; inversion Hi; subst.
   1-2: rewrite H1 in Hload; inversion Hload; subst.
-  repeat split => //. by left.
+  repeat split => //. 
   
   inversion H3; subst.
   destruct vs; inversion H4; subst => //.
@@ -150,7 +150,7 @@ Lemma load_packed_failure_det i m k off tp sx t a s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   load_packed sx m (Wasm_int.N_of_uint i32m k) off (length_tp tp) (length_tnum t) = None ->
   reduce s f [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t (Some (tp, sx)) a off)] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load t (Some (tp, sx)) a off)]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es .
 Proof.
   move => Hmem Hi Hload Hred.
   only_one.

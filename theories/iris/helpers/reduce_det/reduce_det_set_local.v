@@ -9,7 +9,7 @@ Lemma set_local_det v f2 vd i s f s' f' es:
   ssrnat.leq (S i) (length (f_locs f)) ->
   f_locs f2 = set_nth vd (f_locs f) i v ->
   reduce s f [AI_const v; AI_basic $ BI_set_local i] s' f' es ->
-  reduce_det_goal s f2 [] s' f' es [AI_const v; AI_basic $ BI_set_local i]. 
+  reduce_det_strong_goal s f2 [] s' f' es .
 Proof.
   move => Hf2 Hlenf Hf2' Hred.
    assert (forall l i (v:value) vd vd', ssrnat.leq (S i) (length l) ->
@@ -25,7 +25,7 @@ Proof.
      destruct f2, f, f';
      simpl in Hf2, Hf2', H, H1, Hlenf, H0;
      subst;
-     erewrite Hign; [repeat split => //; left |].
+     erewrite Hign; [repeat split => // |].
 
   all: inversion H3; subst.
   all: destruct vs; inversion H4; subst => //.

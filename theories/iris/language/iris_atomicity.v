@@ -17,6 +17,7 @@ Local Definition to_val := iris.to_val.
 
 (* The following atomicity definition will be useful for opening invariants *)
 Definition is_atomic (e : expr) : Prop :=
+  let '(e, _) := e in
   match e with
   | [::AI_basic (BI_const (VAL_int32 _)); AI_basic (BI_load _ _ _ _)] => True
   | [::AI_basic (BI_const (VAL_int32 _)); v; AI_basic (BI_store _ _ _ _)] => is_const v
@@ -33,19 +34,20 @@ Ltac destruct_match_goal :=
   end.
 Lemma is_atomic_eq (e : expr) :
   is_atomic e ->
-  (∃ k x1 x2 x3 x4, e = [::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load x1 x2 x3 x4)]) ∨
-  (∃ k v x1 x2 x3 x4, e = [::AI_basic (BI_const (VAL_int32 k)); AI_const v; AI_basic (BI_store x1 x2 x3 x4)]) ∨
-  (∃ v g, e = [::AI_const v; AI_basic (BI_set_global g)]) ∨
-  (∃ g, e = [::AI_basic (BI_get_global g)]) ∨
-  (e = [::AI_trap]).
+  (∃ k x1 x2 x3 x4 f, e = ([::AI_basic (BI_const (VAL_int32 k)); AI_basic (BI_load x1 x2 x3 x4)], f)) ∨
+  (∃ k v x1 x2 x3 x4 f, e = ([::AI_basic (BI_const (VAL_int32 k)); AI_const v; AI_basic (BI_store x1 x2 x3 x4)], f)) ∨
+  (∃ v g f, e = ([::AI_const v; AI_basic (BI_set_global g)], f)) ∨
+  (∃ g f, e = ([::AI_basic (BI_get_global g)], f)) ∨
+  (∃ f, e = ([::AI_trap], f)).
 Proof.
   intros He.
+  destruct e.
   do 2 (destruct e;try done).
   - destruct a;try done.
     + destruct b;try done.
       * right. right. right. left. eauto.
       * destruct v;try done.
-    + right. right. right. by right. 
+    + right. right. right. right. eauto.
   - do 1 (destruct e;try done).
     + revert He. cbn.
       destruct a => //=.
@@ -57,8 +59,9 @@ Proof.
       all: intros _.
       5: left; repeat eexists.
       all: right; right; left; eexists _,_.
-      1-4: instantiate (2 := VAL_num _) => //.
+      1-4: instantiate (2 := VAL_num _); by eexists.  
       all: instantiate (2 := VAL_ref _) => //=.
+      all: eexists f.
       instantiate (2 := VAL_ref_null _) => //.
       instantiate (2 := VAL_ref_func _) => //.
       instantiate (2 := VAL_ref_exn _ _) => //.
@@ -79,12 +82,12 @@ Proof.
       all: move => *.
       all: right;left.
       all: repeat eexists.
-      all: try by instantiate (5 := VAL_num _).
-      all: instantiate (5 := VAL_ref _).
-      all: try by instantiate (5 := VAL_ref_null _).
-      all: try by instantiate (5 := VAL_ref_func _).
-      all: try by instantiate (5 := VAL_ref_cont _).
-      all: try by instantiate (5 := VAL_ref_exn _ _).
+      all: try by instantiate (6 := VAL_num _).
+      all: instantiate (6 := VAL_ref _).
+      all: try by instantiate (6 := VAL_ref_null _).
+      all: try by instantiate (6 := VAL_ref_func _).
+      all: try by instantiate (6 := VAL_ref_cont _).
+      all: try by instantiate (6 := VAL_ref_exn _ _).
 Qed.
 
 Lemma atomic_no_hole_load s0 f es s' f' es' k lh k0 x0 x1 x2 x3 :
@@ -345,12 +348,11 @@ Proof.
   intros Ha; apply strongly_atomic_atomic.
   move => σ e' K σ' e'' /= Hstep.
   unfold iris.prim_step in Hstep.
-  destruct σ as [[[hs ws] locs] inst].
-  destruct σ' as [[[hs' ws'] locs'] inst'].
+  destruct e, e'.
   destruct Hstep as [Hstep [-> ->]].
   induction Hstep using reduce_ind.
   all: apply is_atomic_eq in Ha as Heq.
-  all: destruct Heq as [(?&?&?&?&?&?)|[(?&?&?&?&?&?&?)|[(?&?&?)|[(?&?)|?]]]];simplify_eq; eauto.
+  all: destruct Heq as [(?&?&?&?&?&?&?)|[(?&?&?&?&?&?&?&?)|[(?&?&?&?)|[(?&?&?)|[??]]]]];simplify_eq; eauto.
   all: try by (do 2 (destruct vcs;try done)).
   all: try by (do 4 (destruct vcs;try done)).
   all: try by (do 4 (destruct vs; try done)).

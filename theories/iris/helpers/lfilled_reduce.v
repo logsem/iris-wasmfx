@@ -131,32 +131,31 @@ new reduction paths. It can almost be proved using the determinacy lemma, but th
 
 Note that this is a property very similar to Iris context.
 *)
-  Lemma lfilled_reduce i lh es LI σ LI' σ' obs efs :
+  Lemma lfilled_reduce i lh es LI f σ LI' f' σ' obs efs :
     lfilled i lh es LI ->
-    reducible es σ ->
-    prim_step LI σ obs LI' σ' efs ->
-    (exists es', prim_step es σ obs es' σ' efs /\ lfilled i lh es' LI') \/
-      (exists lh0, lfilled 0 lh0 [AI_trap] es /\ σ = σ').
+    reducible (es, f) σ ->
+    prim_step (LI, f) σ obs (LI', f') σ' efs ->
+    (exists es', prim_step (es, f) σ obs (es', f') σ' efs /\ lfilled i lh es' LI') \/
+      (exists lh0, lfilled 0 lh0 [AI_trap] es /\ σ = σ' /\ f = f').
 
   Proof.
     intros Hfill Hred Hstep.
-    destruct σ as [[s locs ] inst].
-    destruct Hred as (obs0 & es' & [[[ ws0 i0 ] locs0 ] inst0] & efs0 & (Hes & -> & ->)).
-    destruct σ' as [[s' locs' ] inst'].
+
+    destruct Hred as (obs0 & [es' f0] & s0 & efs0 & (Hes & -> & ->)).
+
     destruct Hstep as (HLI & -> & ->).
-    remember {| f_locs := locs ; f_inst := inst |} as f.
-    remember {| f_locs := locs0 ; f_inst := inst0 |} as f0.
-    remember {| f_locs := locs' ; f_inst := inst' |} as f'.
+
     generalize dependent LI. generalize dependent i.
     generalize dependent lh. generalize dependent LI'.
     cut (forall nnn LI' lh i LI, length_rec LI < nnn ->
                             lfilled i lh es LI
-                            → opsem.reduce s f LI s' f' LI'
-                            → (∃ es'0 : iris.expr,
-                                  prim_step es (s, locs, inst) [] es'0 (s', locs', inst') []
+                            → opsem.reduce σ f LI σ' f' LI'
+                            → (∃ es'0 : iris.expr0,
+                                  prim_step (es, f) σ [] (es'0, f') σ' []
                                   ∧ lfilled i lh es'0 LI') ∨
                                 (∃ lh0 : lholed, lfilled 0 lh0 [AI_trap] es /\
-                                                   (s,locs,inst) = (s', locs', inst'))).
+                                                   σ = σ' /\ f = f')). 
+
     { intros H LI' lh i LI ;
         assert (length_rec LI < S (length_rec LI)) ; first lia ; by eapply H. }  
     induction nnn ; intros LI' lh i LI Hlen Hfill HLI.
@@ -339,7 +338,7 @@ Note that this is a property very similar to Iris context.
         inversion H0; subst.
         left; eexists; split.
         * split; last done.
-          rewrite - Heqf'.
+
           do 2 econstructor => //.
         * rewrite /lfilled /lfill /= app_nil_r //.
       + destruct bef; last by destruct bef.
@@ -358,7 +357,7 @@ Note that this is a property very similar to Iris context.
         inversion H0; subst.
         left; eexists; split.
         * split; last done.
-          rewrite - Heqf'.
+
           do 2 econstructor => //.
         * rewrite /lfilled /lfill /= app_nil_r //.
       + destruct bef; last by destruct bef.
@@ -377,7 +376,7 @@ Note that this is a property very similar to Iris context.
         inversion H; subst.
         left; eexists; split.
         * split; last done.
-          rewrite - Heqf'.
+
           econstructor.
           apply rs_handler_trap.
         * rewrite /lfilled /lfill //.
@@ -398,7 +397,7 @@ Note that this is a property very similar to Iris context.
         inversion H; subst.
         left; eexists; split.
         * split; last done.
-          rewrite - Heqf'.
+
           econstructor.
           apply rs_prompt_trap.
         * rewrite /lfilled /lfill //.
@@ -420,7 +419,7 @@ Note that this is a property very similar to Iris context.
         left. eexists.
         split.
         * split; last done.
-          rewrite -Heqf'.
+
           constructor. constructor => //.
         * rewrite /lfilled /lfill /= //.
       + destruct vs.
@@ -645,7 +644,7 @@ Note that this is a property very similar to Iris context.
         left. eexists.
         split.
         * split; last done.
-          rewrite -Heqf'.
+
           constructor.
           apply rs_select_true => //.
         * rewrite /lfilled /lfill /= //.
@@ -880,7 +879,7 @@ Note that this is a property very similar to Iris context.
       + left. eexists.
         split.
         * split; last done.
-          rewrite app_nil_r -Heqf'.
+
           econstructor. econstructor => //.
         * rewrite /lfilled /lfill /= //.
       + exfalso.
@@ -902,7 +901,7 @@ Note that this is a property very similar to Iris context.
       + left. eexists.
         split.
         * split; last done.
-          rewrite app_nil_r -Heqf'.
+          rewrite app_nil_r .
           econstructor. econstructor => //.
         * rewrite /lfilled /lfill /= H1 //.
       + exfalso.
@@ -920,7 +919,7 @@ Note that this is a property very similar to Iris context.
         inversion H0; subst.
         left; eexists; split.
         * split; last done.
-          rewrite - Heqf'.
+
           do 2 econstructor => //.
         * rewrite /lfilled /lfill /= app_nil_r //.
       + destruct vs0; last by destruct vs0.
@@ -939,7 +938,7 @@ Note that this is a property very similar to Iris context.
         inversion H; subst.
         left; eexists; split.
         * split; last done.
-          rewrite - Heqf'.
+
           econstructor.
           apply rs_label_trap.
         * rewrite /lfilled /lfill //.
@@ -960,7 +959,7 @@ Note that this is a property very similar to Iris context.
         inversion H2; subst.
         left.
         eexists. split.
-        * split; last done. rewrite -Heqf'.
+        * split; last done. 
           constructor. eapply rs_br. 3: exact H1.
           done. done.
         * rewrite /lfilled /lfill /= app_nil_r //.
@@ -984,7 +983,7 @@ Note that this is a property very similar to Iris context.
         inversion H1; subst.
         left; eexists; split.
        + split; last done.
-          rewrite - Heqf'.
+
           do 2 econstructor => //.
        + rewrite /lfilled /lfill /= app_nil_r //.
     - move/lfilledP in Hfill; inversion Hfill; subst;
@@ -998,7 +997,7 @@ Note that this is a property very similar to Iris context.
       inversion H2; subst.
       left.
       eexists. split.
-      + split; last done. rewrite -Heqf'.
+      + split; last done. 
         constructor. eapply rs_return. 3: exact H1.
         done. done.
       + rewrite /lfilled /lfill /= app_nil_r //.
@@ -1058,7 +1057,7 @@ Note that this is a property very similar to Iris context.
       all: try done.
       destruct i, j => //. 
       right. eexists; split => //.
-      subst. inversion Heqf'; subst. done.
+
     - move/lfilledP in Hfill; inversion Hfill; subst;
         try (by lazymatch goal with
                 | H : (?vs ++ _ :: _)%SEQ = (_ ++ [_])%SEQ |- _ =>
@@ -1075,7 +1074,7 @@ Note that this is a property very similar to Iris context.
       + simpl in Hvs; subst vs2. left. eexists.
         split.
         * split; last done.
-          rewrite app_nil_r -Heqf'.
+          rewrite app_nil_r .
           eapply r_invoke_native => //.
         * rewrite /lfilled /lfill /= //.
       + exfalso.
@@ -1101,7 +1100,7 @@ Note that this is a property very similar to Iris context.
       + simpl in Hvs; subst vs2. left. eexists.
         split.
         * split; last done.
-          rewrite app_nil_r -Heqf'.
+          rewrite app_nil_r .
           eapply r_invoke_host => //.
         * rewrite /lfilled /lfill /= //.
       + exfalso.
@@ -1126,7 +1125,7 @@ Note that this is a property very similar to Iris context.
       + left. eexists.
         split.
         * split; last done.
-          rewrite app_nil_r -Heqf'.
+          rewrite app_nil_r .
           eapply r_try_table => //.
         * rewrite /lfilled /lfill /= //.
       + exfalso.
@@ -1150,7 +1149,7 @@ Note that this is a property very similar to Iris context.
       + simpl in Hvs; subst vs2. left. eexists.
         split.
         * split; last done.
-          rewrite app_nil_r -Heqf'.
+          rewrite app_nil_r .
           eapply r_throw => //.
         * rewrite /lfilled /lfill /= //.
       + exfalso.
@@ -1170,7 +1169,7 @@ Note that this is a property very similar to Iris context.
         inversion H1; subst.
         left.
         eexists. split.
-        * split; last done. rewrite -Heqf'.
+        * split; last done. 
           eapply r_throw_ref. exact H. exact H0.
         * rewrite /lfilled /lfill /= app_nil_r //.
       + destruct bef; last by destruct bef.
@@ -1191,7 +1190,7 @@ Note that this is a property very similar to Iris context.
         inversion H1; subst.
         left.
         eexists. split.
-        * split; last done. rewrite -Heqf'.
+        * split; last done. 
           eapply r_throw_ref_ref. exact H. exact H0.
         * rewrite /lfilled /lfill /= app_nil_r //.
       + destruct bef; last by destruct bef.
@@ -1221,7 +1220,7 @@ Note that this is a property very similar to Iris context.
         * left. eexists.
           split.
           -- split; last done.
-             rewrite app_nil_r -Heqf'.
+             rewrite app_nil_r .
              rewrite -cat_app -catA.
              eapply r_resume => //.
           -- rewrite /lfilled /lfill /= //.
@@ -1271,7 +1270,7 @@ Note that this is a property very similar to Iris context.
       + simpl in Hvs; subst vs2. left. eexists.
         split.
         * split; last done.
-          rewrite app_nil_r -Heqf'.
+          rewrite app_nil_r.
           eapply r_suspend_desugar => //.
         * rewrite /lfilled /lfill /= //.
       + exfalso.
@@ -1301,7 +1300,7 @@ Note that this is a property very similar to Iris context.
         * simpl in Hvs; subst l. left. eexists.
           split.
           -- split; last done.
-             rewrite app_nil_r -Heqf'.
+             rewrite app_nil_r .
              rewrite -cat_app -catA.
              eapply r_switch_desugar => //.
           -- rewrite /lfilled /lfill /= //.
@@ -1349,7 +1348,7 @@ Note that this is a property very similar to Iris context.
         inversion H3; subst.
         left.
         eexists. split.
-        * split; last done. rewrite -Heqf'.
+        * split; last done. 
           eapply r_suspend. done. exact H0. exact H1. exact H2.
         * rewrite /lfilled /lfill /= app_nil_r //.
       + destruct bef; last by destruct bef.
@@ -1370,8 +1369,8 @@ Note that this is a property very similar to Iris context.
         inversion H4; subst.
         left.
         eexists. split.
-        * split; last done. rewrite -Heqf'.
-          eapply r_switch. done. done. exact H1. exact H2. exact H3.
+        * split; last done. 
+          eapply r_switch. done. done. exact H1. exact H2. exact H3. 
         * rewrite /lfilled /lfill /=  //.
       + destruct bef; last by destruct bef.
         inversion H4; subst.
@@ -1401,7 +1400,7 @@ Note that this is a property very similar to Iris context.
         * left. eexists.
           split.
           -- split; last done.
-             rewrite app_nil_r -Heqf'.
+             rewrite app_nil_r .
              rewrite -cat_app -catA.
              eapply r_contbind => //.
           -- rewrite /lfilled /lfill /= //.
@@ -1456,7 +1455,7 @@ Note that this is a property very similar to Iris context.
         * simpl in Hvs; subst l. left. eexists.
           split.
           -- split; last done.
-             rewrite app_nil_r -Heqf'.
+             rewrite app_nil_r .
              rewrite -cat_app -catA.
              eapply r_resume_throw => //.
           -- rewrite /lfilled /lfill /= //.
@@ -1560,7 +1559,7 @@ Note that this is a property very similar to Iris context.
           assert (lfilled (S k0) (LH_rec vs' n es'1 lh' aftes) es0 es).
           { rewrite Heq. apply/lfilledP. constructor => //. }
           edestruct lfilled_swap as [es'' Hfill'] ; first exact H2.
-          assert (reduce s {| f_locs := locs; f_inst := inst |} es s' {| f_locs := locs'; f_inst := inst' |} es'').
+          assert (reduce s f es s' f' es'').
           { eapply r_label.
             exact HLI.
             exact H2.
@@ -1597,7 +1596,7 @@ Note that this is a property very similar to Iris context.
           assert (lfilled (k - i) (LH_handler vs' hs lh' aftes) es0 es).
           { rewrite Heq. apply/lfilledP. constructor => //. }
           edestruct lfilled_swap as [es'' Hfill'] ; first exact H1.
-          assert (reduce s {| f_locs := locs; f_inst := inst |} es s' {| f_locs := locs'; f_inst := inst' |} es'').
+          assert (reduce s f es s' f' es'').
           { eapply r_label.
             exact HLI.
             exact H1.
@@ -1635,7 +1634,7 @@ Note that this is a property very similar to Iris context.
           assert (lfilled (k - i) (LH_prompt vs' ts hs lh' aftes) es0 es).
           { rewrite Heq. apply/lfilledP. constructor => //. }
           edestruct lfilled_swap as [es'' Hfill'] ; first exact H1.
-          assert (reduce s {| f_locs := locs; f_inst := inst |} es s' {| f_locs := locs'; f_inst := inst' |} es'').
+          assert (reduce s f es s' f' es'').
           { eapply r_label.
             exact HLI.
             exact H1.
@@ -1835,7 +1834,7 @@ Note that this is a property very similar to Iris context.
        inversion H; subst.
        left; eexists. split.
        split; last done.
-       rewrite - Heqf'.
+
        eapply r_local.
        exact HLI.
        rewrite /lfilled /lfill /= //. 

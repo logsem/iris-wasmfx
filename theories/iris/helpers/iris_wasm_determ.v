@@ -26,6 +26,8 @@ Section determ.
   Let val := iris.val.
   Let to_val := iris.to_val.
 
+  Ltac sapply x := apply reduce_det_strong_implies_goal; eapply x.
+
   Lemma reduce_det: forall (ws: store_record) (f: frame) es ws1 f1 es1 ws2 f2 es2,
       reduce ws f es ws1 f1 es1 ->
       reduce ws f es ws2 f2 es2 ->
@@ -55,48 +57,48 @@ Section determ.
      the tactic [only_one] will leave us with more than one case, and we will have to
      manually exfalso away some cases *)
     destruct H.
-      - by apply unop_det.
-      - by apply binop_det.
-      - by apply binop_none_det.
-      - by apply testop_i32_det.
-      - by apply testop_i64_det.
-      - by apply relop_det.
-      - by apply cvtop_convert_det.
-      - by apply cvtop_convert_none_det.
-      - by apply cvtop_reinterpret_det.
-      - by apply ref_is_null_det.
-      - by apply ref_is_not_null_det.
-      - by apply throw_ref_null_det.
-      - by apply call_reference_null_det.
-      - by apply contnew_null_det.
-      - by apply contbind_null_det.
-      - by apply resume_null_det.
-      - by apply resume_throw_null_det.
-      - by apply switch_null_det.
-      - by apply prompt_const_det.
-      - by apply handler_const_det.
-      - by apply handler_trap_det.
-      - by apply prompt_trap_det.
+      - by sapply unop_det.
+      - by sapply binop_det.
+      - by sapply binop_none_det.
+      - by sapply testop_i32_det.
+      - by sapply testop_i64_det.
+      - by sapply relop_det.
+      - by sapply cvtop_convert_det.
+      - by sapply cvtop_convert_none_det.
+      - by sapply cvtop_reinterpret_det.
+      - by sapply ref_is_null_det.
+      - by sapply ref_is_not_null_det.
+      - by sapply throw_ref_null_det.
+      - by sapply call_reference_null_det.
+      - by sapply contnew_null_det.
+      - by sapply contbind_null_det.
+      - by sapply resume_null_det.
+      - by sapply resume_throw_null_det.
+      - by sapply switch_null_det.
+      - by sapply prompt_const_det.
+      - by sapply handler_const_det.
+      - by sapply handler_trap_det.
+      - by sapply prompt_trap_det.
       - only_one. inversion H3; destruct vs, esnewest => //; empty_list_no_reduce.
       - only_one. inversion H3; destruct vs, esnewest => //; empty_list_no_reduce.
-      - by apply drop_det.
-      - by apply select_false_det.
-      - by apply select_true_det.
-      - by eapply block_det.
-      - by eapply loop_det.
-      - by apply if_false_det.
-      - by apply if_true_det.
-      - by apply label_const_det.
-      - by apply label_trap_det.
-      - by eapply br_det.
-      - by eapply br_if_false_det.
-      - by eapply br_if_true_det.
-      - by eapply br_if_table_det.
-      - by eapply br_if_table_over_det.
-      - by apply local_const_det.
-      - by apply local_trap_det.
-      - by eapply return_det.
-      - by apply tee_local_det.
+      - by sapply drop_det.
+      - by sapply select_false_det.
+      - by sapply select_true_det.
+      - by sapply block_det.
+      - by sapply loop_det.
+      - by sapply if_false_det.
+      - by sapply if_true_det.
+      - by sapply label_const_det.
+      - by sapply label_trap_det.
+      - by sapply br_det.
+      - by sapply br_if_false_det.
+      - by sapply br_if_true_det.
+      - by sapply br_if_table_det.
+      - by sapply br_if_table_over_det.
+      - by sapply local_const_det.
+      - by sapply local_trap_det.
+      - by sapply return_det.
+      - by sapply tee_local_det.
       - by eapply filled_trap_det. 
       - only_one.
         inversion Heqesnew; subst. rewrite H0 in H. inversion H; subst.
@@ -104,45 +106,45 @@ Section determ.
       - only_one.
         inversion Heqesnew; subst. rewrite H0 in H. inversion H; subst.
         repeat split => //. by left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
-      - by eapply call_indirect_det.
-      - by eapply call_indirect_failure1_det.
-      - by eapply call_indirect_failure2_det.
-      - by apply call_reference_det.
+      - by sapply call_indirect_det.
+      - by sapply call_indirect_failure1_det.
+      - by sapply call_indirect_failure2_det.
+      - by sapply call_reference_det.
       - subst; eapply invoke_native_det in Hred2 => //.
         inversion Hred2; subst.
         repeat split => //. by left.
       - subst; eapply invoke_host_det in Hred2 => //.
         inversion Hred2; subst.
         repeat split => //. by left.
-      - by eapply try_table_det.
-      - by eapply throw_det.
-      - by eapply throw_ref_desugar_det. 
-      - by eapply throw_ref_det.
-      - by eapply throw_ref_ref_det.
-      - by eapply contnew_det.
-      - by eapply resume_det.
-      - by eapply resume_dagger_det.
-      - by eapply suspend_desugar_det.
-      - by eapply switch_desugar_det.
-      - by eapply suspend_det.
-      - by eapply switch_det.
+      - by sapply try_table_det.
+      - by sapply throw_det.
+      - by sapply throw_ref_desugar_det. 
+      - by sapply throw_ref_det.
+      - by sapply throw_ref_ref_det.
+      - by sapply contnew_det.
+      - by sapply resume_det.
+      - by sapply resume_dagger_det.
+      - by sapply suspend_desugar_det.
+      - by sapply switch_desugar_det.
+      - by sapply suspend_det.
+      - by sapply switch_det.
       - only_one. inversion H4; destruct vs0, esnewest => //; empty_list_no_reduce.
-      - by eapply contbind_det.
-      - by eapply contbind_dagger_det.
-      - by eapply resume_throw_det.
-      - by eapply resume_throw_dagger_det.
+      - by sapply contbind_det.
+      - by sapply contbind_dagger_det.
+      - by sapply resume_throw_det.
+      - by sapply resume_throw_dagger_det.
       - only_one. inversion Heqesnew; subst. rewrite H in H0; inversion H0; subst; by repeat split => //; left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
-      - by eapply set_local_det.
+      - by sapply set_local_det.
       - only_one. inversion Heqesnew; subst. rewrite H in H0; inversion H0; subst; by repeat split => //; left. inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
-      - by eapply set_global_det.
-      - by eapply load_det.
-      - by eapply load_failure_det.
-      - by eapply load_packed_det.
-      - by eapply load_packed_failure_det.
-      - by eapply store_det.
-      - by eapply store_failure_det.
-      - by eapply store_packed_det.
-      - by eapply store_packed_failure_det.
+      - by sapply set_global_det.
+      - by sapply load_det.
+      - by sapply load_failure_det.
+      - by sapply load_packed_det.
+      - by sapply load_packed_failure_det.
+      - by sapply store_det.
+      - by sapply store_failure_det.
+      - by sapply store_packed_det.
+      - by sapply store_packed_failure_det.
       - only_one. inversion Heqesnew; subst. rewrite H2 in H; inversion H; subst.
         rewrite H3 in H0; inversion H0; subst. by repeat split => //; left.
         inversion H4; destruct vs, esnewest => //; empty_list_no_reduce.
@@ -269,6 +271,217 @@ Section determ.
     - by eapply label_det.
     - by eapply local_det.
   Qed.
+
+
+
+  Lemma reduce_in_local s f0 n f es s' f' es':
+    reduce s f0 [AI_local n f es] s' f' es' ->
+    (exists f esf, es' = [AI_local n f esf]) \/ const_list es' \/ es' = [AI_trap].
+  Proof.
+    intros Hred.
+    remember [AI_local n f es] as esi.
+    induction Hred.
+    inversion H.
+    all: remember Heqesi as Heq; clear HeqHeq Heqesi.
+    all: symmetry in Heq.
+    all: subst.
+    all: try by inversion Heq.
+    all: try by do 2 (destruct vs => //).
+    all: try by right; left.
+    all: try by right; right.
+    all: try by do 2 (destruct vcs => //).
+    2: by inversion Heq; subst; left; eexists _,_.
+    move/lfilledP in H.
+    inversion H; subst.
+    all: try by do 2 (destruct vs => //).
+    all: try by do 2 (destruct bef => //).
+    destruct vs.
+    { destruct es0; first empty_list_no_reduce.
+      inversion H1; subst.
+      destruct es0, es'0 => //.
+      move/lfilledP in H0; inversion H0; subst.
+      repeat rewrite cats0 /=.
+      apply IHHred => //. }
+    inversion H1; subst.
+    done.
+  Qed.
+
+  
+
+  Lemma reduce_local_ignores_frame s f0 n f es s' f' es':
+    reduce s f0 [AI_local n f es] s' f' es' ->
+    reduce s empty_frame [AI_local n f es] s' empty_frame es'.
+  Proof.
+     intros Hred.
+    remember [AI_local n f es] as esi.
+    induction Hred.
+    inversion H.
+    all: remember Heqesi as Heq; clear HeqHeq Heqesi.
+    all: symmetry in Heq.
+    all: subst.
+    all: try by inversion Heq.
+    all: try by do 2 (destruct vs => //).
+    all: try by right; left.
+    all: try by right; right.
+    all: try by do 2 (destruct vcs => //).
+    all: try by do 2 constructor.
+    all: try by constructor.
+    move/lfilledP in H.
+    inversion H; subst.
+    all: try by do 2 (destruct vs => //).
+    all: try by do 2 (destruct bef => //).
+    destruct vs.
+    { destruct es0; first empty_list_no_reduce.
+      inversion H1; subst.
+      destruct es0, es'0 => //.
+      move/lfilledP in H0; inversion H0; subst.
+      repeat rewrite cats0 /=.
+      apply IHHred => //. }
+    inversion H1; subst.
+    done.
+  Qed. 
+    
+    
+  Lemma reduce_call_ref_state_unchanged s f vs x s' f' es' :
+    const_list vs ->
+    reduce s f (vs ++ [AI_basic (BI_call_reference x)]) s' f' es' ->
+    s = s'.
+  Proof.
+    intros Hvs Hred.
+    remember (S (length vs)) as m.
+    assert (length vs < m) as Hm; first lia.
+    clear Heqm.
+    generalize dependent vs. generalize dependent es'.
+    induction m; first lia.
+    intros.
+    remember (vs ++ [AI_basic (BI_call_reference x)])%SEQ as es.
+    induction Hred => //.
+    all: try by apply concat_cancel_last in Heqes as [??]; subst; try apply v_to_e_is_const_list.
+    all: try by do 2 (destruct vs => //).
+    all: try by do 3 (destruct vs => //).
+    all: try by do 4 (destruct vs => //).
+    all: try by rewrite separate1 -cat_app catA in Heqes; apply concat_cancel_last in Heqes as [??]; subst; try apply const_list_concat; try apply v_to_e_is_const_list.
+    move/lfilledP in H; inversion H; subst.
+    all: try by apply first_values in H6 as (? & ? & ?).
+    destruct vs0.
+    { destruct es'0.
+      { move/lfilledP in H0; inversion H0; subst.
+        rewrite cats0 /= in H5 IHm.
+        
+        by apply IHHred. }
+      destruct (separate_last (a :: es'0)) eqn:Hlast.
+      2: by apply separate_last_None in Hlast.
+      destruct p.
+      apply separate_last_spec in Hlast.
+      rewrite Hlast in H5.
+      repeat rewrite -cat_app /= in H5.
+      rewrite catA in H5.
+      apply concat_cancel_last in H5 as [? ->].
+      exfalso; values_no_reduce.
+      rewrite -H2 in Hvs.
+      apply const_list_split in Hvs as [??] => //. }
+    destruct es'0.
+    2:{  destruct (separate_last (a0 :: es'0)) eqn:Hlast.
+      2: by apply separate_last_None in Hlast.
+      destruct p.
+      apply separate_last_spec in Hlast.
+      rewrite Hlast in H5.
+      repeat rewrite -cat_app /= in H5.
+      rewrite separate1 -cat_app in H5.
+      repeat rewrite catA in H5.
+      apply concat_cancel_last in H5 as [? ->].
+      exfalso; values_no_reduce.
+      rewrite -H2 in Hvs.
+      repeat apply const_list_split in Hvs as [ Hvs ?] => //. }
+    destruct es; first empty_list_no_reduce.
+    destruct (separate_last (a0 :: es)) eqn:Hlast.
+    2: by apply separate_last_None in Hlast.
+    destruct p.
+    apply separate_last_spec in Hlast.
+    rewrite Hlast in H5 Hred.
+    rewrite cats0 in H5.
+    rewrite separate1 in H5.
+    repeat rewrite -cat_app in H5.
+    repeat rewrite catA in H5.
+    apply concat_cancel_last in H5 as [<- ->].
+    rewrite -cat_app in Hred.
+    eapply IHm.
+    2: exact Hred.
+    apply const_list_split in Hvs as [??] => //.
+    repeat rewrite cat_app length_app /= in Hm.
+    lia.
+  Qed. 
+    
+    
+   Lemma reduce_invoke_state_unchanged s f vs x s' f' es' :
+    const_list vs ->
+    reduce s f (vs ++ [AI_invoke x]) s' f' es' ->
+    s = s'.
+  Proof.
+    intros Hvs Hred.
+    remember (S (length vs)) as m.
+    assert (length vs < m) as Hm; first lia.
+    clear Heqm.
+    generalize dependent vs. generalize dependent es'.
+    induction m; first lia.
+    intros.
+    remember (vs ++ [AI_invoke x])%SEQ as es.
+    induction Hred => //.
+    all: try by apply concat_cancel_last in Heqes as [??]; subst; try apply v_to_e_is_const_list.
+    all: try by do 2 (destruct vs => //).
+    all: try by do 3 (destruct vs => //).
+    all: try by do 4 (destruct vs => //).
+    all: try by rewrite separate1 -cat_app catA in Heqes; apply concat_cancel_last in Heqes as [??]; subst; try apply const_list_concat; try apply v_to_e_is_const_list.
+    move/lfilledP in H; inversion H; subst.
+    all: try by apply first_values in H6 as (? & ? & ?).
+    destruct vs0.
+    { destruct es'0.
+      { move/lfilledP in H0; inversion H0; subst.
+        rewrite cats0 /= in H5 IHm.
+        
+        by apply IHHred. }
+      destruct (separate_last (a :: es'0)) eqn:Hlast.
+      2: by apply separate_last_None in Hlast.
+      destruct p.
+      apply separate_last_spec in Hlast.
+      rewrite Hlast in H5.
+      repeat rewrite -cat_app /= in H5.
+      rewrite catA in H5.
+      apply concat_cancel_last in H5 as [? ->].
+      exfalso; values_no_reduce.
+      rewrite -H2 in Hvs.
+      apply const_list_split in Hvs as [??] => //. }
+    destruct es'0.
+    2:{  destruct (separate_last (a0 :: es'0)) eqn:Hlast.
+      2: by apply separate_last_None in Hlast.
+      destruct p.
+      apply separate_last_spec in Hlast.
+      rewrite Hlast in H5.
+      repeat rewrite -cat_app /= in H5.
+      rewrite separate1 -cat_app in H5.
+      repeat rewrite catA in H5.
+      apply concat_cancel_last in H5 as [? ->].
+      exfalso; values_no_reduce.
+      rewrite -H2 in Hvs.
+      repeat apply const_list_split in Hvs as [ Hvs ?] => //. }
+    destruct es; first empty_list_no_reduce.
+    destruct (separate_last (a0 :: es)) eqn:Hlast.
+    2: by apply separate_last_None in Hlast.
+    destruct p.
+    apply separate_last_spec in Hlast.
+    rewrite Hlast in H5 Hred.
+    rewrite cats0 in H5.
+    rewrite separate1 in H5.
+    repeat rewrite -cat_app in H5.
+    repeat rewrite catA in H5.
+    apply concat_cancel_last in H5 as [<- ->].
+    rewrite -cat_app in Hred.
+    eapply IHm.
+    2: exact Hred.
+    apply const_list_split in Hvs as [??] => //.
+    repeat rewrite cat_app length_app /= in Hm.
+    lia.
+  Qed. 
   
 End determ.
 

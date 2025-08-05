@@ -4,7 +4,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 
 Lemma call_reference_null_det tf i s f s' f' es:
   reduce s f [AI_basic (BI_ref_null tf); AI_basic $ BI_call_reference i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_ref_null tf); AI_basic $ BI_call_reference i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -52,8 +52,8 @@ Qed.
 
 Lemma call_reference_det x i s f s' f' es:
   reduce s f [AI_ref x; AI_basic (BI_call_reference i)] s' f' es ->
-  reduce_det_goal s f [AI_invoke x]
-    s' f' es [AI_ref x; AI_basic (BI_call_reference i)]. 
+  reduce_det_strong_goal s f [AI_invoke x]
+    s' f' es.
 Proof.
   move => Hred.
 

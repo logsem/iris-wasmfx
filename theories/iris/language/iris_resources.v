@@ -28,7 +28,63 @@ Canonical Structure wasm_lang := Language wasm_mixin.
  
 Local Definition reducible := @reducible wasm_lang.
 
+Inductive valid_hholed : Type :=
+| Initial : immediate -> function_type -> valid_hholed
+| Running : list value (* always empty in practice but tricky to enforce syntactically *) -> nat -> frame -> hholed -> valid_hholed
+.
 
+
+
+Definition hholed_of_valid_hholed hr :=
+  match hr with 
+  | Initial x tf => HH_base [::] [:: AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))]
+  | Running vs n f hh => HH_local (v_to_e_list vs) n f hh [::]
+  end
+.
+
+
+
+
+Definition valid_hholed_of_hholed hh :=
+  match hh with
+  | HH_base [::]
+      [:: AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))] =>
+      Some (Initial x tf)
+  | HH_local es n f hh [::] =>
+      match e_to_v_list_opt es with
+      | Some vs => Some (Running vs n f hh)
+      | None => None
+      end
+  | _ => None
+  end.
+
+
+
+Inductive continuation_resource : Type :=
+| Live : function_type -> valid_hholed -> continuation_resource
+| Dead : function_type -> continuation_resource
+.
+
+Definition continuation_of_resource cr :=
+  match cr with
+  | Live tf hh => Cont_hh tf (hholed_of_valid_hholed hh)
+  | Dead tf => Cont_dagger tf
+  end
+.
+
+
+Definition resource_of_continuation cont :=
+  match cont with
+  | Cont_dagger tf => Some (Dead tf)
+  | Cont_hh tf hh =>
+      match valid_hholed_of_hholed hh with
+      | Some hh => Some (Live tf hh)
+      | None => None
+      end
+  end.
+
+Definition resources_of_s_cont s_cont :=
+  those (map resource_of_continuation s_cont).
 
 (* Implicit Type σ : state. *)
 
@@ -37,7 +93,7 @@ Class wasmG Σ :=
       func_invG :: invGS Σ;
       func_gen_hsG :: gen_heapGS N function_closure Σ;
 
-      cont_gen_hsG :: gen_heapGS N continuation Σ;
+      cont_gen_hsG :: gen_heapGS N continuation_resource Σ;
 
       tag_gen_hsG :: gen_heapGS N function_type Σ;
       
@@ -74,9 +130,14 @@ Definition proph_id := positive. (* ??? *)
 #[export] Instance eqdecision_frame: EqDecision frame.
 Proof. decidable_equality. Qed.
 
+
+
 Definition gen_heap_wasm_store `{!wasmG Σ} (s: store_record) : iProp Σ :=
   ((gen_heap_interp (gmap_of_list s.(s_funcs))) ∗
-     (gen_heap_interp (gmap_of_list s.(s_conts))) ∗
+     match resources_of_s_cont s.(s_conts) with
+     | Some rs => (gen_heap_interp (gmap_of_list rs))
+     | None => False
+     end ∗ 
      (gen_heap_interp (gmap_of_list s.(s_tags))) ∗
    (gen_heap_interp (gmap_of_table s.(s_tables))) ∗
    (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
@@ -90,7 +151,10 @@ Definition gen_heap_wasm_store `{!wasmG Σ} (s: store_record) : iProp Σ :=
 
 Definition state_interp `{!wasmG Σ} s :=
   ((@gen_heap_interp _ _ _ _ _ func_gen_hsG (gmap_of_list s.(s_funcs))) ∗
-     (@gen_heap_interp _ _ _ _ _ cont_gen_hsG (gmap_of_list s.(s_conts))) ∗
+     match resources_of_s_cont s.(s_conts) with 
+     | Some rs => (@gen_heap_interp _ _ _ _ _ cont_gen_hsG (gmap_of_list rs))
+     | None => False
+     end ∗
      (@gen_heap_interp _ _ _ _ _ tag_gen_hsG (gmap_of_list s.(s_tags))) ∗
       (@gen_heap_interp _ _ _ _ _ tab_gen_hsG (gmap_of_table s.(s_tables))) ∗
       (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
@@ -116,22 +180,22 @@ Qed.
 
 Global Instance heapG_irisG `{!wasmG Σ} : irisGS wasm_lang Σ := {
   iris_invGS := func_invG; 
-  state_interp '(σ,_,_) _ _ _ := state_interp σ; 
+  state_interp σ _ _ _ := state_interp σ; 
     num_laters_per_step _ := 0;
     fork_post _ := True%I ;
-    state_interp_mono '(s0,_,_) _ _ _ := state_interp_mono s0 
+    state_interp_mono s0 _ _ _ := state_interp_mono s0 
   }.
 
 End wp_def.
 
 (* Resource ownerships *) 
-Notation "n ↦[wf]{ q } v" := (pointsto (L:=N) (V:=function_closure) n q v%V)
-                           (at level 20, q at level 5, format "n ↦[wf]{ q } v") : bi_scope.
+(* Notation "n ↦[wf]{ q } v" := (pointsto (L:=N) (V:=function_closure) n q v%V)
+                           (at level 20, q at level 5, format "n ↦[wf]{ q } v") : bi_scope. *)
 Notation "n ↦[wf] v" := (pointsto (L:=N) (V:=function_closure) n (DfracOwn 1) v%V)
                           (at level 20, format "n ↦[wf] v") : bi_scope.
-Notation "n ↦[wcont]{ q } v" := (pointsto (L:=N) (V:=continuation) n q v%V)
+Notation "n ↦[wcont]{ q } v" := (pointsto (L:=N) (V:=continuation_resource) n q v%V)
                            (at level 20, q at level 5, format "n ↦[wcont]{ q } v") : bi_scope.
-Notation "n ↦[wcont] v" := (pointsto (L:=N) (V:=continuation) n (DfracOwn 1) v%V)
+Notation "n ↦[wcont] v" := (pointsto (L:=N) (V:=continuation_resource) n (DfracOwn 1) v%V)
                              (at level 20, format "n ↦[wcont] v") : bi_scope.
 
 Notation "n ↦□[tag] v" := (pointsto (L:=N) (V:=function_type) n DfracDiscarded v%V)%I

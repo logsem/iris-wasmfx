@@ -11,7 +11,7 @@ Lemma throw_det x a ts ves vcs s2 s f s' f' es' :
   ves = v_to_e_list vcs ->
   s2 = add_exn s {| e_tag := Mk_tagidx a; e_fields := vcs |} ->
   reduce s f (ves ++ [AI_basic (BI_throw x)]) s' f' es' ->
-  reduce_det_goal s2 f [AI_ref_exn (length (s_exns s)) (Mk_tagidx a); AI_basic BI_throw_ref] s' f' es' (ves ++ [AI_basic (BI_throw x)]).
+  reduce_det_strong_goal s2 f [AI_ref_exn (length (s_exns s)) (Mk_tagidx a); AI_basic BI_throw_ref] s' f' es' .
 Proof.
   move => H H0 H1 Hves H2 Hred.
   subst ves.
@@ -42,7 +42,7 @@ Proof.
     inversion Heq; subst.
     rewrite H3 in H; inversion H; subst.
     apply v_to_e_inj in H5 as ->.
-    repeat split => //. by left.
+    repeat split => //. 
     
   - move/lfilledP in H3; inversion H3; subst.
     all: try by apply first_values in H10 as (? & ? & ?); try apply v_to_e_is_const_list.
@@ -57,7 +57,7 @@ Proof.
       apply const_list_split in H2 as [??].
       apply const_list_split in H2 as [??] => //. 
     + destruct vs.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es; last by empty_list_no_reduce.

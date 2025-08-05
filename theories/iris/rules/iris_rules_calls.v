@@ -12,19 +12,19 @@ Section iris_rules_calls.
 Context `{!wasmG Σ}.
 
   Lemma v_to_e_list_to_val es vs :
-    iris.to_val es = Some (immV vs) ->
+    iris.to_val0 es = Some (immV vs) ->
     v_to_e_list vs = es.
   Proof.
     revert vs. induction es.
     { intros vs Hval. destruct vs;inversion Hval. done. }
     { intros vs Hval.
-      unfold to_val, iris.to_val in Hval.
+      unfold to_val, iris.to_val0 in Hval.
       destruct a => // ; try destruct b => // ; simpl in Hval.
       all: try by rewrite merge_notval in Hval.
       - rewrite merge_br flatten_simplify in Hval => //.
       - rewrite merge_return flatten_simplify in Hval => //.
       - rewrite merge_prepend in Hval.
-        unfold to_val, iris.to_val in IHes.
+        unfold to_val, iris.to_val0 in IHes.
         destruct (merge_values _) => //.
         destruct v0 => //.
         specialize (IHes l Logic.eq_refl).
@@ -32,7 +32,7 @@ Context `{!wasmG Σ}.
         inversion Hval ; subst => //=.
         destruct e => //.
       - rewrite merge_prepend in Hval.
-        unfold to_val, iris.to_val in IHes.
+        unfold to_val, iris.to_val0 in IHes.
         destruct (merge_values _) => //.
         destruct v => //.
         specialize (IHes l Logic.eq_refl).
@@ -42,7 +42,7 @@ Context `{!wasmG Σ}.
       - rewrite merge_trap flatten_simplify in Hval => //.
         destruct es => //.
       - rewrite merge_prepend in Hval.
-        unfold to_val, iris.to_val in IHes.
+        unfold to_val, iris.to_val0 in IHes.
         destruct (merge_values _) => //.
         destruct v => //.
         specialize (IHes l Logic.eq_refl).
@@ -50,7 +50,7 @@ Context `{!wasmG Σ}.
         inversion Hval ; subst => //=.
         destruct e => //.
       - rewrite merge_prepend in Hval.
-        unfold to_val, iris.to_val in IHes.
+        unfold to_val, iris.to_val0 in IHes.
         destruct (merge_values _) => //.
         destruct v => //.
         specialize (IHes l Logic.eq_refl).
@@ -58,7 +58,7 @@ Context `{!wasmG Σ}.
         inversion Hval ; subst => //=.
         destruct e0 => //.
       - rewrite merge_prepend in Hval.
-        unfold to_val, iris.to_val in IHes.
+        unfold to_val, iris.to_val0 in IHes.
         destruct (merge_values _) => //.
         destruct v => //.
         specialize (IHes l Logic.eq_refl).
@@ -124,8 +124,8 @@ Context `{!wasmG Σ}.
   (* ----------------------------- Native invocations ------------------------- *)
   (* -------------------------------------------------------------------------- *)
 
-  Lemma ewp_invoke_native (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) ves vcs t1s t2s ts a es i m f :
-    iris.to_val ves = Some (immV vcs) ->
+  Lemma ewp_invoke_native (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) ves vcs t1s t2s ts a es i m f :
+    iris.to_val0 ves = Some (immV vcs) ->
     length vcs = length t1s ->
     length t2s = m ->
     (N.of_nat a) ↦[wf] (FC_func_native i (Tf t1s t2s) ts es) -∗
@@ -140,8 +140,8 @@ Context `{!wasmG Σ}.
     iIntros (σ) "(Hσ1&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
     iApply fupd_frame_l.
     iDestruct (gen_heap_valid with "Hσ1 Hi") as %Hlook.
-    eassert (reduce _ {| f_locs := _; f_inst := _ |}
-           (ves ++ [AI_invoke a])%list _ {| f_locs := _; f_inst := _ |}
+    eassert (reduce _ _
+           (ves ++ [AI_invoke a])%list _ _
            [AI_local m {| f_locs := vcs ++ default_vals ts; f_inst := i |} [AI_basic (BI_block (Tf [] t2s) es)]]) as Hred.
     { eapply r_invoke_native with (ts:=ts);eauto.
       { rewrite gmap_of_list_lookup Nat2N.id in Hlook. rewrite /= nth_error_lookup //. }
@@ -149,11 +149,11 @@ Context `{!wasmG Σ}.
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //.
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
       destruct HStep as (H & _).
       assert (first_instr (ves ++ [AI_invoke a]) = Some (AI_invoke a,0)) as Hf.
@@ -163,7 +163,8 @@ Context `{!wasmG Σ}.
       inversion Hf'; subst.
       destruct HH as [<- <-].
       iFrame. 
-      iSpecialize ("HΦ" with "[$]"). destruct f; iFrame.
+      iSpecialize ("HΦ" with "[$]").
+      iFrame.
       rewrite Hf in Hstart. done.
   Qed.
 
@@ -197,13 +198,13 @@ Proof.
     iSplit.
     + iPureIntro.
       unfold reducible, language.prim_step => //=.
-      eexists _,_,(_,_,_),_.
+      eexists _,(_,_),_,_.
       repeat split => //=.
       eapply (r_invoke_host (t2s := t2s)) => //=.
       rewrite nth_error_lookup => //=.
       rewrite gmap_of_list_lookup Nat2N.id in Hlook.
       done.
-    + iIntros "!>" (es ??? HStep).
+    + iIntros "!>" (es ?? HStep).
       iMod "Hfupd".
       iModIntro.
       destruct HStep as [H _].
@@ -220,7 +221,7 @@ Proof.
       simplify_eq.
       iDestruct ("Hwp" with "Ha") as "Hwp".
       destruct H0 as [<- <-].
-      destruct f; iFrame.
+      iFrame.
 Qed.
 
 
@@ -228,7 +229,7 @@ Qed.
   (* ---------------------------------- Calls --------------------------------- *)
   (* -------------------------------------------------------------------------- *)
 
-  Lemma ewp_call_ctx (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f0 (i : nat) a j lh :
+  Lemma ewp_call_ctx (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) f0 (i : nat) a j lh :
     (inst_funcs (f_inst f0)) !! i = Some a -> 
     ▷ EWP [AI_invoke a] UNDER f0 @ E CTX j; lh <| Ψ |> {{ v ; f , Φ v f }} -∗
      EWP [AI_basic (BI_call i)] UNDER f0 @ E CTX j; lh <| Ψ |> {{ v ; f , Φ v f }}.
@@ -254,12 +255,12 @@ Qed.
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //. eapply r_label.
       apply r_call. rewrite /= nth_error_lookup //. eauto. eauto.
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
       destruct HStep as (H & _).
       assert (first_instr LI = Some (AI_basic (BI_call i),0 + j)).
@@ -267,10 +268,10 @@ Qed.
       eapply reduce_det in H as HH;[|eapply r_label;[|eauto..];apply r_call; rewrite /= nth_error_lookup //]. 
       destruct HH as [Hfeq [HH | [[? Hstart] | (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ)  ]]]; try done; try congruence.
       inversion Hfeq; subst; destruct HH as [<- <-].
-      destruct f0; iFrame.
+      iFrame.
       iApply ("HΦ" with "[]"). done. 
   Qed.
-  Lemma ewp_call (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f0 (i : nat) a :
+  Lemma ewp_call (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) f0 (i : nat) a :
     (inst_funcs (f_inst f0)) !! i = Some a -> 
     ▷ (EWP [AI_invoke a] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}) -∗
      EWP [AI_basic (BI_call i)] UNDER f0 @ E <| Ψ |> {{ v ; f , Φ v f }}.
@@ -283,7 +284,7 @@ Qed.
     iApply "HΦ".
   Qed. 
 
-  Lemma ewp_call_indirect_success_ctx (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j a c cl d lh :
+  Lemma ewp_call_indirect_success_ctx (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (f0 : frame) i j a c cl d lh :
     stypes (f_inst f0) i = Some (cl_type cl) ->
     (inst_tab (f_inst f0)) !! 0 = Some j-> 
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a) -∗
@@ -314,8 +315,8 @@ Qed.
     iDestruct (gen_heap_valid with "Hσ1 Hcl") as %Hlook2.
     simplify_lookup.
     rewrite gmap_of_list_lookup Nat2N.id in Hlook2. 
-    eassert (reduce _ {| f_locs := _; f_inst := _ |}
-           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ {| f_locs := _; f_inst := _ |}
+    eassert (reduce _ _
+           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ _
            [AI_invoke a]) as Hred.
     { eapply r_call_indirect_success;eauto.
       - unfold stab_addr. simpl.
@@ -329,15 +330,15 @@ Qed.
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //.
       eapply r_label;eauto.
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
       destruct HStep as (H & _).
-      eassert (reduce _ {| f_locs := _; f_inst := _ |} LI _ {| f_locs := _; f_inst := _ |} LI') as Hred'.
+      eassert (reduce _ _ LI _ _ LI') as Hred'.
       { eapply r_label. exact Hred. done. done. }
       eapply reduce_det in H as HH;[|apply Hred'].
       assert (first_instr LI = Some (AI_basic (BI_call_indirect i),0+d)).
@@ -345,10 +346,10 @@ Qed.
       destruct HH as [Hfeq [HH | [[? Hstart] | (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ)  ]]]; try done; try congruence.
       inversion Hfeq; subst; destruct HH as [<- <-]. iFrame.
       iSpecialize ("Hcont" with "[$] [$]").
-      iSpecialize ("Hcont" $! _ Hfill'). destruct f0; iFrame.      
+      iSpecialize ("Hcont" $! _ Hfill').  iFrame.      
   Qed.
   
-  Lemma ewp_call_indirect_success (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j a c cl :
+  Lemma ewp_call_indirect_success (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (f0 : frame) i j a c cl :
     stypes (f_inst f0) i = Some (cl_type cl) ->
     (inst_tab (f_inst f0)) !! 0 = Some j-> 
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a) -∗
@@ -366,7 +367,7 @@ Qed.
     iApply ("H" with "[$] [$]").
   Qed.
 
-  Lemma ewp_call_indirect_failure_types (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j a c cl:
+  Lemma ewp_call_indirect_failure_types (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (f0 : frame) i j a c cl:
     stypes (f_inst f0) i <> Some (cl_type cl) ->
     (inst_tab (f_inst f0)) !! 0 = Some j -> 
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] (Some a) -∗
@@ -383,11 +384,11 @@ Qed.
     iDestruct (gen_heap_valid with "Hσ1 Hcl") as %Hlook2.
     simplify_lookup.
     rewrite gmap_of_list_lookup Nat2N.id in Hlook2. 
-    eassert (reduce _ {| f_locs := _; f_inst := _ |}
-           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ {| f_locs := _; f_inst := _ |}
+    eassert (reduce _ _
+           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ _
            [AI_trap]) as Hred.
     { eapply r_call_indirect_failure1.
-      { unfold stab_addr. instantiate (1:=a). simpl. instantiate (2 := f_inst f0).
+      { unfold stab_addr. instantiate (1:=a). simpl. instantiate (2 := f0).
         destruct (inst_tab (f_inst f0)) => //. simpl in *. inversion Hc.
         unfold stab_index. rewrite nth_error_lookup.
         apply list_lookup_fmap_inv in Heq as [ti [Hti Heq]].
@@ -398,21 +399,21 @@ Qed.
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //.
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
       destruct HStep as (H & _).
       eapply reduce_det in H as HH;[|apply Hred].
       destruct HH as [Hfq [HH | [[? Hstart] |  (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ) ]]]; try done; try congruence.
       inversion Hfq; subst; destruct HH as [<- <-].
-      iFrame.  by destruct f0.
+      iFrame.  
   Qed.
 
 
-  Lemma ewp_call_indirect_failure_notable (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i c :
+  Lemma ewp_call_indirect_failure_notable (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (f0 : frame) i c :
     (inst_tab (f_inst f0)) !! 0 = None -> (* no function table *)
     
     ▷ (Φ trapV f0) -∗
@@ -422,28 +423,28 @@ Qed.
     iApply ewp_lift_atomic_step => //.
     iIntros (?) "Hσ".
     iApply fupd_frame_l.
-    eassert (reduce _ {| f_locs := _; f_inst := _ |}
-           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ {| f_locs := _; f_inst := _ |}
+    eassert (reduce _ _
+           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ _
            [AI_trap]) as Hred.
     { eapply r_call_indirect_failure2.
-      unfold stab_addr. simpl. instantiate (2 := f_inst f0).
+      unfold stab_addr. simpl. instantiate (2 := f0).
       destruct (inst_tab (f_inst f0));[done|]. inversion Hc. }
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //.
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
       destruct HStep as (H & _).
       eapply reduce_det in H as HH;[|apply Hred].
       destruct HH as [Hfq [HH | [[? Hstart] | (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ) ]]]; try done; try congruence.
-      inversion Hfq; subst; destruct HH as [<- <-]. iFrame.  by destruct f0.
+      inversion Hfq; subst; destruct HH as [<- <-]. iFrame.  
   Qed.
 
-  Lemma ewp_call_indirect_failure_noindex (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j c:
+  Lemma ewp_call_indirect_failure_noindex (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (f0 : frame) i j c:
     (inst_tab (f_inst f0)) !! 0 = Some j -> (* current frame points to correct table *)
     (N.of_nat j) ↦[wt][N.of_nat (Wasm_int.nat_of_uint i32m c)] None -∗ (* but no index i *)
     
@@ -456,11 +457,11 @@ Qed.
     iApply fupd_frame_l.
     iDestruct (gen_heap_valid with "Hσ2 Ha") as %Hlook.
     simplify_lookup.
-    eassert (reduce _ {| f_locs := _; f_inst := _ |}
-           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ {| f_locs := _; f_inst := _ |}
+    eassert (reduce _ _
+           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ _
            [AI_trap]) as Hred.
     { eapply r_call_indirect_failure2.
-      { unfold stab_addr. simpl. instantiate (2 := f_inst f0).
+      { unfold stab_addr. simpl. instantiate (2 := f0).
         destruct (inst_tab $ f_inst f0);[done|]. inversion Hc.
         unfold stab_index. rewrite nth_error_lookup.
         apply list_lookup_fmap_inv in Heq as [ti [Hti Heq]].
@@ -469,20 +470,20 @@ Qed.
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //.
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
       destruct HStep as (H & _).
       eapply reduce_det in H as HH;[|apply Hred].
       destruct HH as [Hfq [HH | [[? Hstart] | (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ) ]]]; try done; try congruence.
       inversion Hfq; subst; destruct HH as [<- <-].
-      iFrame. by destruct f0.
+      iFrame. 
   Qed.
 
-  Lemma ewp_call_indirect_failure_outofbounds (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) (f0 : frame) i j c max :
+  Lemma ewp_call_indirect_failure_outofbounds (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) (f0 : frame) i j c max :
     (inst_tab (f_inst f0)) !! 0 = Some j -> (* current frame points to correct table *)
     max <= (Wasm_int.nat_of_uint i32m c) ->
     (N.of_nat j) ↪[wtsize] max -∗ (* but is out of bounds *)
@@ -502,11 +503,11 @@ Qed.
     apply lookup_ge_None_2 in Hge.
     
     
-    eassert (reduce _ {| f_locs := _; f_inst := _ |}
-           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ {| f_locs := _; f_inst := _ |}
+    eassert (reduce _ _
+           [::AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_call_indirect i)] _ _
            [AI_trap]) as Hred.
     { eapply r_call_indirect_failure2.
-      { unfold stab_addr. simpl. instantiate (2 := f_inst f0).
+      { unfold stab_addr. simpl. instantiate (2 := f0).
         destruct (inst_tab $ f_inst f0) => //. inversion Hc; subst. 
         unfold stab_index. rewrite nth_error_lookup. simplify_eq.
         erewrite Hlook. simpl. rewrite nth_error_lookup Hge. done. } }
@@ -514,17 +515,17 @@ Qed.
     - iPureIntro.
       
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //.
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
 
       destruct HStep as (H & _).
       eapply reduce_det in H as HH;[|apply Hred].
       destruct HH as [Hfq [HH | [[? Hstart] | (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ) ]]]; try done; try congruence.
-      simplify_eq. destruct HH as [<- <-]. iFrame. destruct f0 => //. 
+      simplify_eq. destruct HH as [<- <-]. iFrame. 
   Qed.
 
 
@@ -538,22 +539,22 @@ Qed.
     iIntros (σ) "Hσ".
     iModIntro.
     iSplit.
-    { iPureIntro. eexists _,_,(_,_,_),_.
+    { iPureIntro. eexists _,(_,_),_,_.
       repeat split => //.
       apply r_ref_func.
       rewrite nth_error_lookup => //. }
-    iIntros "!>" (e2 ??? HStep).
+    iIntros "!>" (e2 ?? HStep).
     iModIntro.
     destruct HStep as (Hred & _).
     edestruct reduce_det.
     exact Hred. apply r_ref_func. rewrite nth_error_lookup //.
     destruct H0 as [[-> ->] | ?].
-    - inversion H; subst. iFrame. by destruct f. 
+    - inversion H; subst. iFrame. 
     - rewrite /first_instr /= in H.
       destruct H0 as [[??] | (?&?&?&?&_)] => //.
   Qed.
 
-    Lemma ewp_call_reference_ctx (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f i a j lh tf cl:
+    Lemma ewp_call_reference_ctx (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) f i a j lh tf cl:
       stypes f.(f_inst) i = Some tf ->
       cl_type cl = tf ->
     N.of_nat a ↦[wf] cl -∗
@@ -584,12 +585,12 @@ Qed.
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
-      eexists [], _, (_,_,_), [].
+      eexists [], (_,_) , _, [].
       unfold iris.prim_step => /=.
       repeat split => //. eapply r_label.
       eapply r_call_reference. done. simpl. erewrite Hi. by subst tf. done. done. 
     - iApply fupd_mask_intro;[solve_ndisj|].
-      iIntros "Hcls !>" (es1 ??? HStep).
+      iIntros "Hcls !>" (es1 ?? HStep).
       iMod "Hcls". iModIntro.
       destruct HStep as (H & _).
       assert (first_instr LI = Some (AI_basic (BI_call_reference i),0 + j)).
@@ -597,11 +598,11 @@ Qed.
       eapply reduce_det in H as HH;[|eapply r_label;[|eauto..];eapply r_call_reference => //].
       destruct HH as [Hfq [HH | [[? Hstart] | (?&?&? & Hstart & Hstart1 & Hstart2 & Hσ)  ]]]; try done; try congruence.
       simplify_eq. destruct HH as [-> ->]. iFrame.
-      destruct f;
+
         iApply ("HΦ" with "[$]"). auto.
       simpl. by subst.
   Qed.
-  Lemma ewp_call_reference (E : coPset) Ψ (Φ : val -> frame -> iProp Σ) f i a tf cl:
+  Lemma ewp_call_reference (E : coPset) Ψ (Φ : val0 -> frame -> iProp Σ) f i a tf cl:
       stypes f.(f_inst) i = Some tf ->
       cl_type cl = tf ->
     N.of_nat a ↦[wf] cl -∗

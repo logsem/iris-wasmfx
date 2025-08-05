@@ -9,7 +9,7 @@ Lemma suspend_desugar_det x a t1s t2s vs s f s' f' es' :
   nth_error (s_tags s) a = Some (Tf t1s t2s) ->
   length vs = length t1s ->
   reduce s f (v_to_e_list vs ++ [AI_basic (BI_suspend (Mk_tagident x))]) s' f' es' ->
-  reduce_det_goal s f [AI_suspend_desugared vs (Mk_tagidx a)] s' f' es' (v_to_e_list vs ++ [AI_basic (BI_suspend (Mk_tagident x))]). 
+  reduce_det_strong_goal s f [AI_suspend_desugared vs (Mk_tagidx a)] s' f' es'.
 Proof.
   move => H H0 H1 Hred.
   assert (0 = 0) as H2; first done.
@@ -34,7 +34,7 @@ Proof.
     inversion Heq; subst.
     rewrite H3 in H; inversion H; subst.
     apply v_to_e_inj in Hvs as ->.
-    repeat split => //. by left.
+    repeat split => //. 
     
   - move/lfilledP in H3; inversion H3; subst.
     all: try by apply first_values in H10 as (? & ? & ?); try apply v_to_e_is_const_list.
@@ -49,7 +49,7 @@ Proof.
       apply const_list_split in H6 as [??].
       apply const_list_split in H6 as [??] => //. 
     + destruct vs0.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es; last by empty_list_no_reduce.
@@ -76,7 +76,7 @@ Lemma suspend_det a t1s t2s hs x l hh vs LI ts s f s' f' es':
   firstx_continuation_suspend hs x = Some l ->
   hfilled (Var_prompt_suspend x) hh [AI_suspend_desugared vs x] LI ->
   reduce s f [AI_prompt ts hs LI] s' f' es' ->
-  reduce_det_goal (new_cont s (Cont_hh (Tf t2s ts) hh)) f (v_to_e_list vs ++ [AI_ref_cont (length (s_conts s)); AI_basic (BI_br l)]) s' f' es' [AI_prompt ts hs LI]. 
+  reduce_det_strong_goal (new_cont s (Cont_hh (Tf t2s ts) hh)) f (v_to_e_list vs ++ [AI_ref_cont (length (s_conts s)); AI_basic (BI_br l)]) s' f' es'.
 Proof.
   intros -> Htag Hfirst Hfill Hred.
    lazymatch goal with
@@ -114,7 +114,7 @@ Proof.
     inversion H; subst.
     rewrite H1 in Hfirst; inversion Hfirst; subst.
     rewrite H0 in Htag; inversion Htag; subst.
-    repeat split => //. by left.
+    repeat split => //. 
   - inversion Heqves'; subst.
     edestruct hfilled_first_values as (? & ?).
     instantiate (3 := []).

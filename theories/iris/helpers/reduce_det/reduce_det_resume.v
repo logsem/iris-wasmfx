@@ -6,7 +6,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Lemma resume_null_det tf i i' s f s' f' es:
   reduce s f [AI_basic (BI_ref_null tf); AI_basic $ BI_resume i' i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_ref_null tf); AI_basic $ BI_resume i' i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es .
 Proof.
   move => Hred.
    only_one.
@@ -49,7 +49,7 @@ Lemma resume_det i t1s t2s vs k hh LI hs hsd s f s' f' es' :
   hfilled No_var hh vs LI ->
   [seq desugar_continuation_clause (f_inst f) i | i <- hs] = [seq Some i | i <- hsd] ->
   reduce s f (vs ++ [AI_ref_cont k; AI_basic (BI_resume i hs)]) s' f' es' ->
-  reduce_det_goal (upd_s_cont s k (Cont_dagger (Tf t1s t2s))) f [AI_prompt t2s hsd LI] s' f' es' (vs ++ [AI_ref_cont k; AI_basic (BI_resume i hs)]).
+  reduce_det_strong_goal (upd_s_cont s k (Cont_dagger (Tf t1s t2s))) f [AI_prompt t2s hsd LI] s' f' es'.
 Proof.
   move => Hvs H H0 H1 Hves H2 Hred.
   lazymatch goal with
@@ -81,7 +81,7 @@ Proof.
     subst.
     rewrite H2 in H8.
     apply map_Some_inj in H8 as ->.
-    repeat split => //. by left.
+    repeat split => //. 
   - repeat destruct vs => //.
     inversion Heqes0; subst.
     rewrite H3 in H1 => //. 
@@ -99,7 +99,7 @@ Proof.
       apply const_list_split in H6 as [??].
       apply const_list_split in H6 as [??] => //. 
     + destruct vs0.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es; last by empty_list_no_reduce.
@@ -155,7 +155,7 @@ Qed.
 Lemma resume_dagger_det k tf i i' s f s' f' es:
   nth_error (s_conts s) k = Some (Cont_dagger tf) ->
   reduce s f [AI_ref_cont k; AI_basic $ BI_resume i' i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_ref_cont k; AI_basic $ BI_resume i' i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es .
 Proof.
   move => Hk Hred.
   only_one.

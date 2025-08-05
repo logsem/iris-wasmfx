@@ -4,7 +4,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 
 Lemma unop_det v op t s f s' f' es:
   reduce s f [AI_basic (BI_const v); AI_basic (BI_unop t op)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_const (app_unop op v))] s' f' es [AI_basic (BI_const v); AI_basic (BI_unop t op)].
+  reduce_det_strong_goal s f [AI_basic (BI_const (app_unop op v))] s' f' es.
 Proof.
   move => Hred.
   - (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is

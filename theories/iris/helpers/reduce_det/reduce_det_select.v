@@ -7,7 +7,7 @@ Set Bullet Behavior "Strict Subproofs".
 Lemma select_false_det v1 v2 n s f s' f' es:
   n = Wasm_int.int_zero i32m ->
   reduce s f [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select] s' f' es ->
-  reduce_det_goal s f [AI_const v2] s' f' es [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select].
+  reduce_det_strong_goal s f [AI_const v2] s' f' es .
 Proof.
   move => H Hred.
     
@@ -26,7 +26,7 @@ Proof.
       try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
               end);
-      try (by inversion Heqesnew; subst; repeat split => //; left);
+      try (by inversion Heqesnew; subst; repeat split => //);
       try (move/lfilledP in Hfill; inversion Hfill; subst;
             try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 (destruct vs => //; try by destruct v1, v2; try destruct v; try destruct v0)
@@ -260,7 +260,7 @@ Qed.
 Lemma select_true_det v1 v2 n s f s' f' es:
   n <> Wasm_int.int_zero i32m ->
   reduce s f [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select] s' f' es ->
-  reduce_det_goal s f [AI_const v1] s' f' es [AI_const v1; AI_const v2; AI_basic (BI_const (VAL_int32 n)); AI_basic BI_select].
+  reduce_det_strong_goal s f [AI_const v1] s' f' es .
 Proof.
   move => H Hred.
     
@@ -279,7 +279,7 @@ Proof.
       try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 destruct vs => //
               end);
-      try (by inversion Heqesnew; subst; repeat split => //; left);
+      try (by inversion Heqesnew; subst; repeat split => //);
       try (move/lfilledP in Hfill; inversion Hfill; subst;
             try (by lazymatch goal with
                 _ : (?vs ++ _)%SEQ = _ |- _ => do 5 (destruct vs => //; try by destruct v1, v2; try destruct v; try destruct v0)

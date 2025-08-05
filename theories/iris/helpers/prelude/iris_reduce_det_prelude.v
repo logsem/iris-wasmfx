@@ -200,9 +200,20 @@ Ltac only_one objs Hred2 :=
   apply Logic.eq_sym in Heqes ;
   only_one_reduction Heqes Hred2. *)
 
+
+Definition reduce_det_strong_goal (ws1: store_record) (f1: frame) (es1: list administrative_instruction) ws2 f2 es2 :=
+  f1 = f2 /\ es1 = es2 /\ ws1 = ws2. 
+
+
 Definition reduce_det_goal (ws1: store_record) (f1: frame) es1 ws2 f2 es2 es :=
   f1 = f2 /\ (es1 = es2 /\ ws1 = ws2 \/
           (exists i, first_instr es = Some (AI_basic (BI_grow_memory),i)) \/
           (exists i1 i2 i3, first_instr es = Some (AI_trap,i1) /\ first_instr es1 = Some (AI_trap,i2) /\
                          first_instr es2 = Some (AI_trap,i3) /\ ws1 = ws2)).
 
+Lemma reduce_det_strong_implies_goal a b c d e f g :
+  reduce_det_strong_goal a b c d e f -> reduce_det_goal a b c d e f g.
+Proof.
+  intros (-> & -> & ->).
+  split => //. by left.
+Qed. 

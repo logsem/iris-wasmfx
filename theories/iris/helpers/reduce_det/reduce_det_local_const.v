@@ -7,7 +7,7 @@ Set Bullet Behavior "Strict Subproofs".
 Lemma local_const_det n es vs s f s' f' es':
   const_list vs ->
   reduce s f [AI_local n es vs] s' f' es' ->
-  reduce_det_goal s f vs s' f' es' [AI_local n es vs]. 
+  reduce_det_strong_goal s f vs s' f' es'. 
 Proof.
   intros Hvs Hred.
   lazymatch goal with
@@ -20,8 +20,8 @@ Proof.
   all: try by inversion Heqves'.
   all: try by do 4 destruct vs0 => //.
   all: try by do 4 destruct vcs => //.
-  - inversion Heqves'; subst. repeat split => //. left. done.
-  - inversion Heqves'; subst => //.
+(*  - inversion Heqves'; subst. repeat split => //. done. *)
+(*  - inversion Heqves'; subst => //. *)
   - inversion Heqves'; subst.
     apply lfilled_const in H2 as [??] => //.
     apply const_list_split in H2 as [??] => //.
@@ -47,7 +47,7 @@ Qed.
 
 Lemma local_trap_det n es s f s' f' es':
   reduce s f [AI_local n es [AI_trap]] s' f' es' ->
-  reduce_det_goal s f [AI_trap] s' f' es' [AI_local n es [AI_trap]]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es'. 
 Proof.
   intros Hred.
   lazymatch goal with
@@ -60,8 +60,8 @@ Proof.
   all: try by inversion Heqves'.
   all: try by do 4 destruct vs => //.
   all: try by do 4 destruct vcs => //.
-  - inversion Heqves'; subst => //. 
-  - inversion Heqves'; subst; repeat split => //. left => //.
+(*  - inversion Heqves'; subst => //. 
+  - inversion Heqves'; subst; repeat split => //.  *)
   - inversion Heqves'; subst.
     eapply filled_singleton in H2 as (_ & _ & ?) => //.
     all: do 2 destruct e' => //.

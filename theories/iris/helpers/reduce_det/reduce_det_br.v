@@ -9,7 +9,7 @@ Lemma br_det es vs i lh LI s n f s' f' es':
   n = length vs ->
   lfilled i lh (vs ++ [AI_basic (BI_br i)]) LI ->
   reduce s f [AI_label n es LI] s' f' es' ->
-  reduce_det_goal s f (vs ++ es) s' f' es' [AI_label n es LI]. 
+  reduce_det_strong_goal s f (vs ++ es) s' f' es'. 
 Proof.
   intros Hvs Hn Hfill Hred.
    lazymatch goal with
@@ -33,7 +33,7 @@ Proof.
     exact H2. exact Hfill.
     all: try done.
     destruct H5 as [-> ->] => //.
-    subst. repeat split => //. by left.
+(*    subst. repeat split => //. done. *)
   - move/lfilledP in H1; inversion H1; subst.
     all: try by do 2 destruct vs0 => //.
     all: try by do 2 destruct bef => //.
@@ -57,7 +57,7 @@ Qed.
 Lemma br_if_false_det n i s f s' f' es:
   n = Wasm_int.int_zero i32m ->
   reduce s f [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)] s' f' es ->
-  reduce_det_goal s f [] s' f' es [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)]. 
+  reduce_det_strong_goal s f [] s' f' es. 
 Proof.
   move => -> Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -106,7 +106,7 @@ Qed.
 Lemma br_if_true_det n i s f s' f' es:
   n <> Wasm_int.int_zero i32m ->
   reduce s f [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_br i)] s' f' es [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_br_if i)]. 
+  reduce_det_strong_goal s f [AI_basic (BI_br i)] s' f' es.
 Proof.
   move => Hn Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -155,7 +155,7 @@ Lemma br_if_table_det c iss i j s f s' f' es:
   ssrnat.leq (S (Wasm_int.nat_of_uint i32m c)) (length iss) -> 
   nth_error iss (Wasm_int.nat_of_uint i32m c) = Some j ->
   reduce s f [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_br j)] s' f' es [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)]. 
+  reduce_det_strong_goal s f [AI_basic (BI_br j)] s' f' es.
 Proof.
   move => Hlim Hj Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -169,7 +169,7 @@ Proof.
          [ only_one ] cannot exfalso all irrelevant cases *)
   only_one.
   inversion Heqesnew; subst.
-  rewrite H0 in Hj; inversion Hj; subst. repeat split => //. by left.
+  rewrite H0 in Hj; inversion Hj; subst. repeat split => //. 
   inversion Heqesnew; subst. 
   move: (ssrnat.leq_trans Hlim H).
   rewrite ssrnat.ltnn. done.
@@ -208,7 +208,7 @@ Qed.
 Lemma br_if_table_over_det c iss i s f s' f' es:
   ssrnat.leq (length iss) (Wasm_int.nat_of_uint i32m c) ->
   reduce s f [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)] s' f' es ->
-  reduce_det_goal s f [AI_basic (BI_br i)] s' f' es [AI_basic (BI_const (VAL_int32 c)); AI_basic (BI_br_table iss i)]. 
+  reduce_det_strong_goal s f [AI_basic (BI_br i)] s' f' es.
 Proof.
   move => Hlim Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is

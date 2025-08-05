@@ -7,14 +7,12 @@ Set Bullet Behavior "Strict Subproofs".
 Lemma set_global_det v s2 i s f s' f' es:
   supdate_glob s (f_inst f) i v = Some s2 ->
   reduce s f [AI_basic (BI_const v); AI_basic $ BI_set_global i] s' f' es ->
-  reduce_det_goal s2 f [] s' f' es [AI_basic (BI_const v); AI_basic $ BI_set_global i]. 
+  reduce_det_strong_goal s2 f [] s' f' es.
 Proof.
   move => Hs2 Hred.
   only_one.
   - inversion Heqesnew; subst.
     rewrite Hs2 in H; inversion H; subst.
-    repeat split => //.
-    left.
     repeat split => //.
   - inversion H3; subst.
    destruct vs; inversion H4; subst => //.

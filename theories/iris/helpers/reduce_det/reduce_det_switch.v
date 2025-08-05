@@ -6,7 +6,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Lemma switch_null_det tf i i' s f s' f' es:
   reduce s f [AI_basic (BI_ref_null tf); AI_basic $ BI_switch i' i] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_ref_null tf); AI_basic $ BI_switch i' i]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -57,7 +57,7 @@ Lemma switch_desugar_det x a k cont t1s t2s vs i tf s f s' f' es' :
   typeof_cont cont = Tf t1s t2s ->
   S (length vs) = length t1s ->
   reduce s f (v_to_e_list vs ++ [AI_ref_cont k; AI_basic (BI_switch i (Mk_tagident x))]) s' f' es' ->
-  reduce_det_goal s f [AI_switch_desugared vs k tf (Mk_tagidx a)] s' f' es' (v_to_e_list vs ++ [AI_ref_cont k; AI_basic (BI_switch i (Mk_tagident x))]). 
+  reduce_det_strong_goal s (* (upd_s_cont s k (Cont_dagger (Tf t1s t2s))) *) f [AI_switch_desugared vs k tf (Mk_tagidx a)] s' f' es' .
 Proof.
   move => H H0 H1 H2 Hlen Hred.
   lazymatch goal with
@@ -86,8 +86,11 @@ Proof.
     rewrite H4 in H0; inversion H0; subst.
     rewrite H6 in H1; inversion H1; subst.
     apply v_to_e_inj in Hvs as ->.
-    repeat split => //. by left.
-  - move/lfilledP in H3; inversion H3; subst.
+    repeat split => //. 
+(*  - repeat (destruct vs => //).
+    inversion Heqes0; subst.
+    rewrite H1 in H2; done. *)
+  - move/lfilledP in H3; inversion H3; subst. 
     all: try by apply first_values in H10 as (? & ? & ?); try apply const_list_concat; try apply v_to_e_is_const_list.
     move/lfilledP in H4; inversion H4; subst.
     separate_last es'0.
@@ -100,7 +103,7 @@ Proof.
       apply const_list_split in H6 as [??].
       apply const_list_split in H6 as [??] => //. 
     + destruct vs0.
-      * do 2 rewrite /= cats0.
+      * do 1 rewrite /= cats0.
         rewrite /= cats0 in H9.
         apply IHHred => //.
       * separate_last es; last by empty_list_no_reduce.
@@ -138,7 +141,7 @@ Proof.
         -- inversion Hvcs; subst.
            simpl in H8. remove_bools_options.
            eapply switch_not_enough_arguments_no_reduce.
-           done. done. 
+           done. done.
            instantiate (6 := v_to_e_list vs).
            rewrite separate1 -cat_app catA -H9.
            rewrite -catA.
@@ -155,16 +158,16 @@ Proof.
 Qed.
 
 
-Lemma switch_det tf t1s ts tf' t2s t1s' t2s' hh' hs hh vs k x LI LI' s f s' f' es':
+Lemma switch_det tf t1s k ts tf' t2s t1s' t2s' hh' hs hh vs x LI LI' s f s' f' es':
   tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
-  nth_error (s_conts s) k = Some (Cont_hh (Tf t1s' t2s') hh') ->
+  nth_error (s_conts s) k = Some (Cont_hh (Tf t1s' t2s') hh') -> 
   firstx_continuation_switch hs x = true ->
   hfilled (Var_prompt_switch x) hh [AI_switch_desugared vs k tf x] LI ->
   hfilled No_var hh' (v_to_e_list vs ++ [AI_ref_cont (length (s_conts s))]) LI' ->
   reduce s f [AI_prompt ts hs LI] s' f' es' ->
-  reduce_det_goal (new_cont (upd_s_cont s k (Cont_dagger (Tf t1s' t2s'))) (Cont_hh tf' hh)) f [AI_prompt t2s' hs LI'] s' f' es' [AI_prompt ts hs LI]. 
+  reduce_det_strong_goal (new_cont (upd_s_cont s k (Cont_dagger (Tf t1s' t2s'))) (Cont_hh tf' hh)) f [AI_prompt t2s' hs LI'] s' f' es' .
 Proof.
-  intros -> Hcont Hfirst Hfill Hfill' Hred.
+  intros -> Hk Hfirst Hfill Hfill' Hred.
    lazymatch goal with
   | _ : reduce _ _ ?es _ _ _ |- _ => remember es as ves
   end.
@@ -205,13 +208,15 @@ Proof.
     all: try done.
     destruct H4 as [_ ->] => //.
     inversion H0; subst.
-    rewrite H1 in Hcont; inversion Hcont; subst.
+(*    rewrite H1 in Hcont; inversion Hcont; subst. *)
     apply concat_cancel_last in H7 as [-> Heq].
     inversion Heq; subst.
+    rewrite H1 in Hk; inversion Hk; subst.
     eapply hfilled_inj in Hfill'.
+
     2: exact H3.
     subst.
-    repeat split => //. by left.
+    repeat split => //. 
 
   - move/lfilledP in H; inversion H; subst.
     all: try by do 2 destruct vs0 => //. 
@@ -228,7 +233,7 @@ Proof.
       exact Hred.
       exact Hfill.
       apply/lfilledP => //.
-      rewrite Hcont' in Hcont. done.
+      rewrite Hcont' in Hk. done.
 Qed. 
 
 

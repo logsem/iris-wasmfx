@@ -2279,7 +2279,7 @@ Proof.
     + apply et_weakening_empty_both.
       apply ety_a' => //.
     + econstructor => //.
-      exact H. exact H1. exact H2. 
+      exact H. exact H1. exact H2.  
   - (* Throw_ref_desugared *)
     exists [::], t1s, t2s, t1s.
     repeat split => //.

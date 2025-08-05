@@ -12,11 +12,11 @@ Context `{!wasmG Σ}.
 
 
 Lemma ewp_frame_bind Ψ f0 f es E P Φ n:
-  to_val es = None ->
-  to_eff es = None ->
+  to_val0 es = None ->
+  to_eff0 es = None ->
   ((∀ f, ¬ (Ψ trapV f)) ∗
     (EWP es UNDER f @ E <| P |> {{ w ; f , Ψ w f }}) ∗
-    ∀ w f1, Ψ w f1 -∗ EWP [AI_local n f1 (of_val w)] UNDER f0 @ E <| P |> {{ v ; f, Φ v f }})%I
+    ∀ w f1, Ψ w f1 -∗ EWP [AI_local n f1 (of_val0 w)] UNDER f0 @ E <| P |> {{ v ; f, Φ v f }})%I
     ⊢ EWP [AI_local n f es] UNDER f0 @ E <| P |> {{ v ; f , Φ v f }} .
 Proof.
   iIntros (Htv Htf) "(Htrap & Hes1 & Hes2)".
@@ -150,40 +150,41 @@ Lemma ewp_bind es E Ψ i lh Φ f:
   is_pure lh ->
   lh_eff_None lh ->
   EWP es UNDER f @ E <| Ψ |> {{ w ; f, ⌜ w <> trapV ⌝ ∗
-                                           EWP of_val w UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} }}
+                                           EWP of_val0 w UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }} }}
     ⊢ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ Φ }}.
 Proof.
    iLöb as "IH" forall (lh es Ψ f).
  { iIntros (Hpure Hlh) "H".
    specialize (lh_eff_None_spec _ Hlh) as Hlh'.
    iIntros (LI HLI).
-   rewrite !(ewp_unfold E es) /ewp_pre.
-   rewrite !(ewp_unfold E LI) /ewp_pre.
-   destruct (to_val LI) as [ v          |] eqn:He;
-     [|destruct (to_eff LI) as [eff|] eqn:He'].
+   rewrite !(ewp_unfold E) /ewp_pre.
+   (* rewrite !(ewp_unfold E) /ewp_pre. *)
+   destruct (to_val0 LI) as [ v          |] eqn:He;
+     [|destruct (to_eff0 LI) as [eff|] eqn:He'].
    - apply lfilled_to_val in HLI as HLI'.
      2: by eexists.
      destruct HLI' as [ves Htv].
-     rewrite Htv.
+     rewrite /= Htv He.
      iMod "H".
-     rewrite (@of_to_val _ _ Htv).
+     rewrite (@of_to_val0 _ _ Htv).
      iDestruct "H" as "(%Hntrap & H)".
      iSpecialize ("H" $! _ HLI).
      rewrite !ewp_unfold /ewp_pre.
-     rewrite He. done.
+     rewrite /= He. done.
    - destruct eff.
      + eapply lfilled_to_eff_sus in HLI as HLI' => //.
        destruct HLI' as [Hconst | (shin & shout & Hin & Hout & Htrans)].
        * erewrite Hlh' in He' => //.
-       * destruct (to_val es) eqn:Htv.
+       * destruct (to_val0 es) eqn:Htv.
          by exfalso; eapply to_val_to_eff.
-         rewrite Hin.
+         Opaque upcl.
+         rewrite /= Hin He He' Htv.
          iApply (monotonic_prot with "[] H").
          iIntros (w) "H !>".
          subst sh.
          rewrite susfill_trans.
          eapply susfill_to_lfilled in Hout as Hfilled.
-         2:{ instantiate (2 := susfill i0 shin (of_val w)).
+         2:{ instantiate (2 := susfill i0 shin (v_to_e_list w)).
              instantiate (2 := i0).
              done. } 
          destruct Hfilled as [k Hfilled].
@@ -191,7 +192,7 @@ Proof.
          apply lfilled_depth in Hfilled as Hdepth2.
          rewrite Hdepth1 in Hdepth2; subst i k.
 
-         iSpecialize ("IH" $! lh (susfill i0 shin (of_val w)) Ψ _ Hpure Hlh).
+         iSpecialize ("IH" $! lh (susfill i0 shin (v_to_e_list w)) Ψ _ Hpure Hlh).
          iDestruct ("IH" with "H") as "H".
 
          iSpecialize ("H" $! _ Hfilled).
@@ -199,15 +200,15 @@ Proof.
      + eapply lfilled_to_eff_sw in HLI as HLI' => //.
        destruct HLI' as [Hconst | (shin & shout & Hin & Hout & Htrans)].
        * erewrite Hlh' in He' => //.
-       * destruct (to_val es) eqn:Htv.
+       * destruct (to_val0 es) eqn:Htv.
          by exfalso; eapply to_val_to_eff.
-         rewrite Hin.
+         rewrite /= Hin He He' Htv.
          iApply (monotonic_prot with "[] H").
          iIntros (w) "H !>".
          subst sh.
          rewrite swfill_trans.
          eapply swfill_to_lfilled in Hout as Hfilled.
-         2:{ instantiate (2 := swfill i0 shin (of_val w)).
+         2:{ instantiate (2 := swfill i0 shin (v_to_e_list w)).
              instantiate (2 := i0).
              done. } 
          destruct Hfilled as [k' Hfilled].
@@ -215,7 +216,7 @@ Proof.
          apply lfilled_depth in Hfilled as Hdepth2.
          rewrite Hdepth1 in Hdepth2; subst i k'.
 
-         iSpecialize ("IH" $! lh (swfill i0 shin (of_val w)) Ψ _ Hpure Hlh).
+         iSpecialize ("IH" $! lh (swfill i0 shin (v_to_e_list w)) Ψ _ Hpure Hlh).
          iDestruct ("IH" with "H") as "H".
 
          iSpecialize ("H" $! _ Hfilled).
@@ -223,16 +224,16 @@ Proof.
      + eapply lfilled_to_eff_thr in HLI as HLI' => //.
        destruct HLI' as [Hconst | (shin & shout & Hin & Hout & Htrans)].
        * erewrite Hlh' in He' => //.
-       * destruct (to_val es) eqn:Htv.
+       * destruct (to_val0 es) eqn:Htv.
          by exfalso; eapply to_val_to_eff.
-         rewrite Hin.
+         rewrite /= Hin He He' Htv.
          done.
-   - repeat rewrite ewp_unfold. rewrite /ewp_pre.
+   - repeat rewrite ewp_unfold. rewrite /ewp_pre /= He He'.
      (* Ind *)
      iIntros (σ) "Hσ".
-     destruct (to_val es) as [vs|] eqn:Hes;
-       last destruct (iris.to_eff es) as [eff |] eqn:Heff.
-     + apply of_to_val in Hes as <-.
+     destruct (to_val0 es) as [vs|] eqn:Hes;
+       last destruct (iris.to_eff0 es) as [eff |] eqn:Heff.
+     + apply of_to_val0 in Hes as <-.
        iMod "H".
        iDestruct "H" as "[%Hntrap H]".
        iSpecialize ("H" $! _ HLI).
@@ -248,14 +249,12 @@ Proof.
        iSplit.
        * iPureIntro.
          eapply lfilled_reducible => //.
-       * iIntros (e2 σ2 ?? HStep').
+       * iIntros ([e2 f2] σ2 HStep').
          eapply lfilled_reduce in HStep' as Heq.
          2: exact HLI.
          2: done.
-         apply prim_step_obs_efs_empty in HStep' as Hemp.
-         inversion Hemp;subst;clear Hemp.
-         destruct Heq as [(es' & Hstep & Hfill) | (lhtrap & Htrap & ->)].
-         -- iSpecialize ("H2" $! es' σ2 _ _ Hstep).
+         destruct Heq as [(es' & Hstep & Hfill) | (lhtrap & Htrap & -> & ->)].
+         -- iSpecialize ("H2" $! (es', f2) σ2 Hstep).
             iMod "H2".
             repeat iModIntro.
             repeat iMod "H2".
@@ -264,14 +263,14 @@ Proof.
             iFrame.
             iDestruct ("IH" with "[] [] Hes") as "Hcont". done. done.
             by iApply "Hcont".
-         -- eassert (iris.prim_step es (_,_,_) [] [AI_trap] (_,_,_) []) as HStep2.
+         -- eassert (iris.prim_step (es,_) _ [] ([AI_trap], _) _ []) as HStep2.
             { unfold iris.prim_step.
               repeat split => //.
               apply r_simple; eapply rs_trap => //.
               move => HContra; subst.
               by simpl in Hes.
             }
-            iSpecialize ("H2" $! [AI_trap] _ _ _ HStep2).
+            iSpecialize ("H2" $! ([AI_trap],_) _ HStep2).
             iMod "H2".
             repeat iModIntro.
             repeat iMod "H2".
@@ -294,18 +293,18 @@ Proof.
 
 
 
-  Lemma ewp_label_bind (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e n es l1 l2 f :
-    EWP e UNDER f @ E <| Ψ |> {{ w ; f', EWP of_val w UNDER f' @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w ; f , Φ w f }} }} -∗
+  Lemma ewp_label_bind (E : coPset) Ψ (Φ : iris.val0 -> frame -> iProp Σ) e n es l1 l2 f :
+    EWP e UNDER f @ E <| Ψ |> {{ w ; f', EWP of_val0 w UNDER f' @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w ; f , Φ w f }} }} -∗
     EWP e UNDER f @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w ; f , Φ w f }}.
   Proof.
     iIntros "H". iIntros (LI HLI).
     iLöb as "IH" forall (E e LI HLI f).
     repeat rewrite ewp_unfold /ewp_pre /=.
-    destruct (iris.to_val (LI)) as [vs|] eqn:Hetov;
-      last destruct (to_eff LI) as [eff|] eqn:Hetof.
-    - assert (is_Some (iris.to_val LI)) as Hsome;[eauto|].
+    destruct (iris.to_val0 (LI)) as [vs|] eqn:Hetov;
+      last destruct (to_eff0 LI) as [eff|] eqn:Hetof.
+    - assert (is_Some (iris.to_val0 LI)) as Hsome;[eauto|].
       eapply lfilled_to_val in Hsome as [v Hv];[|eauto].
-      rewrite Hv. erewrite of_to_val;eauto.
+      rewrite Hv. erewrite of_to_val0;eauto.
       iMod "H" as "H".
       iDestruct ("H" $! _ HLI) as "H".
       iDestruct (ewp_unfold with "H") as "H".
@@ -313,14 +312,14 @@ Proof.
     - move/lfilledP in HLI; inversion HLI; subst.
       inversion H8; subst.
       rewrite cats0 /= in Hetof.
-      unfold to_eff in Hetof.
+      unfold to_eff0 in Hetof.
       rewrite map_app merge_app in Hetof.
       apply const_list_to_val in H7 as (vs1 & Htv1 & Hvs1).
-      unfold to_val in Htv1.
+      unfold to_val0 in Htv1.
       destruct (merge_values (map _ l1)) => //.
       inversion Htv1; subst.
       simpl in Hetof.
-      unfold to_val, to_eff.
+      unfold to_val0, to_eff0.
       destruct (merge_values (map _ e)) => //.
       + destruct v => //.
         all: try rewrite merge_notval in Hetof => //.
@@ -363,8 +362,8 @@ Proof.
           iFrame. 
       + rewrite merge_notval in Hetof => //. 
           
-    - destruct (iris.to_val e) eqn:Hetov'.
-      { erewrite of_to_val;[|eauto].
+    - destruct (iris.to_val0 e) eqn:Hetov'.
+      { erewrite of_to_val0;[|eauto].
         iIntros (σ) "Hσ".
         iMod "H" as "H".
         iDestruct ("H" $! _ HLI) as "H".
@@ -373,13 +372,13 @@ Proof.
         rewrite /ewp_pre /= Hetov Hetof.
         iDestruct ("H" with "Hσ") as "H".
         iFrame. }
-      destruct (to_eff e) eqn:Hetof'.
+      destruct (to_eff0 e) eqn:Hetof'.
       { move/lfilledP in HLI.
         inversion HLI; subst. inversion H8; subst.
-        unfold to_eff in Hetof, Hetof'.
+        unfold to_eff0 in Hetof, Hetof'.
         rewrite cats0 map_app merge_app /= in Hetof.
         apply const_list_to_val in H7 as (vs1 & Htv1 & Hvs1).
-        unfold to_val in Htv1.
+        unfold to_val0 in Htv1.
         destruct (merge_values (map _ l1)) => //.
         inversion Htv1; subst.
         destruct (merge_values (map _ e)) => //.
@@ -399,12 +398,12 @@ Proof.
         apply lfilled_Ind_Equivalent in HLI.
         inversion HLI;simplify_eq. inversion H8;simplify_eq.
         repeat erewrite app_nil_l, app_nil_r.
-        iIntros (e2 σ2 ?? Hprim).
+        iIntros ([e2 f2] σ2 Hprim).
         destruct Hprim as [Hprim _].
         eapply reduce_det_label in Hprim as Hprim';[|auto..].
         destruct Hprim' as [es2' [-> Hstep]].
         iDestruct ("H" with "[]") as "H".
-        { iPureIntro. split;eauto. }
+        { iPureIntro. instantiate (2 := (_,_)). split;eauto. }
         iMod "H". iModIntro. iNext.
         repeat iMod "H". iApply fupd_mask_intro_subseteq;[solve_ndisj|].
         iDestruct "H" as "(Hσ & H)".
@@ -420,7 +419,7 @@ Proof.
 (*  Lemma ewp_label_bind_inv (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e n es l1 l2 f Φf Φf0:
     const_list l1 ->
     EWP e UNDER f @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w, Φ w ; Φf}} -∗
-    EWP e UNDER f @ E <| Ψ |> {{ w, ∀ f', Φf0 f' -∗ EWP of_val w UNDER f' @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w, Φ w ; Φf0 }} ; Φf }}.
+    EWP e UNDER f @ E <| Ψ |> {{ w, ∀ f', Φf0 f' -∗ EWP of_val0 w UNDER f' @ E CTX 1; LH_rec l1 n es (LH_base [] []) l2 <| Ψ |> {{ w, Φ w ; Φf0 }} ; Φf }}.
   Proof.
     iIntros (Hconst) "H".
     iLöb as "IH" forall (E e f).
@@ -595,7 +594,7 @@ Proof.
     is_pure lh ->
   (*  lh_eff_None lh -> *)
     base_is_empty lh ->
-    EWP e @ E <| Ψ |> {{ w, EWP of_val w @ E CTX (S i); LH_rec l1 n es lh l2 <| Ψ |> {{ w, Φ w }} }} -∗
+    EWP e @ E <| Ψ |> {{ w, EWP of_val0 w @ E CTX (S i); LH_rec l1 n es lh l2 <| Ψ |> {{ w, Φ w }} }} -∗
       EWP e @ E CTX (S i); LH_rec l1 n es lh l2 <| Ψ |> {{ w, Φ w }}.
 Proof.
   intros Hpure (* Hlh *) Hbase.
@@ -638,7 +637,7 @@ Proof.
 Lemma ewp_ctx_bind (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e i lh f Φf Φf0:
   is_pure lh ->
     base_is_empty lh ->
-    EWP e UNDER f @ E <| Ψ |> {{ w, ∀ f', Φf0 f' -∗ EWP of_val w UNDER f' @ E CTX i; lh <| Ψ |> {{ w, Φ w ; Φf }} ; Φf0 }} -∗
+    EWP e UNDER f @ E <| Ψ |> {{ w, ∀ f', Φf0 f' -∗ EWP of_val0 w UNDER f' @ E CTX i; lh <| Ψ |> {{ w, Φ w ; Φf }} ; Φf0 }} -∗
     EWP e UNDER f @ E CTX i; lh <| Ψ |> {{ w, Φ w ; Φf }}.
   Proof.
     iIntros (Hpure Hbase) "He".
@@ -680,7 +679,7 @@ Lemma ewp_ctx_bind (E : coPset) Ψ (Φ : iris.val -> frame -> iProp Σ) e i lh f
 (*      
       iApply (ewp_wand with "He").
       iIntros (v) "Hv".
-      iSpecialize ("Hv" $! (of_val v) with "[]");[iPureIntro;cbn;apply/eqP;by rewrite app_nil_r|].
+      iSpecialize ("Hv" $! (of_val0 v) with "[]");[iPureIntro;cbn;apply/eqP;by rewrite app_nil_r|].
       iDestruct (ewp_unfold with "Hv") as "Hv".
       rewrite /ewp_pre/=. rewrite to_of_val. done.  *)
     - simpl in Hbase.

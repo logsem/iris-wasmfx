@@ -33,7 +33,7 @@ Global Hint Mode DecomposeLocal ! - - - - - : typeclass_instances.
 #[export] Instance DecomposeLocalConsHere : forall n f es l2, DecomposeLocal (AI_local n f es :: l2) [] n f es l2.
 Proof. intros. constructor. auto. Qed.
 
-#[export] Instance DecomposeLocalCons : forall n f es l2 l l' e, DecomposeLocal l2 l n f es l' -> DecomposeLocal ((AI_basic (BI_const e)) :: l2) (e :: l) n f es l'.
+#[export] Instance DecomposeLocalCons : forall n f es l2 l l' e, DecomposeLocal l2 l n f es l' -> DecomposeLocal ((AI_const e) :: l2) (e :: l) n f es l'.
 Proof.
   intros. constructor. inversion H. rewrite MkDecomposeLocal0.
   simpl. auto.
@@ -61,7 +61,7 @@ Global Hint Mode DecomposeLabel ! - - - - - : typeclass_instances.
 #[export] Instance DecomposeLabelConsHere : forall n f es l2, DecomposeLabel (AI_label n f es :: l2) [] n f es l2.
 Proof. intros. constructor. auto. Qed.
 
-#[export] Instance DecomposeLabelCons : forall n f es l2 l l' e, DecomposeLabel l2 l n f es l' -> DecomposeLabel ((AI_basic (BI_const e)) :: l2) (e :: l) n f es l'.
+#[export] Instance DecomposeLabelCons : forall n f es l2 l l' e, DecomposeLabel l2 l n f es l' -> DecomposeLabel ((AI_const e) :: l2) (e :: l) n f es l'.
 Proof.
   intros. constructor. inversion H. rewrite MkDecomposeLabel0.
   simpl. auto.
@@ -95,7 +95,7 @@ Proof. intros. constructor. auto. Qed.
 #[export] Instance DecomposeBaseConsHere : forall l e es l2, DecomposeBase l es [] l2 -> DecomposeBase (e :: l) (e :: es) [] l2.
 Proof. intros. constructor. inversion H;subst. simpl. auto. Qed.
 
-#[export] Instance DecomposeBaseCons : forall l l1 e l2 e', DecomposeBase l e l1 l2 -> DecomposeBase ((AI_basic (BI_const e')) :: l) e (e' :: l1) l2.
+#[export] Instance DecomposeBaseCons : forall l l1 e l2 e', DecomposeBase l e l1 l2 -> DecomposeBase ((AI_const e') :: l) e (e' :: l1) l2.
 Proof. intros. inversion H. constructor. subst. simpl. auto. Qed.
 
 Lemma decompose_base_list l e l1 l2 :
@@ -171,9 +171,9 @@ Proof.
   apply v_to_e_is_const_list.
 Qed.
 
-Lemma wp_build_ctx `{!wasmG Σ} es i lh LI s E P :
+Lemma ewp_build_ctx `{!wasmG Σ} es f i lh LI E P Ψ :
   BuildCtx i lh es LI ->
-  WP es @ s; E CTX i; lh {{ P }} -∗ WP LI @ s; E {{ P }}.                                  
+  EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ P }} -∗ EWP LI UNDER f @ E <| Ψ |> {{ P }}.                                  
 Proof.
   iIntros (B) "W".
   inversion B as [fill].
@@ -181,9 +181,9 @@ Proof.
   iFrame.
 Qed.
 
-Lemma wp_deconstruct_ctx `{!wasmG Σ} es i lh LI s E P :
+Lemma ewp_deconstruct_ctx `{!wasmG Σ} es f i lh LI E P Ψ:
   DeconstructCtx i lh es LI ->
-  WP LI @ s; E {{ P }} -∗ WP es @ s; E CTX i; lh {{ P }}.
+  EWP LI UNDER f @ E <| Ψ |> {{ P }} -∗ EWP es UNDER f @ E CTX i; lh <| Ψ |> {{ P }}.
 Proof.
   iIntros (B) "W".
   inversion B as [fill].
@@ -194,52 +194,56 @@ Qed.
 
 Ltac build_ctx e :=
   match goal with
-  | |- context [ (WP ?es @ ?s; ?E {{ ?P }})%I ] =>
-      iApply (@wp_build_ctx _ _ e)
+  | |- context [ (EWP ?es UNDER ?f @ ?E <| ?Ψ |> {{ ?P }})%I ] =>
+      iApply (@ewp_build_ctx _ _ e)
   end.
 
 Ltac deconstruct_ctx :=
   match goal with
-  | |- context [ (WP ?es @ ?s; ?E CTX ?i; ?lh {{ ?P }})%I ] =>
-      iApply (@wp_deconstruct_ctx _ _ es);
+  | |- context [ (EWP ?es UNDER ?f @ ?E CTX ?i; ?lh <| ?Ψ |> {{ ?P }})%I ] =>
+      iApply (@ewp_deconstruct_ctx _ _ es);
       try (constructor;cbn;rewrite eqseqE;eauto);
       iSimpl
   end.
 
-Lemma bind_seq_base_imm `{!wasmG Σ} es P LI l1 l2 s E Q w :
+Lemma bind_seq_base_imm `{!wasmG Σ} es f P LI l1 l2 E Q w Ψ:
+  to_eff0 l2 = None ->
   DecomposeBase LI es l1 l2 ->
-  WP es @ E {{ λ v, ⌜v = immV w⌝ ∗ P v }}
-  -∗ (∀ v, ⌜v = immV w⌝ ∗ P v
-                -∗ WP (v_to_e_list l1) ++ (iris.of_val v) ++ l2 @ s; E {{ Q }})
-  -∗ WP LI @ s; E {{ Q }}.
+  EWP es UNDER f @ E <| Ψ |> {{ λ v f, ⌜v = immV w⌝ ∗ P v f }}
+  -∗ (∀ v f, ⌜v = immV w⌝ ∗ P v f
+                -∗ EWP (v_to_e_list l1) ++ (iris.of_val0 v) ++ l2 UNDER f @ E <| Ψ |> {{ Q }})
+  -∗ EWP LI UNDER f @ E <| Ψ |> {{ Q }}.
 Proof.
-  intros. iIntros "H1 H2".
+  intros Htf; intros. iIntros "H1 H2".
   build_ctx es.
   rewrite <- (app_nil_r es).
-  iApply (wp_seq_ctx s E Q (λ v, ⌜v = immV _⌝ ∗ _)%I es).
-  iSplitR;[by iIntros "[%Hcontr _]"|].
+  iApply (ewp_seq_ctx E f Ψ Q (λ v f , ⌜v = immV _⌝ ∗ _)%I es).
+  done. constructor. unfold lh_eff_None. simpl. done.
+  iSplitR;[by iIntros (?) "[%Hcontr _]"|].
   rewrite app_nil_r. iFrame.
-  iIntros (v') "H".
+  iIntros (v' f') "H".
   rewrite app_nil_r.
-  iApply wp_base_pull. iApply wp_wasm_empty_ctx.
+  iApply ewp_base_pull. iApply ewp_wasm_empty_ctx.
   iApply "H2". iFrame.
 Qed.
 
-Lemma bind_seq_base_callhost `{!wasmG Σ} es P LI l1 l2 s E Q a1 a2 a3 a4 :
+Lemma bind_seq_base_callhost `{!wasmG Σ} es f P LI l1 l2 Ψ E Q a1 a2 a3 a4 :
+  to_eff0 l2 = None ->
   DecomposeBase LI es l1 l2 ->
-  WP es @ E {{ λ v, ⌜v = callHostV a1 a2 a3 a4⌝ ∗ P v }}
-  -∗ (∀ v, ⌜v = callHostV a1 a2 a3 a4⌝ ∗ P v -∗ WP (v_to_e_list l1) ++ (iris.of_val v) ++ l2 @ s; E {{ Q }})
-  -∗ WP LI @ s; E {{ Q }}.
+  EWP es UNDER f @ E <| Ψ |> {{ λ v f, ⌜v = callHostV a1 a2 a3 a4⌝ ∗ P v f }}
+  -∗ (∀ v f, ⌜v = callHostV a1 a2 a3 a4⌝ ∗ P v f -∗ EWP (v_to_e_list l1) ++ (iris.of_val0 v) ++ l2 UNDER f @ E <| Ψ |> {{ Q }})
+  -∗ EWP LI UNDER f @ E <| Ψ |> {{ Q }}.
 Proof.
   intros. iIntros "H1 H2".
   build_ctx es.
   rewrite <- (app_nil_r es).
-  iApply (wp_seq_ctx s E Q (λ v, ⌜v = callHostV a1 a2 a3 a4⌝ ∗ _)%I es).
-  iSplitR;[by iIntros "[%Hcontr _]"|].
+  iApply (ewp_seq_ctx E f Ψ Q (λ v f, ⌜v = callHostV a1 a2 a3 a4⌝ ∗ _)%I es).
+  done. constructor. done. 
+  iSplitR;[by iIntros (?) "[%Hcontr _]"|].
   rewrite app_nil_r. iFrame.
-  iIntros (v') "H".
+  iIntros (v' f') "H".
   rewrite app_nil_r.
-  iApply wp_base_pull. iApply wp_wasm_empty_ctx.
+  iApply ewp_base_pull. iApply ewp_wasm_empty_ctx.
   iApply "H2". iFrame.
 Qed.
 
@@ -257,21 +261,21 @@ Tactic Notation "bind_seq_base_callhost" constr(e) "with" constr(h) :=
 
 Ltac take_drop_app_rewrite n :=
   match goal with
-  | |- context [ WP ?e @ _; _ CTX _; _ {{ _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
-  | |- context [ WP ?e @ _; _ {{ _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
-  | |- context [ WP ?e @ _; _ FRAME _; _ CTX _; _  {{ _, _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ CTX _; _  <| _ |> {{ _ ; _ , _ }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
-  | |- context [ WP ?e @ _; _ FRAME _; _ {{ _ }} %I ] =>
+  | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop n e);simpl take; simpl drop
   end.
   
 Ltac take_drop_app_rewrite_twice n m :=
   take_drop_app_rewrite n;
   match goal with
-  | |- context [ WP _ ++ ?e @ _; _ CTX _; _ {{ _ }} %I ] =>
+  | |- context [ EWP _ ++ ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
-  | |- context [ WP _ ++ ?e @ _; _ {{ _ }} %I ] =>
+  | |- context [ EWP _ ++ ?e UNDER _ @ _ <| _ |> {{ _ }} %I ] =>
       rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
   end.

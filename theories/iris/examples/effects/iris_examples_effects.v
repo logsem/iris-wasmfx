@@ -49,7 +49,7 @@ Section Example1.
     
   
   Definition aux_prot : iProt Σ :=
-    ( ! (immV []) {{ True%I }} ; ? (immV []) {{ False }})%iprot.
+    ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
         
   
 
@@ -144,12 +144,15 @@ Section Example1.
     (* Desugar the suspend *)
     rewrite -(app_nil_l [_]).
     rewrite -(N2Nat.id 0).
-    iApply (ewp_suspend_desugar with "[$Htag]").
-    done. done. instantiate (1 := []). done. done.
+    iApply ewp_suspend.
+    done. done. instantiate (1 := []). instantiate (1 := []). done. done.
+    iFrame "Htag". 
+(*    iApply (ewp_suspend with "[$Htag]").
+    done. done. instantiate (1 := []). done. done. *)
 (*    iIntros "Htag". *)
 
     (* Perform suspend operation *)
-    iApply ewp_suspend.
+(*    iApply ewp_suspend. *)
     rewrite (upcl_tele' [tele ] [tele]).
     iSimpl.
     iSplitL. done.
@@ -278,7 +281,7 @@ Section Example1.
 
 
             rewrite -(app_nil_l [AI_ref_cont _;_]).
-            iApply (ewp_resume with "[$Hcont Haux]").
+            iApply (ewp_resume). (* with "[$Hcont Haux]"). *)
             done. done. done. simpl. instantiate (1 := [_]). done.
             instantiate (1 := Ψaux).
             unfold agree_on_uncaptured.
@@ -287,8 +290,9 @@ Section Example1.
             unfold Ψaux.
             destruct i => //=.
             destruct n => //=.
+            2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
-            erewrite eq_refl. done.
+            (* erewrite eq_refl. done. *)
             iSplitR; last first.
             iSplitR; last first. 
             (*            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
@@ -314,12 +318,13 @@ Section Example1.
                rewrite (upcl_tele' [tele] [tele]).
                simpl.
                iDestruct "HΨ" as "(% & _)".
-               inversion H; subst; clear H.
+               subst.
+               iSimpl.
+               instantiate (1 := λ v, (∃ k h, ⌜ v = brV _ ⌝ ∗ N.of_nat k ↦[wcont] Live _ h)%I).
+(*               instantiate (1 := λ v, ⌜ v = brV _ ⌝%I). *)
                iApply ewp_value.
-               unfold IntoVal.
-               apply of_to_val.
-               simpl. cbn. done.
-               instantiate (1 := λ v, (∃ k h, ⌜ v = brV _ ⌝ ∗ N.of_nat k ↦[wcont] Cont_hh _ h)%I).
+               done. 
+
                iExists k, h.
                iFrame. done.
             ++ iIntros "(% & % & % & _)" => //.
@@ -328,9 +333,7 @@ Section Example1.
           -- (* 2. now focus on the Br after the resume *)
             iIntros (w f') "[(%k & %h & -> & Hcont) ->]".
             iSimpl.
-            iApply ewp_value.
-            unfold IntoVal.
-            apply of_to_val. cbn. done.
+            iApply ewp_value. done.
             iIntros (LI HLI).
             move/lfilledP in HLI; inversion HLI; subst.
             inversion H8; subst.
@@ -343,7 +346,7 @@ Section Example1.
             done. done.
             iIntros "!>".
             iApply ewp_value.
-            apply of_to_val => //.
+            done.
             instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ _)%I).
 (*            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
             iExists k, h.
@@ -380,8 +383,7 @@ Section Example1.
 
       + iIntros (w f') "(%k & %h & -> & Hcont)".
         iSimpl.
-        iApply ewp_value.
-        apply of_to_val => //.
+        iApply ewp_value. done.
         (* iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
         (* iIntros (f') "->". *)
         iIntros (LI HLI).
@@ -403,7 +405,7 @@ Section Example1.
 
     - iIntros (w f') "(%k & %h & -> & Hcont)".
       iApply ewp_frame_value.
-      rewrite to_of_val => //.
+      rewrite to_of_val0 => //.
       done. done. 
 
     - iIntros (?) "(% & % & % & _)" => //.

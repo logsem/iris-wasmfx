@@ -9,7 +9,7 @@ Lemma store_det i m k off a v t mem' s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   store m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tnum t) = Some mem' ->
   reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)] s' f' es ->
-  reduce_det_goal (upd_s_mem s (update_list_at (s_mems s) i mem')) f [] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)]. 
+  reduce_det_strong_goal (upd_s_mem s (update_list_at (s_mems s) i mem')) f [] s' f' es .
 Proof.
   move => H Hm Hstore Hred.
   only_one.
@@ -17,7 +17,7 @@ Proof.
   1-2: rewrite H1 in H; inversion H; subst.
   1-2: rewrite H2 in Hm; inversion Hm; subst.
   1-2: rewrite H3 in Hstore; inversion Hstore; subst.
-  repeat split => //. by left.
+  repeat split => //. 
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.
@@ -112,7 +112,7 @@ Lemma store_failure_det i m k off a v t s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   store m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tnum t) = None ->
   reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t None a off)]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es.
 Proof.
   move => H Hm Hstore Hred.
   only_one.
@@ -215,7 +215,7 @@ Lemma store_packed_det i m k off a v t mem' tp s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tp tp) = Some mem' ->
   reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)] s' f' es ->
-  reduce_det_goal (upd_s_mem s (update_list_at (s_mems s) i mem')) f [] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]. 
+  reduce_det_strong_goal (upd_s_mem s (update_list_at (s_mems s) i mem')) f [] s' f' es.
 Proof.
   move => H Hm Hstore Hred.
   only_one.
@@ -223,7 +223,7 @@ Proof.
   1-2: rewrite H1 in H; inversion H; subst.
   1-2: rewrite H2 in Hm; inversion Hm; subst.
   1-2: rewrite H3 in Hstore; inversion Hstore; subst.
-  repeat split => //. by left.
+  repeat split => //. 
   simpl in H3; remove_bools_options.
   inversion H4; subst.
   destruct vs.
@@ -319,7 +319,7 @@ Lemma store_packed_failure_det i m k off a v t tp s f s' f' es:
   nth_error (s_mems s) i = Some m ->
   store_packed m (Wasm_int.N_of_uint i32m k) off (bits v) (length_tp tp) = None ->
   reduce s f [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)] s' f' es ->
-  reduce_det_goal s f [AI_trap] s' f' es [AI_basic (BI_const $ VAL_int32 k); AI_basic (BI_const v); AI_basic (BI_store t (Some tp) a off)]. 
+  reduce_det_strong_goal s f [AI_trap] s' f' es .
 Proof.
   move => H Hm Hstore Hred.
   only_one.

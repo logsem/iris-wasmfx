@@ -5,7 +5,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 Lemma if_false_det n tf e1s e2s s f s' f' es:
   n = Wasm_int.int_zero i32m ->
   reduce s f [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] s' f' es ->
-  reduce_det_goal s f [AI_basic $ BI_block tf e2s] s' f' es [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)]. 
+  reduce_det_strong_goal s f [AI_basic $ BI_block tf e2s] s' f' es.
 Proof.
   move => Hn Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is
@@ -53,7 +53,7 @@ Qed.
 Lemma if_true_det n tf e1s e2s s f s' f' es:
   n <> Wasm_int.int_zero i32m ->
   reduce s f [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)] s' f' es ->
-  reduce_det_goal s f [AI_basic $ BI_block tf e1s] s' f' es [AI_basic (BI_const (VAL_int32 n)); AI_basic (BI_if tf e1s e2s)]. 
+  reduce_det_strong_goal s f [AI_basic $ BI_block tf e1s] s' f' es.
 Proof.
   move => Hn Hred.
   (* example of a usage of [ only_one ] : in this subgoal, we know that Hred2 is

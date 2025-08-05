@@ -4,7 +4,7 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 
 Lemma drop_det v s f s' f' es:
   reduce s f [AI_const v; AI_basic BI_drop] s' f' es ->
-  reduce_det_goal s f [] s' f' es [AI_const v; AI_basic BI_drop]. 
+  reduce_det_strong_goal s f [] s' f' es.
 Proof.
   move => Hred.
    destruct v; destruct v;
