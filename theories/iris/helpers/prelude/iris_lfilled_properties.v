@@ -742,7 +742,7 @@ Section lfilled_properties.
   Lemma hfilled_singleton x lh es e :
     hfilled x lh es [e] ->
     (forall a b c, e = AI_label a b c -> False) ->
-    (forall a b c, e = AI_local a b c -> False) ->
+    (forall a b c, e = AI_frame a b c -> False) ->
     (forall a b c, e = AI_prompt a b c -> False) ->
     (forall a b, e = AI_handler a b -> False) ->
     es <> [] ->

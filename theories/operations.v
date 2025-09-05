@@ -1084,7 +1084,7 @@ Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction
   | HH_local bef n f hh aft =>
       if const_list bef then
       match hfill x hh es with
-      | Some LI => Some (bef ++ [:: AI_local n f LI] ++ aft)
+      | Some LI => Some (bef ++ [:: AI_frame n f LI] ++ aft)
       | None => None
       end
       else None
@@ -1132,7 +1132,7 @@ Inductive hfilledInd : avoiding -> hholed -> seq administrative_instruction -> s
 | HfilledLocal: forall x vs n f hh' es'' es LI,
     const_list vs ->
     hfilledInd x hh' es LI ->
-    hfilledInd x (HH_local vs n f hh' es'') es (vs ++ [:: (AI_local n f LI) ] ++ es'')
+    hfilledInd x (HH_local vs n f hh' es'') es (vs ++ [:: (AI_frame n f LI) ] ++ es'')
 | HfilledPrompt: forall bef ts hs hh' aft x es LI,
     const_list bef ->
     match x with

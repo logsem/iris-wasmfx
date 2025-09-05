@@ -16,8 +16,8 @@ Lemma ewp_frame_bind Ψ f0 f es E P Φ n:
   to_eff0 es = None ->
   ((∀ f, ¬ (Ψ trapV f)) ∗
     (EWP es UNDER f @ E <| P |> {{ w ; f , Ψ w f }}) ∗
-    ∀ w f1, Ψ w f1 -∗ EWP [AI_local n f1 (of_val0 w)] UNDER f0 @ E <| P |> {{ v ; f, Φ v f }})%I
-    ⊢ EWP [AI_local n f es] UNDER f0 @ E <| P |> {{ v ; f , Φ v f }} .
+    ∀ w f1, Ψ w f1 -∗ EWP [AI_frame n f1 (of_val0 w)] UNDER f0 @ E <| P |> {{ v ; f, Φ v f }})%I
+    ⊢ EWP [AI_frame n f es] UNDER f0 @ E <| P |> {{ v ; f , Φ v f }} .
 Proof.
   iIntros (Htv Htf) "(Htrap & Hes1 & Hes2)".
   iDestruct (ewp_frame_seq es [] with "Htrap Hes1") as "H".
@@ -33,7 +33,7 @@ Qed.
 
 (*
   Lemma wp_frame_bind (s : stuckness) (E : coPset) (Φ : iris.val -> iProp Σ) n f f0 LI :
-    iris.to_val [AI_local n f LI] = None ->
+    iris.to_val [AI_frame n f LI] = None ->
     ↪[frame] f0 -∗
      (↪[frame] f -∗ WP LI @ s; E {{ w, ∃ f', (↪[frame] f0 -∗ WP of_val w @ s; E FRAME n; f' {{ w, Φ w }}) ∗ ↪[frame] f' }})-∗
      WP LI @ s; E FRAME n; f {{ w, Φ w }}.
@@ -85,7 +85,7 @@ Qed.
       { iPureIntro. destruct s =>//.
         destruct Hred as [x [e' [σ' [efs Hstep]]]].
         destruct σ' as [[ ? ?] ?].
-        eexists x,[AI_local n {| f_locs := l0; f_inst := i0 |} e'],(_,l,i),efs.
+        eexists x,[AI_frame n {| f_locs := l0; f_inst := i0 |} e'],(_,l,i),efs.
         simpl. destruct Hstep as [Hstep [-> ->]]. split;auto.
         apply r_local. eauto. }
 
@@ -108,7 +108,7 @@ Qed.
       iDestruct "Hcont" as "[Hcont _]".
       subst f1.
 
-      destruct (iris.to_val [AI_local n {| f_locs := f_locs0; f_inst := f_inst0 |} es2']) eqn:Hsome.
+      destruct (iris.to_val [AI_frame n {| f_locs := f_locs0; f_inst := f_inst0 |} es2']) eqn:Hsome.
       { apply to_val_local_inv in Hsome as Hsome'.
         destruct Hsome' as [tf [h [w [vh Heq]]]]. subst v.
         apply to_val_call_host_rec_local in Hsome as Heq.
@@ -130,7 +130,7 @@ Qed.
         iApply wp_value;[unfold IntoVal;eapply of_to_val;eauto|].
         iDestruct ("Hcont" with "Hf") as "Hcont".
         iDestruct (wp_unfold with "Hcont") as "Hcont".
-        eassert (iris.to_val [AI_local n {| f_locs := f_locs0; f_inst := f_inst0 |}
+        eassert (iris.to_val [AI_frame n {| f_locs := f_locs0; f_inst := f_inst0 |}
                                        (iris.of_val (callHostV tf h w vh))]
                 = Some (callHostV tf h w (LL_local [] n {| f_locs := f_locs0; f_inst := f_inst0 |} vh []))) as Hetov2.
         { erewrite of_to_val;[|eauto].

@@ -782,8 +782,8 @@ Lemma lfilled_to_eff_sw i lh es LI vs k tf k' sh:
   Qed.
 
   Lemma to_val_call_host_rec_local es1 bef n f sh aft tf h vcs:
-    iris.to_val0 es1 = Some (callHostV tf h vcs (LL_local bef n f sh aft)) ->
-    exists LI, es1 = (v_to_e_list bef) ++ [AI_local n f LI] ++ aft /\
+    iris.to_val0 es1 = Some (callHostV tf h vcs (LL_frame bef n f sh aft)) ->
+    exists LI, es1 = (v_to_e_list bef) ++ [AI_frame n f LI] ++ aft /\
             iris.to_val0 LI = Some (callHostV tf h vcs sh).
   Proof.
     intro.
@@ -854,8 +854,8 @@ Lemma lfilled_to_eff_sw i lh es LI vs k tf k' sh:
   Qed.
 
   Lemma to_eff_sus_local es1 vs i bef m es vh aft :
-    iris.to_eff0 es1 = Some (susE vs i (SuLocal bef m es vh aft)) ->
-    exists LI, es1 = (fmap (fun v => AI_const v) bef) ++ [AI_local m es LI] ++ aft
+    iris.to_eff0 es1 = Some (susE vs i (SuFrame bef m es vh aft)) ->
+    exists LI, es1 = (fmap (fun v => AI_const v) bef) ++ [AI_frame m es LI] ++ aft
           /\ iris.to_eff0 LI = Some (susE vs i vh).
   Proof.
     intro.
@@ -925,8 +925,8 @@ Lemma lfilled_to_eff_sw i lh es LI vs k tf k' sh:
   Qed.
 
     Lemma to_eff_sw_local es1 vs k tf i bef m es vh aft :
-    iris.to_eff0 es1 = Some (swE vs k tf i (SwLocal bef m es vh aft)) ->
-    exists LI, es1 = (fmap (fun v => AI_const v) bef) ++ [AI_local m es LI] ++ aft
+    iris.to_eff0 es1 = Some (swE vs k tf i (SwFrame bef m es vh aft)) ->
+    exists LI, es1 = (fmap (fun v => AI_const v) bef) ++ [AI_frame m es LI] ++ aft
           /\ iris.to_eff0 LI = Some (swE vs k tf i vh).
   Proof.
     intro.
@@ -996,8 +996,8 @@ Lemma lfilled_to_eff_sw i lh es LI vs k tf k' sh:
   Qed.
 
     Lemma to_eff_thr_local es1 vs k i bef m es vh aft :
-    iris.to_eff0 es1 = Some (thrE vs k i (ExLocal bef m es vh aft)) ->
-    exists LI, es1 = (fmap (fun v => AI_const v) bef) ++ [AI_local m es LI] ++ aft
+    iris.to_eff0 es1 = Some (thrE vs k i (ExFrame bef m es vh aft)) ->
+    exists LI, es1 = (fmap (fun v => AI_const v) bef) ++ [AI_frame m es LI] ++ aft
           /\ iris.to_eff0 LI = Some (thrE vs k i vh).
   Proof.
     intro.
@@ -1367,7 +1367,7 @@ Qed.
                                  /\ ((exists i (vh: valid_holed i), to_val0 LI = Some (brV vh))
                                     \/ (exists sh, to_val0 LI = Some (retV sh))
                                     \/ (exists tf h vcs sh, to_val0 LI = Some (callHostV tf h vcs sh))))
-                  \/ (exists n f LI tf h vcs sh, e = AI_local n f LI /\ to_val0 LI = Some (callHostV tf h vcs sh)))
+                  \/ (exists n f LI tf h vcs sh, e = AI_frame n f LI /\ to_val0 LI = Some (callHostV tf h vcs sh)))
                    .
   Proof.
     induction es;intros Hes1 Hes2.
@@ -1676,7 +1676,7 @@ Qed.
         * unfold to_val, iris.to_val0 in Ha ; simpl in Ha.
           destruct (merge_values $ map _ _) eqn:Hmerge => //.
           destruct v => //.
-          eexists [], (AI_local _ _ _), es.
+          eexists [], (AI_frame _ _ _), es.
           repeat split => //.
           do 8 right => //=.
           repeat eexists.
@@ -6719,8 +6719,8 @@ Qed.
   Qed.
 
   Lemma to_val_local_inv n f LI v :
-    iris.to_val0 [AI_local n f LI] = Some v ->
-    ∃ tf h w vh, v = callHostV tf h w (LL_local [] n f vh []).
+    iris.to_val0 [AI_frame n f LI] = Some v ->
+    ∃ tf h w vh, v = callHostV tf h w (LL_frame [] n f vh []).
   Proof.
     intros Hv.
     unfold iris.to_val0 in Hv. cbn in Hv.
@@ -6731,10 +6731,10 @@ Qed.
   Qed.
 
    Lemma to_eff_local_inv n f LI v :
-     iris.to_eff0 [AI_local n f LI] = Some v ->
-     (∃ vs i sh, v = susE vs i (SuLocal [] n f sh [])) \/
-       (∃ vs i k tf sh, v = swE vs i k tf (SwLocal [] n f sh [])) \/
-       ∃ vs i k sh, v = thrE vs i k (ExLocal [] n f sh []).
+     iris.to_eff0 [AI_frame n f LI] = Some v ->
+     (∃ vs i sh, v = susE vs i (SuFrame [] n f sh [])) \/
+       (∃ vs i k tf sh, v = swE vs i k tf (SwFrame [] n f sh [])) \/
+       ∃ vs i k sh, v = thrE vs i k (ExFrame [] n f sh []).
    Proof.
     intros Hv.
     unfold iris.to_eff0 in Hv. cbn in Hv.
@@ -6748,7 +6748,7 @@ Qed.
 
   Lemma to_val_local_add_frame LI' tf h w vh n f :
     iris.to_val0 LI' = Some (callHostV tf h w vh) ->
-    iris.to_val0 [AI_local n f LI'] = Some (callHostV tf h w (LL_local [] n f vh [])).
+    iris.to_val0 [AI_frame n f LI'] = Some (callHostV tf h w (LL_frame [] n f vh [])).
   Proof.
     intros Hv.
     unfold iris.to_val0 in Hv. cbn in Hv.
@@ -6846,7 +6846,7 @@ Qed.
       all: simplify_eq.
       exists (LL_base x es2).
       2: eexists (LL_label _ _ _ _ _).
-      3: eexists (LL_local _ _ _ _ _).
+      3: eexists (LL_frame _ _ _ _ _).
       4: eexists (LL_prompt _ _ _ _ _).
       5: eexists (LL_handler _ _ _ _).
       all: cbn.
@@ -6902,15 +6902,15 @@ Qed.
   Qed.
 
   Lemma to_val_local_none n f es1 vh :
-    iris.to_val0 [AI_local n f (llfill vh es1)] = None ->
-    iris.to_val0 [AI_local n f es1] = None.
+    iris.to_val0 [AI_frame n f (llfill vh es1)] = None ->
+    iris.to_val0 [AI_frame n f es1] = None.
   Proof.
     intros Hv.
-    destruct (iris.to_val0 [AI_local n f es1]) eqn:Hsome;auto.
+    destruct (iris.to_val0 [AI_frame n f es1]) eqn:Hsome;auto.
     exfalso.
     apply to_val_local_inv in Hsome as Heq.
     destruct Heq as [tf [h [w [wh Heq]]]]. subst v.
-    assert ([AI_local n f es1] = llfill (LL_local [] n f (LL_base [] []) []) es1) as Heq.
+    assert ([AI_frame n f es1] = llfill (LL_frame [] n f (LL_base [] []) []) es1) as Heq.
     { simpl. rewrite app_nil_r. auto. }
     rewrite Heq in Hsome.
     apply of_to_val0 in Hsome.
@@ -6918,42 +6918,42 @@ Qed.
     rewrite app_nil_r in H0. subst es1.
     simplify_eq. pose proof (llfill_nested vh wh [AI_call_host tf h w]) as [vh' Hvh'].
     rewrite Hvh' in Hv.
-    assert (iris.of_val0 (callHostV tf h w (LL_local [] n f vh' [])) =
-              [AI_local n f (llfill vh' [AI_call_host tf h w])]).
+    assert (iris.of_val0 (callHostV tf h w (LL_frame [] n f vh' [])) =
+              [AI_frame n f (llfill vh' [AI_call_host tf h w])]).
     { cbn. auto. }
-    assert (iris.to_val0 [AI_local n f (llfill vh' [AI_call_host tf h w])] =
-              Some (callHostV tf h w (LL_local [] n f vh' []))).
+    assert (iris.to_val0 [AI_frame n f (llfill vh' [AI_call_host tf h w])] =
+              Some (callHostV tf h w (LL_frame [] n f vh' []))).
     { rewrite -H0. apply to_of_val0. }
     congruence.
   Qed.
 
   Lemma to_val_local_none_inv n f es1 vh :
     iris.to_val0 es1 = None ->
-    iris.to_val0 [AI_local n f es1] = None ->
-    iris.to_val0 [AI_local n f (llfill vh es1)] = None.
+    iris.to_val0 [AI_frame n f es1] = None ->
+    iris.to_val0 [AI_frame n f (llfill vh es1)] = None.
   Proof.
     intros Hnone Hv.
-    destruct (iris.to_val0 [AI_local n f (llfill vh es1)]) eqn:Hsome;auto.
+    destruct (iris.to_val0 [AI_frame n f (llfill vh es1)]) eqn:Hsome;auto.
     exfalso.
     apply to_val_local_inv in Hsome as Heq.
     destruct Heq as [tf [h [w [wh Heq]]]]. subst v.
-    assert ([AI_local n f (llfill vh es1)] = llfill (LL_local [] n f vh []) es1) as Heq.
+    assert ([AI_frame n f (llfill vh es1)] = llfill (LL_frame [] n f vh []) es1) as Heq.
     { simpl. auto. }
     rewrite Heq in Hsome.
     apply of_to_val0 in Hsome.
     simpl in Hsome. inversion Hsome.
     apply llfill_call_host_compose in H0 as [vh' Hvh'];auto.
-    assert ([AI_local n f es1] =
-              iris.of_val0 (callHostV tf h w (LL_local [] n f vh' []))).
+    assert ([AI_frame n f es1] =
+              iris.of_val0 (callHostV tf h w (LL_frame [] n f vh' []))).
     { cbn. rewrite Hvh'. auto. }
     
-    assert (iris.to_val0 [AI_local n f es1] = Some (callHostV tf h w (LL_local [] n f vh' [])));[|congruence].
+    assert (iris.to_val0 [AI_frame n f es1] = Some (callHostV tf h w (LL_frame [] n f vh' [])));[|congruence].
     rewrite H. apply to_of_val0.
   Qed.
 
   (* The following lemma will generalise to any local fill *)
   Lemma to_val_local_no_local_none n f e :
-    iris.to_val0 [AI_local n f e] = None ->
+    iris.to_val0 [AI_frame n f e] = None ->
     match iris.to_val0 e with
     | Some (callHostV _ _ _ _) => False
     | _ => True
@@ -6988,7 +6988,7 @@ Qed.
 
   Lemma to_val_local_ret_none n f e vh :
     iris.to_val0 e = Some (retV vh) ->
-    iris.to_val0 [AI_local n f e] = None.
+    iris.to_val0 [AI_frame n f e] = None.
   Proof.
     unfold iris.to_val0. cbn.
     destruct (merge_values (map to_val_instr e)); try done.
@@ -6997,7 +6997,7 @@ Qed.
 
   Lemma to_val_local_none_none n f e :
     iris.to_val0 e = None ->
-    iris.to_val0 [AI_local n f e] = None.
+    iris.to_val0 [AI_frame n f e] = None.
   Proof.
     unfold iris.to_val0. cbn.
     destruct (merge_values (map to_val_instr e)); try done.
@@ -7006,7 +7006,7 @@ Qed.
 
   Lemma to_eff_local_none_none n f e :
     iris.to_eff0 e = None ->
-    iris.to_eff0 [AI_local n f e] = None.
+    iris.to_eff0 [AI_frame n f e] = None.
   Proof.
     unfold iris.to_eff0. cbn.
     destruct (merge_values (map to_val_instr e)); try done.

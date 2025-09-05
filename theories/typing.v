@@ -546,7 +546,7 @@ with e_typing : store_record -> t_context -> seq administrative_instruction -> f
 | ety_local : forall s C n f es ts,
   s_typing s (Some ts) f es ts ->
   length ts = n ->
-  e_typing s C [::AI_local n f es] (Tf [::] ts)
+  e_typing s C [::AI_frame n f es] (Tf [::] ts)
 | ety_ref : forall s C a tf cl,
     List.nth_error s.(s_funcs) a = Some cl ->
     cl_type cl = tf -> (* trying cl_type instead of cl_typing *)

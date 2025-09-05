@@ -9,7 +9,7 @@ Lemma invoke_native_det ws2 f2 es2 s a f f' t1s t2s ts es vcs:
   length t1s = length vcs ->
   f_locs f' = (vcs ++ default_vals ts) ->
   reduce s f (v_to_e_list vcs ++ [AI_invoke a]) ws2 f2 es2 ->
-  (s, f, [AI_local (length t2s) f' [AI_basic (BI_block (Tf [] t2s) es)]]) = (ws2, f2, es2).
+  (s, f, [AI_frame (length t2s) f' [AI_basic (BI_block (Tf [] t2s) es)]]) = (ws2, f2, es2).
 Proof.
   move => H H0 H1 Hred.
   lazymatch goal with

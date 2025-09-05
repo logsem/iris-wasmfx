@@ -836,7 +836,7 @@ Section reasoning_rules.
   Definition continuation_expr es : Prop :=
     (exists vs i tf, es = v_to_e_list vs ++ [ AI_ref i; AI_basic (BI_call_reference (Type_explicit tf))]) \/
       (exists vs i , es = v_to_e_list vs ++ [ AI_invoke i ] ) \/
-      (exists vs n f es0, es = v_to_e_list vs ++ [AI_local n f es0]) \/
+      (exists vs n f es0, es = v_to_e_list vs ++ [AI_frame n f es0]) \/
       (exists vs, es = v_to_e_list vs ++ [AI_trap]) \/
       is_true (const_list es) \/
       (exists vs vs' k tf, es = v_to_e_list vs ++ [AI_call_host vs' k tf])
@@ -1714,7 +1714,7 @@ Section reasoning_rules.
   Lemma continuation_expr_to_eff es e:
     to_eff0 es = Some e ->
     continuation_expr es ->
-    exists vs n f es',  es = v_to_e_list vs ++ [AI_local n f es'].
+    exists vs n f es',  es = v_to_e_list vs ++ [AI_frame n f es'].
   Proof.
     intros Htf Hes.
     destruct Hes as [(vs & i & tf & ->) | [(vs & i & ->) | [(vs & n & f0 & es0 & ->) | [(vs & ->) | [Hes | (vs & vs' & k & tf & ->)]]]]].
@@ -2353,8 +2353,8 @@ Section reasoning_rules.
             specialize ( (@eqtype.eq_refl
                             (seq.Datatypes_list__canonical__eqtype_Equality
                                administrative_instruction_eqType)
-                            (v_to_e_list x0 ++ [AI_local n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]))) as Hres.
-            instantiate (1 := v_to_e_list x0 ++ [AI_local n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]).
+                            (v_to_e_list x0 ++ [AI_frame n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]))) as Hres.
+            instantiate (1 := v_to_e_list x0 ++ [AI_frame n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]).
             destruct (eqtype.eq_op _ _) => //. 
 
 (*            eapply hfilled_inj in Hfilled.
@@ -2803,8 +2803,8 @@ Section reasoning_rules.
             specialize ( (@eqtype.eq_refl
                             (seq.Datatypes_list__canonical__eqtype_Equality
                                administrative_instruction_eqType)
-                            (v_to_e_list x0 ++ [AI_local n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]))) as Hres.
-            instantiate (1 := v_to_e_list x0 ++ [AI_local n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]).
+                            (v_to_e_list x0 ++ [AI_frame n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]))) as Hres.
+            instantiate (1 := v_to_e_list x0 ++ [AI_frame n f (susfill (Mk_tagidx n0) sh0 (v_to_e_list w))]).
             destruct (eqtype.eq_op _ _) => //. 
 
 (*            eapply hfilled_inj in Hfilled.

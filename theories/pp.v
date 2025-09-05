@@ -458,8 +458,8 @@ Fixpoint pp_administrative_instruction (n : indentation) (e : administrative_ins
     indent n (with_fg ae_style "label_cont" ++ newline) ++
     String.concat "" (List.map (pp_administrative_instruction (n.+1)) es2) ++
     indent n (with_fg ae_style "end label" ++ newline)
-  | AI_local n f es =>
-    indent n (with_fg ae_style "local " ++ string_of_nat n ++ newline) ++
+  | AI_frame n f es =>
+    indent n (with_fg ae_style "frame " ++ string_of_nat n ++ newline) ++
     (* TODO: inst? *)
     indent n (with_fg ae_style "with values " ++ pp_values_hint_empty f.(f_locs) ++ newline) ++
     pp_administrative_instructions (n.+1) es ++

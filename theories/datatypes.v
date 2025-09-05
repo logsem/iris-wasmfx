@@ -569,7 +569,7 @@ Inductive administrative_instruction : Type := (* e *)
 | AI_prompt : list value_type -> list continuation_clause -> list administrative_instruction -> administrative_instruction
 | AI_invoke : funcaddr -> administrative_instruction
 | AI_label : nat -> seq administrative_instruction -> seq administrative_instruction -> administrative_instruction
-| AI_local : nat -> frame -> seq administrative_instruction -> administrative_instruction
+| AI_frame : nat -> frame -> seq administrative_instruction -> administrative_instruction
 | AI_call_host : function_type -> hostfuncidx -> seq value -> administrative_instruction
 .
 

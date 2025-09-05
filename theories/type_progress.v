@@ -2656,7 +2656,7 @@ Fixpoint first_instr_instr e :=
   | AI_label n es LI =>
       match find_first_some (List.map first_instr_instr LI)
       with Some (e',i) => Some (e',S i) | None => Some (e,0) end
-  | AI_local n es LI =>
+  | AI_frame n es LI =>
       match find_first_some (List.map first_instr_instr LI)
       with Some (e',i) => Some (e',S i) | None => Some (e,0) end
   | AI_handler hs LI =>
@@ -2739,7 +2739,7 @@ Qed.
 
 Lemma lfilled_implies_starts k lh e es :
   (forall n es' LI, e <> AI_label n es' LI) ->
-  (forall n es' LI, e <> AI_local n es' LI) ->
+  (forall n es' LI, e <> AI_frame n es' LI) ->
   (forall hs LI, e <> AI_handler hs LI) ->
   (forall ts hs LI, e <> AI_prompt ts hs LI) ->
   (is_const e -> False) ->
@@ -3499,7 +3499,7 @@ Proof.
       move/eqP in Hfill. subst. done.
     + (* reduce *)
       destruct Hreduce as [s' [f0' [es' HReduce]]].
-      right. exists s', f, [::AI_local (length ts2) f0' es'].
+      right. exists s', f, [::AI_frame (length ts2) f0' es'].
       by apply r_local; apply HReduce.
   - (* Ref *)
     left.
@@ -3720,7 +3720,7 @@ Proof.
     + (* Native *)
       right. destruct f0.
       simpl in HTF. inversion HTF; subst.
-      exists s, f, [:: AI_local (length ts2) (Build_frame (vcs ++ default_vals l) i) [::AI_basic (BI_block (Tf [::] ts2) l0)]].
+      exists s, f, [:: AI_frame (length ts2) (Build_frame (vcs ++ default_vals l) i) [::AI_basic (BI_block (Tf [::] ts2) l0)]].
       eapply r_invoke_native; eauto.
       do 2 rewrite length_is_size.
       rewrite - (size_map Some ts1) - HConstType size_map => //.
@@ -3907,8 +3907,8 @@ Proof.
   1-6: assert (const_list l) as H; [done | rewrite H].
   1-6: by rewrite List.app_nil_r.
   eapply r_label.
-  instantiate (1 := [::AI_local n f LI1]).
-  instantiate (1 := [::AI_local n f LI0]).
+  instantiate (1 := [::AI_frame n f LI1]).
+  instantiate (1 := [::AI_frame n f LI0]).
   2: instantiate (1 := LH_base l l0).
   2: instantiate (1 := 0).
   2-3: apply/lfilledP.
@@ -4605,7 +4605,7 @@ Proof.
         move/eqP in Hfill. subst. done.
       + (* reduce *)
         destruct Hreduce as [s' [f0' [es' HReduce]]].
-        right. exists s', f, [::AI_local (length ts2) f0' es'].
+        right. exists s', f, [::AI_frame (length ts2) f0' es'].
         by apply r_local; apply HReduce. }
     move => f vcs ts1 ts2 HTF HContext HConstType HST HBI_brDepth HNRet HCallHost.
     inversion HTF; subst; clear HTF.
@@ -4677,7 +4677,7 @@ Proof.
       move/eqP in Hfill. subst. done.
     + (* reduce *)
       destruct Hreduce as [s' [f0' [es' HReduce]]].
-      right. exists s', f, [::AI_local (length ts2) f0' es'].
+      right. exists s', f, [::AI_frame (length ts2) f0' es'].
       by apply r_local; apply HReduce. 
   - (* Ref *)
     split.
@@ -5261,7 +5261,7 @@ Proof.
     + (* Native *)
       right. destruct f0.
       simpl in HTF. inversion HTF; subst.
-      exists s, f, [:: AI_local (length ts2) (Build_frame (vcs ++ default_vals l) i) [::AI_basic (BI_block (Tf [::] ts2) l0)]].
+      exists s, f, [:: AI_frame (length ts2) (Build_frame (vcs ++ default_vals l) i) [::AI_basic (BI_block (Tf [::] ts2) l0)]].
       eapply r_invoke_native; eauto.
       do 2 rewrite length_is_size.
       rewrite - (size_map Some ts1) - HConstType size_map => //.
@@ -5277,7 +5277,7 @@ Proof.
     + (* Native *)
       right. destruct f0.
       simpl in HTF. inversion HTF; subst.
-      exists s, f, [:: AI_local (length ts2) (Build_frame (vcs ++ default_vals l) i) [::AI_basic (BI_block (Tf [::] ts2) l0)]].
+      exists s, f, [:: AI_frame (length ts2) (Build_frame (vcs ++ default_vals l) i) [::AI_basic (BI_block (Tf [::] ts2) l0)]].
       eapply r_invoke_native; eauto.
       do 2 rewrite length_is_size.
       rewrite - (size_map Some ts1) - HConstType size_map => //.

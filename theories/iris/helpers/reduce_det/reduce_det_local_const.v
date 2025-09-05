@@ -6,7 +6,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 Lemma local_const_det n es vs s f s' f' es':
   const_list vs ->
-  reduce s f [AI_local n es vs] s' f' es' ->
+  reduce s f [AI_frame n es vs] s' f' es' ->
   reduce_det_strong_goal s f vs s' f' es'. 
 Proof.
   intros Hvs Hred.
@@ -46,7 +46,7 @@ Proof.
 Qed.
 
 Lemma local_trap_det n es s f s' f' es':
-  reduce s f [AI_local n es [AI_trap]] s' f' es' ->
+  reduce s f [AI_frame n es [AI_trap]] s' f' es' ->
   reduce_det_strong_goal s f [AI_trap] s' f' es'. 
 Proof.
   intros Hred.

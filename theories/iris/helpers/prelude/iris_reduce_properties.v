@@ -1791,12 +1791,12 @@ Qed.
 
   Lemma local_frame_reducible n e s f f' :
     reducible (e, f) s ->
-    reducible ([AI_local n f e], f') s.
+    reducible ([AI_frame n f e], f') s.
   Proof.
     intros [obs [[e' f''] [σ' [efs Hred]]]].
     unfold reducible, language.reducible.
 
-    exists [], ([AI_local n f'' e'], f'), σ', [].
+    exists [], ([AI_frame n f'' e'], f'), σ', [].
     rewrite /= /iris.prim_step in Hred.
     destruct Hred as [Hred [-> ->]]. eauto.
     split;auto.
@@ -1806,7 +1806,7 @@ Qed.
   Lemma local_frame_lfilled_reducible j lh LI n e s f f' :
     lfilled j lh e LI ->
     reducible (e, f) s ->
-    reducible ([AI_local n f LI], f') s.
+    reducible ([AI_frame n f LI], f') s.
   Proof.
     intros Hfill Hred.
     apply lfilled_reducible with (i:=j) (lh:=lh) (LI:=LI) in Hred;auto.
@@ -3036,12 +3036,12 @@ Qed.
 
   Lemma reduce_det_local ws f ws' f' es1 es2 n f0 :
     iris.to_val0 es1 = None ->
-    opsem.reduce ws f [AI_local n f0 es1] ws' f' es2 ->
-    ∃ es2' f1, es2 = [AI_local n f1 es2'] ∧ f = f' ∧
+    opsem.reduce ws f [AI_frame n f0 es1] ws' f' es2 ->
+    ∃ es2' f1, es2 = [AI_frame n f1 es2'] ∧ f = f' ∧
                  opsem.reduce ws f0 es1 ws' f1 es2'.
   Proof.
     intros Hes1.
-    remember [AI_local n f0 es1] as es.
+    remember [AI_frame n f0 es1] as es.
     revert es2. induction 1;simplify_eq.
     inversion H; subst.
     all: try done.
@@ -3060,7 +3060,7 @@ Qed.
     - move/lfilledP in H0; inversion H0; simplify_eq.
       2: by destruct vs; try destruct vs.
       2-3: by destruct bef; try destruct bef.
-      rewrite - (app_nil_l [AI_local n f0 es1]) in H2.
+      rewrite - (app_nil_l [AI_frame n f0 es1]) in H2.
       apply val_head_stuck_reduce in H as Hstuck.
       apply const_list_snoc_eq3 in H2 as (vs2 & es2 & Hnil & -> & Hnil' & Hvs2).
       destruct vs, vs2, es2, es'0 => //.

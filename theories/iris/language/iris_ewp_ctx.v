@@ -22,13 +22,13 @@ Definition ewp_wasm_frame `{!wasmG Σ}
   (* s : stuckness*) (E : coPset) (es : expr0)
   f Ψ (Φ : val0 -> frame -> iProp Σ) (n: nat) (f': frame) : iProp Σ :=
   
-  EWP [AI_local n f' es] UNDER f @ E <| Ψ |> {{ Φ }}.
+  EWP [AI_frame n f' es] UNDER f @ E <| Ψ |> {{ Φ }}.
 
 Definition ewp_wasm_ctx_frame `{!wasmG Σ}
           (*s : stuckness *) (E : coPset) (es : expr0)
   f' Ψ (Φ : val0 -> frame -> iProp Σ) (n: nat) (f: frame) (i : nat) (lh : lholed) : iProp Σ :=
   
-  ∀ LI, ⌜lfilled i lh es LI⌝ -∗ EWP [AI_local n f LI] UNDER f' @ E <| Ψ |> {{ Φ }}.
+  ∀ LI, ⌜lfilled i lh es LI⌝ -∗ EWP [AI_frame n f LI] UNDER f' @ E <| Ψ |> {{ Φ }}.
 
 
 (* Notations *)

@@ -130,7 +130,7 @@ Context `{!wasmG Σ}.
     length t2s = m ->
     (N.of_nat a) ↦[wf] (FC_func_native i (Tf t1s t2s) ts es) -∗
      ▷ ((N.of_nat a) ↦[wf] (FC_func_native i (Tf t1s t2s) ts es) -∗
-       EWP [::AI_local m (Build_frame (vcs ++ (default_vals ts)) i) [::AI_basic (BI_block (Tf [::] t2s) es)]] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}) -∗
+       EWP [::AI_frame m (Build_frame (vcs ++ (default_vals ts)) i) [::AI_basic (BI_block (Tf [::] t2s) es)]] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}) -∗
      EWP ves ++ [AI_invoke a] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (Hparams Hlen Hret) "Hi HΦ".
@@ -142,7 +142,7 @@ Context `{!wasmG Σ}.
     iDestruct (gen_heap_valid with "Hσ1 Hi") as %Hlook.
     eassert (reduce _ _
            (ves ++ [AI_invoke a])%list _ _
-           [AI_local m {| f_locs := vcs ++ default_vals ts; f_inst := i |} [AI_basic (BI_block (Tf [] t2s) es)]]) as Hred.
+           [AI_frame m {| f_locs := vcs ++ default_vals ts; f_inst := i |} [AI_basic (BI_block (Tf [] t2s) es)]]) as Hred.
     { eapply r_invoke_native with (ts:=ts);eauto.
       { rewrite gmap_of_list_lookup Nat2N.id in Hlook. rewrite /= nth_error_lookup //. }
       { symmetry. apply v_to_e_list_to_val. auto. } }

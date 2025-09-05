@@ -297,7 +297,7 @@ Section control_rules.
     length vs = n ->
     lfilled i lh (vs ++ [AI_basic BI_return]) es ->
     ▷ EWP vs UNDER f' @ E <| Ψ |> {{ v ; f , Φ v f }} -∗
-                 EWP [AI_local n f0 es] UNDER f' @ E <| Ψ |> {{ v ; f , Φ v f }}%I.
+                 EWP [AI_frame n f0 es] UNDER f' @ E <| Ψ |> {{ v ; f , Φ v f }}%I.
   Proof.
     iIntros (Hval Hlen Hlf) "HΦ".
     iApply ewp_lift_atomic_step => //=.
@@ -1007,11 +1007,11 @@ Section control_rules.
     unfold ewp_wasm_ctx.
     iApply ewp_unfold.
     repeat rewrite /ewp_pre/=.
-    destruct (iris.to_val0 [AI_local n1 f1 LI]) eqn:Htv.
+    destruct (iris.to_val0 [AI_frame n1 f1 LI]) eqn:Htv.
     { unfold iris.to_val0 in Htv ; simpl in Htv.
       unfold iris.to_val0 in Hcontr.
       destruct (merge_values _) => //. destruct e => //. }
-    assert (to_eff0 [AI_local n1 f1 LI] = None) as Htf.
+    assert (to_eff0 [AI_frame n1 f1 LI] = None) as Htf.
     { apply to_eff_local_none_none.
       eapply to_eff_None_lfilled => //.
       intros H; apply const_list_split in H as [??] => //.
@@ -1037,7 +1037,7 @@ Section control_rules.
     apply lfilled_swap with (es':=[::AI_label m [::] (vs ++ to_e_list es)]) in Hfill as Hfill'.
     destruct Hfill' as [LI' Hfill'].
     destruct HStep as [H _].
-    assert (first_instr [AI_local n1 f1 LI] = Some (AI_basic (BI_block (Tf t1s t2s) es),S (0 + i))) as HH.
+    assert (first_instr [AI_frame n1 f1 LI] = Some (AI_basic (BI_block (Tf t1s t2s) es),S (0 + i))) as HH.
     { apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill].
       apply first_instr_const;auto. }
     eapply reduce_det in H as [Hf [H | [[i0 Hstart] |
@@ -1181,7 +1181,7 @@ Section control_rules.
     apply lfilled_swap with (es':=vs ++ es) in Hfill' as Hfill''.
     destruct Hfill'' as [LI' Hfill''].    
     destruct HStep as [H _].
-    assert (first_instr [AI_local n1 f1 (vs' ++ [AI_label (length vs) es LI0] ++ es')] 
+    assert (first_instr [AI_frame n1 f1 (vs' ++ [AI_label (length vs) es LI0] ++ es')] 
             = Some (AI_basic (BI_br i),S (0 + S i))) as HH.
     { apply lfilled_Ind_Equivalent in Hfill.
       apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill].
@@ -1301,7 +1301,7 @@ Section control_rules.
 
       destruct HStep as [H _].
 
-      assert (first_instr [AI_local n1 f1 LI] = Some (AI_basic (BI_loop (Tf t1s t2s) es),S (0 + i))) as HH.
+      assert (first_instr [AI_frame n1 f1 LI] = Some (AI_basic (BI_loop (Tf t1s t2s) es),S (0 + i))) as HH.
       { apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill].
         apply first_instr_const. auto. }
       eapply reduce_det in H as [Hf [H | [[i0 Hstart] |
@@ -1419,7 +1419,7 @@ Section control_rules.
 
       destruct HStep as [H _].
 
-      assert (first_instr [AI_local n1 f1 LI] = Some (AI_basic (BI_if tf e1s e2s),S (0 + i))) as HH.
+      assert (first_instr [AI_frame n1 f1 LI] = Some (AI_basic (BI_if tf e1s e2s),S (0 + i))) as HH.
       { apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill]. auto. }
       eapply reduce_det in H as [Hf [H | [[i0 Hstart] |
                                                       (i1 & i2 & i3 & Hstart & Hstart1 & Hstart2 & Hσ)  ]]];
@@ -1533,7 +1533,7 @@ Section control_rules.
       iMod "Hcls". iModIntro.
 
       destruct HStep as [H _].
-      assert (first_instr [AI_local n1 f1 LI] = Some (AI_basic (BI_if tf e1s e2s),S (0 + i))) as HH.
+      assert (first_instr [AI_frame n1 f1 LI] = Some (AI_basic (BI_if tf e1s e2s),S (0 + i))) as HH.
       { apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill];auto. }
       
       eapply reduce_det in H as [Hf [H | [[i0 Hstart] |
@@ -1642,7 +1642,7 @@ Section control_rules.
       iMod "Hcls". iModIntro.
 
       destruct HStep as [H _].
-      assert (first_instr [AI_local n1 f1 LI] = Some (AI_basic (BI_br_if i),S (0 + j))) as HH.
+      assert (first_instr [AI_frame n1 f1 LI] = Some (AI_basic (BI_br_if i),S (0 + j))) as HH.
       { apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill];auto. }
       
       eapply reduce_det in H as [Hf [H | [[i0 Hstart] | 
@@ -1781,7 +1781,7 @@ Section control_rules.
       iMod "Hcls". iModIntro.
 
       destruct HStep as [H _].
-      assert (first_instr [AI_local n1 f1 LI] = Some (AI_basic (BI_br_table iss i),S (0 + k))) as HH.
+      assert (first_instr [AI_frame n1 f1 LI] = Some (AI_basic (BI_br_table iss i),S (0 + k))) as HH.
       { apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill];auto. }
       
       eapply reduce_det in H as [Hf [H | [[i0 Hstart] |
@@ -1889,7 +1889,7 @@ Section control_rules.
       iMod "Hcls". iModIntro.
 
       destruct HStep as [H _].
-      assert (first_instr [AI_local n1 f1 LI] = Some (AI_basic (BI_br_table iss i),S (0 + j))) as HH.
+      assert (first_instr [AI_frame n1 f1 LI] = Some (AI_basic (BI_br_table iss i),S (0 + j))) as HH.
       { apply first_instr_local. eapply starts_with_lfilled;[|apply Hfill];auto. }
       
       eapply reduce_det in H as [Hf [H | [[i0 Hstart] |
@@ -2129,14 +2129,14 @@ Section control_rules.
     length vs = n ->
     lfilled i lh (vs ++ [AI_basic BI_return]) LI ->
     lfilled j lh' (vs ++ [AI_basic BI_return]) LI' ->
-    EWP [AI_local n f LI] UNDER f @ E <| Ψ |> {{ Φ }} -∗
-                                EWP [AI_local n f0 LI'] UNDER f @ E <| Ψ |> {{ Φ }}.
+    EWP [AI_frame n f LI] UNDER f @ E <| Ψ |> {{ Φ }} -∗
+                                EWP [AI_frame n f0 LI'] UNDER f @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros (Hconst Hlen Hfill1 Hfill2) "Hwp".
 
     iApply ewp_unfold. iDestruct (ewp_unfold with "Hwp") as "Hwp".
     rewrite /ewp_pre /=.
-    assert (iris.to_val0 [AI_local n f LI] = None) as ->.
+    assert (iris.to_val0 [AI_frame n f LI] = None) as ->.
     { apply lfilled_to_sfill in Hfill1 as Hsh.
       destruct Hsh as [sh Hsh].
       apply const_es_exists in Hconst as Hvs0;destruct Hvs0 as [vs0 Hvs0].
@@ -2146,7 +2146,7 @@ Section control_rules.
       rewrite Hsh Heq Hsh'.
       rewrite -/(iris.of_val0 (retV vh')).
       apply iris.to_of_val0. }
-    assert (to_val0 [AI_local n f0 LI'] = None) as ->.
+    assert (to_val0 [AI_frame n f0 LI'] = None) as ->.
     { apply lfilled_to_sfill in Hfill2 as Hsh.
       destruct Hsh as [sh Hsh].
       apply const_es_exists in Hconst as Hvs0;destruct Hvs0 as [vs0 Hvs0].
@@ -2156,12 +2156,12 @@ Section control_rules.
       rewrite Hsh Heq Hsh'.
       rewrite -/(iris.of_val0 (retV vh')).
       apply iris.to_of_val0. }
-    assert (to_eff0 [AI_local n f LI] = None) as ->.
+    assert (to_eff0 [AI_frame n f LI] = None) as ->.
     { apply to_eff_local_none_none.
       eapply to_eff_None_lfilled => //=.
       intros Hc; apply const_list_split in Hc as [??] => //.
       apply to_eff_cat_None2 => //. }
-    assert (to_eff0 [AI_local n f0 LI'] = None) as ->.
+    assert (to_eff0 [AI_frame n f0 LI'] = None) as ->.
     { apply to_eff_local_none_none.
       eapply to_eff_None_lfilled => //=.
       intros Hc; apply const_list_split in Hc as [??] => //.
@@ -2173,13 +2173,13 @@ Section control_rules.
 
     eassert (reduce _ 
                     _
-                   ([AI_local n f LI]) _
+                   ([AI_frame n f LI]) _
                    _
                    vs).
     { eapply r_simple. eapply rs_return;eauto. }
     eassert (reduce _ 
                     _
-                   ([AI_local n f0 LI']) _ 
+                   ([AI_frame n f0 LI']) _ 
                    _
                    vs).
     { eapply r_simple. eapply rs_return;eauto. }
@@ -2191,7 +2191,7 @@ Section control_rules.
     iIntros ([e2 ?] ? Hprim).
 
     destruct Hprim as [Hprim _].
-    assert (first_instr ([AI_local n f0 LI']) = Some (AI_basic (BI_return),S(0 + j))) as Hfirst0.
+    assert (first_instr ([AI_frame n f0 LI']) = Some (AI_basic (BI_return),S(0 + j))) as Hfirst0.
     { eapply first_instr_local. eapply starts_with_lfilled;eauto.
       apply first_instr_const;auto. }
     eapply reduce_det in Hprim as [? [? | [[? ?]| [? [? [? [? [? [? ?]]]]] ]]]];[..|apply H0].

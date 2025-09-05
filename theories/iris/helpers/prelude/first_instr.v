@@ -21,7 +21,7 @@ Fixpoint first_instr_instr e :=
   | AI_label n es LI =>
     match find_first_some (List.map first_instr_instr LI)
     with Some (e',i) => Some (e',S i) | None => Some (e,0) end
-  | AI_local n es LI =>
+  | AI_frame n es LI =>
     match find_first_some (List.map first_instr_instr LI)
     with Some (e',i) => Some (e',S i) | None => Some (e,0) end
   | AI_handler hs LI =>
@@ -120,7 +120,7 @@ Qed.
 
 Lemma first_instr_local es e i n f :
   first_instr es = Some (e,i) ->
-  first_instr [AI_local n f es] = Some (e,S i).
+  first_instr [AI_frame n f es] = Some (e,S i).
 Proof.
   intros Hfirst.
   induction es.
@@ -133,7 +133,7 @@ Qed.
 
 Lemma find_first_const es n f :
   const_list es ->
-  first_instr [AI_local n f es] = Some (AI_local n f es, 0).
+  first_instr [AI_frame n f es] = Some (AI_frame n f es, 0).
 Proof.
   intros Hconst.
   destruct es.
@@ -203,7 +203,7 @@ Qed.
 
 Lemma lfilled_implies_starts k lh e es :
   (forall n es' LI, e <> AI_label n es' LI) ->
-  (forall n es' LI, e <> AI_local n es' LI) ->
+  (forall n es' LI, e <> AI_frame n es' LI) ->
   (forall n es' LI, e <> AI_prompt n es' LI) ->
   (forall es' LI, e <> AI_handler es' LI) ->
   (is_const e -> False) ->
@@ -231,11 +231,11 @@ Inductive first_instr_Ind : list administrative_instruction -> administrative_in
 | first_instr_switch_desugared es vs k tf i : first_instr_Ind (AI_switch_desugared vs k tf i :: es) (AI_switch_desugared vs k tf i) 0
 | first_instr_call_host es tf h cvs : first_instr_Ind (AI_call_host tf h cvs :: es)
                                                       (AI_call_host tf h cvs) 0
-| first_instr_local_ind n f es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_local n f es :: es') a (S i)
+| first_instr_local_ind n f es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_frame n f es :: es') a (S i)
 | first_instr_label n es1 es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_label n es1 es :: es') a (S i)
 | first_instr_prompt n es1 es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_prompt n es1 es :: es') a i
 | first_instr_handler es1 es es' a i : first_instr_Ind es a i -> first_instr_Ind (AI_handler es1 es :: es') a i
-| first_instr_local_base n f es es' : const_list es -> first_instr_Ind (AI_local n f es :: es') (AI_local n f es) 0
+| first_instr_local_base n f es es' : const_list es -> first_instr_Ind (AI_frame n f es :: es') (AI_frame n f es) 0
 | first_instr_label_base n es1 es es' : const_list es -> first_instr_Ind (AI_label n es1 es :: es') (AI_label n es1 es) 0
 | first_instr_prompt_base n es1 es es' : const_list es -> first_instr_Ind (AI_prompt n es1 es :: es') (AI_prompt n es1 es) 0
 | first_instr_handler_base es1 es es' : const_list es -> first_instr_Ind (AI_handler es1 es :: es') (AI_handler es1 es) 0
@@ -763,7 +763,7 @@ Proof.
     repeat rewrite cat_app.
     by rewrite - app_assoc.
   
-  - eexists (LL_local (vs0 ++ l) n f llh l0); simpl in *.
+  - eexists (LL_frame (vs0 ++ l) n f llh l0); simpl in *.
     unfold v_to_e_list; rewrite map_cat -Hllf.
     repeat rewrite cat_app.
     by rewrite - app_assoc.
@@ -786,7 +786,7 @@ Proof.
   dependent induction Hf; (try by exists (LL_base [] es)); (try by exists (LL_base [] es')).
   all: destruct IHHf as [llh Hllf]; subst.
   - by eapply llfill_prepend. 
-  - by eexists (LL_local [] n f llh es'). 
+  - by eexists (LL_frame [] n f llh es'). 
   - by eexists (LL_label [] n es1 llh es').
   - by eexists (LL_prompt [] _ _ _ _).
   - by eexists (LL_handler [] _ _ _).

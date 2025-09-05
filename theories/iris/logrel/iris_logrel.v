@@ -113,7 +113,7 @@ Section logrel.
                              match τr with 
                              | Some τr => (∃ τs'', interp_val (τs'' ++ τr) (immV v) ∗
                                            ∀ f f', ↪[frame] f' -∗
-                                               WP [AI_local (length τr) f (of_val w)] {{ vs, interp_val τr vs ∗ ↪[frame] f' }})
+                                               WP [AI_frame (length τr) f (of_val w)] {{ vs, interp_val τr vs ∗ ↪[frame] f' }})
                              | None => False
                              end)%I.
   
@@ -530,7 +530,7 @@ Section logrel.
     | Tf τ1 τ2 => ∀ i, interp_instance τctx hl i -∗
                       ∀ f vs, ↪[frame] f -∗ na_own logrel_nais ⊤ -∗
                                interp_val (τ1 ++ ts) (immV vs) -∗
-                               interp_expression_closure_stuck_host hl τ2 f [::AI_local (length τ2)
+                               interp_expression_closure_stuck_host hl τ2 f [::AI_frame (length τ2)
                                                                 (Build_frame vs i)
                                                                 [::AI_label (length τ2) [] (to_e_list es)]]
     end.
@@ -544,7 +544,7 @@ Section logrel.
     | Tf τ1 τ2 => ∀ i, interp_instance τctx [] i -∗
                       ∀ f vs, ↪[frame] f -∗ na_own logrel_nais ⊤ -∗
                                interp_val (τ1 ++ ts) (immV vs) -∗
-                               interp_expression_closure_no_host τ2 f [::AI_local (length τ2)
+                               interp_expression_closure_no_host τ2 f [::AI_frame (length τ2)
                                                                 (Build_frame vs i)
                                                                 [::AI_label (length τ2) [] (to_e_list es)]]
     end.
@@ -629,7 +629,7 @@ Section logrel_host.
                       interp_host_return hctx τ2 -∗        
                       ∀ f vs, ↪[frame] f -∗ na_own logrel_nais ⊤ -∗
                                interp_val (τ1 ++ ts) (immV vs) -∗
-                               interp_expression_closure hctx τ2 f [::AI_local (length τ2)
+                               interp_expression_closure hctx τ2 f [::AI_frame (length τ2)
                                                                 (Build_frame vs i)
                                                                 [::AI_label (length τ2) [] (to_e_list es)]]
     end.

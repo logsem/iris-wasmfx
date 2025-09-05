@@ -9,18 +9,18 @@ Lemma local_det s f es s' f' es' ws2 n f0 f2 es2 nnn:
     reduce s f es s' f1 es1
     → reduce s f es ws2 f2 es2 → length_rec es < nnn → reduce_det_goal s' f1 es1 ws2 f2 es2 es) ->
   reduce s f es s' f' es' ->
-  reduce s f0 [AI_local n f es] ws2 f2 es2 ->
-  length_rec [AI_local n f es] < S nnn ->
+  reduce s f0 [AI_frame n f es] ws2 f2 es2 ->
+  length_rec [AI_frame n f es] < S nnn ->
   ((∀ (f f2 f1 : frame) (es2 es1 es : seq.seq administrative_instruction),
       reduce s f es s' f1 es1
       → reduce s f es ws2 f2 es2 → length_rec es < nnn → reduce_det_goal s' f1 es1 ws2 f2 es2 es)
    → reduce s f es ws2 f2 es2 → length_rec es < S nnn → reduce_det_goal s' f' es' ws2 f2 es2 es) ->
-  reduce_det_goal s' f0 [AI_local n f' es'] ws2 f2 es2 [AI_local n f es].
+  reduce_det_goal s' f0 [AI_frame n f' es'] ws2 f2 es2 [AI_frame n f es].
 Proof.
   move => IHnnn Hred1 Hred2 Hlen IHHred1.
   (* final case : the r_local case. We perform the case analysis on Hred2 by hand *)
-  clear IHHred1. remember [AI_local n f es] as es0.
-  rewrite <- (app_nil_l [AI_local n f es]) in Heqes0.
+  clear IHHred1. remember [AI_frame n f es] as es0.
+  rewrite <- (app_nil_l [AI_frame n f es]) in Heqes0.
   induction Hred2 ; (try by inversion Heqes0) ;
     try by apply app_inj_tail in Heqes0 as [_ Habs] ; inversion Habs.
   destruct H ; (try by inversion Heqes0) ;

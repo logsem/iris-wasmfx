@@ -11,7 +11,7 @@ Unset Printing Implicit Defensive.
 
 Lemma build_llfill_local n f llh es e l1 l2 :
   llfill llh e = es ->
-  llfill (LL_local l1 n f llh l2) e = (v_to_e_list l1) ++ [AI_local n f es] ++ l2.
+  llfill (LL_local l1 n f llh l2) e = (v_to_e_list l1) ++ [AI_frame n f es] ++ l2.
 Proof.
   simpl. intros ->. auto.
 Qed.
@@ -26,11 +26,11 @@ Lemma build_llfill_base l1 l2 e :
 Proof. simpl. auto. Qed.
 
 Class DecomposeLocal (l: list administrative_instruction) l1 n f es l2 :=
-  { MkDecomposeLocal: l = (v_to_e_list l1) ++ [AI_local n f es] ++ l2 }.
+  { MkDecomposeLocal: l = (v_to_e_list l1) ++ [AI_frame n f es] ++ l2 }.
 
 Global Hint Mode DecomposeLocal ! - - - - - : typeclass_instances.
 
-#[export] Instance DecomposeLocalConsHere : forall n f es l2, DecomposeLocal (AI_local n f es :: l2) [] n f es l2.
+#[export] Instance DecomposeLocalConsHere : forall n f es l2, DecomposeLocal (AI_frame n f es :: l2) [] n f es l2.
 Proof. intros. constructor. auto. Qed.
 
 #[export] Instance DecomposeLocalCons : forall n f es l2 l l' e, DecomposeLocal l2 l n f es l' -> DecomposeLocal ((AI_const e) :: l2) (e :: l) n f es l'.
@@ -41,7 +41,7 @@ Qed.
 
 Lemma decompose_local_list l l1 l2 es n f :
   DecomposeLocal l l1 n f es l2 ->
-  l = v_to_e_list l1 ++ [AI_local n f es] ++ l2.
+  l = v_to_e_list l1 ++ [AI_frame n f es] ++ l2.
 Proof.
   intros D. destruct D. auto.
 Qed.

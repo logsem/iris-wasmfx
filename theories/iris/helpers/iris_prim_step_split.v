@@ -79,18 +79,18 @@ Section prim_step_split_properties.
   Lemma local_frame_lfilled_prim_step_split_reduce_r es1 es2 s f n f' e2 s2 f2 efs2 obs2 j lh LI :
     lfilled j lh (es1 ++ es2)%list LI ->
     reducible (es1, f) s ->
-    prim_step ([AI_local n f LI], f') s obs2 (e2, f2) s2 efs2 ->
-    (∃ e' f'' LI', prim_step (es1, f) s obs2 (e', f'') s2 efs2 ∧ f' = f2 ∧ e2 = [AI_local n f'' LI'] ∧ lfilled j lh (e' ++ es2) LI') \/
+    prim_step ([AI_frame n f LI], f') s obs2 (e2, f2) s2 efs2 ->
+    (∃ e' f'' LI', prim_step (es1, f) s obs2 (e', f'') s2 efs2 ∧ f' = f2 ∧ e2 = [AI_frame n f'' LI'] ∧ lfilled j lh (e' ++ es2) LI') \/
       ∃ lh0, lfilled 0 lh0 [AI_trap] es1 /\ s = s2 /\ f' = f2 .
   Proof.
     intros Hfill (obs & [e1 f1] & s1 & efs & (Hes1 & -> & ->)) (Hstep & -> & ->).
-    remember [AI_local n f LI] as es.
+    remember [AI_frame n f LI] as es.
     induction Hstep ; try (by inversion Heqes) ;
-      try (by rewrite <- (app_nil_l [AI_local _ _ _]) in Heqes ;
+      try (by rewrite <- (app_nil_l [AI_frame _ _ _]) in Heqes ;
            apply app_inj_tail in Heqes as [_ Habs] ;
            inversion Habs).
     { destruct H ; try (by inversion Heqes) ;
-        try (by rewrite <- (app_nil_l [AI_local _ _ _]) in Heqes ;
+        try (by rewrite <- (app_nil_l [AI_frame _ _ _]) in Heqes ;
              apply app_inj_tail in Heqes as [_ Habs] ;
              inversion Habs).
       - inversion Heqes ; subst ; clear Heqes.
@@ -156,8 +156,8 @@ Section prim_step_split_properties.
 
   Lemma local_frame_prim_step_split_reduce_r es1 es2 s f n f' e2 s2 f2 efs2 obs2 :
     reducible (es1, f) s ->
-    prim_step ([AI_local n f (es1 ++ es2)], f') s obs2 (e2, f2) s2 efs2 ->
-    (∃ e' f'', prim_step (es1, f) s obs2 (e', f'') s2 efs2 ∧ f' = f2 ∧ e2 = [AI_local n f'' (e' ++ es2)]) \/
+    prim_step ([AI_frame n f (es1 ++ es2)], f') s obs2 (e2, f2) s2 efs2 ->
+    (∃ e' f'', prim_step (es1, f) s obs2 (e', f'') s2 efs2 ∧ f' = f2 ∧ e2 = [AI_frame n f'' (e' ++ es2)]) \/
       (∃ lh0, lfilled 0 lh0 [AI_trap] es1 /\ s = s2 /\ f' = f2).
   Proof.
     intros Hred Hprim.

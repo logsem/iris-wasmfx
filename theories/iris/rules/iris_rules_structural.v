@@ -755,7 +755,7 @@ Qed.
 
 Lemma ewp_frame_rewrite (E: coPset) f Ψ (Φ: val0 -> frame -> iProp Σ) es n f':
   EWP es UNDER f @ E FRAME n; f' <| Ψ |> {{ v ; h , Φ v h }} ⊣⊢
-                        EWP [AI_local n f' es] UNDER f @ E <| Ψ |> {{ v;h, Φ v h }}.
+                        EWP [AI_frame n f' es] UNDER f @ E <| Ψ |> {{ v;h, Φ v h }}.
 Proof.
   trivial.
 Qed.
@@ -812,7 +812,7 @@ Proof.
   iApply ewp_unfold.
   (* Base case, when both es1 and es2 are values *)
 
-  destruct (to_val0 [AI_local n f LI]) as [vs|] eqn:Hetov.
+  destruct (to_val0 [AI_frame n f LI]) as [vs|] eqn:Hetov.
   { unfold ewp_pre.
     rewrite /= Hetov.
     apply to_val_local_inv in Hetov as Heq.
@@ -832,7 +832,7 @@ Proof.
     rewrite /= Hetov.
     done. } 
     
-  destruct (iris.to_eff0 [AI_local n f LI]) as [eff|] eqn:Hetof.
+  destruct (iris.to_eff0 [AI_frame n f LI]) as [eff|] eqn:Hetof.
   { apply to_eff_local_inv in Hetof as Heq.
     destruct Heq as [( vs & i' & she & ->) | [(vs & i' & k & tf & she & ->) | (vs & i' & k & she & -> )]].
     - apply to_eff_sus_local in Hetof as HH.
@@ -1010,7 +1010,7 @@ Qed.
 
 
 Lemma ewp_frame_seq es1 es2 n f0 (f: frame) E P Ψ Φ :
-  (*  (to_val [AI_local n f (es1 ++ es2)] = None) -> *)
+  (*  (to_val [AI_frame n f (es1 ++ es2)] = None) -> *)
   to_eff0 es2 = None ->
   (∀ f, ¬ Ψ trapV f) -∗ 
   EWP es1 UNDER f @ E <| P |> {{ v ; h , Ψ v h }} -∗

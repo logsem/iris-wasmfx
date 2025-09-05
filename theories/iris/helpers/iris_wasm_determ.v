@@ -35,7 +35,7 @@ Section determ.
   Proof.
     intros ws f es ws1 f1 es1 ws2 f2 es2 Hred1 Hred2.
     (* we perform an (strong) induction on the length_rec of es, i.e. its number of
-     instructions, counting recursively under AI_locals and AI_labels *)
+     instructions, counting recursively under AI_frames and AI_labels *)
     cut (forall n, length_rec es < n -> reduce_det_goal ws1 f1 es1 ws2 f2 es2 es).
     (* the next few lines simply help put the induction into place *)
     { intro Hn ; apply (Hn (S (length_rec es))) ; lia. }
@@ -275,11 +275,11 @@ Section determ.
 
 
   Lemma reduce_in_local s f0 n f es s' f' es':
-    reduce s f0 [AI_local n f es] s' f' es' ->
-    (exists f esf, es' = [AI_local n f esf]) \/ const_list es' \/ es' = [AI_trap].
+    reduce s f0 [AI_frame n f es] s' f' es' ->
+    (exists f esf, es' = [AI_frame n f esf]) \/ const_list es' \/ es' = [AI_trap].
   Proof.
     intros Hred.
-    remember [AI_local n f es] as esi.
+    remember [AI_frame n f es] as esi.
     induction Hred.
     inversion H.
     all: remember Heqesi as Heq; clear HeqHeq Heqesi.
@@ -309,11 +309,11 @@ Section determ.
   
 
   Lemma reduce_local_ignores_frame s f0 n f es s' f' es':
-    reduce s f0 [AI_local n f es] s' f' es' ->
-    reduce s empty_frame [AI_local n f es] s' empty_frame es'.
+    reduce s f0 [AI_frame n f es] s' f' es' ->
+    reduce s empty_frame [AI_frame n f es] s' empty_frame es'.
   Proof.
      intros Hred.
-    remember [AI_local n f es] as esi.
+    remember [AI_frame n f es] as esi.
     induction Hred.
     inversion H.
     all: remember Heqesi as Heq; clear HeqHeq Heqesi.

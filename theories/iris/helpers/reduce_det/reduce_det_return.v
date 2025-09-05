@@ -8,14 +8,14 @@ Lemma return_det vs n i lh s f f0 es s' f' es' :
   const_list vs ->
   length vs = n ->
   lfilled i lh (vs ++ [AI_basic BI_return]) es ->
-  reduce s f [AI_local n f0 es] s' f' es' ->
+  reduce s f [AI_frame n f0 es] s' f' es' ->
   reduce_det_strong_goal s f vs s' f' es'.
 Proof.
   move => H H0 H1 Hred.
   (* this is the rs_return case. It combines the difficulties of rs_br with
          the fact that, as for the previous few cases, [ only_one ] cannot be applied
          and thus all the work must be performed by hand *)
-  remember [AI_local n f0 es] as es0.
+  remember [AI_frame n f0 es] as es0.
   rewrite <- app_nil_l in Heqes0.
   induction Hred.
   inversion H2.

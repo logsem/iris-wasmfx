@@ -182,16 +182,16 @@ Inductive reduce_simple : seq administrative_instruction -> seq administrative_i
       forall es n f,
         const_list es ->
         length es = n ->
-        reduce_simple [::AI_local n f es] es
+        reduce_simple [::AI_frame n f es] es
   | rs_local_trap :
       forall n f,
-        reduce_simple [::AI_local n f [::AI_trap]] [::AI_trap]
+        reduce_simple [::AI_frame n f [::AI_trap]] [::AI_trap]
   | rs_return : (* ??? *)
       forall n i vs es lh f,
         const_list vs ->
         length vs = n ->
         lfilled i lh (vs ++ [::AI_basic BI_return]) es ->
-        reduce_simple [::AI_local n f es] vs
+        reduce_simple [::AI_frame n f es] vs
                       
   | rs_tee_local :
       forall i v,
@@ -251,7 +251,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     default_vals ts = Some zs ->
     f'.(f_inst) = i ->
     f'.(f_locs) = vcs ++ zs ->  *)
-    reduce s f ((* ves ++ *) [:: AI_ref x; AI_basic (BI_call_reference i)]) s f [:: AI_invoke x] (* [:: AI_local m f' [::AI_basic (BI_block (Tf [::] t2s) es)]] *)
+    reduce s f ((* ves ++ *) [:: AI_ref x; AI_basic (BI_call_reference i)]) s f [:: AI_invoke x] (* [:: AI_frame m f' [::AI_basic (BI_block (Tf [::] t2s) es)]] *)
 | r_invoke_native :
   forall a cl t1s t2s ts es ves vcs n m k zs s f f' i,
     List.nth_error s.(s_funcs) a = Some cl ->
@@ -264,7 +264,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     default_vals ts = zs ->
     f'.(f_inst) = i ->
     f'.(f_locs) = vcs ++ zs ->
-    reduce s f (ves ++ [::AI_invoke a]) s f [::AI_local m f' [::AI_basic (BI_block (Tf [::] t2s) es)]]
+    reduce s f (ves ++ [::AI_invoke a]) s f [::AI_frame m f' [::AI_basic (BI_block (Tf [::] t2s) es)]]
 | r_invoke_host :
   forall a cl h t1s t2s ves vcs m n s f,
     List.nth_error s.(s_funcs) a = Some cl ->
@@ -501,7 +501,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
   | r_local :
       forall s f es s' f' es' n f0,
         reduce s f es s' f' es' ->
-        reduce s f0 [::AI_local n f es] s' f0 [::AI_local n f' es']
+        reduce s f0 [::AI_frame n f es] s' f0 [::AI_frame n f' es']
   .
 
 Definition reduce_tuple s_f_es s'_f'_es' : Prop :=

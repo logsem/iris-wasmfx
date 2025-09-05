@@ -155,7 +155,7 @@ Lemma hfilled_first_values i lh vs e i' lh' vs' e' LI :
   const_list vs -> const_list vs' ->
   (is_const e = false) -> (is_const e' = false) ->
   (forall n es LI, e <> AI_label n es LI) -> (forall n es LI, e' <> AI_label n es LI) ->
-  (forall n es LI, e <> AI_local n es LI) -> (forall n es LI, e' <> AI_local n es LI) ->
+  (forall n es LI, e <> AI_frame n es LI) -> (forall n es LI, e' <> AI_frame n es LI) ->
   (forall hs LI, e <> AI_handler hs LI) -> (forall ts hs LI, e <> AI_prompt ts hs LI) ->
   (forall hs LI, e' <> AI_handler hs LI) -> (forall ts hs LI, e' <> AI_prompt ts hs LI) ->
   e = e' /\ (length vs = length vs' -> (vs = vs' /\ lh = lh')).
@@ -1097,7 +1097,7 @@ Proof.
   { by exists (LL_base vs' es'). } 
   all: destruct IHhfilledInd as [llh <-].
   - by exists (LL_label vs' n es' llh es''). 
-         - by exists (LL_local vs' n f llh es'').
+         - by exists (LL_frame vs' n f llh es'').
                 - by exists (LL_prompt vs' ts hs llh aft).
                        - by exists (LL_handler vs' hs llh aft).
 Qed. 
@@ -1427,7 +1427,7 @@ Lemma llfill_all_values_label lh vs e lh' n0 es vs' LI :
   (is_const e = false ) ->
   (e <> AI_trap) ->
   (forall n es LI, e <> AI_label n es LI) ->
-  (forall n f LI, e <> AI_local n f LI) ->
+  (forall n f LI, e <> AI_frame n f LI) ->
   (forall hs LI, e <> AI_handler hs LI) ->
   (forall ts hs LI, e <> AI_prompt ts hs LI) ->
   False.
@@ -1677,12 +1677,12 @@ Qed.
 
 Lemma llfill_all_values_local lh vs e lh' n0 es vs' LI :
   llfill lh (vs ++ [e]) = LI ->
-  llfill lh' [AI_local n0 es vs'] = LI ->
+  llfill lh' [AI_frame n0 es vs'] = LI ->
   const_list vs -> (const_list vs' ∨ vs' = [AI_trap]) ->
   (is_const e = false ) ->
   e <> AI_trap ->
   (forall n es LI, e <> AI_label n es LI) ->
-  (forall n f LI, e <> AI_local n f LI) ->
+  (forall n f LI, e <> AI_frame n f LI) ->
     (forall hs LI, e <> AI_handler hs LI) ->
   (forall ts hs LI, e <> AI_prompt ts hs LI) ->
   False.
@@ -1732,7 +1732,7 @@ Lemma llfill_all_values_prompt lh vs e lh' n0 es vs' LI :
   (is_const e = false ) ->
   e <> AI_trap ->
   (forall n es LI, e <> AI_label n es LI) ->
-  (forall n f LI, e <> AI_local n f LI) ->
+  (forall n f LI, e <> AI_frame n f LI) ->
     (forall hs LI, e <> AI_handler hs LI) ->
   (forall ts hs LI, e <> AI_prompt ts hs LI) ->
   False.
@@ -1781,7 +1781,7 @@ Lemma llfill_all_values_handler lh vs e lh' es vs' LI :
   (is_const e = false ) ->
   e <> AI_trap ->
   (forall n es LI, e <> AI_label n es LI) ->
-  (forall n f LI, e <> AI_local n f LI) ->
+  (forall n f LI, e <> AI_frame n f LI) ->
     (forall hs LI, e <> AI_handler hs LI) ->
   (forall ts hs LI, e <> AI_prompt ts hs LI) ->
   False.
@@ -1827,7 +1827,7 @@ Lemma hfilled_to_lfilled x hh es LI :
   hfilled x hh es LI ->
   (exists k lh, lfilled k lh es LI) \/
     (exists k lh n f LI',
-        lfilled k lh [::AI_local n f LI'] LI).
+        lfilled k lh [::AI_frame n f LI'] LI).
 Proof.
   intros H. move/hfilledP in H.
   generalize dependent LI.
@@ -1886,7 +1886,7 @@ Proof.
     done.
   - apply IHhh in H9 as [lh <-]. 
     apply const_es_exists in H8 as [vs ->].
-    exists (LL_local vs n f lh l0).
+    exists (LL_frame vs n f lh l0).
     done.
   - apply IHhh in H9 as [lh <-]. 
     apply const_es_exists in H7 as [vs ->].
@@ -2166,8 +2166,8 @@ Lemma llfill_first_values lh vs e lh' vs' e' LI :
   (is_const e = false) -> (is_const e' = false) ->
   (forall n es LI, e <> AI_label n es LI) ->
   (forall n es LI, e' <> AI_label n es LI) ->
-  (forall n f LI, e <> AI_local n f LI) ->
-  (forall n f LI, e' <> AI_local n f LI) ->
+  (forall n f LI, e <> AI_frame n f LI) ->
+  (forall n f LI, e' <> AI_frame n f LI) ->
   (forall hs LI, e <> AI_handler hs LI) ->
   (forall hs LI, e' <> AI_handler hs LI) ->
   (forall ts hs LI, e <> AI_prompt ts hs LI) ->
@@ -2219,7 +2219,7 @@ Lemma lfilled_llfill_first_values i lh vs e lh' vs' e' LI :
   (is_const e = false) -> (is_const e' = false) ->
   (forall n es LI, e <> AI_label n es LI) ->
   (forall n es LI, e' <> AI_label n es LI) ->
-  (forall n f LI, e <> AI_local n f LI) ->
+  (forall n f LI, e <> AI_frame n f LI) ->
     (forall hs LI, e <> AI_handler hs LI) ->
   (forall hs LI, e' <> AI_handler hs LI) ->
   (forall ts hs LI, e <> AI_prompt ts hs LI) ->
@@ -2280,7 +2280,7 @@ Proof.
     exists (LL_label l n l0 llh0 l1) => //=.
   - intro es0.
     destruct (IHllh2 es0) as [llh0 <-].
-    exists (LL_local l n f llh0 l0) => //=.
+    exists (LL_frame l n f llh0 l0) => //=.
   - intro es0.
     destruct (IHllh2 es0) as [llh0 <-].
     exists (LL_prompt l l0 l1 llh0 l2) => //=.
@@ -2345,7 +2345,7 @@ Proof.
     - apply (llfill_all_values_local H1 Hfill) => //=.
       by right. 
     - apply lfilled_implies_llfill in H2 as (llh & _ & H2).
-      assert (llfill (LL_local [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
+      assert (llfill (LL_frame [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_frame n f0 es]) => //=.
       by rewrite H2.
       destruct (llfill_trans H3 Hfill) as [llh' Hfill'].
       edestruct llfill_first_values as [? _].
@@ -2437,7 +2437,7 @@ Proof.
       move/eqP in H0; subst.
       exfalso ; apply IHHred2 => //=.
   -  (* local *)
-    assert (llfill (LL_local [::] n f (LL_base [::] [::]) [::]) es = [::AI_local n f es]) as H => //=.
+    assert (llfill (LL_frame [::] n f (LL_base [::] [::]) [::]) es = [::AI_frame n f es]) as H => //=.
     { by rewrite List.app_nil_r. }
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
     apply (IHn0 _ _ _ _ _ Hred2 Hfill') => //.
@@ -2751,7 +2751,7 @@ Proof.
     - apply (llfill_all_values_local Hlh0 Hfill) => //=.
       by right. 
     - apply lfilled_implies_llfill in H2 as (llh & _ & H2).
-      assert (llfill (LL_local [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
+      assert (llfill (LL_frame [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_frame n f0 es]) => //=.
       by rewrite H2.
       destruct (llfill_trans H3 Hfill) as [llh' Hfill'].
       edestruct llfill_first_values as [? _].
@@ -2845,7 +2845,7 @@ Proof.
     + apply (IHn0 _ _ _ _ _ Hred2 Hfill') => //. lias.
     + apply IHHred2 => //=.
   -  (* local *)
-    assert (llfill (LL_local [::] n f (LL_base [::] [::]) [::]) es = [::AI_local n f es]) as H => //=.
+    assert (llfill (LL_frame [::] n f (LL_base [::] [::]) [::]) es = [::AI_frame n f es]) as H => //=.
     { by rewrite List.app_nil_r. }
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
     apply (IHn0 _ _ _ _ _ Hred2 Hfill') => //.
@@ -3052,7 +3052,7 @@ Proof.
     - apply (llfill_all_values_local Hlh0 Hfill) => //=.
       by right. 
     - apply lfilled_implies_llfill in H2 as (llh & _ & H2).
-      assert (llfill (LL_local [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
+      assert (llfill (LL_frame [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_frame n f0 es]) => //=.
       by rewrite H2.
       destruct (llfill_trans H3 Hfill) as [llh' Hfill'].
       edestruct llfill_first_values as [? _].
@@ -3173,7 +3173,7 @@ Proof.
       subst.
       apply IHHred2 => //=. 
   -  (* local *)
-    assert (llfill (LL_local [::] n f (LL_base [::] [::]) [::]) es = [::AI_local n f es]) as H => //=.
+    assert (llfill (LL_frame [::] n f (LL_base [::] [::]) [::]) es = [::AI_frame n f es]) as H => //=.
     { by rewrite List.app_nil_r. }
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
     destruct (IHn0 _ _ _ _ _ Hred2 Hfill') as (tf1 & sh0 & hh0 & Hsw & Hdag & -> & -> & Htrap) => //. 
@@ -3181,7 +3181,7 @@ Proof.
     unfold length_rec. lias.
     repeat eexists.
 (*    instantiate (1 := tf1). *)
-    instantiate (1 := LL_local [] n f' sh0 []).
+    instantiate (1 := LL_frame [] n f' sh0 []).
     simpl. simpl in Hsw. rewrite Hsw. done. done. 
     instantiate (1 := HH_local [] n f' hh0 []).
     unfold hfilled, hfill; fold hfill => /=.
@@ -3436,7 +3436,7 @@ Proof.
     - apply (llfill_all_values_local Hlh0 Hfill) => //=.
       by right. 
     - apply lfilled_implies_llfill in H2 as (llh & _ & H2).
-      assert (llfill (LL_local [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_local n f0 es]) => //=.
+      assert (llfill (LL_frame [] n f0 llh []) (vs0 ++ [AI_basic BI_return]) = [AI_frame n f0 es]) => //=.
       by rewrite H2.
       destruct (llfill_trans H3 Hfill) as [llh' Hfill'].
       edestruct llfill_first_values as [? _].
@@ -3535,7 +3535,7 @@ Proof.
       move/eqP in H0; subst.
       exfalso ; apply IHHred2 => //=.
   -  (* local *)
-    assert (llfill (LL_local [::] n f (LL_base [::] [::]) [::]) es = [::AI_local n f es]) as H => //=.
+    assert (llfill (LL_frame [::] n f (LL_base [::] [::]) [::]) es = [::AI_frame n f es]) as H => //=.
     { by rewrite List.app_nil_r. }
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
     apply (IHn0 _ _ _ _ _ Hred2 Hfill') => //.
@@ -3724,7 +3724,7 @@ Proof.
       cbn. rewrite - v_to_e_cat. repeat erewrite app_assoc.
       rewrite app_comm_cons. rewrite (separate1 _ l3).
       repeat erewrite app_assoc. auto. 
-    + exists (LL_local (l ++ l1) n f wh (l2 ++ l0)).
+    + exists (LL_frame (l ++ l1) n f wh (l2 ++ l0)).
       cbn. rewrite - v_to_e_cat. repeat erewrite app_assoc.
       rewrite app_comm_cons.
       repeat erewrite app_assoc. auto.
@@ -3741,7 +3741,7 @@ Proof.
     exists (LL_label l n l0 vh' l1). cbn. auto. 
   - destruct IHvh as [vh' Heq].
     cbn. rewrite Heq.
-    exists (LL_local l n f vh' l0). cbn. auto.
+    exists (LL_frame l n f vh' l0). cbn. auto.
   - destruct IHvh as [vh' Heq].
     cbn. rewrite Heq.
     exists (LL_prompt l l0 l1 vh' l2). cbn. auto.

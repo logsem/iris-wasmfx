@@ -883,13 +883,13 @@ Fixpoint to_val_instr (instr : administrative_instruction) : ValNotVal :=
       | Eff (thrE vs a i sh) => Eff (thrE vs a i (ExLabel [] n labe sh []))
       | _ => NotVal [instr]
       end
- | AI_local n f es =>
+ | AI_frame n f es =>
       match merge_values (map to_val_instr es) with
       | Val (callHostV tf h cvs sh) =>
-          Val (callHostV tf h cvs (LL_local [] n f sh []))
-      | Eff (susE vs i sh) => Eff (susE vs i (SuLocal [] n f sh []))
-      | Eff (swE vs k tf i sh) => Eff (swE vs k tf i (SwLocal [] n f sh []))
-      | Eff (thrE vs a i sh) => Eff (thrE vs a i (ExLocal [] n f sh []))
+          Val (callHostV tf h cvs (LL_frame [] n f sh []))
+      | Eff (susE vs i sh) => Eff (susE vs i (SuFrame [] n f sh []))
+      | Eff (swE vs k tf i sh) => Eff (swE vs k tf i (SwFrame [] n f sh []))
+      | Eff (thrE vs a i sh) => Eff (thrE vs a i (ExFrame [] n f sh []))
       | _ => NotVal [instr]
       end 
   | AI_call_host tf h cvs => Val (callHostV tf h cvs (LL_base [] []))
@@ -6215,7 +6215,7 @@ Proof.
       destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
         (try destruct e); try by inversion Hmerge.
       destruct v0 ; inversion Hmerge. subst.
-      assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+      assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_basic (BI_const v)) l).
@@ -6226,7 +6226,7 @@ Proof.
       destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
          (try destruct e); try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
-      assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+      assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
@@ -6243,7 +6243,7 @@ Proof.
       destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
         (try destruct e); try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
-      assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+      assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_ref f1) l).
@@ -6254,7 +6254,7 @@ Proof.
       destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
          (try destruct e0); try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
-      assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+      assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_ref_exn e t) l).
@@ -6265,7 +6265,7 @@ Proof.
       destruct (merge_values (map to_val_instr l)) eqn:Hmerge0 ;
          (try destruct e); try by inversion Hmerge.
       destruct v ; inversion Hmerge. subst.
-      assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+      assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
       erewrite <- (IHm _ l) => //=.
       destruct l3 => //=. 
       specialize (length_cons_rec (AI_ref_cont f1) l).
@@ -6433,7 +6433,7 @@ Proof.
           try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_const v)) l).
@@ -6445,7 +6445,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
@@ -6463,7 +6463,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref f0) l).
@@ -6475,7 +6475,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e0; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_exn e t) l).
@@ -6487,7 +6487,7 @@ Proof.
           try by inversion Hmerge.
         -- destruct v ; inversion Hmerge.
         -- destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f0) l).
@@ -6680,7 +6680,7 @@ Proof.
           try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_const v)) l).
@@ -6692,7 +6692,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
@@ -6710,7 +6710,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref f0) l).
@@ -6722,7 +6722,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e0; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_exn e t) l).
@@ -6734,7 +6734,7 @@ Proof.
           try by inversion Hmerge.
         -- destruct v ; inversion Hmerge.
         -- destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f0) l).
@@ -6931,7 +6931,7 @@ Proof.
           try by inversion Hmerge.
         destruct v0 ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_const v)) l).
@@ -6943,7 +6943,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_basic (BI_ref_null r)) l).
@@ -6961,7 +6961,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref f0) l).
@@ -6973,7 +6973,7 @@ Proof.
           try by inversion Hmerge.
         -- destruct v ; inversion Hmerge.
         -- destruct e0; inversion Hmerge; subst.
-           assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+           assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
            rewrite -(IHm sh0 l H0 Hmerge0).
            destruct sh0 => //.
            specialize (length_cons_rec (AI_ref_exn e t) l).
@@ -7003,7 +7003,7 @@ Proof.
           try by inversion Hmerge.
         destruct v ; inversion Hmerge.
         destruct e; inversion Hmerge; subst.
-        assert (size_of_instruction (AI_local n0 f l) < S n). simpl in Hsize. simpl. lia.
+        assert (size_of_instruction (AI_frame n0 f l) < S n). simpl in Hsize. simpl. lia.
         rewrite -(IHm sh0 l H0 Hmerge0).
         destruct sh0 => //.
         specialize (length_cons_rec (AI_ref_cont f0) l).
@@ -8180,11 +8180,11 @@ Lemma splits_vals_e_to_val_hd : forall e1 e es vs,
     \/ (∃ bef a i n es' LI sh,
           e = AI_prompt n es' LI /\ to_eff0 e1 = Some (thrE bef a i (ExPrompt vs n es' sh es)) /\
             exnfill i sh [AI_throw_ref_desugared bef a i] = LI)
-    \/ (∃ tf h vcs n f LI sh, e = AI_local n f LI /\ to_val0 e1 = Some (callHostV tf h vcs ((LL_local vs n f sh es)))
+    \/ (∃ tf h vcs n f LI sh, e = AI_frame n f LI /\ to_val0 e1 = Some (callHostV tf h vcs ((LL_frame vs n f sh es)))
                              /\ llfill sh [AI_call_host tf h vcs] = LI)
-    \/ (∃ bef i n f LI sh, e = AI_local n f LI /\ to_eff0 e1 = Some (susE bef i (SuLocal vs n f sh es)) /\ susfill i sh [AI_suspend_desugared bef i] = LI)
-    \/ (∃ bef k tf i n f LI sh, e = AI_local n f LI /\ to_eff0 e1 = Some (swE bef k tf i (SwLocal vs n f sh es)) /\ swfill i sh [AI_switch_desugared bef k tf i] = LI)
-    \/ (∃ bef a i n f LI sh, e = AI_local n f LI /\ to_eff0 e1 = Some (thrE bef a i (ExLocal vs n f sh es)) /\ exnfill i sh [AI_throw_ref_desugared bef a i] = LI)
+    \/ (∃ bef i n f LI sh, e = AI_frame n f LI /\ to_eff0 e1 = Some (susE bef i (SuFrame vs n f sh es)) /\ susfill i sh [AI_suspend_desugared bef i] = LI)
+    \/ (∃ bef k tf i n f LI sh, e = AI_frame n f LI /\ to_eff0 e1 = Some (swE bef k tf i (SwFrame vs n f sh es)) /\ swfill i sh [AI_switch_desugared bef k tf i] = LI)
+    \/ (∃ bef a i n f LI sh, e = AI_frame n f LI /\ to_eff0 e1 = Some (thrE bef a i (ExFrame vs n f sh es)) /\ exnfill i sh [AI_throw_ref_desugared bef a i] = LI)
 .
 Proof.
   intros e1.
@@ -10367,7 +10367,7 @@ Proof.
     + left. apply of_to_eff0 in Hsw.
       unfold of_eff0 in Hsw.
       rewrite -Hsw.
-      replace (v_to_e_list l ++ (AI_local n f (swfill i sh' [AI_switch_desugared vs k tf i]) :: l0)%SEQ) with (of_eff0 (swE vs k tf i (SwLocal l n f sh' l0))) => //.
+      replace (v_to_e_list l ++ (AI_frame n f (swfill i sh' [AI_switch_desugared vs k tf i]) :: l0)%SEQ) with (of_eff0 (swE vs k tf i (SwFrame l n f sh' l0))) => //.
       rewrite to_of_eff0.
       by eexists.
     + right. repeat rewrite map_app. repeat rewrite merge_app.

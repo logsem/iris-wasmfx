@@ -35,7 +35,7 @@ Fixpoint size_of_instruction e :=
   | AI_prompt _ _ LI
   | AI_handler _ LI
   | AI_label _ _ LI 
-  | AI_local _ _ LI => S (List.list_sum (map size_of_instruction LI))
+  | AI_frame _ _ LI => S (List.list_sum (map size_of_instruction LI))
   | _ => 1
   end.
 
@@ -185,7 +185,7 @@ Defined. *)
 Inductive llholed : Type :=
 | LL_base : list value -> list administrative_instruction -> llholed
 | LL_label : list value -> nat -> list administrative_instruction -> llholed -> list administrative_instruction -> llholed
-| LL_local : list value -> nat -> frame -> llholed -> list administrative_instruction -> llholed
+| LL_frame : list value -> nat -> frame -> llholed -> list administrative_instruction -> llholed
 | LL_prompt : list value -> list value_type -> list continuation_clause -> llholed -> list administrative_instruction -> llholed
 | LL_handler : list value -> list exception_clause -> llholed -> list administrative_instruction -> llholed
 . 
@@ -345,7 +345,7 @@ Qed.
 Inductive susholed : Type :=
 | SuBase: list value -> list administrative_instruction -> susholed 
 | SuLabel: list value -> nat -> list administrative_instruction -> susholed -> list administrative_instruction -> susholed
-| SuLocal: list value -> nat -> frame -> susholed -> list administrative_instruction -> susholed
+| SuFrame: list value -> nat -> frame -> susholed -> list administrative_instruction -> susholed
 | SuHandler: list value -> list exception_clause -> susholed -> list administrative_instruction -> susholed
 | SuPrompt: list value -> list value_type -> list (suselt) -> (susholed) -> list administrative_instruction -> susholed
 .
@@ -468,7 +468,7 @@ Qed.
 Inductive swholed : Type :=
 | SwBase : list value -> list administrative_instruction -> swholed
 | SwLabel : list value -> nat -> list administrative_instruction -> swholed -> list administrative_instruction -> swholed
-| SwLocal  : list value -> nat -> frame -> swholed -> list administrative_instruction -> swholed
+| SwFrame  : list value -> nat -> frame -> swholed -> list administrative_instruction -> swholed
 | SwHandler  : list value -> list exception_clause -> swholed-> list administrative_instruction -> swholed
 | SwPrompt  : list value -> list value_type -> list (swelt) -> swholed-> list administrative_instruction -> swholed
 .
@@ -638,7 +638,7 @@ Qed.
 Inductive exnholed : Type :=
 | ExBase  : list value -> list administrative_instruction -> exnholed
 | ExLabel  : list value -> nat -> list administrative_instruction -> exnholed -> list administrative_instruction -> exnholed
-| ExLocal  : list value -> nat -> frame -> exnholed -> list administrative_instruction -> exnholed
+| ExFrame  : list value -> nat -> frame -> exnholed -> list administrative_instruction -> exnholed
 | ExHandler  : list value -> list (exnelt) -> exnholed -> list administrative_instruction -> exnholed
 | ExPrompt  : list value -> list value_type -> list continuation_clause -> exnholed -> list administrative_instruction -> exnholed
 .
@@ -741,8 +741,8 @@ Fixpoint llfill lh es :=
   | LL_base bef aft => v_to_e_list bef ++ es ++ aft
   | LL_label bef n es0 lh aft =>
       v_to_e_list bef ++ AI_label n es0 (llfill lh es) :: aft  
-  | LL_local bef n f lh aft =>
-      v_to_e_list bef ++ AI_local n f (llfill lh es) :: aft
+  | LL_frame bef n f lh aft =>
+      v_to_e_list bef ++ AI_frame n f (llfill lh es) :: aft
   | LL_prompt bef tf hs lh aft =>
       v_to_e_list bef ++ AI_prompt tf hs (llfill lh es) :: aft
   | LL_handler bef hs lh aft =>
@@ -763,7 +763,7 @@ Fixpoint susfill x (lh: susholed) es :=
   match lh with
   | SuBase bef aft => v_to_e_list bef ++ es ++ aft
   | SuLabel bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (susfill x lh es) :: aft
-  | SuLocal bef n f lh aft => v_to_e_list bef ++ AI_local n f (susfill x lh es) :: aft
+  | SuFrame bef n f lh aft => v_to_e_list bef ++ AI_frame n f (susfill x lh es) :: aft
   | SuPrompt bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_suselt x) hs) (susfill x lh es) :: aft
   | SuHandler bef hs lh aft => v_to_e_list bef ++ AI_handler hs (susfill x lh es) :: aft
   end.
@@ -782,7 +782,7 @@ Fixpoint swfill (x: tagidx) (lh: swholed) es :=
   match lh with
   | SwBase bef aft => v_to_e_list bef ++ es ++ aft
   | SwLabel bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (swfill x lh es) :: aft
-  | SwLocal bef n f lh aft => v_to_e_list bef ++ AI_local n f (swfill x lh es) :: aft
+  | SwFrame bef n f lh aft => v_to_e_list bef ++ AI_frame n f (swfill x lh es) :: aft
   | SwPrompt bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf (map (continuation_clause_of_swelt x) hs) (swfill x lh es) :: aft
   | SwHandler bef hs lh aft => v_to_e_list bef ++ AI_handler hs (swfill x lh es) :: aft
   end.
@@ -807,7 +807,7 @@ Fixpoint exnfill (x: tagidx) (lh: exnholed) es :=
   match lh with
   | ExBase bef aft => v_to_e_list bef ++ es ++ aft
   | ExLabel bef n es0 lh aft => v_to_e_list bef ++ AI_label n es0 (exnfill x lh es) :: aft
-  | ExLocal bef n f lh aft => v_to_e_list bef ++ AI_local n f (exnfill x lh es) :: aft
+  | ExFrame bef n f lh aft => v_to_e_list bef ++ AI_frame n f (exnfill x lh es) :: aft
   | ExPrompt bef tf hs lh aft => v_to_e_list bef ++ AI_prompt tf hs (exnfill x lh es) :: aft
   | ExHandler bef hs lh aft => v_to_e_list bef ++ AI_handler (map (exception_clause_of_exnelt x) hs) (exnfill x lh es) :: aft
   end.
@@ -838,7 +838,7 @@ Definition sus_push_const (sh: susholed) vs :=
   match sh with
   | SuBase bef aft => SuBase (vs ++ bef) aft
   | SuLabel bef n es sh aft => SuLabel (vs ++ bef) n es sh aft
-  | SuLocal bef n f sh aft => SuLocal (vs ++ bef) n f sh aft
+  | SuFrame bef n f sh aft => SuFrame (vs ++ bef) n f sh aft
   | SuPrompt bef tf hs sh aft => SuPrompt (vs ++ bef) tf hs sh aft
   | SuHandler bef hs sh aft => SuHandler (vs ++ bef) hs sh aft
   end.
@@ -847,7 +847,7 @@ Definition sus_append (sh: susholed) expr :=
   match sh with
   | SuBase bef aft => SuBase bef (aft ++ expr)
   | SuLabel bef n es sh aft => SuLabel bef n es sh (aft ++ expr)
-  | SuLocal bef n f sh aft => SuLocal bef n f sh (aft ++ expr)
+  | SuFrame bef n f sh aft => SuFrame bef n f sh (aft ++ expr)
   | SuPrompt bef tf hs sh aft => SuPrompt bef tf hs sh (aft ++ expr)
   | SuHandler bef hs sh aft => SuHandler bef hs sh (aft ++ expr)
   end.
@@ -857,7 +857,7 @@ Definition sw_push_const (sh: swholed) vs :=
   match sh with
   | SwBase bef aft => SwBase (vs ++ bef) aft
   | SwLabel bef n es sh aft => SwLabel (vs ++ bef) n es sh aft
-  | SwLocal bef n f sh aft => SwLocal (vs ++ bef) n f sh aft
+  | SwFrame bef n f sh aft => SwFrame (vs ++ bef) n f sh aft
   | SwPrompt bef tf hs sh aft => SwPrompt (vs ++ bef) tf hs sh aft
   | SwHandler bef hs sh aft => SwHandler (vs ++ bef) hs sh aft
   end.
@@ -866,7 +866,7 @@ Definition sw_append (sh: swholed) expr :=
   match sh with
   | SwBase bef aft => SwBase bef (aft ++ expr)
   | SwLabel bef n es sh aft => SwLabel bef n es sh (aft ++ expr)
-  | SwLocal bef n f sh aft => SwLocal bef n f sh (aft ++ expr)
+  | SwFrame bef n f sh aft => SwFrame bef n f sh (aft ++ expr)
   | SwPrompt bef tf hs sh aft => SwPrompt bef tf hs sh (aft ++ expr)
   | SwHandler bef hs sh aft => SwHandler bef hs sh (aft ++ expr)
   end.
@@ -876,7 +876,7 @@ Definition exn_push_const (sh: exnholed) vs :=
   match sh with
   | ExBase bef aft => ExBase (vs ++ bef) aft
   | ExLabel bef n es sh aft => ExLabel (vs ++ bef) n es sh aft
-  | ExLocal bef n f sh aft => ExLocal (vs ++ bef) n f sh aft
+  | ExFrame bef n f sh aft => ExFrame (vs ++ bef) n f sh aft
   | ExPrompt bef tf hs sh aft => ExPrompt (vs ++ bef) tf hs sh aft
   | ExHandler bef hs sh aft => ExHandler (vs ++ bef) hs sh aft
   end.
@@ -885,7 +885,7 @@ Definition exn_append (sh: exnholed) expr :=
   match sh with
   | ExBase bef aft => ExBase bef (aft ++ expr)
   | ExLabel bef n es sh aft => ExLabel bef n es sh (aft ++ expr)
-  | ExLocal bef n f sh aft => ExLocal bef n f sh (aft ++ expr)
+  | ExFrame bef n f sh aft => ExFrame bef n f sh (aft ++ expr)
   | ExPrompt bef tf hs sh aft => ExPrompt bef tf hs sh (aft ++ expr)
   | ExHandler bef hs sh aft => ExHandler bef hs sh (aft ++ expr)
   end. 
@@ -915,7 +915,7 @@ Definition llh_push_const lh vs :=
   match lh with
   | LL_base bef aft => LL_base (vs ++ bef) aft
   | LL_label bef m es lh aft => LL_label (vs ++ bef) m es lh aft 
-  | LL_local bef n f lh aft => LL_local (vs ++ bef) n f lh aft
+  | LL_frame bef n f lh aft => LL_frame (vs ++ bef) n f lh aft
   | LL_prompt bef tf hs lh aft =>
       LL_prompt (vs ++ bef) tf hs lh aft
   | LL_handler bef hs lh aft =>
@@ -926,7 +926,7 @@ Definition llh_append lh expr :=
   match lh with
   | LL_base bef aft => LL_base bef (aft ++ expr)
   | LL_label bef m es lh aft => LL_label bef m es lh (aft ++ expr)
-  | LL_local bef n f lh aft => LL_local bef n f lh (aft ++ expr)
+  | LL_frame bef n f lh aft => LL_frame bef n f lh (aft ++ expr)
   | LL_prompt bef tf hs lh aft =>
       LL_prompt bef tf hs lh (aft ++ expr)
   | LL_handler bef hs lh aft =>
@@ -1038,7 +1038,7 @@ Fixpoint hh_of_sush i sh :=
       HH_base (map AI_const bef) aft
   | SuLabel bef n es sh aft =>
       HH_label (map AI_const bef) n es (hh_of_sush i sh) aft
-  | SuLocal bef n f sh aft =>
+  | SuFrame bef n f sh aft =>
       HH_local (map AI_const bef) n f (hh_of_sush i sh) aft
   | SuPrompt bef tf hs sh aft =>
       HH_prompt (map AI_const bef) tf
@@ -1054,7 +1054,7 @@ Fixpoint hh_of_swh i sh :=
       HH_base (map AI_const bef) aft
   | SwLabel bef n es sh aft =>
       HH_label (map AI_const bef) n es (hh_of_swh i sh) aft
-  | SwLocal bef n f sh aft =>
+  | SwFrame bef n f sh aft =>
       HH_local (map AI_const bef) n f (hh_of_swh i sh) aft
   | SwPrompt bef tf hs sh aft =>
       HH_prompt (map AI_const bef) tf
@@ -1070,7 +1070,7 @@ Fixpoint hh_of_exnh i sh :=
       HH_base (map AI_const bef) aft
   | ExLabel bef n es sh aft =>
       HH_label (map AI_const bef) n es (hh_of_exnh i sh) aft
-  | ExLocal bef n f sh aft =>
+  | ExFrame bef n f sh aft =>
       HH_local (map AI_const bef) n f (hh_of_exnh i sh) aft
   | ExPrompt bef tf hs sh aft =>
       HH_prompt (map AI_const bef) tf hs (hh_of_exnh i sh) aft
@@ -1183,7 +1183,7 @@ Fixpoint sus_trans sh1 sh2 :=
   match sh1 with
   | SuBase bef aft => sus_push_const (sus_append sh2 aft) bef
   | SuLabel bef n es sh aft => SuLabel bef n es (sus_trans sh sh2) aft
-  | SuLocal bef n es sh aft => SuLocal bef n es (sus_trans sh sh2) aft
+  | SuFrame bef n es sh aft => SuFrame bef n es (sus_trans sh sh2) aft
   | SuHandler bef hs sh aft => SuHandler bef hs (sus_trans sh sh2) aft
   | SuPrompt bef ts hs sh aft => SuPrompt bef ts hs (sus_trans sh sh2) aft
   end.
@@ -1192,7 +1192,7 @@ Fixpoint sw_trans sh1 sh2 :=
   match sh1 with
   | SwBase bef aft => sw_push_const (sw_append sh2 aft) bef
   | SwLabel bef n es sh aft => SwLabel bef n es (sw_trans sh sh2) aft
-  | SwLocal bef n es sh aft => SwLocal bef n es (sw_trans sh sh2) aft
+  | SwFrame bef n es sh aft => SwFrame bef n es (sw_trans sh sh2) aft
   | SwHandler bef hs sh aft => SwHandler bef hs (sw_trans sh sh2) aft
   | SwPrompt bef ts hs sh aft => SwPrompt bef ts hs (sw_trans sh sh2) aft
   end.
@@ -1201,7 +1201,7 @@ Fixpoint exn_trans sh1 sh2 :=
   match sh1 with
   | ExBase bef aft => exn_push_const (exn_append sh2 aft) bef
   | ExLabel bef n es sh aft => ExLabel bef n es (exn_trans sh sh2) aft
-  | ExLocal bef n es sh aft => ExLocal bef n es (exn_trans sh sh2) aft
+  | ExFrame bef n es sh aft => ExFrame bef n es (exn_trans sh sh2) aft
   | ExHandler bef hs sh aft => ExHandler bef hs (exn_trans sh sh2) aft
   | ExPrompt bef ts hs sh aft => ExPrompt bef ts hs (exn_trans sh sh2) aft
   end.

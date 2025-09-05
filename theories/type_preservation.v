@@ -2494,13 +2494,13 @@ Proof.
 Qed. 
 
 Lemma Local_typing: forall s C n f es t1s t2s,
-    e_typing s C [::AI_local n f es] (Tf t1s t2s) ->
+    e_typing s C [::AI_frame n f es] (Tf t1s t2s) ->
     exists ts, t2s = t1s ++ ts /\
                s_typing s (Some ts) f es ts /\
                length ts = n.
 Proof.
   move => s C n f es t1s t2s HType.
-  remember ([::AI_local n f es]) as les.
+  remember ([::AI_frame n f es]) as les.
   remember (Tf t1s t2s) as tf.
   generalize dependent Heqtf. generalize dependent t1s. generalize dependent t2s.
   induction HType; subst => //.
@@ -2645,7 +2645,7 @@ Qed.
 
 
 Lemma Local_return_typing: forall s C vs f LI tf n lh,
-    e_typing s C [:: AI_local (length vs) f LI] tf ->
+    e_typing s C [:: AI_frame (length vs) f LI] tf ->
     const_list vs ->
     lfilled n lh (vs ++ [::AI_basic BI_return]) LI ->
 (*    exists C', *) e_typing s C(*'*) vs tf. (* added exists C' *)
