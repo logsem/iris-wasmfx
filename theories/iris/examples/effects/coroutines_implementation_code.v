@@ -407,31 +407,41 @@ Section yield_par.
       
       iAssert ( ∀ kaddra kaddrb b conta,
                   (I ∗ J ∗ N.of_nat kaddra ↦[wcont] Live emptyt conta  ∗
-                     (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed conta) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ J }})  ∗
-                     ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Live emptyt contb ∗ (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed contb) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }})) ∨ (⌜ b = 1 ⌝ ∗ Q2 ∗ N.of_nat f2 ↦[wf] cl2 ))) ∨
+                     (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed conta) [] LI ⌝ ∗
+                                        ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ J }})  ∗
+                     ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Live emptyt contb ∗
+                                              (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed contb) [] LI ⌝ ∗
+                                                                 ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I
+                                                                                                                       ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }}))
+                      ∨ (⌜ b = 1 ⌝ ∗ Q2 ∗ N.of_nat f2 ↦[wf] cl2 ))) ∨
                     (I ∗ J ∗ N.of_nat kaddra ↦[wcont] Live emptyt conta  ∗
-                       (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed conta) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }})  ∗
-                       ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Live emptyt contb ∗ (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed contb) [] LI ⌝ ∗ ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ J }})) ∨ (⌜ b = 1 ⌝ ∗ Q1 ∗ N.of_nat f1 ↦[wf] cl1 )))  -∗
-                                                                                                                                                                                                                                              EWP [] ++
-                                                                                                                                                                                                                                              [AI_basic
-                                                                                                                                                                                                                                                 (BI_loop (Tf [] [])
-                                                                                                                                                                                                                                                    [BI_block (Tf [] [T_ref (T_contref (Tf [] []))])
-                                                                                                                                                                                                                                                       [BI_get_local 2; BI_resume (Type_lookup 0) [HC_catch (Mk_tagident 0) 0];
-                                                                                                                                                                                                                                                        BI_get_local 4; BI_br_if 2; BI_const (xx 1); 
-                                                                                                                                                                                                                                                        BI_set_local 4; BI_get_local 3; BI_set_local 2; 
-                                                                                                                                                                                                                                                        BI_br 1]; BI_set_local 2; BI_get_local 4; BI_br_if 0; 
-                                                                                                                                                                                                                                                     BI_get_local 2; BI_get_local 3; BI_set_local 2; 
-                                                                                                                                                                                                                                                     BI_set_local 3; BI_br 0])]
-                                                                                                                                                                                                                                              UNDER {|
-                                                                                                                                                                                                                                                f_locs :=
-                                                                                                                                                                                                                                                  [VAL_ref (VAL_ref_func f1); VAL_ref (VAL_ref_func f2);
-                                                                                                                                                                                                                                                   VAL_ref (VAL_ref_cont kaddra); VAL_ref (VAL_ref_cont kaddrb);
-                                                                                                                                                                                                                                                   VAL_num (xx b)];
-                                                                                                                                                                                                                                                f_inst := coroutine_inst addr_yield addr_par addr_tag
-                                                                                                                                                                                                                                              |} {{w;f0,ewp_wasm_ctx ⊤ (of_val0 w) f0 (λ _ : effect_identifier, iProt_bottom)
-                                                                                                                                                                                                                                                          (λ (w0 : val0) (_ : frame), ⌜
-                                                                                                                                                                                                                                                                                                      w0 = immV []⌝ ∗ Q1 ∗ Q2 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ N.of_nat f2 ↦[wf] cl2 ∗ J ) 1
-                                                                                                                                                                                                                                                          (LH_rec [] 0 [] (LH_base [] []) [])  }}
+                       (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed conta) [] LI ⌝ ∗
+                                          ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q2 ∗ I ∗ N.of_nat f2 ↦[wf] cl2 ∗ J }})  ∗
+                       ((⌜ b = 0 ⌝ ∗ ∃ contb, N.of_nat kaddrb ↦[wcont] Live emptyt contb ∗
+                                                (I -∗ J -∗ ∃ LI, ⌜ hfilled No_var (hholed_of_valid_hholed contb) [] LI ⌝ ∗
+                                                                   ▷ EWP LI UNDER empty_frame <| Ψ |> {{ v ; f , ⌜ v = immV [] ⌝ ∗ Q1 ∗ I ∗
+                                                                                                                         N.of_nat f1 ↦[wf] cl1 ∗ J }})) ∨
+                          (⌜ b = 1 ⌝ ∗ Q1 ∗ N.of_nat f1 ↦[wf] cl1 )))  -∗
+                         EWP [] ++
+                         [AI_basic
+                            (BI_loop (Tf [] [])
+                               [BI_block (Tf [] [T_ref (T_contref (Tf [] []))])
+                                  [BI_get_local 2; BI_resume (Type_lookup 0) [HC_catch (Mk_tagident 0) 0];
+                                   BI_get_local 4; BI_br_if 2; BI_const (xx 1); 
+                                   BI_set_local 4; BI_get_local 3; BI_set_local 2; 
+                                   BI_br 1]; BI_set_local 2; BI_get_local 4; BI_br_if 0; 
+                                BI_get_local 2; BI_get_local 3; BI_set_local 2; 
+                                BI_set_local 3; BI_br 0])]
+                         UNDER {|
+                           f_locs :=
+                             [VAL_ref (VAL_ref_func f1); VAL_ref (VAL_ref_func f2);
+                              VAL_ref (VAL_ref_cont kaddra); VAL_ref (VAL_ref_cont kaddrb);
+                              VAL_num (xx b)];
+                           f_inst := coroutine_inst addr_yield addr_par addr_tag
+                         |} {{w;f0,ewp_wasm_ctx ⊤ (of_val0 w) f0 (λ _ : effect_identifier, iProt_bottom)
+                                     (λ (w0 : val0) (_ : frame), ⌜
+                                      w0 = immV []⌝ ∗ Q1 ∗ Q2 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ N.of_nat f2 ↦[wf] cl2 ∗ J ) 1
+                                     (LH_rec [] 0 [] (LH_base [] []) [])  }}
               )%I as "H".
       2:{ (* iApply (ewp_wand with "[-]"). *)
           iApply ("H" $! kaddr1 kaddr2 0).
