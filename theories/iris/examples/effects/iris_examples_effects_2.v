@@ -71,7 +71,6 @@ Section Example2.
 
   Lemma main_body_type : be_typing typing_context main_body main_type.
   Proof.
-    (* apply /b_e_type_checker_reflects_typing; done. *) (* todo: Why doesn't that work??? well-typing can be proved manually... *)
     rewrite /main_body separate1.
     apply bet_composition' with (t2s := [T_num T_i32]).
     2: {
@@ -170,5 +169,39 @@ Section Example2.
   (N.of_nat addraux) ↦[wf] FC_func_native inst aux_type [] aux_body -∗
   (N.of_nat addrmain) ↦[wf] FC_func_native inst main_type [] main_body -∗
   EWP [AI_invoke addrmain] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 50]) ∧ f = f'⌝}}.
+  Proof.
+    iIntros (addrmain addraux f) "Hwf_aux Hwf_main".
+
+    rewrite <- (app_nil_l [AI_invoke _]).
+    iApply (ewp_invoke_native with "Hwf_main"); try done.
+    iIntros "!> Hwf_main"; simpl.
+
+    (* Reason about frame *)
+    iApply ewp_frame_bind; try done.
+    repeat iSplitR.
+
+    (* Reason about body of frame *)
+    2: {
+      rewrite <- (app_nil_l [AI_basic _]).
+      iApply ewp_block; try done.
+      simpl.
+      
+      iApply ewp_label_bind.
+      2: {
+        iPureIntro.
+        unfold lfilled. simpl.
+        instantiate (5 := []).
+        simpl.
+        rewrite app_nil_r.
+        done.
+      }
+      rewrite (separate1 (AI_basic (BI_block _ _))).
+      iApply ewp_seq; first done.
+      repeat iSplitR.
+      admit. admit. admit.
+    }
+  Admitted.
+
+
 
 End Example2.
