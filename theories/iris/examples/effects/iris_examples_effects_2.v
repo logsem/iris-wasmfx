@@ -17,7 +17,7 @@ Unset Printing Implicit Defensive.
 Section Example2.
   Context `{!wasmG Σ}.
 
-  Definition aux_type := Tf [] [].
+  Definition aux_type := Tf [] [T_num T_i32].
   Definition cont_type := T_contref aux_type.
   Definition main_type := Tf [] [T_num T_i32].
 
@@ -52,8 +52,8 @@ Section Example2.
 
   Definition typing_context : t_context :=
   {|
-    tc_types_t := [];
-    tc_func_t := [];
+    tc_types_t := [aux_type; main_type];
+    tc_func_t := [aux_type; main_type];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
@@ -61,20 +61,46 @@ Section Example2.
     tc_label := [];
     tc_return := Some [];
     tc_refs := [];
-    tc_tags_t := []
+    tc_tags_t := [Tf [] []]
   |}.
 
   Lemma aux_body_type : be_typing typing_context aux_body aux_type.
   Proof.
-    apply/b_e_type_checker_reflects_typing.
-    done.
+    apply /b_e_type_checker_reflects_typing; done.
   Qed.
 
   Lemma main_body_type : be_typing typing_context main_body main_type.
   Proof.
-    apply/b_e_type_checker_reflects_typing.
-    (* todo: fix typing_context *)
-    admit.
+    (* apply /b_e_type_checker_reflects_typing; done. *) (* todo: Why doesn't that work??? well-typing can be proved manually... *)
+    rewrite /main_body separate1.
+    apply bet_composition' with (t2s := [T_num T_i32]).
+    2: {
+      apply /b_e_type_checker_reflects_typing; done.
+    }
+    constructor.
+    rewrite (separate1 (BI_block _ _)).
+    apply bet_composition' with (t2s := [T_ref cont_type]).
+    2: {
+      apply /b_e_type_checker_reflects_typing; done.
+    }
+    constructor.
+    simpl.
+    rewrite (separate1 (BI_ref_func 0)).
+    apply bet_composition' with (t2s := [T_ref $ T_funcref aux_type]); first by constructor.
+    rewrite (separate1 (BI_contnew _)).
+    apply bet_composition' with (t2s := [T_ref cont_type]); first by constructor.
+    rewrite (separate1 (BI_resume _ _)).
+    apply bet_composition' with (t2s := [T_num T_i32]).
+    2: {
+      apply /b_e_type_checker_reflects_typing; done.
+    }
+    unfold typing_context, upd_label, cont_type; simpl.
+    rewrite <- (app_nil_l [T_ref _]).
+    constructor; first done.
+    simpl.
+    constructor; last done.
+    by eapply cct_clause.
+  Qed.
 
   Definition inst :=
     {|
@@ -86,12 +112,61 @@ Section Example2.
       inst_tags   := [];
     |}.
 
-  Lemma aux_body_spec : ∀(addraux: nat) f,
+  Lemma aux_spec : ∀(addraux: nat) f,
     (N.of_nat addraux) ↦[wf] FC_func_native inst aux_type [] aux_body -∗
     EWP [AI_invoke addraux] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }}.
-  
+  Proof.
+    iIntros (addraux f) "Hwf_addraux".
 
-  Lemma main_body_spec : ∀(addrmain addraux: nat) f,
+    (* Reason about invocation of aux function *)
+    rewrite <- (app_nil_l [AI_invoke _]).
+    iApply (ewp_invoke_native with "Hwf_addraux"); try done.
+
+    (* Reason about aux_body in a frame *)
+    iIntros "!> Hwf_addraux"; simpl.
+    iApply ewp_frame_bind => //.
+    repeat iSplitR.
+
+    (* The body of the frame will symbolically evaluate to a retV value. *)
+    instantiate (1 := λ v f', ⌜v = retV (SH_rec [] 1 [] (SH_base [VAL_num (xx 42)] []) [])⌝%I).
+    2: {
+      rewrite <- (app_nil_l _).
+      iApply ewp_block; try done.
+      iModIntro; simpl.
+      
+      (* Reason about aux_body. *)
+      iApply ewp_value.
+      done.
+      iPureIntro.
+      simpl.
+      done.
+    }
+
+    (* The retV value is not a TrapV value. *)
+    {
+     iIntros (? Hcontra); inversion Hcontra. 
+    }
+
+    (* ... and putting the retV value in the frame gives us the immediate result 42. *)
+    {
+      iIntros (w f1 ->).
+      simpl.
+      iApply ewp_return.
+      3: {
+        instantiate (1 := [AI_basic (BI_const (xx 42))]).
+        instantiate (1 := LH_rec [] 1 [] (LH_base [] []) []).
+        instantiate (1 := 1).
+        unfold lfilled, lfill.
+        simpl.
+        done.
+      }
+      all: try done.
+      iModIntro.
+      by iApply ewp_value.
+    }
+  Qed.
+
+  Lemma main_spec : ∀(addrmain addraux: nat) f,
   (N.of_nat addraux) ↦[wf] FC_func_native inst aux_type [] aux_body -∗
   (N.of_nat addrmain) ↦[wf] FC_func_native inst main_type [] main_body -∗
   EWP [AI_invoke addrmain] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 50]) ∧ f = f'⌝}}.
