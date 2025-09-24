@@ -195,11 +195,53 @@ Section Example2.
         rewrite app_nil_r.
         done.
       }
+      (* Reason about main_body *)
       rewrite (separate1 (AI_basic (BI_block _ _))).
       iApply ewp_seq; first done.
       repeat iSplitR.
-      admit. admit. admit.
+
+      (* Outer block *)
+      2: {
+        rewrite <- (app_nil_l [AI_basic _]).
+        iApply ewp_block; try done.
+        simpl.
+        iApply ewp_label_bind.
+        2: {
+          iPureIntro.
+          unfold lfilled. simpl.
+          instantiate (5 := []).
+          simpl.
+          rewrite app_nil_r.
+          done.
+        }
+        rewrite (separate1 (AI_basic (BI_block _ _))).
+        iApply ewp_seq; first done.
+        repeat iSplitR.
+
+        (* Inner block *)
+        2: {
+          rewrite <- (app_nil_l [AI_basic _]).
+          iApply ewp_block; try done.
+          simpl.
+          iApply ewp_label_bind.
+          2: {
+            iPureIntro.
+            unfold lfilled. simpl.
+            instantiate (5 := []).
+            simpl.
+            rewrite app_nil_r.
+            done.
+          }
+        rewrite (separate1 (AI_basic (BI_ref_func _))).
+        iApply ewp_seq; first done.
+        repeat iSplitR.
+        admit. admit. admit.
+      }
+      admit. admit.
     }
+    admit. admit.
+  }
+  admit. admit.
   Admitted.
 
 
