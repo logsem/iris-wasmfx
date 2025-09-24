@@ -101,21 +101,21 @@ Section Example2.
     by eapply cct_clause.
   Qed.
 
-  Definition inst :=
+  Definition inst addraux addrmain :=
     {|
-      inst_types  := [];
-      inst_funcs  := [];
+      inst_types  := [aux_type; main_type];
+      inst_funcs  := [addraux; addrmain];
       inst_tab    := [];
       inst_memory := [];
       inst_globs  := [];
-      inst_tags   := [];
+      inst_tags   := [0];
     |}.
 
-  Lemma aux_spec : ∀(addraux: nat) f,
-    (N.of_nat addraux) ↦[wf] FC_func_native inst aux_type [] aux_body -∗
+  Lemma aux_spec : ∀(addraux addrmain: nat) f,
+    (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain) aux_type [] aux_body -∗
     EWP [AI_invoke addraux] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }}.
   Proof.
-    iIntros (addraux f) "Hwf_addraux".
+    iIntros (addraux ? f) "Hwf_addraux".
 
     (* Reason about invocation of aux function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -166,11 +166,12 @@ Section Example2.
   Qed.
 
   Lemma main_spec : ∀(addrmain addraux: nat) f,
-  (N.of_nat addraux) ↦[wf] FC_func_native inst aux_type [] aux_body -∗
-  (N.of_nat addrmain) ↦[wf] FC_func_native inst main_type [] main_body -∗
+  (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain) aux_type [] aux_body -∗
+  (N.of_nat addrmain) ↦[wf] FC_func_native (inst addraux addrmain) main_type [] main_body -∗
+  0%N ↦□[tag] Tf [] [] -∗
   EWP [AI_invoke addrmain] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 50]) ∧ f = f'⌝}}.
   Proof.
-    iIntros (addrmain addraux f) "Hwf_aux Hwf_main".
+    iIntros (addrmain addraux f) "Hwf_aux Hwf_main #Htag".
 
     rewrite <- (app_nil_l [AI_invoke _]).
     iApply (ewp_invoke_native with "Hwf_main"); try done.
@@ -178,7 +179,7 @@ Section Example2.
 
     (* Reason about frame *)
     iApply ewp_frame_bind; try done.
-    repeat iSplitR.
+    iSplitR; last iSplitL "Hwf_aux".
 
     (* Reason about body of frame *)
     2: {
@@ -186,7 +187,7 @@ Section Example2.
       iApply ewp_block; try done.
       simpl.
       
-      iApply ewp_label_bind.
+      iApply (ewp_label_bind with "[-]").
       2: {
         iPureIntro.
         unfold lfilled. simpl.
@@ -195,17 +196,18 @@ Section Example2.
         rewrite app_nil_r.
         done.
       }
+      unfold ewp_wasm_ctx.
       (* Reason about main_body *)
       rewrite (separate1 (AI_basic (BI_block _ _))).
       iApply ewp_seq; first done.
-      repeat iSplitR.
+      iSplitR; last iSplitL.
 
       (* Outer block *)
       2: {
         rewrite <- (app_nil_l [AI_basic _]).
         iApply ewp_block; try done.
         simpl.
-        iApply ewp_label_bind.
+        iApply (ewp_label_bind with "[-]").
         2: {
           iPureIntro.
           unfold lfilled. simpl.
@@ -216,14 +218,14 @@ Section Example2.
         }
         rewrite (separate1 (AI_basic (BI_block _ _))).
         iApply ewp_seq; first done.
-        repeat iSplitR.
+        iSplitR; last iSplitL.
 
         (* Inner block *)
         2: {
           rewrite <- (app_nil_l [AI_basic _]).
           iApply ewp_block; try done.
           simpl.
-          iApply ewp_label_bind.
+          iApply (ewp_label_bind with "[-]").
           2: {
             iPureIntro.
             unfold lfilled. simpl.
@@ -232,17 +234,81 @@ Section Example2.
             rewrite app_nil_r.
             done.
           }
-        rewrite (separate1 (AI_basic (BI_ref_func _))).
-        iApply ewp_seq; first done.
-        repeat iSplitR.
-        admit. admit. admit.
+          rewrite (separate1 (AI_basic (BI_ref_func _))).
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: {
+            iApply ewp_ref_func.
+            done.
+            instantiate (1 :=  λ v f', ⌜v = immV [VAL_ref (VAL_ref_func addraux)] ∧ f' = {| f_locs := []; f_inst := (inst addraux addrmain) |}⌝%I).
+            done.
+          }
+          { simpl. iIntros (f0 [Hcontra _]). done. }
+          iIntros (w f' [-> ->]).
+          simpl.
+          rewrite separate2.
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: {
+            iApply ewp_contnew.
+            done.
+          }
+          { simpl. by iIntros (f0) "(%kaddr & % & _)". }
+          simpl.
+          iIntros (w f') "(%kaddr & -> & -> & Hkaddr)".
+          simpl.
+          (* reason about resumption *)
+          rewrite separate2.
+          iApply ewp_seq; first done.
+          iSplitR; last iSplitL "Hkaddr Hwf_aux".
+          2: {
+            rewrite <- (app_nil_l [AI_ref_cont _; _]).
+            iApply ewp_resume; try done.
+            simpl.
+            instantiate (1 := [_]). done.
+            instantiate (1 := λ x, iProt_bottom). done.
+            2: iFrame "Hkaddr".
+            unfold hfilled, hfill => //=.
+            iSplitR; last iSplitR; last iSplitL; last iSplitR.
+            3: {
+              iModIntro.
+              iApply (ewp_call_reference with "[Hwf_aux]"); try done.
+              simpl. done.
+              iApply aux_spec.
+            }
+            { iIntros (? [Hcontr _]). done. }
+            2: {
+              simpl.
+              iIntros (w) "!> [-> _]". simpl.
+              iApply (ewp_prompt_value with "[-]").
+              done.
+              simpl.
+              instantiate (1 := λ v,⌜v = immV [VAL_num (xx 42)]⌝%I).
+              done.
+            }
+            done.
+            simpl.
+            iModIntro.
+            iSplitR; last done.
+            iExists [], [].
+            iFrame "#".
+            iIntros (vs kaddr' h) "Hkaddr HΦ".
+            iDestruct "HΦ" as "(%Φ & H & _)".
+            done.
+          }
+          {
+            simpl.
+            iIntros (?) "[%Hcontra _]".
+            done.
+          }
+          admit.
+        }
+        admit. admit.
       }
       admit. admit.
     }
     admit. admit.
-  }
-  admit. admit.
-  Admitted.
+    Admitted.
 
 
 
