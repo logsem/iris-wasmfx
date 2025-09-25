@@ -203,7 +203,9 @@ Section Example2.
       iSplitR; last iSplitL.
 
       (* Outer block *)
-      2: {
+      instantiate (1 := λ v f', ⌜v = immV [VAL_num (xx 49)]⌝%I).
+      { simpl. by iIntros (? Hcontra). }
+      {
         rewrite <- (app_nil_l [AI_basic _]).
         iApply ewp_block; try done.
         simpl.
@@ -301,15 +303,63 @@ Section Example2.
             iIntros (?) "[%Hcontra _]".
             done.
           }
-          admit.
+          simpl.
+          iIntros (w f') "[-> ->]". 
+          simpl.
+          rewrite separate3.
+          iApply ewp_seq; first done.
+          instantiate (2 := λ v f', ⌜v = immV [VAL_num (xx 49)]⌝%I).
+          iSplitR; first done.
+          iSplitR; first by iApply ewp_binop.
+          iIntros (w f' ->).
+          simpl.
+          iApply ewp_value; first done.
+          simpl.
+          unfold ewp_wasm_ctx.
+          iIntros (LI Hfilled).
+          move/lfilledP in Hfilled; inversion Hfilled; subst; simpl.
+          inversion H8; subst; simpl.
+          iApply ewp_value; first done.
+          instantiate (1 := λ v f, ⌜v = brV _⌝%I). done.
         }
-        admit. admit.
+        { simpl. iIntros (? Hcontra). done. }
+        simpl. iIntros (w f' ->).
+        simpl.
+        iApply ewp_value; first done.
+        simpl.
+        iIntros (LI HLI).
+        move /lfilledP in HLI. inversion HLI; subst.
+        inversion H8; subst.
+        simpl.
+        iApply ewp_br.
+        3: { 
+          instantiate (2 := [_] ).
+          instantiate (3 := LH_rec [] 1 [] (LH_base [] []) _).
+          instantiate (1 := 1).
+          unfold lfilled, lfill. simpl. done.
+        }
+        1,2: done.
+        by iApply ewp_value.
       }
-      admit. admit.
+      iIntros (w f' ->).
+      simpl.
+      iApply ewp_binop.
+      instantiate (1 := (xx 50)). done.
+      simpl.
+      iIntros (LI HLI).
+      move /lfilledP in HLI.
+      inversion HLI; subst.
+      inversion H8; subst.
+      simpl.
+      iApply ewp_label_value; first done.
+      simpl.
+      instantiate (1 := λ v f, ⌜v = immV _⌝%I).
+      done.
     }
-    admit. admit.
-    Admitted.
-
-
+    { by iIntros (? Hconra). }
+    simpl.
+    iIntros (w f' ->). simpl.
+    by iApply ewp_frame_value.
+    Qed.
 
 End Example2.
