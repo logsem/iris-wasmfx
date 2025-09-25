@@ -101,21 +101,21 @@ Section Example2.
     by eapply cct_clause.
   Qed.
 
-  Definition inst addraux addrmain :=
+  Definition inst addraux addrmain tag :=
     {|
       inst_types  := [aux_type; main_type];
       inst_funcs  := [addraux; addrmain];
       inst_tab    := [];
       inst_memory := [];
       inst_globs  := [];
-      inst_tags   := [0];
+      inst_tags   := [tag];
     |}.
 
-  Lemma aux_spec : ∀(addraux addrmain: nat) f,
-    (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain) aux_type [] aux_body -∗
+  Lemma aux_spec : ∀(addraux addrmain tag: nat) f,
+    (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain tag) aux_type [] aux_body -∗
     EWP [AI_invoke addraux] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }}.
   Proof.
-    iIntros (???) "Hwf_addraux".
+    iIntros (????) "Hwf_addraux".
 
     (* Reason about invocation of aux function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -162,13 +162,13 @@ Section Example2.
     by iApply ewp_value.
   Qed.
 
-  Lemma main_spec : ∀(addrmain addraux: nat) f,
-  (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain) aux_type [] aux_body -∗
-  (N.of_nat addrmain) ↦[wf] FC_func_native (inst addraux addrmain) main_type [] main_body -∗
-  0%N ↦□[tag] Tf [] [] -∗
+  Lemma main_spec : ∀(addrmain addraux tag: nat) f,
+  (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain tag) aux_type [] aux_body -∗
+  (N.of_nat addrmain) ↦[wf] FC_func_native (inst addraux addrmain tag) main_type [] main_body -∗
+  (N.of_nat tag) ↦□[tag] Tf [] [] -∗
   EWP [AI_invoke addrmain] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 50]) ∧ f = f'⌝}}.
   Proof.
-    iIntros (addrmain addraux f) "Hwf_aux Hwf_main #Htag".
+    iIntros (addrmain addraux tag f) "Hwf_aux Hwf_main #Htag".
 
     (* Reason about invocation of main function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -180,51 +180,60 @@ Section Example2.
     iSplitR; last iSplitL "Hwf_aux".
 
     (* The result of main_body will be the value 50 with an unchanged frame. *)
-    instantiate (1 := λ v f, ⌜v = immV [VAL_num (xx 50)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I); simpl.
+    instantiate (1 := λ v f, ⌜v = immV [VAL_num (xx 50)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain tag |}⌝%I); simpl.
 
     (* We first prove that this is the case. *)
     2: {
+      (* We first reduce the block containing main_body to a label. *)
       rewrite <- (app_nil_l [AI_basic _]).
       iApply ewp_block; try done.
       simpl.
-      
+
+      (* We now bind into the label to reason about main_body. *)
       iApply (ewp_label_bind with "[-]").
       2: {
         iPureIntro.
-        unfold lfilled. simpl.
         instantiate (5 := []).
-        simpl.
-        rewrite app_nil_r.
-        done.
+        unfold lfilled; simpl.
+        by rewrite app_nil_r.
       }
-      unfold ewp_wasm_ctx.
-      (* Reason about main_body *)
+      
+      (* We now reason about main_body *)
+      (* The main body consist of a sequence of instructions: an outer block followed by the constant 1 and the add operation. *)
+      (* We split this up to reason about the outer block in isolation. *)
       rewrite (separate1 (AI_basic (BI_block _ _))).
       iApply ewp_seq; first done.
       iSplitR; last iSplitL.
 
       (* Outer block *)
-      instantiate (1 := λ v f, ⌜v = immV [VAL_num (xx 49)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I); simpl.
-      { by iIntros (? [Hcontra _]). }
-      {
+      (* Running the outer block will leave us with the constant 49 on the stack, and an unchanged frame. *)
+      instantiate (1 := λ v f, ⌜v = immV [VAL_num (xx 49)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain tag |}⌝%I); simpl.
+      (* We first prove that this is the case. *)
+      2: {
+        (* The outer block reduces to a label which we bind into. *)
         rewrite <- (app_nil_l [AI_basic _]).
         iApply ewp_block; try done.
         simpl.
         iApply (ewp_label_bind with "[-]").
         2: {
           iPureIntro.
-          unfold lfilled. simpl.
           instantiate (5 := []).
-          simpl.
-          rewrite app_nil_r.
-          done.
+          unfold lfilled; simpl.
+          by rewrite app_nil_r.
         }
+        
+        (* The outer block consists of an inner block followed by instructions drop and const 0. *)
+        (* We consider first the inner block. *)
         rewrite (separate1 (AI_basic (BI_block _ _))).
         iApply ewp_seq; first done.
         iSplitR; last iSplitL.
 
         (* Inner block *)
+        (* The inner block will reduce to a stuck branch, i.e. a brV. *)
+        instantiate (1 := λ v f, ⌜v = brV _ ∧ f = {| f_locs := []; f_inst := inst addraux addrmain tag |}⌝%I).
+        (* We first prove this. *)
         2: {
+          (* We reduce the block and bind into the label *)
           rewrite <- (app_nil_l [AI_basic _]).
           iApply ewp_block; try done.
           simpl.
@@ -232,136 +241,157 @@ Section Example2.
           2: {
             iPureIntro.
             unfold lfilled. simpl.
-            instantiate (5 := []).
-            simpl.
-            rewrite app_nil_r.
-            done.
+            instantiate (5 := []); simpl.
+            by rewrite app_nil_r.
           }
+          (* In the inner block, we first create the function reference to aux. *)
           rewrite (separate1 (AI_basic (BI_ref_func _))).
           iApply ewp_seq; first done.
           repeat iSplitR.
           2: {
-            iApply ewp_ref_func.
-            done.
-            instantiate (1 :=  λ v f', ⌜v = immV [VAL_ref (VAL_ref_func addraux)] ∧ f' = {| f_locs := []; f_inst := (inst addraux addrmain) |}⌝%I).
+            iApply ewp_ref_func; first done.
+            instantiate (1 :=  λ v f', ⌜v = immV _ ∧ f' = {| f_locs := []; f_inst := inst addraux addrmain tag |}⌝%I).
             done.
           }
-          { by iIntros (f0 [Hcontra _]). }
-          iIntros (w f' [-> ->]).
+          { by iIntros (? [Hcontra _]). }
+          iIntros (?? [-> ->]).
           simpl.
+          (* Now we have a reference to aux on the stack. We can now create a continuation for it. *)
           rewrite separate2.
           iApply ewp_seq; first done.
           repeat iSplitR.
-          2: {
-            iApply ewp_contnew.
-            done.
-          }
-          { simpl. by iIntros (f0) "(%kaddr & % & _)". }
+          2: { by iApply ewp_contnew. }
+          { by iIntros (?) "(%kaddr & %Hcontra & _)". }
           simpl.
-          iIntros (w f') "(%kaddr & -> & -> & Hkaddr)".
+          iIntros (??) "(%kaddr & -> & -> & Hkaddr)".
           simpl.
-          (* reason about resumption *)
+          (* With the continuation on the stack, we reason about the resumption of it. *)
           rewrite separate2.
           iApply ewp_seq; first done.
           iSplitR; last iSplitL "Hkaddr Hwf_aux".
           2: {
             rewrite <- (app_nil_l [AI_ref_cont _; _]).
             iApply ewp_resume; try done.
-            simpl.
-            instantiate (1 := [_]). done.
-            instantiate (1 := λ x, iProt_bottom). done.
+            by instantiate (1 := [_]).
+            (* We use the bottom protocol as aux never suspends. *)
+            by instantiate (1 := λ x, iProt_bottom).
             2: iFrame "Hkaddr".
             unfold hfilled, hfill => //=.
             iSplitR; last iSplitR; last iSplitL; last iSplitR.
+            (* Resumption of the continuation consists of invoking aux. *)
+            (* We use our spec for aux, to reason about it. *)
             3: {
               iModIntro.
               iApply (ewp_call_reference with "[Hwf_aux]"); try done.
               simpl. done.
               iApply aux_spec.
             }
-            { iIntros (? [Hcontr _]). done. }
+            (* aux doesn't trap. *)
+            { by iIntros (? [Hcontr _]). }
+            (* If aux doesn't suspend, it returns 42. *)
             2: {
               simpl.
               iIntros (w) "!> [-> _]". simpl.
               iApply (ewp_prompt_value with "[-]").
               done.
               simpl.
-              instantiate (1 := λ v,⌜v = immV [VAL_num (xx 42)]⌝%I).
+              by instantiate (1 := λ v,⌜v = immV [VAL_num (xx 42)]⌝%I).
+            }
+            (* The returned 42 isn't a trap *)
+            { done. }
+            (* Finally, we consider what happens if aux triggers an effect. *)
+            (* Since our protocol is bottom, we can derive falsehood. *)
+            {
+              simpl.
+              iModIntro.
+              iSplitR; last done.
+              iExists [], [].
+              iFrame "#".
+              iIntros (vs kaddr' h) "Hkaddr HΦ".
+              iDestruct "HΦ" as "(%Φ & Hcontra & _)".
               done.
             }
-            done.
-            simpl.
-            iModIntro.
-            iSplitR; last done.
-            iExists [], [].
-            iFrame "#".
-            iIntros (vs kaddr' h) "Hkaddr HΦ".
-            iDestruct "HΦ" as "(%Φ & H & _)".
-            done.
           }
-          {
-            simpl.
-            iIntros (?) "[%Hcontra _]".
-            done.
-          }
+          (* We have now concluded that the continuation ends with a 42 on the stack. *)
+          (* ... which isn't a trap. *)
+          { by iIntros (?) "[%Hcontra _]". }
+          (* We continue with the rest of the inner block. *)
           simpl.
-          iIntros (w f') "[-> ->]". 
+          iIntros (?? [-> ->]). 
           simpl.
+          (* We perform the add operation *)
           rewrite separate3.
           iApply ewp_seq; first done.
-          instantiate (2 := λ v f, ⌜v = immV [VAL_num (xx 49)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I).
+          instantiate (3 := λ v f, ⌜v = immV [VAL_num (xx 49)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain tag |}⌝%I).
           iSplitR.
           { by iIntros (? [Hcontra _]). }
           iSplitR; first by iApply ewp_binop.
-          iIntros (w f' [-> ->]).
+          iIntros (?? [-> ->]).
           simpl.
+          (* Finaly, we are left with a stuck branch instruction. *)
           iApply ewp_value; first done.
           simpl.
+          (* We put the branch value back into the inner label. *)
           unfold ewp_wasm_ctx.
-          iIntros (LI Hfilled).
-          move/lfilledP in Hfilled; inversion Hfilled; subst; simpl.
+          iIntros (LI HLI).
+          move /lfilledP in HLI; 
+          inversion HLI; subst; simpl.
           inversion H8; subst; simpl.
+          (* However, the branch is still a value as it targets the next label out, i.e. the outer label. *)
           iApply ewp_value; first done.
-          instantiate (1 := λ v f, ⌜v = brV _ ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I). done.
+          done.
         }
+        (* We have now concluded that the inner block leaves a branch value on the stack *)
+        (* ... which is not a trap *)
         { by iIntros (? [Hcontra _]). }
+        (* We continue reasoning about the rest of the outer block. *)
         simpl.
-        iIntros (w f' [-> ->]).
+        iIntros (?? [-> ->]).
         simpl.
+        (* The sequence of instructions is actually a value, as the branch is only under one label. *)
         iApply ewp_value; first done.
         simpl.
+        (* We put the instructions back into the outer label. *)
         iIntros (LI HLI).
-        move /lfilledP in HLI. inversion HLI; subst.
+        move /lfilledP in HLI. 
+        inversion HLI; subst.
         inversion H8; subst.
         simpl.
+        (* Now the branch instruction is in a deep enough context for us to perform the branch. *)
         iApply ewp_br.
         3: { 
           instantiate (2 := [_] ).
           instantiate (3 := LH_rec [] 1 [] (LH_base [] []) _).
           instantiate (1 := 1).
-          unfold lfilled, lfill. simpl. done.
+          unfold lfilled, lfill => //=.
         }
         1,2: done.
         by iApply ewp_value.
       }
+      (* We have now shown that the outer block results in a 49 on the stack *)
+      (* ... which isn't a trap. *)
+      { by iIntros (? [Hcontra _]). }
+      (* We are now left with 49 on the stack followed by the const 1 and add operations, which we can show results in 50. *)
       iIntros (w f' [-> ->]).
       simpl.
       iApply ewp_binop.
-      instantiate (1 := (xx 50)). done.
+      by instantiate (1 := (xx 50)).
+      (* We are finally back to the label we bound into in the start of the proof. *)
       simpl.
       iIntros (LI HLI).
       move /lfilledP in HLI.
       inversion HLI; subst.
       inversion H8; subst.
       simpl.
-      iApply ewp_label_value; first done.
-      simpl.
-      done.
+      (* The label simply contains the value 50, which it leaves on the stack. *) 
+      by iApply ewp_label_value.
     }
-    (* We have now shown that the main body reduces to 50... which isn't a trap value *)
+    (* We have now shown that the block containing the main body results in the value 50 on the stack *)
+    (* ... which is not a trap. *)
     { by iIntros (? [Hcontra _]). }
+    (* Finally, the function simply returns the value left on the stack: 50. *)
     simpl.
-    iIntros (w f' [-> ->]). simpl.
+    iIntros (w f' [-> ->]).
     by iApply ewp_frame_value.
     Qed.
 
