@@ -115,7 +115,7 @@ Section Example2.
     (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain) aux_type [] aux_body -∗
     EWP [AI_invoke addraux] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }}.
   Proof.
-    iIntros (addraux ? f) "Hwf_addraux".
+    iIntros (???) "Hwf_addraux".
 
     (* Reason about invocation of aux function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -126,43 +126,40 @@ Section Example2.
     iApply ewp_frame_bind => //.
     repeat iSplitR.
 
-    (* The body of the frame will symbolically evaluate to a retV value. *)
+    (* The body of the frame will symbolically evaluate to a retV value, representing a context of depth 1, with the ret instruction being preceeded by the value 42. *)
     instantiate (1 := λ v f', ⌜v = retV (SH_rec [] 1 [] (SH_base [VAL_num (xx 42)] []) [])⌝%I).
+    all: simpl.
+    (* We first prove that that is indeed the case *)
     2: {
       rewrite <- (app_nil_l _).
       iApply ewp_block; try done.
       iModIntro; simpl.
       
-      (* Reason about aux_body. *)
-      iApply ewp_value.
-      done.
-      iPureIntro.
-      simpl.
-      done.
+      (* aux_body is simply a retV value. *)
+      iApply ewp_value; done.
     }
 
     (* The retV value is not a TrapV value. *)
-    {
-     iIntros (? Hcontra); inversion Hcontra. 
-    }
+    { by iIntros (? Hcontra). }
 
-    (* ... and putting the retV value in the frame gives us the immediate result 42. *)
-    {
-      iIntros (w f1 ->).
-      simpl.
-      iApply ewp_return.
-      3: {
-        instantiate (1 := [AI_basic (BI_const (xx 42))]).
-        instantiate (1 := LH_rec [] 1 [] (LH_base [] []) []).
-        instantiate (1 := 1).
-        unfold lfilled, lfill.
-        simpl.
-        done.
-      }
-      all: try done.
-      iModIntro.
-      by iApply ewp_value.
+    (* Now, we must reason about the retV value inside the frame. *) 
+    iIntros (?? ->).
+    simpl.
+    (* The return is no longer a value, as it now sits under a frame.
+       So we reason about returning from the frame. *)
+    iApply ewp_return.
+    3: {
+      (* First, we specify what is returned. *)
+      instantiate (1 := [AI_basic (BI_const (xx 42))]).
+      (* Then we specify the context in which the instructions are plugged. *)
+      instantiate (1 := LH_rec [] 1 [] (LH_base [] []) []).
+      (* Finally, the depth of the context. *)
+      instantiate (1 := 1).
+      unfold lfilled, lfill => //=.
     }
+    (* Now the rest is trivial. *)
+    1,2: done.
+    by iApply ewp_value.
   Qed.
 
   Lemma main_spec : ∀(addrmain addraux: nat) f,
@@ -173,6 +170,7 @@ Section Example2.
   Proof.
     iIntros (addrmain addraux f) "Hwf_aux Hwf_main #Htag".
 
+    (* Reason about invocation of main function *)
     rewrite <- (app_nil_l [AI_invoke _]).
     iApply (ewp_invoke_native with "Hwf_main"); try done.
     iIntros "!> Hwf_main"; simpl.
@@ -181,7 +179,10 @@ Section Example2.
     iApply ewp_frame_bind; try done.
     iSplitR; last iSplitL "Hwf_aux".
 
-    (* Reason about body of frame *)
+    (* The result of main_body will be the value 50 with an unchanged frame. *)
+    instantiate (1 := λ v f, ⌜v = immV [VAL_num (xx 50)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I); simpl.
+
+    (* We first prove that this is the case. *)
     2: {
       rewrite <- (app_nil_l [AI_basic _]).
       iApply ewp_block; try done.
@@ -203,8 +204,8 @@ Section Example2.
       iSplitR; last iSplitL.
 
       (* Outer block *)
-      instantiate (1 := λ v f', ⌜v = immV [VAL_num (xx 49)]⌝%I).
-      { simpl. by iIntros (? Hcontra). }
+      instantiate (1 := λ v f, ⌜v = immV [VAL_num (xx 49)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I); simpl.
+      { by iIntros (? [Hcontra _]). }
       {
         rewrite <- (app_nil_l [AI_basic _]).
         iApply ewp_block; try done.
@@ -245,7 +246,7 @@ Section Example2.
             instantiate (1 :=  λ v f', ⌜v = immV [VAL_ref (VAL_ref_func addraux)] ∧ f' = {| f_locs := []; f_inst := (inst addraux addrmain) |}⌝%I).
             done.
           }
-          { simpl. iIntros (f0 [Hcontra _]). done. }
+          { by iIntros (f0 [Hcontra _]). }
           iIntros (w f' [-> ->]).
           simpl.
           rewrite separate2.
@@ -308,10 +309,11 @@ Section Example2.
           simpl.
           rewrite separate3.
           iApply ewp_seq; first done.
-          instantiate (2 := λ v f', ⌜v = immV [VAL_num (xx 49)]⌝%I).
-          iSplitR; first done.
+          instantiate (2 := λ v f, ⌜v = immV [VAL_num (xx 49)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I).
+          iSplitR.
+          { by iIntros (? [Hcontra _]). }
           iSplitR; first by iApply ewp_binop.
-          iIntros (w f' ->).
+          iIntros (w f' [-> ->]).
           simpl.
           iApply ewp_value; first done.
           simpl.
@@ -320,10 +322,11 @@ Section Example2.
           move/lfilledP in Hfilled; inversion Hfilled; subst; simpl.
           inversion H8; subst; simpl.
           iApply ewp_value; first done.
-          instantiate (1 := λ v f, ⌜v = brV _⌝%I). done.
+          instantiate (1 := λ v f, ⌜v = brV _ ∧ f = {| f_locs := []; f_inst := inst addraux addrmain |}⌝%I). done.
         }
-        { simpl. iIntros (? Hcontra). done. }
-        simpl. iIntros (w f' ->).
+        { by iIntros (? [Hcontra _]). }
+        simpl.
+        iIntros (w f' [-> ->]).
         simpl.
         iApply ewp_value; first done.
         simpl.
@@ -341,7 +344,7 @@ Section Example2.
         1,2: done.
         by iApply ewp_value.
       }
-      iIntros (w f' ->).
+      iIntros (w f' [-> ->]).
       simpl.
       iApply ewp_binop.
       instantiate (1 := (xx 50)). done.
@@ -353,12 +356,12 @@ Section Example2.
       simpl.
       iApply ewp_label_value; first done.
       simpl.
-      instantiate (1 := λ v f, ⌜v = immV _⌝%I).
       done.
     }
-    { by iIntros (? Hconra). }
+    (* We have now shown that the main body reduces to 50... which isn't a trap value *)
+    { by iIntros (? [Hcontra _]). }
     simpl.
-    iIntros (w f' ->). simpl.
+    iIntros (w f' [-> ->]). simpl.
     by iApply ewp_frame_value.
     Qed.
 
