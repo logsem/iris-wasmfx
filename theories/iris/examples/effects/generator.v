@@ -18,6 +18,10 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Definition naturals_type := Tf [] [].
+Definition cont_type := T_contref naturals_type.
+Definition sum_until_type := Tf [] [T_num T_i32].
+
 Definition gen_tag := Mk_tagident 0.
 
 Definition naturals :=
@@ -34,33 +38,100 @@ Definition naturals :=
   ]
   .
 
-Definition t_ctxt := 
+Definition t_ctxt_naturals :=
   {| 
     tc_types_t := [];
-    tc_func_t := [Tf [] []];
+    tc_func_t := [];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
-    tc_local := [];
+    tc_local := [T_num T_i32];
     tc_label := [[]];
     tc_return := None;
     tc_refs := [];
     tc_tags_t := [Tf [T_num T_i32] []]
   |}.
 
-Lemma naturals_typing : be_typing t_ctxt naturals (Tf [] []).
+Lemma naturals_typing : be_typing t_ctxt_naturals naturals naturals_type.
 Proof.
-  constructor.
-  simpl.
-  rewrite (separate1 (BI_get_local _)).
-  apply bet_composition' with (t2s := [T_num T_i32]).
-  {
-    apply /b_e_type_checker_reflects_typing.
-    si
-
   apply /b_e_type_checker_reflects_typing.
   done.
 Qed.
 
 
+Definition sum_until := [
+    (* param $upto = 0 *)
+    (* local $v = 1 *)
+    (* local $sum = 2 *)
+    (* local $k = 3 *)
+    BI_ref_func 0;
+    BI_contnew (Type_lookup 0);
+    BI_set_local 3; (* $k *)
+    BI_loop (* $l *) (Tf [] []) [
+      BI_block (* $on_gen *) (Tf [] [T_num T_i32; T_ref (cont_type)]) [
+        BI_get_local 3; (* $k *)
+        BI_resume (Type_lookup 0) [ HC_catch gen_tag 0 (* $on_gen *) ];
+        BI_unreachable
+      ];
+      BI_set_local 3; (* $k *)
+      BI_set_local 1; (* $v *)
+
+      BI_get_local 2; (* $sum *)
+      BI_get_local 1; (* $v *)
+      BI_binop T_i32 (Binop_i BOI_add);
+      BI_set_local 2; (* $sum *)
+
+      BI_get_local 1; (* $v *)
+      BI_get_local 0; (* $upto *)
+      BI_relop T_i32 (Relop_i (ROI_lt SX_U));
+      BI_br_if 0 (* $l *)
+    ];
+    BI_get_local 2 (* $sum *)
+  ].
+
+Definition t_ctxt_sum_until :=
+  {| 
+    tc_types_t := [naturals_type];
+    tc_func_t := [naturals_type];
+    tc_global := [];
+    tc_table := [];
+    tc_memory := [];
+    tc_local := [T_num T_i32; T_num T_i32; T_num T_i32; T_ref cont_type];
+    tc_label := [[]];
+    tc_return := None;
+    tc_refs := [];
+    tc_tags_t := [Tf [T_num T_i32] []]
+  |}.
+
+Lemma sum_until_typing : be_typing t_ctxt_sum_until sum_until sum_until_type.
+Proof.
+  rewrite /sum_until separate3.
+  eapply bet_composition'.
+  {
+    apply /b_e_type_checker_reflects_typing.
+    simpl.
+    done.
+  }
+  rewrite separate1.
+  eapply bet_composition'.
+  {
+    constructor; simpl.
+    rewrite (separate1 (BI_block _ _)).
+    eapply bet_composition'.
+    {
+      apply /b_e_type_checker_reflects_typing.
+      simpl.
+      done.
+    }
+    rewrite (separate2 (BI_set_local _)).
+    eapply bet_composition'.
+    {
+      apply /b_e_type_checker_reflects_typing.
+      simpl.
+      done.
+    }
+    by apply /b_e_type_checker_reflects_typing.
+  }
+  by apply /b_e_type_checker_reflects_typing.
+Qed.
 
