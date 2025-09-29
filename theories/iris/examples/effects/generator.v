@@ -6,7 +6,7 @@ From iris.base_logic Require Export gen_heap ghost_map proph_map.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.program_logic Require Import adequacy.
 From iris.bi Require Export weakestpre.
-From iris.algebra Require Import excl agree csum.
+From iris.algebra Require Import list excl agree csum.
 From Wasm Require Import type_checker_reflects_typing.
 From Wasm.iris.rules Require Export iris_rules iris_example_helper.
 From Wasm.iris.host Require Export iris_host.
@@ -135,3 +135,28 @@ Proof.
   by apply /b_e_type_checker_reflects_typing.
 Qed.
 
+
+Section generator_spec.
+
+  Context `{!wasmG Σ}.
+  Context `{!inG Σ (authR (List0 nat))}.
+
+  Definition permitted (xs: list nat) := True.
+
+  Definition SEQ (I : list nat -> iProp Σ) : iProt Σ :=
+    ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
+
+  Definition Ψgen I x :=
+    match x with
+    | SuspendE (Mk_tagidx 0) => SEQ I
+    | _ => iProt_bottom
+    end.
+
+  Definition naturals_spec addr_naturals cl_naturals f (I : list nat -> iProp Σ) :
+    I [] -∗
+    N.of_nat addr_naturals ↦[wf] cl_naturals -∗
+    EWP [AI_invoke addr_naturals] UNDER f <| Ψgen I |> {{ v ; f, False }}.
+
+
+
+End generator_spec.
