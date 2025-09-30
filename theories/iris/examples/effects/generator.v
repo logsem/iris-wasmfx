@@ -25,8 +25,11 @@ Definition tag_type := Tf [T_num T_i32] [].
 
 Definition gen_tag := Mk_tagident 0.
 
+Definition naturals_locs :=
+  [ T_num T_i32 ].
+
 Definition naturals :=
-  [
+[
     BI_loop (Tf [] []) [
       BI_get_local 0;
       BI_suspend gen_tag; (* suspend with generated number *)
@@ -38,7 +41,6 @@ Definition naturals :=
     ]
   ]
   .
-
 Definition t_ctxt_naturals :=
   {| 
     tc_types_t := [];
@@ -46,7 +48,7 @@ Definition t_ctxt_naturals :=
     tc_global := [];
     tc_table := [];
     tc_memory := [];
-    tc_local := [T_num T_i32];
+    tc_local := naturals_locs;
     tc_label := [[]];
     tc_return := None;
     tc_refs := [];
@@ -142,16 +144,16 @@ Section generator_spec.
   Context `{!wasmG Σ}.
   Context `{!inG Σ (authR (List0 nat))}.
 
-  Definition permitted (xs: list nat) := True. (* todo *)
+  Definition permitted (xs: list i32) := True. (* todo *)
 
-  Definition SEQ (I : list nat -> iProp Σ) : iProt Σ :=
-    ( >> (x : nat) (xs : list nat) >>
-      ! ([VAL_num $ xx x]) {{ ⌜permitted (xs ++ [x])⌝ ∗ I xs}} ;
+  Definition SEQ (I : list i32 -> iProp Σ) : iProt Σ :=
+    ( >> (x : i32) (xs : list i32) >>
+      ! ([VAL_num $ VAL_int32 x]) {{ ⌜permitted (xs ++ [x])⌝ ∗ I xs}} ;
       ? ([]) {{ I ( xs ++ [x]) }})%iprot.
 
-  Definition Ψgen I x :=
+  Definition Ψgen (addr_tag : nat) I x :=
     match x with
-    | SuspendE (Mk_tagidx 0) => SEQ I
+    | SuspendE (Mk_tagidx addr_tag) => SEQ I
     | _ => iProt_bottom
     end.
 
@@ -166,16 +168,193 @@ Section generator_spec.
   Definition closure_naturals addr_naturals addr_tag :=
     FC_func_native (naturals_inst addr_naturals addr_tag)
       naturals_type
-      []
+      naturals_locs
       naturals.
 
-  Lemma naturals_spec addr_naturals addr_tag f (I : list nat -> iProp Σ) :
+  Opaque upcl.
+
+  Lemma naturals_loop_invariant addr_naturals addr_tag n (I : list i32 -> iProp Σ) xs :
+    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    I xs -∗
+    EWP [AI_basic
+       (BI_loop (Tf [] [])
+          [BI_get_local 0; BI_suspend gen_tag; BI_get_local 0;
+           BI_const (xx 1); BI_binop T_i32 (Binop_i BOI_add);
+           BI_set_local 0; BI_br 0])]
+      UNDER {|
+         f_locs := [VAL_num (VAL_int32 n)];
+         f_inst := naturals_inst addr_naturals addr_tag
+       |} <| Ψgen addr_tag I |> {{ w;f',ewp_wasm_ctx ⊤ (of_val0 w) f' 
+                                 (Ψgen addr_tag I) (λ (_ : val0) (_ : frame), False) 1
+                                 (LH_rec [] 0 [] (LH_base [] []) []) }}.
+  Proof.
+    iIntros "#Htag HI_xs".
+    iLöb as "IH" forall (xs n).
+
+    rewrite <- (app_nil_l [AI_basic _]).
+    iApply ewp_loop; try done.
+    iModIntro.
+    simpl.
+    
+    iApply (ewp_label_bind with "[-]").
+    2: {
+      iPureIntro.
+      unfold lfilled, lfill => //=.
+      instantiate (5 := []).
+      simpl.
+      rewrite app_nil_r.
+      done.
+    }
+    
+    (* get_local will result in 'n' on stack *)
+    rewrite (separate1 (AI_basic (BI_get_local 0))).
+    iApply ewp_seq; try done.
+    repeat iSplitR.
+    2: {
+      iApply ewp_get_local; try done.
+      auto_instantiate.
+    }
+    by iIntros (?) "[% _]".
+    simpl.
+    iIntros (??) "[-> ->]".
+    simpl.
+
+    (* Reason about suspend *)
+    rewrite (separate2 (AI_basic _)).
+    iApply ewp_seq; first done.
+
+    (* We use 'I xs' to reason about the suspend. *)
+    (* We will need it for the protocol. *)
+    iSplitR; last iSplitL "HI_xs".
+    2: {
+      rewrite (separate1 (AI_basic (BI_const _))).
+      iApply ewp_suspend; try done.
+      3: iFrame "#".
+      instantiate (1 := [VAL_num (VAL_int32 n)]).
+      1,2: done.
+      simpl.
+      unfold SEQ.
+      rewrite (upcl_tele' [tele _ _] [tele] ).
+      simpl.
+      iExists n, xs.
+      iFrame.
+      iSplit; first done.
+      iIntros "!> HI_xs_n".
+      instantiate (1 := λ v f, (⌜v = immV [] ∧ f = {|
+        f_locs := [VAL_num (VAL_int32 n)];
+        f_inst := naturals_inst addr_naturals addr_tag
+      |}⌝ ∗ I (xs ++ [n]))%I).
+      simpl.
+      by iSplit.
+    }
+    by iIntros (?) "[[%Hcontra _] _]".
+    simpl.
+    iIntros (??) "[[-> ->] HI_xs_n]".
+    simpl.
+
+    rewrite (separate1 (AI_basic (BI_get_local 0))).
+    iApply ewp_seq; first done.
+    repeat iSplitR.
+    2: {
+      iApply ewp_get_local; first done.
+      by instantiate (1 := λ v f, ⌜v = immV _ ∧ f = {|
+        f_locs := [VAL_num (VAL_int32 n)];
+        f_inst := naturals_inst addr_naturals addr_tag
+      |}⌝%I).
+    }
+    by iIntros (? [Hcontra _]).
+    simpl.
+    iIntros (?? [-> ->]).
+    simpl.
+    
+    rewrite (separate3 (AI_basic _)).
+    iApply ewp_seq; first done.
+    repeat iSplitR.
+    2: {
+      iApply ewp_binop; first done.
+      simpl.
+      instantiate (1 := λ v f, ⌜v = immV _ ∧ f = {|
+        f_locs := [VAL_num (VAL_int32 n)];
+        f_inst := naturals_inst addr_naturals addr_tag
+      |}⌝%I).
+      by iSplit.
+    }
+    by iIntros (? [Hcontra _]).
+    simpl.
+    iIntros (?? [-> ->]).
+    simpl.
+
+    rewrite (separate2 (AI_basic _)).
+    iApply ewp_seq; first done.
+    repeat iSplitR.
+    2: {
+      fold (AI_const $ VAL_num (VAL_int32 (Wasm_int.Int32.iadd n (Wasm_int.Int32.repr 1)))).
+      iApply ewp_set_local; first (simpl; lia).
+      simpl.
+      auto_instantiate.
+    }
+    by iIntros (? [Hcontra _]).
+    simpl.
+    iIntros (?? [-> ->]).
+    simpl.
+    
+    iApply ewp_value; first done.
+    simpl.
+    iIntros (LI HLI).
+    move /lfilledP in HLI.
+    inversion HLI; subst.
+    inversion H8; subst.
+    simpl.
+
+    iApply ewp_br.
+    3: {
+      instantiate (1 := 0).
+      instantiate (1 := []).
+      instantiate (1 := LH_base [] _).
+      unfold lfilled, lfill => //=.
+    }
+    1,2: done.
+    simpl.
+    iModIntro.
+    by iApply "IH".
+  Qed.
+
+  Lemma naturals_spec addr_naturals addr_tag f (I : list i32 -> iProp Σ) :
     I [] -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
-    EWP [AI_invoke addr_naturals] UNDER f <| Ψgen I |> {{ v ; f, False }}.
-  Proof. 
+    EWP [AI_invoke addr_naturals] UNDER f <| Ψgen addr_tag I  |> {{ v ; f, False }}.
+  Proof.
     iIntros "HI_empty Hwf_naturals #Htag".
-  Admitted.
+
+    rewrite <- (app_nil_l [AI_invoke _]).
+    iApply (ewp_invoke_native with "Hwf_naturals").
+    done.
+    done.
+    done.
+    iIntros "!> _".
+    simpl.
+    
+    iApply ewp_frame_bind; try done.
+    instantiate (1 := λ v f, False%I).
+    simpl.
+    iSplitR; first by iIntros.
+    iSplitL; last by iIntros.
+
+    rewrite <- (app_nil_l [AI_basic _]).
+    iApply ewp_block; try done.
+    simpl.
+
+    iApply (ewp_label_bind with "[-]").
+    2 :{
+      iPureIntro.
+      unfold lfilled, lfill => //=.
+      instantiate (5 := []).
+      simpl.
+      rewrite app_nil_r.
+      done.
+    }
+    by iApply naturals_loop_invariant.
+  Qed.
 
 End generator_spec.
