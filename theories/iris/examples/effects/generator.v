@@ -21,6 +21,7 @@ Unset Printing Implicit Defensive.
 Definition naturals_type := Tf [] [].
 Definition cont_type := T_contref naturals_type.
 Definition sum_until_type := Tf [] [T_num T_i32].
+Definition tag_type := Tf [T_num T_i32] [].
 
 Definition gen_tag := Mk_tagident 0.
 
@@ -49,7 +50,7 @@ Definition t_ctxt_naturals :=
     tc_label := [[]];
     tc_return := None;
     tc_refs := [];
-    tc_tags_t := [Tf [T_num T_i32] []]
+    tc_tags_t := [tag_type]
   |}.
 
 Lemma naturals_typing : be_typing t_ctxt_naturals naturals naturals_type.
@@ -141,10 +142,12 @@ Section generator_spec.
   Context `{!wasmG Σ}.
   Context `{!inG Σ (authR (List0 nat))}.
 
-  Definition permitted (xs: list nat) := True.
+  Definition permitted (xs: list nat) := True. (* todo *)
 
   Definition SEQ (I : list nat -> iProp Σ) : iProt Σ :=
-    ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
+    ( >> (x : nat) (xs : list nat) >>
+      ! ([VAL_num $ xx x]) {{ ⌜permitted (xs ++ [x])⌝ ∗ I xs}} ;
+      ? ([]) {{ I ( xs ++ [x]) }})%iprot.
 
   Definition Ψgen I x :=
     match x with
@@ -152,11 +155,27 @@ Section generator_spec.
     | _ => iProt_bottom
     end.
 
-  Definition naturals_spec addr_naturals cl_naturals f (I : list nat -> iProp Σ) :
+  Definition naturals_inst addr_naturals addr_tag :=
+    {| inst_types := [ naturals_type ];
+      inst_funcs := [ addr_naturals ] ;
+      inst_tab := [];
+      inst_memory := [];
+      inst_globs := [];
+      inst_tags := [ addr_tag ] |}.
+
+  Definition closure_naturals addr_naturals addr_tag :=
+    FC_func_native (naturals_inst addr_naturals addr_tag)
+      naturals_type
+      []
+      naturals.
+
+  Lemma naturals_spec addr_naturals addr_tag f (I : list nat -> iProp Σ) :
     I [] -∗
-    N.of_nat addr_naturals ↦[wf] cl_naturals -∗
+    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
+    N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_invoke addr_naturals] UNDER f <| Ψgen I |> {{ v ; f, False }}.
-
-
+  Proof. 
+    iIntros "HI_empty Hwf_naturals #Htag".
+  Admitted.
 
 End generator_spec.
