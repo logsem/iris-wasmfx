@@ -33,7 +33,7 @@ Definition naturals :=
     BI_loop (Tf [] []) [
       BI_get_local 0;
       BI_suspend gen_tag; (* suspend with generated number *)
-      BI_get_local 0; (* generate next number *)
+BI_get_local 0; (* generate next number *)
       BI_const (xx 1);
       BI_binop T_i32 (Binop_i BOI_add);
       BI_set_local 0;
@@ -52,7 +52,7 @@ Definition t_ctxt_naturals :=
     tc_label := [[]];
     tc_return := None;
     tc_refs := [];
-    tc_tags_t := [tag_type]
+tc_tags_t := [tag_type]
   |}.
 
 Lemma naturals_typing : be_typing t_ctxt_naturals naturals naturals_type.
@@ -144,14 +144,39 @@ Section generator_spec.
   Context `{!wasmG Σ}.
   Context `{!inG Σ (authR (List0 nat))}.
 
-  Definition permitted (xs: list i32) := True. (* todo *)
+  Definition yx i := Wasm_int.int_of_Z i32m i.
 
-  Locate i32.
+  Lemma Z_Int32_add_congruent a b : yx (a + b) = Wasm_int.Int32.iadd (yx a) (yx b).
+  Proof.
+    unfold yx, Wasm_int.Int32.iadd, Wasm_int.Int32.add.
+    simpl.
+    apply Wasm_int.Int32.eqm_samerepr.
+    unfold Wasm_int.Int32.eqm.
+    apply Zbits.eqmod_add.
+    1,2: rewrite Wasm_int.Int32.Z_mod_modulus_eq.
+    1,2: apply Zbits.eqmod_mod.
+    1,2: unfold Wasm_int.Int32.modulus, 
+      Wasm_int.Int32.wordsize,
+      Integers.Wordsize_32.wordsize.
+    1,2: lias.
+  Qed.
+
+  Lemma Z_Int32_incr n : yx (S n) = Wasm_int.Int32.iadd (yx n) (Wasm_int.Int32.repr 1).
+  Proof.
+    replace (Z.of_nat $ S n) with (Z.add n 1); last lia.
+    apply Z_Int32_add_congruent.
+  Qed.
+
+  Fixpoint Permitted (xs: list i32) :=
+    match xs with
+    | [] => True
+    | x :: xs' => Permitted xs' ∧ x = yx $ length xs'
+    end.
 
   Definition SEQ (I : list i32 -> iProp Σ) : iProt Σ :=
     ( >> (x : i32) (xs : list i32) >>
-      ! ([VAL_num $ VAL_int32 x]) {{ ⌜permitted (xs ++ [x])⌝ ∗ I xs}} ;
-      ? ([]) {{ I ( xs ++ [x]) }})%iprot.
+      ! ([VAL_num $ VAL_int32 x]) {{ ⌜Permitted (x :: xs)⌝ ∗ I xs}} ;
+      ? ([]) {{ I (x :: xs) }})%iprot.
 
   Definition Ψgen (addr_tag : nat) I x :=
     match x with
@@ -177,25 +202,30 @@ Section generator_spec.
 
   Lemma naturals_loop_invariant addr_naturals addr_tag n Φ (I : list i32 -> iProp Σ) xs :
     N.of_nat addr_tag ↦□[tag] tag_type -∗
+    ⌜yx $ length xs = n⌝ -∗
+    ⌜Permitted xs⌝ -∗
     I xs -∗
     EWP [AI_basic
-       (BI_loop (Tf [] [])
-          [BI_get_local 0; BI_suspend gen_tag; BI_get_local 0;
-           BI_const (xx 1); BI_binop T_i32 (Binop_i BOI_add);
-           BI_set_local 0; BI_br 0])]
+          (BI_loop (Tf [] [])
+              [BI_get_local 0; BI_suspend gen_tag; BI_get_local 0;
+              BI_const (xx 1); BI_binop T_i32 (Binop_i BOI_add);
+              BI_set_local 0; BI_br 0])]
       UNDER {|
-         f_locs := [VAL_num (VAL_int32 n)];
-         f_inst := naturals_inst addr_naturals addr_tag
-       |} <| Ψgen addr_tag I |> {{ Φ }}.
+        f_locs := [VAL_num (VAL_int32 n)];
+        f_inst := naturals_inst addr_naturals addr_tag
+      |} <| Ψgen addr_tag I |> {{ Φ }}.
   Proof.
-    iIntros "#Htag HI_xs".
+    iIntros "#Htag H_xs_agree_n HPermitted_xs HI_xs".
     iLöb as "IH" forall (xs n).
+
+    iPoseProof "H_xs_agree_n" as "%H_xs_agree_n".
+    iPoseProof "HPermitted_xs" as "%HPermitted_xs".
 
     rewrite <- (app_nil_l [AI_basic _]).
     iApply ewp_loop; try done.
     iModIntro.
     simpl.
-    
+
     iApply (ewp_label_bind with "[-]").
     2: {
       iPureIntro.
@@ -205,7 +235,7 @@ Section generator_spec.
       rewrite app_nil_r.
       done.
     }
-    
+
     (* get_local will result in 'n' on stack *)
     rewrite (separate1 (AI_basic (BI_get_local 0))).
     iApply ewp_seq; try done.
@@ -239,11 +269,12 @@ Section generator_spec.
       iExists n, xs.
       iFrame.
       iSplit; first done.
+      iSplit; first done.
       iIntros "!> HI_xs_n".
       instantiate (1 := λ v f, (⌜v = immV [] ∧ f = {|
         f_locs := [VAL_num (VAL_int32 n)];
         f_inst := naturals_inst addr_naturals addr_tag
-      |}⌝ ∗ I (xs ++ [n]))%I).
+      |}⌝ ∗ I (n :: xs))%I).
       simpl.
       by iSplit.
     }
@@ -266,7 +297,7 @@ Section generator_spec.
     simpl.
     iIntros (?? [-> ->]).
     simpl.
-    
+
     rewrite (separate3 (AI_basic _)).
     iApply ewp_seq; first done.
     repeat iSplitR.
@@ -297,7 +328,7 @@ Section generator_spec.
     simpl.
     iIntros (?? [-> ->]).
     simpl.
-    
+ 
     iApply ewp_value; first done.
     simpl.
     iIntros (LI HLI).
@@ -316,7 +347,11 @@ Section generator_spec.
     1,2: done.
     simpl.
     iModIntro.
-    by iApply "IH".
+    iApply "IH"; last done.
+    - iPureIntro.
+      simpl.
+      apply Z_Int32_incr.
+    - done.
   Qed.
 
   Lemma naturals_spec addr_naturals addr_tag f (I : list i32 -> iProp Σ) :
@@ -354,7 +389,9 @@ Section generator_spec.
       rewrite app_nil_r.
       done.
     }
-    by iApply naturals_loop_invariant.
+    iApply naturals_loop_invariant.
+    4: done.
+    all: auto.
   Qed.
 
 End generator_spec.
