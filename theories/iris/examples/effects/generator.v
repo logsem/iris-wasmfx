@@ -146,6 +146,8 @@ Section generator_spec.
 
   Definition permitted (xs: list i32) := True. (* todo *)
 
+  Locate i32.
+
   Definition SEQ (I : list i32 -> iProp Σ) : iProt Σ :=
     ( >> (x : i32) (xs : list i32) >>
       ! ([VAL_num $ VAL_int32 x]) {{ ⌜permitted (xs ++ [x])⌝ ∗ I xs}} ;
@@ -173,7 +175,7 @@ Section generator_spec.
 
   Opaque upcl.
 
-  Lemma naturals_loop_invariant addr_naturals addr_tag n (I : list i32 -> iProp Σ) xs :
+  Lemma naturals_loop_invariant addr_naturals addr_tag n Φ (I : list i32 -> iProp Σ) xs :
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     I xs -∗
     EWP [AI_basic
@@ -184,9 +186,7 @@ Section generator_spec.
       UNDER {|
          f_locs := [VAL_num (VAL_int32 n)];
          f_inst := naturals_inst addr_naturals addr_tag
-       |} <| Ψgen addr_tag I |> {{ w;f',ewp_wasm_ctx ⊤ (of_val0 w) f' 
-                                 (Ψgen addr_tag I) (λ (_ : val0) (_ : frame), False) 1
-                                 (LH_rec [] 0 [] (LH_base [] []) []) }}.
+       |} <| Ψgen addr_tag I |> {{ Φ }}.
   Proof.
     iIntros "#Htag HI_xs".
     iLöb as "IH" forall (xs n).
