@@ -1,5 +1,5 @@
 
-From mathcomp Require Import ssreflect eqtype seq ssrbool.
+From mathcomp Require Import ssreflect eqtype seq ssrbool bigop.
 From iris.program_logic Require Import language.
 From iris.proofmode Require Import base tactics classes.
 From iris.base_logic Require Export gen_heap ghost_map proph_map.
@@ -20,13 +20,17 @@ Unset Printing Implicit Defensive.
 
 Definition naturals_type := Tf [] [].
 Definition cont_type := T_contref naturals_type.
-Definition sum_until_type := Tf [] [T_num T_i32].
+Definition sum_until_body_type := Tf [] [T_num T_i32].
+Definition sum_until_type := Tf [T_num T_i32] [T_num T_i32].
 Definition tag_type := Tf [T_num T_i32] [].
 
 Definition gen_tag := Mk_tagident 0.
 
 Definition naturals_locs :=
   [ T_num T_i32 ].
+
+Definition sum_until_locs := [T_num T_i32; T_num T_i32; T_ref cont_type].
+
 
 Definition naturals :=
   [
@@ -99,14 +103,14 @@ Definition t_ctxt_sum_until :=
     tc_global := [];
     tc_table := [];
     tc_memory := [];
-    tc_local := [T_num T_i32; T_num T_i32; T_num T_i32; T_ref cont_type];
+    tc_local := T_num T_i32 :: sum_until_locs;
     tc_label := [[]];
     tc_return := None;
     tc_refs := [];
     tc_tags_t := [Tf [T_num T_i32] []]
   |}.
 
-Lemma sum_until_typing : be_typing t_ctxt_sum_until sum_until sum_until_type.
+Lemma sum_until_typing : be_typing t_ctxt_sum_until sum_until sum_until_body_type.
 Proof.
   rewrite /sum_until separate3.
   eapply bet_composition'.
@@ -142,7 +146,6 @@ Qed.
 Section generator_spec.
 
   Context `{!wasmG Σ}.
-  Context `{!inG Σ (authR (List0 nat))}.
 
   Definition yx i := Wasm_int.int_of_Z i32m i.
 
@@ -187,7 +190,7 @@ Section generator_spec.
   Definition naturals_inst addr_naturals addr_tag :=
     {|
       inst_types := [ naturals_type ];
-      inst_funcs := [ addr_naturals ] ;
+      inst_funcs := [ addr_naturals ];
       inst_tab := [];
       inst_memory := [];
       inst_globs := [];
@@ -371,7 +374,7 @@ Section generator_spec.
     done.
     iIntros "!> _".
     simpl.
-    
+
     iApply ewp_frame_bind; try done.
     instantiate (1 := λ v f, False%I).
     simpl.
@@ -397,3 +400,99 @@ Section generator_spec.
   Qed.
 
 End generator_spec.
+
+Section sum_until_spec.
+
+  Context `{!wasmG Σ}.
+  Context `{!inG Σ (authR (List0 nat))}.
+
+  Definition sum_until_inst addr_naturals addr_sum_until addr_tag :=
+    {|
+      inst_types := [ naturals_type; sum_until_type ];
+      inst_funcs := [ addr_naturals; addr_sum_until ];
+      inst_tab := [];
+      inst_memory := [];
+      inst_globs := [];
+      inst_tags := [ addr_tag ]
+    |}.
+
+  Definition closure_sum_until addr_naturals addr_sum_until addr_tag :=
+    FC_func_native (sum_until_inst addr_naturals addr_sum_until addr_tag)
+      sum_until_type
+      sum_until_locs
+      sum_until.
+
+  (*Definition Sum_until_i32 (n : i32) := xx $ \sum_(0 <= i < n) i.*)
+
+  Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (n : i32) :
+    N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
+    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    EWP [AI_const $ VAL_num $ VAL_int32 n; AI_invoke addr_sum_until] UNDER f
+      {{ v ; f', ⌜f = f' ∧ v = v⌝ }}. (* todo: post condition *)
+  Proof.
+    iIntros "Hwf_sum_until #Htag".
+
+    rewrite separate1.
+    iApply (ewp_invoke_native with "Hwf_sum_until"); try done.
+    iIntros "!> Hwf_sum_until"; simpl.
+
+    iApply ewp_frame_bind; try done.
+    repeat iSplitR.
+    2: {
+      rewrite <- (app_nil_l [AI_basic _]).
+      iApply ewp_block; try done.
+      simpl.
+
+      iApply (ewp_label_bind with "[-]").
+      2: {
+        iPureIntro.
+        unfold lfilled, lfill => //=.
+        instantiate (5 := []).
+        simpl.
+        rewrite app_nil_r.
+        done.
+      }
+
+      (* reason about body of sum_until *)
+
+      (* create func ref to naturals *)
+      rewrite (separate1 (AI_basic _)).
+      iApply ewp_seq; first done.
+      repeat iSplitR.
+      2: {
+        iApply ewp_ref_func; first done.
+        auto_instantiate.
+      }
+      by iIntros (? [Hcontra _]).
+      iIntros (?? [-> ->]); simpl.
+
+      (* create continuation *)
+      rewrite separate2.
+      iApply ewp_seq; first done.
+      repeat iSplitR.
+      2: by iApply ewp_contnew.
+      by iIntros (?) "(% & %Hcontra & _)".
+      iIntros (??) "(% & -> & -> & Hcont)"; simpl.
+
+      (* store continuation in $k *)
+      rewrite separate2.
+      iApply ewp_seq; first done.
+      repeat iSplitR.
+      2: {
+        fold (AI_const $ VAL_ref $ VAL_ref_cont kaddr).
+        iApply ewp_set_local; first lias.
+        auto_instantiate.
+      }
+      by iIntros (? [Hcontra _]).
+      iIntros (?? [-> ->]); simpl.
+
+      (* enter loop *)
+      admit.
+
+    }
+    admit.
+    admit.
+  Admitted.
+
+
+End sum_until_spec.
