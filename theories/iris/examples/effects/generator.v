@@ -29,18 +29,18 @@ Definition naturals_locs :=
   [ T_num T_i32 ].
 
 Definition naturals :=
-[
+  [
     BI_loop (Tf [] []) [
       BI_get_local 0;
       BI_suspend gen_tag; (* suspend with generated number *)
-BI_get_local 0; (* generate next number *)
+      BI_get_local 0; (* generate next number *)
       BI_const (xx 1);
       BI_binop T_i32 (Binop_i BOI_add);
       BI_set_local 0;
       BI_br 0 (* loop *)
     ]
-  ]
-  .
+  ].
+
 Definition t_ctxt_naturals :=
   {| 
     tc_types_t := [];
@@ -52,7 +52,7 @@ Definition t_ctxt_naturals :=
     tc_label := [[]];
     tc_return := None;
     tc_refs := [];
-tc_tags_t := [tag_type]
+    tc_tags_t := [tag_type]
   |}.
 
 Lemma naturals_typing : be_typing t_ctxt_naturals naturals naturals_type.
@@ -185,12 +185,14 @@ Section generator_spec.
     end.
 
   Definition naturals_inst addr_naturals addr_tag :=
-    {| inst_types := [ naturals_type ];
+    {|
+      inst_types := [ naturals_type ];
       inst_funcs := [ addr_naturals ] ;
       inst_tab := [];
       inst_memory := [];
       inst_globs := [];
-      inst_tags := [ addr_tag ] |}.
+      inst_tags := [ addr_tag ]
+    |}.
 
   Definition closure_naturals addr_naturals addr_tag :=
     FC_func_native (naturals_inst addr_naturals addr_tag)
