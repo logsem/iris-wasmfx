@@ -487,6 +487,48 @@ Section sum_until_spec.
       iIntros (?? [-> ->]); simpl.
 
       (* enter loop *)
+      rewrite separate1.
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitL.
+      2: {
+        rewrite <- (app_nil_l [AI_basic _]).
+        iApply ewp_loop; try done.
+        simpl.
+        iApply (ewp_label_bind with "[-]").
+        2: {
+          iPureIntro.
+          unfold lfilled, lfill => //=.
+          instantiate (5 := []).
+          simpl.
+          rewrite app_nil_r.
+          done.
+        }
+
+        (* reason about resumption block *)
+        rewrite separate1.
+        iApply ewp_seq; first done.
+        iSplitR; last iSplitL.
+        2: {
+          rewrite <- (app_nil_l [AI_basic _]).
+          iApply ewp_block; try done.
+          simpl.
+          iApply (ewp_label_bind with "[-]").
+          2: {
+            iPureIntro.
+            unfold lfilled, lfill => //=.
+            instantiate (5 := []).
+            simpl.
+            rewrite app_nil_r.
+            done.
+          }
+          (* put continuation on stack *)
+          admit.
+        }
+        admit.
+        admit.
+      }
+
+      admit.
       admit.
 
     }
