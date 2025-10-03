@@ -439,7 +439,7 @@ Section sum_until_spec.
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 n; AI_invoke addr_sum_until] UNDER f
-      {{ v ; f', ⌜f = f' ∧ v = v⌝ }}. (* todo: post condition *)
+      {{ v ; f', ⌜f = f' ∧ v = v⌝ }}. (* TODO: post condition *)
   Proof.
     iIntros "Hwf_sum_until Hwf_naturals #Htag".
 
@@ -549,9 +549,6 @@ Section sum_until_spec.
           iIntros (?? [-> ->]); simpl.
           rewrite separate2.
           iApply ewp_seq; first done.
-          (* naturals will never return, so post condintion is False *)
-          (*instantiate (2 := λ v f, False%I); simpl.*)
-          (*iSplitR; last iSplitL; try by iIntros.*)
 
           iSplitR; last iSplitL.
           2: {
@@ -569,8 +566,6 @@ Section sum_until_spec.
             admit.
             2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
-            (*instantiate (1 := λ v, False%I).*)
-            (*instantiate (1 := λ v f, False%I).*)
             iSplitR; last iSplitR; last iSplitL "Hwf_naturals Hfrag".
             3: {
               iApply (ewp_call_reference with "Hwf_naturals"); try done.
