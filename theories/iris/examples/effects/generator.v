@@ -6,7 +6,7 @@ From iris.base_logic Require Export gen_heap ghost_map proph_map.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.program_logic Require Import adequacy.
 From iris.bi Require Export weakestpre.
-From iris.algebra Require Import list excl agree csum.
+From iris.algebra Require Import list excl_auth.
 From Wasm Require Import type_checker_reflects_typing.
 From Wasm.iris.rules Require Export iris_rules iris_example_helper.
 From Wasm.iris.host Require Export iris_host.
@@ -36,7 +36,7 @@ Definition naturals :=
   [
     BI_loop (Tf [] []) [
       BI_get_local 0;
-      BI_suspend gen_tag; (* suspend with generated number *)
+     BI_suspend gen_tag; (* suspend with generated number *)
       BI_get_local 0; (* generate next number *)
       BI_const (xx 1);
       BI_binop T_i32 (Binop_i BOI_add);
@@ -404,7 +404,17 @@ End generator_spec.
 Section sum_until_spec.
 
   Context `{!wasmG Σ}.
-  Context `{!inG Σ (authR (List0 nat))}.
+  Context `{!inG Σ (excl_authR (listO (leibnizO i32)))}.
+
+  Definition auth_list γ xs := own γ (●E xs).
+  Definition frag_list γ xs := own γ (◯E xs).
+
+  Lemma alloc_initial :
+   ⊢ |==> ∃ γ , (auth_list γ [] ∗ frag_list γ []).
+  Proof.
+    iMod (own_alloc (●E [] ⋅ ◯E [])) as (γ) "[Hγ_auth Hγ_frac]"; first by apply excl_auth_valid.
+    by iFrame.
+  Qed.
 
   Definition sum_until_inst addr_naturals addr_sum_until addr_tag :=
     {|
@@ -426,18 +436,19 @@ Section sum_until_spec.
 
   Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (n : i32) :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
+    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 n; AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f' ∧ v = v⌝ }}. (* todo: post condition *)
   Proof.
-    iIntros "Hwf_sum_until #Htag".
+    iIntros "Hwf_sum_until Hwf_naturals #Htag".
 
     rewrite separate1.
     iApply (ewp_invoke_native with "Hwf_sum_until"); try done.
     iIntros "!> Hwf_sum_until"; simpl.
 
     iApply ewp_frame_bind; try done.
-    repeat iSplitR.
+    iSplitR; last iSplitR "Hwf_sum_until".
     2: {
       rewrite <- (app_nil_l [AI_basic _]).
       iApply ewp_block; try done.
@@ -486,6 +497,11 @@ Section sum_until_spec.
       by iIntros (? [Hcontra _]).
       iIntros (?? [-> ->]); simpl.
 
+      (* create ghost resources to track generated value *)
+      iApply fupd_ewp.
+      iMod (alloc_initial) as "(%γ & Hauth & Hfrag)".
+      iModIntro.
+
       (* enter loop *)
       rewrite separate1.
       iApply ewp_seq; first done.
@@ -522,8 +538,54 @@ Section sum_until_spec.
             done.
           }
           (* put continuation on stack *)
+          rewrite separate1.
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: {
+            iApply ewp_get_local; first done.
+            auto_instantiate.
+          }
+          by iIntros (? [Hcontra _]).
+          iIntros (?? [-> ->]); simpl.
+          rewrite separate2.
+          iApply ewp_seq; first done.
+          (* naturals will never return, so post condintion is False *)
+          (*instantiate (2 := λ v f, False%I); simpl.*)
+          (*iSplitR; last iSplitL; try by iIntros.*)
+
+          iSplitR; last iSplitL.
+          2: {
+            (* reason about resumption *)
+            rewrite <- (app_nil_l [AI_ref_cont _; _]).
+            iApply ewp_resume; try done.
+            simpl. instantiate (1 := [_]) => //.
+            unfold agree_on_uncaptured => /=.
+            instantiate (1 := Ψgen addr_tag (frag_list γ)).
+            repeat split => //.
+            intros i.
+            destruct (i == Mk_tagidx addr_tag) eqn:Hi => //.
+            move/eqP in Hi.
+            intros _.
+            admit.
+            2: iFrame "Hcont".
+            unfold hfilled, hfill => //=.
+            (*instantiate (1 := λ v, False%I).*)
+            (*instantiate (1 := λ v f, False%I).*)
+            iSplitR; last iSplitR; last iSplitL "Hwf_naturals Hfrag".
+            3: {
+              iApply (ewp_call_reference with "Hwf_naturals"); try done.
+              iIntros "!> !> Hwf_naturals".
+              by iApply (naturals_spec with "[Hfrag] [Hwf_naturals]").
+            }
+            by iIntros.
+            2: iSplitR; first by iIntros (? HFalse).
+            admit.
+            admit.
+          }
+          admit.
           admit.
         }
+        
         admit.
         admit.
       }
