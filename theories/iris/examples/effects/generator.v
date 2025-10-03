@@ -550,7 +550,7 @@ Section sum_until_spec.
           rewrite separate2.
           iApply ewp_seq; first done.
 
-          iSplitR; last iSplitL.
+          iSplitR; last iSplitR "Hauth".
           2: {
             (* reason about resumption *)
             rewrite <- (app_nil_l [AI_ref_cont _; _]).
@@ -574,10 +574,36 @@ Section sum_until_spec.
             }
             by iIntros.
             2: iSplitR; first by iIntros (? HFalse).
-            admit.
-            admit.
+            2: {
+              Opaque upcl.
+              iSimpl.
+              iSplit; last done.
+              iFrame "Htag".
+              iIntros "!>" (vs k h) "Hcont HΨgen".
+              rewrite (upcl_tele' [tele _ _] [tele]).
+              simpl.
+              iDestruct "HΨgen" as "(%x & %xs & -> & [HPermitted_xs_x Hfrag] & Hcont_spec)".
+              iSimpl.
+              instantiate (1 := λ v,
+                ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗
+                  N.of_nat k ↦[wcont] Live _ h ∗
+                  frag_list γ xs ∗
+                  ⌜Permitted xs ∧ x = yx (length xs)⌝
+                )%I
+              ).
+              iApply ewp_value.
+              done.
+
+              iFrame.
+              done.
+            }
+            by iIntros "(% & % & % & % & %Hcontra & _)".
           }
-          admit.
+          by iIntros (?) "[(% & % & % & % & %Hcontra & _) _]".
+
+          simpl.
+          iIntros (??) "[(%k & %h & %x & %xs & -> & Hcont & Hfrag & HPermitted_xs_x) ->]".
+          simpl.
           admit.
         }
         
