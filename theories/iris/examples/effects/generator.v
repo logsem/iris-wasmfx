@@ -40,15 +40,15 @@ Definition naturals :=
       BI_get_local 0; (* generate next number *)
       BI_const (xx 1);
       BI_binop T_i32 (Binop_i BOI_add);
-      BI_set_local 0;
+  BI_set_local 0;
       BI_br 0 (* loop *)
     ]
   ].
 
 Definition t_ctxt_naturals :=
-  {| 
+  {|
     tc_types_t := [];
-    tc_func_t := [];
+tc_func_t := [];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
@@ -146,6 +146,7 @@ Qed.
 Section generator_spec.
 
   Context `{!wasmG Σ}.
+  Context `{!inG Σ (excl_authR (listO (leibnizO i32)))}.
 
   Definition yx i := Wasm_int.int_of_Z i32m i.
 
@@ -416,6 +417,38 @@ Section sum_until_spec.
     by iFrame.
   Qed.
 
+  Lemma own_auth_frag_agree γ xs ys :
+    auth_list γ ys -∗
+    frag_list γ xs -∗
+    ⌜ys = xs⌝.
+  Proof.
+    iIntros "Hauth Hfrag".
+    iCombine "Hauth Hfrag" gives "%HValid".
+    iPureIntro.
+    by apply excl_auth_agree_L.
+  Qed.
+
+  Lemma auth_frag_permitted γ x xs ys :
+    ⌜Permitted (x :: xs)⌝ -∗
+    auth_list γ ys -∗
+    frag_list γ xs -∗
+      ⌜xs = ys⌝ ∗
+      ⌜Permitted ys⌝ ∗
+      ⌜x = yx $ length ys⌝ ∗
+      |==> auth_list γ (x :: ys) ∗ frag_list γ (x :: ys).
+  Proof.
+    iIntros (HPermitted_x_xs) "Hauth Hfrag".
+    iPoseProof (own_auth_frag_agree _ _ with "Hauth Hfrag") as "<-".
+    iSplit; first done.
+    destruct HPermitted_x_xs as [HPermitted_xs H_x_length].
+    iFrame "%".
+    unfold auth_list, frag_list.
+    rewrite <- own_op.
+    iCombine "Hauth Hfrag" as "Hboth".
+    iApply (own_update with "Hboth").
+    apply excl_auth_update.
+  Qed.
+
   Definition sum_until_inst addr_naturals addr_sum_until addr_tag :=
     {|
       inst_types := [ naturals_type; sum_until_type ];
@@ -523,7 +556,14 @@ Section sum_until_spec.
         (* reason about resumption block *)
         rewrite separate1.
         iApply ewp_seq; first done.
-        iSplitR; last iSplitL.
+        (*instantiate (1 := λ v f,*)
+        (*  ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗*)
+        (*  N.of_nat k ↦[wcont] Live _ h ∗*)
+        (*  frag_list γ xs ∗*)
+        (*  ⌜Permitted xs ∧ x = yx (length xs)⌝*)
+        (*  )%I*)
+        (*).*)
+        iSplitR; last iSplitR "Hauth".
         2: {
           rewrite <- (app_nil_l [AI_basic _]).
           iApply ewp_block; try done.
@@ -550,7 +590,7 @@ Section sum_until_spec.
           rewrite separate2.
           iApply ewp_seq; first done.
 
-          iSplitR; last iSplitR "Hauth".
+          iSplitR; last iSplitL.
           2: {
             (* reason about resumption *)
             rewrite <- (app_nil_l [AI_ref_cont _; _]).
@@ -587,27 +627,73 @@ Section sum_until_spec.
               instantiate (1 := λ v,
                 ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗
                   N.of_nat k ↦[wcont] Live _ h ∗
+                  ⌜Permitted xs ∧ x = yx (length xs)⌝ ∗
                   frag_list γ xs ∗
-                  ⌜Permitted xs ∧ x = yx (length xs)⌝
+                  ( frag_list γ (x :: xs) -∗
+                    ∃ LI , ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ ∗
+                 ▷ EWP LI
+                    UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_,False }}
+                  )
                 )%I
               ).
               iApply ewp_value.
               done.
-
               iFrame.
-              done.
+              iSplitR; first done.
+              admit.
             }
             by iIntros "(% & % & % & % & %Hcontra & _)".
           }
           by iIntros (?) "[(% & % & % & % & %Hcontra & _) _]".
 
           simpl.
-          iIntros (??) "[(%k & %h & %x & %xs & -> & Hcont & Hfrag & HPermitted_xs_x) ->]".
+          iIntros (??) "[(%k & %h & %x & %xs & -> & Hcont & HPermitted_xs_x & Hfrag & Hcont_spec) ->]".
           simpl.
-          admit.
+          iApply ewp_value; first done.
+          simpl.
+          iIntros (LI HLI).
+          move /lfilledP in HLI.
+          inversion HLI; subst.
+          inversion H8; subst; simpl.
+
+          iApply ewp_br.
+          3: {
+            instantiate (1 := 0).
+            instantiate (1 := [AI_basic (BI_const (VAL_int32 x)); AI_ref_cont k]).
+            instantiate (1 := LH_base [] _).
+            unfold lfilled, lfill => //=.
+          }
+          1,2 : done.
+          simpl.
+          iApply ewp_value; first done.
+          simpl.
+          instantiate (1 := λ v f,
+            (∃ k x xs h, 
+              ⌜v = immV _⌝ ∗
+              ⌜f =  {|
+      f_locs :=
+        [VAL_num (VAL_int32 n); VAL_num (VAL_int32 Wasm_int.Int32.zero);
+         VAL_num (VAL_int32 Wasm_int.Int32.zero);
+         VAL_ref (VAL_ref_cont kaddr)];
+      f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
+    |}⌝ ∗
+              ⌜Permitted (x :: xs)⌝ ∗
+              N.of_nat k↦[wcont]Live (Tf [] []) h ∗
+              frag_list γ xs ∗
+              ( frag_list γ (x :: xs) -∗
+                    ∃ LI , ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ ∗
+                 ▷ EWP LI
+                    UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_,False }}
+              )
+            )%I
+          ).
+          simpl.
+          iFrame.
+          done.
         }
-        
-        admit.
+        by iIntros (?) "(% & % & % & % & %Hcontra & _)".
+        iIntros (??) "(%k & %x & %xs & %h & -> & -> & %HPermitted_x_xs & Hcont & Hfrag & Hcont_spec)".
+        simpl.
         admit.
       }
 
