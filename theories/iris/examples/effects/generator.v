@@ -428,20 +428,12 @@ Section sum_until_spec.
     by apply excl_auth_agree_L.
   Qed.
 
-  Lemma auth_frag_permitted γ x xs ys :
-    ⌜Permitted (x :: xs)⌝ -∗
+  Lemma auth_frag_update γ x xs ys :
     auth_list γ ys -∗
     frag_list γ xs -∗
-      ⌜xs = ys⌝ ∗
-      ⌜Permitted ys⌝ ∗
-      ⌜x = yx $ length ys⌝ ∗
-      |==> auth_list γ (x :: ys) ∗ frag_list γ (x :: ys).
+    |==> auth_list γ (x :: ys) ∗ frag_list γ (x :: ys).
   Proof.
-    iIntros (HPermitted_x_xs) "Hauth Hfrag".
-    iPoseProof (own_auth_frag_agree _ _ with "Hauth Hfrag") as "<-".
-    iSplit; first done.
-    destruct HPermitted_x_xs as [HPermitted_xs H_x_length].
-    iFrame "%".
+    iIntros "Hauth Hfrag".
     unfold auth_list, frag_list.
     rewrite <- own_op.
     iCombine "Hauth Hfrag" as "Hboth".
@@ -694,6 +686,10 @@ Section sum_until_spec.
         by iIntros (?) "(% & % & % & % & %Hcontra & _)".
         iIntros (??) "(%k & %x & %xs & %h & -> & -> & %HPermitted_x_xs & Hcont & Hfrag & Hcont_spec)".
         simpl.
+        iPoseProof (own_auth_frag_agree with "Hauth Hfrag") as "<-".
+        iApply fupd_ewp.
+        iMod (auth_frag_update _ x [] _ with "Hauth Hfrag") as "[Hauth Hfrag]".
+        iModIntro.
         admit.
       }
 
