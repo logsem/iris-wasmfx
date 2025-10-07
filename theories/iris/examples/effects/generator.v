@@ -36,11 +36,11 @@ Definition naturals :=
   [
     BI_loop (Tf [] []) [
       BI_get_local 0;
-     BI_suspend gen_tag; (* suspend with generated number *)
+      BI_suspend gen_tag; (* suspend with generated number *)
       BI_get_local 0; (* generate next number *)
       BI_const (xx 1);
       BI_binop T_i32 (Binop_i BOI_add);
-  BI_set_local 0;
+      BI_set_local 0;
       BI_br 0 (* loop *)
     ]
   ].
@@ -48,7 +48,7 @@ Definition naturals :=
 Definition t_ctxt_naturals :=
   {|
     tc_types_t := [];
-tc_func_t := [];
+    tc_func_t := [];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
@@ -184,7 +184,7 @@ Section generator_spec.
 
   Definition Ψgen (addr_tag : nat) I x :=
     match x with
-    | SuspendE (Mk_tagidx addr_tag) => SEQ I
+    | SuspendE (Mk_tagidx addr) => if Nat.eqb addr addr_tag then SEQ I else iProt_bottom
     | _ => iProt_bottom
     end.
 
@@ -269,6 +269,7 @@ Section generator_spec.
       instantiate (1 := [VAL_num (VAL_int32 n)]).
       1,2: done.
       simpl.
+      rewrite Nat.eqb_refl.
       unfold SEQ.
       rewrite (upcl_tele' [tele _ _] [tele] ).
       simpl.
@@ -595,7 +596,11 @@ Section sum_until_spec.
             destruct (i == Mk_tagidx addr_tag) eqn:Hi => //.
             move/eqP in Hi.
             intros _.
-            admit.
+            unfold Ψgen.
+            destruct i as [addr].
+            destruct (addr =? addr_tag) eqn:Hn => //.
+            exfalso; apply Hi.
+            by apply Nat.eqb_eq in Hn as ->.
             2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
             iSplitR; last iSplitR; last iSplitL "Hwf_naturals Hfrag".
@@ -612,6 +617,7 @@ Section sum_until_spec.
               iSplit; last done.
               iFrame "Htag".
               iIntros "!>" (vs k h) "Hcont HΨgen".
+              rewrite Nat.eqb_refl.
               rewrite (upcl_tele' [tele _ _] [tele]).
               simpl.
               iDestruct "HΨgen" as "(%x & %xs & -> & [HPermitted_xs_x Hfrag] & Hcont_spec)".
@@ -632,7 +638,12 @@ Section sum_until_spec.
               done.
               iFrame.
               iSplitR; first done.
-              admit.
+              iIntros "Hfrag".
+              iDestruct ("Hcont_spec" with "Hfrag") as (LI) "[%HLI Hewp]".
+              iExists LI.
+              iSplit; last done.
+              iPureIntro.
+              by (destruct (hfilled No_var (hholed_of_valid_hholed h) [] LI)).
             }
             by iIntros "(% & % & % & % & %Hcontra & _)".
           }
@@ -690,9 +701,164 @@ Section sum_until_spec.
         iApply fupd_ewp.
         iMod (auth_frag_update _ x [] _ with "Hauth Hfrag") as "[Hauth Hfrag]".
         iModIntro.
-        admit.
-      }
 
+        (* Store continuation in $k *)
+        rewrite separate3.
+        iApply ewp_seq; first done.
+        iSplitR; last iSplitR.
+
+        2: {
+          rewrite (separate1 (AI_basic _)).
+          iApply ewp_val_app; first done.
+          iSplitR.
+          2: {
+            fold (AI_const (VAL_ref (VAL_ref_cont k))).
+
+            instantiate (1 := λ v f, (⌜ v = immV [_] ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
+            iApply ewp_set_local; first lias.
+            done.
+          }
+          by iIntros "!>" (?) "[%Hcontra _]".
+        }
+        by iIntros (?) "[%Hcontra _]".
+        simpl.
+        iIntros (?? [-> ->]).
+        simpl.
+
+        (* Store generated value, 'x' in $v *)
+        rewrite separate2.
+        iApply ewp_seq; first done.
+        iSplitR; last iSplitR.
+        2: {
+          fold (AI_const $ VAL_num $ VAL_int32 x).
+          iApply ewp_set_local; first lias.
+          auto_instantiate.
+        }
+        by iIntros (? [Hcontra _]).
+        iIntros (?? [-> ->]); simpl.
+
+        (* add %v to %sum *)
+        rewrite separate4.
+        iApply ewp_seq; first done.
+        iSplitR; last iSplitR.
+        2: {
+          rewrite separate1.
+          iApply ewp_seq; first done.
+          iSplitR; last iSplitR.
+          2: {
+            iApply ewp_get_local.
+            done.
+            auto_instantiate.
+          }
+          by iIntros (? [Hcontra _]).
+          iIntros (?? [-> ->]); simpl.
+          rewrite separate2.
+          iApply ewp_seq; first done.
+          iSplitR; last iSplitR.
+          2: {
+            rewrite separate1.
+            iApply ewp_val_app; first done.
+            iSplitR.
+            2: {
+              instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
+              iApply ewp_get_local.
+              done.
+              done.
+            }
+            by iIntros (? [Hcontra ?]).
+          }
+          by iIntros (? [Hcontra ?]).
+          iIntros (?? [-> ->]); simpl.
+          rewrite separate3.
+          iApply ewp_seq; first done.
+          iSplitR; last iSplitR.
+          2: {
+            iApply ewp_binop; first done.
+            auto_instantiate.
+          }
+          by iIntros (? [Hcontra _]).
+          iIntros (?? [-> ->]); simpl.
+          fold (AI_const $ VAL_num $ VAL_int32 (Wasm_int.Int32.iadd Wasm_int.Int32.zero x)).
+          iApply ewp_set_local; first lias.
+          auto_instantiate.
+        }
+        by iIntros (? [Hcontra ?]).
+        iIntros (?? [-> ->]); simpl.
+
+        (* get $v and $upto on the stack *)
+        rewrite (separate2 (AI_basic _)).
+        iApply ewp_seq; first done.
+        iSplitR; last iSplitR.
+        2: {
+          rewrite (separate1 (AI_basic _)).
+          iApply ewp_seq; first done.
+          iSplitR; last iSplitR.
+          2: {
+            iApply ewp_get_local.
+            done.
+            auto_instantiate.
+          }
+          by iIntros (? [Hcontra _]).
+          iIntros (?? [-> ->]); simpl.
+          
+          rewrite (separate1 $ AI_basic _).
+          iApply ewp_val_app; first done.
+          iSplitR.
+          2: {
+            instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
+            iApply ewp_get_local.
+            done.
+            done.
+          }
+          by iIntros "!>" (? [Hcontra _]).
+        }
+        by iIntros (? [Hcontra _]).
+        iIntros (?? [-> ->]); simpl.
+
+        (* compare $v to $upto *)
+        rewrite separate3.
+        iApply ewp_seq; first done.
+        iSplitR; last iSplitR.
+        2: {
+          iApply ewp_relop; first done.
+          auto_instantiate.
+        }
+        by iIntros (? [Hcontra _]).
+        iIntros (?? [-> ->]); simpl.
+        destruct (Wasm_int.Int32.ltu x n) eqn:Hltu; simpl.
+        - (* Case: $v < $upto *)
+          iApply ewp_br_if_true; first done.
+          iApply ewp_value; first done.
+          simpl.
+          iIntros (LI HLI).
+          move /lfilledP in HLI.
+          inversion HLI; subst.
+          inversion H8; subst.
+          simpl.
+          iApply ewp_br.
+          3: {
+            instantiate (1 := 0).
+            instantiate (1 := []).
+            instantiate (1 := LH_base [] []).
+            unfold lfilled, lfill => //=.
+          }
+          done.
+          done.
+          simpl.
+          iIntros "!> !>".
+          (* TODO: Induction *)
+          admit.
+        - (* Case: $v >= $upto *)
+          iApply ewp_br_if_false; first done.
+          simpl.
+          iIntros (LI HLI).
+          move /lfilledP in HLI.
+          inversion HLI; subst.
+          inversion H8; subst.
+          iApply ewp_label_value; first done.
+          
+          admit.
+      }
       admit.
       admit.
 
