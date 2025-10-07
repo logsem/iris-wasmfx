@@ -856,15 +856,27 @@ Section sum_until_spec.
           inversion HLI; subst.
           inversion H8; subst.
           iApply ewp_label_value; first done.
-          
-          admit.
+          instantiate (1 := λ v f , (∃ x k, (⌜v = immV _⌝ ∗ ⌜f = Build_frame _ _⌝))%I). (* TODO: frame *)
+          by iExists x, k.
       }
-      admit.
-      admit.
+      by iIntros (?) "(% & % & %Hcontra & _)".
 
+      iIntros (??) "(% & % & -> & ->)"; simpl.
+      iApply ewp_get_local; first done.
+      simpl.
+      iIntros (LI HLI).
+      move /lfilledP in HLI.
+      inversion HLI; subst.
+      inversion H8; subst.
+      simpl.
+      iApply ewp_label_value; first done.
+      instantiate (1 := λ v f , (∃ x k, (⌜v = immV _⌝ ∗ ⌜f = Build_frame _ _⌝))%I). (* TODO: frame *)
+      by iExists x, k.
     }
-    admit.
-    admit.
+    by iIntros (?) "(% & % & %Hcontra & _)".
+    iIntros (??) "(% & % & -> & ->)".
+    simpl.
+    by iApply ewp_frame_value.
   Admitted.
 
 
