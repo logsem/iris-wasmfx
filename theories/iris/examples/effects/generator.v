@@ -459,16 +459,56 @@ Section sum_until_spec.
       sum_until_locs
       sum_until.
 
-  Definition Sum_until_i32 (n : i32) := yx $ \sum_(0 <= i < xy n) i.
+  Definition Sum_until_i32 (n : i32) := yx $ \sum_(0 <= i < S $ xy n) i.
   (*Definition Sum_until_i32 (n : i32) := \big[Wasm_int.Int32.iadd/Wasm_int.Int32.zero]_(i in (λ j, True)) i.*)
   (*VAL_num (VAL_int32 (Wasm_int.Int32.iadd Wasm_int.Int32.zero x))*)
+
+
+  Lemma sum_until_loop_invariant γ addr_naturals addr_sum_until addr_tag xs k h LI (upto v sum: i32) :
+    ⌜Wasm_int.Int32.ltu v upto⌝ -∗
+    ⌜sum = Sum_until_i32 v⌝ -∗
+    ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ -∗
+    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    N.of_nat k↦[wcont]Live (Tf [] []) h -∗
+    auth_list γ xs -∗
+    EWP LI UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_, False }} -∗
+      EWP [AI_basic
+            (BI_loop (Tf [] [])
+                [BI_block (Tf [] [T_num T_i32; T_ref cont_type])
+                  [BI_get_local 3; BI_resume (Type_lookup 0) [HC_catch gen_tag 0];
+                    BI_unreachable]; BI_set_local 3; BI_set_local 1;
+                BI_get_local 2; BI_get_local 1; BI_binop T_i32 (Binop_i BOI_add);
+                BI_set_local 2; BI_get_local 1; BI_get_local 0;
+                BI_relop T_i32 (Relop_i (ROI_lt SX_U));
+                BI_br_if 0])]
+      UNDER {|
+              f_locs :=
+                [VAL_num (VAL_int32 upto); VAL_num (VAL_int32 v);
+                  VAL_num (VAL_int32 sum);
+                  VAL_ref (VAL_ref_cont k)];
+              f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
+            |}
+      {{ w ; f, ∃ v' sum' k',
+        ⌜w = immV []⌝ ∗
+        ⌜f =  {|
+                f_locs :=
+                  [VAL_num (VAL_int32 upto); VAL_num (VAL_int32 v');
+                    VAL_num (VAL_int32 sum');
+                    VAL_ref (VAL_ref_cont k')];
+                f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
+              |}⌝ ∗
+        ⌜sum' = Sum_until_i32 upto⌝
+      }}.
+  Proof.
+    admit.
+  Admitted.
 
   Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (n : i32) :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 n; AI_invoke addr_sum_until] UNDER f
-      {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 n]⌝ }}. (* TODO: post condition *)
+      {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 n]⌝ }}.
   Proof.
     iIntros "Hwf_sum_until Hwf_naturals #Htag".
 
@@ -552,13 +592,6 @@ Section sum_until_spec.
         (* reason about resumption block *)
         rewrite separate1.
         iApply ewp_seq; first done.
-        (*instantiate (1 := λ v f,*)
-        (*  ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗*)
-        (*  N.of_nat k ↦[wcont] Live _ h ∗*)
-        (*  frag_list γ xs ∗*)
-        (*  ⌜Permitted xs ∧ x = yx (length xs)⌝*)
-        (*  )%I*)
-        (*).*)
         iSplitR; last iSplitR "Hauth".
         2: {
           rewrite <- (app_nil_l [AI_basic _]).
@@ -828,8 +861,11 @@ Section sum_until_spec.
         }
         by iIntros (? [Hcontra _]).
         iIntros (?? [-> ->]); simpl.
-        destruct (Wasm_int.Int32.ltu x n) eqn:Hltu; simpl.
-        - (* Case: $v < $upto *)
+        destruct HPermitted_x_xs as [HPermitted_xs Hx_0].
+        simpl in Hx_0.
+        rewrite Hx_0.
+        destruct (Wasm_int.Int32.ltu (yx 0%nat) n) eqn:Hltu; simpl.
+        - (* Case: 0 < upto *)
           iApply ewp_br_if_true; first done.
           iApply ewp_value; first done.
           simpl.
@@ -848,10 +884,22 @@ Section sum_until_spec.
           done.
           done.
           simpl.
+          iDestruct ("Hcont_spec" with "Hfrag") as (LI) "[%Hfilled_h_LI HewpLI]".
           iIntros "!> !>".
-          (* TODO: Induction *)
-          admit.
-        - (* Case: $v >= $upto *)
+          iApply (sum_until_loop_invariant with "[] [] [] [] [Hcont] [Hauth] [-]").
+          + done.
+          + iPureIntro.
+            unfold Sum_until_i32.
+            replace (xy (yx 0%nat)) with (0); last done.
+            unfold yx; simpl.
+            rewrite big_nat_recl => //.
+            rewrite big_geq; done.
+          + done.
+          + done.
+          + done.
+          + done.
+          + iApply "HewpLI".
+        - (* Case: upto <= 0 *)
           iApply ewp_br_if_false; first done.
           simpl.
           iIntros (LI HLI).
@@ -859,12 +907,29 @@ Section sum_until_spec.
           inversion HLI; subst.
           inversion H8; subst.
           iApply ewp_label_value; first done.
-          instantiate (1 := λ v f , (∃ x k, (⌜v = immV _⌝ ∗ ⌜f = Build_frame _ _⌝))%I). (* TODO: frame *)
-          by iExists x, k.
+          iIntros "!> !>".
+          iExists (yx 0), (yx 0), k.
+          iSplitR; first done.
+          iSplitR; first done.
+          iPureIntro.
+          clear HLI H7 H8 H1.
+          unfold Sum_until_i32.
+          rewrite big_nat_recl //=.
+          rewrite big_geq; first done.
+          pose proof (Wasm_int.Int32.not_ltu n (yx 0)) as H.
+          rewrite Hltu in H.
+          simpl in H.
+          unfold "||" in H.
+          unfold Wasm_int.Int32.ltu in H.
+          destruct (Coqlib.zlt (Wasm_int.Int32.unsigned n) (Wasm_int.Int32.unsigned (yx 0))).
+          + admit. (* TODO *)
+          + symmetry in H.
+            pose proof Wasm_int.Int32.same_if_eq n (yx 0) H as ->.
+            apply ssrnat.leqnn.
       }
-      by iIntros (?) "(% & % & %Hcontra & _)".
+      by iIntros (?) "(% & % & % & %Hcontra & _)".
 
-      iIntros (??) "(% & % & -> & ->)"; simpl.
+      iIntros (??) "(% & % & % & -> & -> & ->)"; simpl.
       iApply ewp_get_local; first done.
       simpl.
       iIntros (LI HLI).
@@ -873,17 +938,34 @@ Section sum_until_spec.
       inversion H8; subst.
       simpl.
       iApply ewp_label_value; first done.
-      instantiate (1 := λ v f , (∃ x k, (⌜v = immV _⌝ ∗ ⌜f = Build_frame _ _⌝))%I). (* TODO: frame *)
-      by iExists x, k.
+      simpl.
+      instantiate (1 := λ v f , (⌜v = immV _⌝)%I).
+      done.
     }
-    by iIntros (?) "(% & % & %Hcontra & _)".
-    iIntros (??) "(% & % & -> & ->)".
+    by iIntros (?) "%Hcontra".
+    iIntros (?? ->).
     simpl.
-    iApply ewp_frame_value; try done.
-    iSplitR; first done.
-    simpl.
-    admit.
+    iApply ewp_frame_value; done.
   Admitted.
 
+  Lemma sum_until_100 addr_naturals addr_sum_until addr_tag f :
+    N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
+    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
+    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    EWP [AI_const $ VAL_num $ VAL_int32 $ yx 100; AI_invoke addr_sum_until] UNDER f
+      {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ yx 5050]⌝ }}.
+  Proof.
+    iIntros "Haddr_sum_until Haddr_naturals #Htag".
+    iApply (ewp_wand with "[-] []").
+    - iApply (sum_until_spec with "[Haddr_sum_until] [Haddr_naturals]"); done.
+    - iIntros (?? [-> ->]).
+      iPureIntro.
+      split; first done.
+      unfold Sum_until_i32.
+      repeat f_equal.
+      replace (xy (yx 100)) with (100); last done.
+      repeat rewrite big_nat_recl //=.
+      rewrite big_geq; done.
+  Qed.
 
 End sum_until_spec.
