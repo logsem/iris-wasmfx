@@ -149,6 +149,7 @@ Section generator_spec.
   Context `{!inG Σ (excl_authR (listO (leibnizO i32)))}.
 
   Definition yx i := Wasm_int.int_of_Z i32m i.
+  Definition xy i := Wasm_int.nat_of_uint i32m i.
 
   Lemma Z_Int32_add_congruent a b : yx (a + b) = Wasm_int.Int32.iadd (yx a) (yx b).
   Proof.
@@ -458,14 +459,16 @@ Section sum_until_spec.
       sum_until_locs
       sum_until.
 
-  (*Definition Sum_until_i32 (n : i32) := xx $ \sum_(0 <= i < n) i.*)
+  Definition Sum_until_i32 (n : i32) := yx $ \sum_(0 <= i < xy n) i.
+  (*Definition Sum_until_i32 (n : i32) := \big[Wasm_int.Int32.iadd/Wasm_int.Int32.zero]_(i in (λ j, True)) i.*)
+  (*VAL_num (VAL_int32 (Wasm_int.Int32.iadd Wasm_int.Int32.zero x))*)
 
   Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (n : i32) :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 n; AI_invoke addr_sum_until] UNDER f
-      {{ v ; f', ⌜f = f' ∧ v = v⌝ }}. (* TODO: post condition *)
+      {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 n]⌝ }}. (* TODO: post condition *)
   Proof.
     iIntros "Hwf_sum_until Hwf_naturals #Htag".
 
@@ -876,7 +879,10 @@ Section sum_until_spec.
     by iIntros (?) "(% & % & %Hcontra & _)".
     iIntros (??) "(% & % & -> & ->)".
     simpl.
-    by iApply ewp_frame_value.
+    iApply ewp_frame_value; try done.
+    iSplitR; first done.
+    simpl.
+    admit.
   Admitted.
 
 
