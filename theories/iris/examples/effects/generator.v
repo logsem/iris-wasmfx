@@ -463,6 +463,12 @@ Section sum_until_spec.
   (*Definition Sum_until_i32 (n : i32) := \big[Wasm_int.Int32.iadd/Wasm_int.Int32.zero]_(i in (λ j, True)) i.*)
   (*VAL_num (VAL_int32 (Wasm_int.Int32.iadd Wasm_int.Int32.zero x))*)
 
+  Lemma Sum_until_i32_unfold (n : nat) :
+    Sum_until_i32 (yx $ S n) =
+    Wasm_int.Int32.iadd (Sum_until_i32 (yx n)) (yx (S n)).
+  Proof.
+    admit.
+  Admitted.
 
   Lemma sum_until_loop_invariant γ addr_naturals addr_sum_until addr_tag xs k h LI (upto v sum: i32) :
     ⌜Wasm_int.Int32.ltu v upto⌝ -∗
@@ -470,7 +476,7 @@ Section sum_until_spec.
     ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     N.of_nat k↦[wcont]Live (Tf [] []) h -∗
-    auth_list γ xs -∗
+    auth_list γ (v :: xs) -∗
     EWP LI UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_, False }} -∗
       EWP [AI_basic
             (BI_loop (Tf [] [])
@@ -500,7 +506,362 @@ Section sum_until_spec.
         ⌜sum' = Sum_until_i32 upto⌝
       }}.
   Proof.
-    admit.
+    iIntros "Hv_lt_upto Hsum HLI #Htag Hcont Hauth Hcont_spec".
+    iLöb as "IH" forall (LI h xs k v sum).
+    iPoseProof "Hsum" as "%Hsum".
+    iPoseProof "HLI" as "%HLI".
+    iPoseProof "Hv_lt_upto" as "%Hv_lt_upto".
+
+    (* enter loop *)
+    rewrite <- (app_nil_l [AI_basic _]).
+    iApply ewp_loop; try done.
+    simpl.
+    iApply (ewp_label_bind with "[-]").
+    2: {
+      iPureIntro.
+      unfold lfilled, lfill => //=.
+      instantiate (5 := []).
+      simpl.
+      rewrite app_nil_r.
+      done.
+    }
+
+    (* reason about resumption block *)
+    rewrite (separate1 (AI_basic (BI_block _ _))).
+    iApply ewp_seq; first done.
+    iSplitR; last iSplitR "Hauth".
+    2: {
+      rewrite <- (app_nil_l [AI_basic (BI_block _ _)]).
+      iApply ewp_block; try done.
+      simpl.
+      iApply (ewp_label_bind with "[-]").
+      2: {
+        iPureIntro.
+        unfold lfilled, lfill => //=.
+        instantiate (5 := []).
+        simpl.
+        rewrite app_nil_r.
+        done.
+      }
+      (* put continuation on stack *)
+      rewrite (separate1 (AI_basic (BI_get_local _))).
+      iApply ewp_seq; first done.
+      repeat iSplitR.
+      2: {
+        iApply ewp_get_local; first done.
+        auto_instantiate.
+      }
+      by iIntros (? [Hcontra _]).
+      iIntros (?? [-> ->]); simpl.
+      rewrite (separate2 (AI_ref_cont _)).
+      iApply ewp_seq; first done.
+
+      iSplitR; last iSplitL.
+      2: {
+        (* reason about resumption *)
+        rewrite <- (app_nil_l [AI_ref_cont _; _]).
+        iApply ewp_resume; try done.
+        simpl. instantiate (1 := [_]) => //.
+        unfold agree_on_uncaptured => /=.
+        instantiate (1 := Ψgen addr_tag (frag_list γ)).
+        repeat split => //.
+        intros i.
+        destruct (i == Mk_tagidx addr_tag) eqn:Hi => //.
+        move/eqP in Hi.
+        intros _.
+        unfold Ψgen.
+        destruct i as [addr].
+        destruct (addr =? addr_tag) eqn:Hn => //.
+        exfalso; apply Hi.
+        by apply Nat.eqb_eq in Hn as ->.
+        iFrame "Hcont".
+        iSplitR; last iSplitR; last iSplitL "Hcont_spec".
+        3: {
+          iExact "Hcont_spec".
+        }
+        by iIntros.
+        2: iSplitR; first by iIntros (? HFalse).
+        2: {
+          Opaque upcl.
+          iSimpl.
+          iSplit; last done.
+          iFrame "Htag".
+          iIntros "!>" (vs k' h') "Hcont HΨgen".
+          rewrite Nat.eqb_refl.
+          rewrite (upcl_tele' [tele _ _] [tele]).
+          simpl.
+          iDestruct "HΨgen" as "(%x & %xs' & -> & [%HPermitted_x_xs' Hfrag] & Hcont_spec)".
+          iSimpl.
+          instantiate (1 := λ v,
+            ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗
+              N.of_nat k ↦[wcont] Live _ h ∗
+              ⌜Permitted xs ∧ x = yx (length xs)⌝ ∗
+              frag_list γ xs ∗
+              ( frag_list γ (x :: xs) -∗
+                ∃ LI , ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ ∗
+              ▷ EWP LI
+                UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_,False }}
+              )
+            )%I
+          ).
+          iApply ewp_value.
+          done.
+          iFrame.
+          iFrame "%".
+          iSplitR; first done.
+          iIntros "Hfrag".
+          iDestruct ("Hcont_spec" with "Hfrag") as (LI') "[%HLI' Hcont_spec]".
+          iExists LI'.
+          iSplit; last done.
+          iPureIntro.
+          by (destruct (hfilled No_var (hholed_of_valid_hholed h') [] LI')).
+        }
+        by iIntros "(% & % & % & % & %Hcontra & _)".
+      }
+      by iIntros (?) "[(% & % & % & % & %Hcontra & _) _]".
+
+      simpl.
+      iIntros (??) "[(%k' & %h' & %x & %xs' & -> & Hcont & %HPermitted_x_xs' & Hfrag & Hcont_spec) ->]".
+      simpl.
+      iApply ewp_value; first done.
+      simpl.
+      iIntros (LI' HLI').
+      move /lfilledP in HLI'.
+      inversion HLI'; subst.
+      inversion H8; subst; simpl.
+
+      iApply ewp_br.
+      3: {
+        instantiate (1 := 0).
+        instantiate (1 := [AI_basic (BI_const (VAL_int32 x)); AI_ref_cont k']).
+        instantiate (1 := LH_base [] _).
+        unfold lfilled, lfill => //=.
+      }
+      1,2 : done.
+      simpl.
+      iApply ewp_value; first done.
+      simpl.
+      instantiate (1 := λ w f,
+        (∃ k' x xs' h', 
+          ⌜w = immV _⌝ ∗
+          ⌜f =  {|
+  f_locs :=
+    [ VAL_num (VAL_int32 upto); VAL_num (VAL_int32 v);
+      VAL_num (VAL_int32 $ Sum_until_i32 v);
+      VAL_ref (VAL_ref_cont k)];
+  f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
+|}⌝ ∗
+          ⌜Permitted (x :: xs')⌝ ∗
+          N.of_nat k'↦[wcont]Live (Tf [] []) h' ∗
+          frag_list γ xs' ∗
+          ( frag_list γ (x :: xs') -∗
+                ∃ LI', ⌜hfilled No_var (hholed_of_valid_hholed h') [] LI'⌝ ∗
+              ▷ EWP LI'
+                UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_,False }}
+          )
+        )%I
+      ).
+      simpl.
+      iFrame.
+      done.
+    }
+    by iIntros (?) "(% & % & % & % & %Hcontra & _)".
+    iIntros (??) "(%k' & %x & %xs' & %h' & -> & -> & %HPermitted_x_xs' & Hcont & Hfrag & Hcont_spec)".
+    simpl.
+    iPoseProof (own_auth_frag_agree with "Hauth Hfrag") as "<-".
+    iApply fupd_ewp.
+    iMod (auth_frag_update _ x _ _ with "Hauth Hfrag") as "[Hauth Hfrag]".
+    iModIntro.
+
+    (* Store continuation in $k *)
+    rewrite (separate3 (AI_basic (BI_const _))).
+    iApply ewp_seq; first done.
+    iSplitR; last iSplitR.
+
+    2: {
+      rewrite (separate1 (AI_basic (BI_const _))).
+      iApply ewp_val_app; first done.
+      iSplitR.
+      2: {
+        fold (AI_const (VAL_ref (VAL_ref_cont k'))).
+
+        instantiate (1 := λ v f, (⌜ v = immV [_] ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
+        iApply ewp_set_local; first lias.
+        done.
+      }
+      by iIntros "!>" (?) "[%Hcontra _]".
+    }
+    by iIntros (?) "[%Hcontra _]".
+    simpl.
+    iIntros (?? [-> ->]).
+    simpl.
+
+    (* Store generated value, 'x' in $v *)
+    rewrite (separate2 (AI_basic (BI_const _))).
+    iApply ewp_seq; first done.
+    iSplitR; last iSplitR.
+    2: {
+      fold (AI_const $ VAL_num $ VAL_int32 x).
+      iApply ewp_set_local; first lias.
+      auto_instantiate.
+    }
+    by iIntros (? [Hcontra _]).
+    iIntros (?? [-> ->]); simpl.
+
+    (* add %v to %sum *)
+    rewrite (separate4 (AI_basic (BI_get_local _))).
+    iApply ewp_seq; first done.
+    iSplitR; last iSplitR.
+    2: {
+      rewrite (separate1 (AI_basic (BI_get_local _))).
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitR.
+      2: {
+        iApply ewp_get_local.
+        done.
+        auto_instantiate.
+      }
+      by iIntros (? [Hcontra _]).
+      iIntros (?? [-> ->]); simpl.
+      rewrite (separate2 (AI_basic (BI_const _))).
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitR.
+      2: {
+        rewrite (separate1 (AI_basic (BI_const _))).
+        iApply ewp_val_app; first done.
+        iSplitR.
+        2: {
+          instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
+          iApply ewp_get_local.
+          done.
+          done.
+        }
+        by iIntros (? [Hcontra ?]).
+      }
+      by iIntros (? [Hcontra ?]).
+      iIntros (?? [-> ->]); simpl.
+      rewrite (separate3 (AI_basic (BI_const _))).
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitR.
+      2: {
+        iApply ewp_binop; first done.
+        auto_instantiate.
+      }
+      by iIntros (? [Hcontra _]).
+      iIntros (?? [-> ->]); simpl.
+      fold (AI_const $ VAL_num $ VAL_int32 (Wasm_int.Int32.iadd (Sum_until_i32 v) x)).
+      iApply ewp_set_local; first lias.
+      auto_instantiate.
+    }
+    by iIntros (? [Hcontra ?]).
+    iIntros (?? [-> ->]); simpl.
+
+    (* get $v and $upto on the stack *)
+    rewrite (separate2 (AI_basic (BI_get_local _))).
+    iApply ewp_seq; first done.
+    iSplitR; last iSplitR.
+    2: {
+      rewrite (separate1 (AI_basic (BI_get_local _))).
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitR.
+      2: {
+        iApply ewp_get_local.
+        done.
+        auto_instantiate.
+      }
+      by iIntros (? [Hcontra _]).
+      iIntros (?? [-> ->]); simpl.
+      
+      rewrite (separate1 (AI_basic (BI_const _))).
+      iApply ewp_val_app; first done.
+      iSplitR.
+      2: {
+        instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
+        iApply ewp_get_local.
+        done.
+        done.
+      }
+      by iIntros "!>" (? [Hcontra _]).
+    }
+    by iIntros (? [Hcontra _]).
+    iIntros (?? [-> ->]); simpl.
+
+    (* compare $v to $upto *)
+    rewrite (separate3 (AI_basic (BI_const _))).
+    iApply ewp_seq; first done.
+    iSplitR; last iSplitR.
+    2: {
+      iApply ewp_relop; first done.
+      auto_instantiate.
+    }
+    by iIntros (? [Hcontra _]).
+    iIntros (?? [-> ->]); simpl.
+    destruct HPermitted_x_xs' as [[HPermitted_xs Hv] Hx].
+    simpl in Hx.
+    destruct (Wasm_int.Int32.ltu x upto) eqn:Hltu; simpl.
+    - (* Case: x < upto *)
+      iApply ewp_br_if_true; first done.
+      iApply ewp_value; first done.
+      simpl.
+      iIntros (LI' HLI').
+      move /lfilledP in HLI'.
+      inversion HLI'; subst.
+      inversion H8; subst.
+      simpl.
+      iApply ewp_br.
+      3: {
+        instantiate (1 := 0).
+        instantiate (1 := []).
+        instantiate (1 := LH_base [] []).
+        unfold lfilled, lfill => //=.
+      }
+      done.
+      done.
+      simpl.
+      iDestruct ("Hcont_spec" with "Hfrag") as (LI') "[%Hfilled_h'_LI' HewpLI']".
+      iIntros "!> !>".
+      clear HLI' H7 H8 H1.
+      (*pose proof (Sum_until_i32_unfold (length xs)) as Hunfold.*)
+      (*replace (@length Wasm_int.Int32.T xs) with (@length (Equality.sort i32) xs); last done.*)
+      (*rewrite <- Hunfold.*)
+      iApply ("IH" with "[] [] [] [Hcont] [Hauth] [HewpLI']").
+      + done.
+      + iPureIntro. symmetry. apply Sum_until_i32_unfold.
+      + done.
+      + done.
+      + done.
+      + done.
+    - (* Case: upto <= x *)
+      iApply ewp_br_if_false; first done.
+      simpl.
+      iIntros (LI' HLI').
+      move /lfilledP in HLI'.
+      inversion HLI'; subst.
+      inversion H8; subst.
+      iApply ewp_label_value; first done.
+      iIntros "!> !>".
+      iClear (HLI' H7 H8 H1) "IH".
+      admit. (* todo *)
+
+      (*iExists (yx 0), (yx 0), k.*)
+      (*iSplitR; first done.*)
+      (*iSplitR; first done.*)
+      (*iPureIntro.*)
+      (*clear HLI H7 H8 H1.*)
+      (*unfold Sum_until_i32.*)
+      (*rewrite big_nat_recl //=.*)
+      (*rewrite big_geq; first done.*)
+      (*pose proof (Wasm_int.Int32.not_ltu n (yx 0)) as H.*)
+      (*rewrite Hltu in H.*)
+      (*simpl in H.*)
+      (*unfold "||" in H.*)
+      (*unfold Wasm_int.Int32.ltu in H.*)
+      (*destruct (Coqlib.zlt (Wasm_int.Int32.unsigned n) (Wasm_int.Int32.unsigned (yx 0))).*)
+      (*+ admit. (* TODO *)*)
+      (*+ symmetry in H.*)
+      (*  pose proof Wasm_int.Int32.same_if_eq n (yx 0) H as ->.*)
+      (*  apply ssrnat.leqnn.*)
+
   Admitted.
 
   Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (n : i32) :
