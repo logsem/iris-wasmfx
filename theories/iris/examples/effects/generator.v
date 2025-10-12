@@ -167,7 +167,11 @@ Section generator_spec.
   Qed.
 
   Lemma nat_Int32_add_congruent (a b : nat) : yx (a + b)%nat = Wasm_int.Int32.iadd (yx a) (yx b).
-  Proof. admit. Admitted.
+  Proof.
+    rewrite Nat2Z.inj_add.
+    apply Z_Int32_add_congruent.
+  Qed.
+
 
   Lemma Z_Int32_incr n : yx (S n) = Wasm_int.Int32.iadd (yx n) (Wasm_int.Int32.repr 1).
   Proof.
@@ -484,6 +488,29 @@ Section sum_until_spec.
     done.
   Qed.
 
+  Lemma ltu_no_overflow x :
+    (∃ y , Wasm_int.Int32.ltu x y) ->
+    Wasm_int.Int32.ltu x
+    (Wasm_int.Int32.iadd x Wasm_int.Int32.one).
+  Proof.
+    intros [y Hx_lt_y].
+    unfold Wasm_int.Int32.ltu, Coqlib.zlt.
+    destruct Z_lt_dec as [|H]; first done.
+    exfalso.
+    apply H; clear H.
+    unfold Wasm_int.Int32.iadd, Wasm_int.Int32.add.
+    simpl.
+    rewrite Wasm_int.Int32.Z_mod_modulus_eq.
+
+    unfold Wasm_int.Int32.ltu, Coqlib.zlt in Hx_lt_y.
+    destruct Z_lt_dec as [H|]; last done.
+    clear Hx_lt_y.
+    rewrite Z.mod_small; first lia.
+    pose proof Wasm_int.Int32.unsigned_range x as [Hx0 Hxmod].
+    pose proof Wasm_int.Int32.unsigned_range y as [_ Hymod].
+    lia.
+  Qed.
+
   Lemma zlt_succ_or_eq (x y : Z) :
     (x < y)%Z -> (x + 1 < y \/ x + 1 = y)%Z.
   Proof. lia. Qed.
@@ -535,50 +562,6 @@ Section sum_until_spec.
     fold_right Wasm_int.Int32.iadd Wasm_int.Int32.zero xs.
 
   Definition Sum_until_i32 (n : i32) := yx $ \sum_(0 <= i < S $ xy n) i.
-
-  Lemma Sum_until_fold (n : i32) :
-    ((Wasm_int.Int32.unsigned n + 1) < Wasm_int.Int32.modulus)%Z ->
-    Sum_until_i32 (Wasm_int.Int32.iadd n Wasm_int.Int32.one) =
-    Wasm_int.Int32.iadd (Wasm_int.Int32.iadd n Wasm_int.Int32.one) (Sum_until_i32 n).
-  Proof.
-    unfold Sum_until_i32 at 1.
-    unfold xy.
-    admit.
-  Admitted.
-
-  Lemma Sum_of_permitted xs n :
-    Permitted $ n :: xs ->
-    length (n :: xs) = S $ xy n ->
-    Sum_of_i32s $ n :: xs = Sum_until_i32 n.
-  Proof.
-    generalize dependent n.
-    induction xs as [| m xs IH].
-    - intros n [_ ->] _.
-      simpl.
-      unfold Sum_until_i32.
-      replace (xy (yx 0%nat)) with 0; last done.
-      rewrite big_nat_recl //=.
-      by rewrite big_geq.
-    - intros n [[Hpermitted Hm] Hn] Hlength.
-      replace (Sum_of_i32s [:: n, m & xs]) with (Wasm_int.Int32.iadd n (Sum_of_i32s $ m :: xs)); last done.
-      rewrite IH.
-      2: done.
-      2: { simpl.
-        inversion Hlength as [Hlen].
-        rewrite Hlen.
-        rewrite Hn.
-        simpl.
-        rewrite Hm.
-        rewrite Z_Int32_incr.
-        admit.
-        }
-      simpl in Hn.
-      rewrite Z_Int32_incr in Hn.
-      subst m n.
-      symmetry.
-      apply Sum_until_fold.
-      admit.
-  Admitted.
 
   Opaque Sum_of_i32s.
 
@@ -947,7 +930,10 @@ Section sum_until_spec.
         subst v.
         unfold Sum_until_i32 at 2.
         rewrite xy_no_overflow.
-        2: admit.
+        2: {
+          apply ltu_no_overflow.
+          by eexists.
+        }
         rewrite big_nat_recr //=.
         rewrite nat_Int32_add_congruent.
         f_equal.
@@ -1012,12 +998,7 @@ Section sum_until_spec.
       rewrite Z_Int32_incr.
       f_equal.
       by apply yx_xy_yx.
-      (*+ instantiate (1 := (v :: xs)). done.*)
-      (*+ done.*)
-      (*+ f_equal. rewrite Hx. simpl. Check (length xs).*)
-      (*+ unfold Wasm_int.Int32.iadd. by rewrite Wasm_int.Int32.add_commut.*)
-  (*Qed.*)
-      Admitted.
+  Qed.
 
   Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (upto : i32) :
     ⌜Wasm_int.Int32.ltu (yx 0) upto || Wasm_int.Int32.eq (yx 0) upto⌝ -∗
