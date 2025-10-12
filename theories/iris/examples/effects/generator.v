@@ -166,6 +166,9 @@ Section generator_spec.
     1,2: lias.
   Qed.
 
+  Lemma nat_Int32_add_congruent (a b : nat) : yx (a + b)%nat = Wasm_int.Int32.iadd (yx a) (yx b).
+  Proof. admit. Admitted.
+
   Lemma Z_Int32_incr n : yx (S n) = Wasm_int.Int32.iadd (yx n) (Wasm_int.Int32.repr 1).
   Proof.
     replace (Z.of_nat $ S n) with (Z.add n 1); last lia.
@@ -443,6 +446,44 @@ Section sum_until_spec.
     apply excl_auth_update.
   Qed.
 
+  Lemma xy_no_overflow x :
+    Wasm_int.Int32.ltu x (Wasm_int.Int32.iadd x (Wasm_int.Int32.one)) ->
+    xy (Wasm_int.Int32.iadd x (Wasm_int.Int32.one)) = S $ xy x.
+  Proof.
+    intros Hx_lt_x1.
+    unfold Wasm_int.Int32.iadd, Wasm_int.Int32.add.
+    unfold xy.
+    simpl.
+    rewrite Wasm_int.Int32.Z_mod_modulus_eq.
+    destruct (Wasm_int.Int32.unsigned_range x) as [H0_x Hx_m].
+    rewrite Z.mod_small.
+    - by rewrite Z2Nat.inj_succ.
+    - split.
+      + lia.
+      + unfold Wasm_int.Int32.ltu in Hx_lt_x1.
+        unfold Coqlib.zlt in Hx_lt_x1.
+        destruct (Z_lt_dec (Wasm_int.Int32.unsigned x) (_)) as [H|H] in Hx_lt_x1; last done.
+        unfold Wasm_int.Int32.iadd, Wasm_int.Int32.add in H.
+        simpl in H.
+        rewrite Wasm_int.Int32.Z_mod_modulus_eq in H.
+        pose proof Wasm_int.Int32.unsigned_range x as [Hx0 Hxmod].
+        destruct (Z_lt_ge_dec (Wasm_int.Int32.unsigned x + 1) Wasm_int.Int32.modulus) as [Hsmall | Hlarge].
+        * exact Hsmall.
+        * exfalso.
+          assert (Wasm_int.Int32.unsigned x + 1 = Wasm_int.Int32.modulus)%Z as Heq by lia.
+          rewrite Heq in H.
+          rewrite Z_mod_same_full in H.
+          lia.
+  Qed.
+
+  Lemma yx_xy_yx n :
+    yx n = yx $ xy $ yx n.
+  Proof.
+    unfold yx, xy.
+    rewrite Wasm_int.Int32.int_of_Z_nat_of_uint.
+    done.
+  Qed.
+
   Lemma zlt_succ_or_eq (x y : Z) :
     (x < y)%Z -> (x + 1 < y \/ x + 1 = y)%Z.
   Proof. lia. Qed.
@@ -496,6 +537,7 @@ Section sum_until_spec.
   Definition Sum_until_i32 (n : i32) := yx $ \sum_(0 <= i < S $ xy n) i.
 
   Lemma Sum_until_fold (n : i32) :
+    ((Wasm_int.Int32.unsigned n + 1) < Wasm_int.Int32.modulus)%Z ->
     Sum_until_i32 (Wasm_int.Int32.iadd n Wasm_int.Int32.one) =
     Wasm_int.Int32.iadd (Wasm_int.Int32.iadd n Wasm_int.Int32.one) (Sum_until_i32 n).
   Proof.
@@ -506,31 +548,43 @@ Section sum_until_spec.
 
   Lemma Sum_of_permitted xs n :
     Permitted $ n :: xs ->
+    length (n :: xs) = S $ xy n ->
     Sum_of_i32s $ n :: xs = Sum_until_i32 n.
   Proof.
     generalize dependent n.
     induction xs as [| m xs IH].
-    - intros n [_ ->].
+    - intros n [_ ->] _.
       simpl.
       unfold Sum_until_i32.
       replace (xy (yx 0%nat)) with 0; last done.
       rewrite big_nat_recl //=.
       by rewrite big_geq.
-    - intros n [[Hpermitted Hm] Hn].
+    - intros n [[Hpermitted Hm] Hn] Hlength.
       replace (Sum_of_i32s [:: n, m & xs]) with (Wasm_int.Int32.iadd n (Sum_of_i32s $ m :: xs)); last done.
-      rewrite IH; last done.
+      rewrite IH.
+      2: done.
+      2: { simpl.
+        inversion Hlength as [Hlen].
+        rewrite Hlen.
+        rewrite Hn.
+        simpl.
+        rewrite Hm.
+        rewrite Z_Int32_incr.
+        admit.
+        }
       simpl in Hn.
       rewrite Z_Int32_incr in Hn.
       subst m n.
       symmetry.
       apply Sum_until_fold.
-  Qed.
+      admit.
+  Admitted.
 
   Opaque Sum_of_i32s.
 
   Lemma sum_until_loop_invariant γ addr_naturals addr_sum_until addr_tag xs k h LI (upto v sum: i32) :
     ⌜Wasm_int.Int32.ltu v upto⌝ -∗
-    ⌜sum = Sum_of_i32s $ v :: xs⌝ -∗
+    ⌜sum = Sum_until_i32 v⌝ -∗
     ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     N.of_nat k↦[wcont]Live (Tf [] []) h -∗
@@ -552,7 +606,7 @@ Section sum_until_spec.
                   VAL_ref (VAL_ref_cont k)];
               f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
             |}
-      {{ w ; f, ∃ v' sum' k' xs',
+      {{ w ; f, ∃ v' sum' k',
         ⌜w = immV []⌝ ∗
         ⌜f =  {|
                 f_locs :=
@@ -561,8 +615,7 @@ Section sum_until_spec.
                     VAL_ref (VAL_ref_cont k')];
                 f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
               |}⌝ ∗
-        ⌜Permitted (upto :: xs')⌝ ∗
-        ⌜sum' = Sum_of_i32s (upto :: xs')⌝
+        ⌜sum' = Sum_until_i32 upto⌝
       }}.
   Proof.
     iIntros "Hv_lt_upto Hsum HLI #Htag Hcont Hauth Hcont_spec".
@@ -704,12 +757,12 @@ Section sum_until_spec.
         (∃ k' x xs' h', 
           ⌜w = immV _⌝ ∗
           ⌜f =  {|
-  f_locs :=
-    [ VAL_num (VAL_int32 upto); VAL_num (VAL_int32 v);
-      VAL_num (VAL_int32 $ Sum_of_i32s $ v :: xs);
-      VAL_ref (VAL_ref_cont k)];
-  f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
-|}⌝ ∗
+                  f_locs :=
+                    [ VAL_num (VAL_int32 upto); VAL_num (VAL_int32 v);
+                      VAL_num (VAL_int32 $ Sum_until_i32 v);
+                      VAL_ref (VAL_ref_cont k)];
+                  f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
+                |}⌝ ∗
           ⌜Permitted (x :: xs')⌝ ∗
           N.of_nat k'↦[wcont]Live (Tf [] []) h' ∗
           frag_list γ xs' ∗
@@ -722,6 +775,7 @@ Section sum_until_spec.
       ).
       simpl.
       iFrame.
+      iFrame "%".
       done.
     }
     by iIntros (?) "(% & % & % & % & %Hcontra & _)".
@@ -809,8 +863,8 @@ Section sum_until_spec.
       by iIntros (? [Hcontra _]).
       iIntros (?? [-> ->]); simpl.
       assert (AI_basic
-      (BI_const (VAL_int32 (Wasm_int.Int32.iadd (Sum_of_i32s (v :: xs)) x))) =
-      AI_const $ VAL_num $ VAL_int32 (Wasm_int.Int32.iadd (Sum_of_i32s (v :: xs)) x)
+      (BI_const (VAL_int32 (Wasm_int.Int32.iadd (Sum_until_i32 v) x))) =
+      AI_const $ VAL_num $ VAL_int32 (Wasm_int.Int32.iadd (Sum_until_i32 v) x)
       ) as H; first done.
       rewrite H.
       iApply ewp_set_local; first lias.
@@ -886,9 +940,25 @@ Section sum_until_spec.
       iApply ("IH" with "[] [] [] [Hcont] [Hauth] [HewpLI']").
       + done.
       + iPureIntro.
-        instantiate (1 := (v :: xs)).
-        unfold Wasm_int.Int32.iadd.
-        by rewrite Wasm_int.Int32.add_commut.
+        destruct HPermitted_x_xs' as [[_ Hv] Hx].
+        simpl in Hx.
+        rewrite Z_Int32_incr in Hx.
+        subst x.
+        subst v.
+        unfold Sum_until_i32 at 2.
+        rewrite xy_no_overflow.
+        2: admit.
+        rewrite big_nat_recr //=.
+        rewrite nat_Int32_add_congruent.
+        f_equal.
+        rewrite Z_Int32_incr.
+        f_equal.
+        by apply yx_xy_yx.
+
+        
+        (*instantiate (1 := (v :: xs)).*)
+        (*unfold Wasm_int.Int32.iadd.*)
+        (*by rewrite Wasm_int.Int32.add_commut.*)
       + done.
       + done.
       + done.
@@ -931,12 +1001,23 @@ Section sum_until_spec.
           by destruct (Wasm_int.Int32.ltu (Wasm_int.Int32.iadd v (Wasm_int.Int32.repr 1)) upto).
       }
       repeat eexists.
-      instantiate (1 := (v :: xs)).
-      done.
-      done.
-      unfold Wasm_int.Int32.iadd.
-      by rewrite Wasm_int.Int32.add_commut.
-  Qed.
+      unfold Sum_until_i32 at 2.
+      simpl in Hx. rewrite Z_Int32_incr in Hx.
+      subst x.
+      subst v.
+      rewrite xy_no_overflow; last done.
+      rewrite big_nat_recr //=.
+      rewrite nat_Int32_add_congruent.
+      f_equal.
+      rewrite Z_Int32_incr.
+      f_equal.
+      by apply yx_xy_yx.
+      (*+ instantiate (1 := (v :: xs)). done.*)
+      (*+ done.*)
+      (*+ f_equal. rewrite Hx. simpl. Check (length xs).*)
+      (*+ unfold Wasm_int.Int32.iadd. by rewrite Wasm_int.Int32.add_commut.*)
+  (*Qed.*)
+      Admitted.
 
   Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (upto : i32) :
     ⌜Wasm_int.Int32.ltu (yx 0) upto || Wasm_int.Int32.eq (yx 0) upto⌝ -∗
@@ -1323,7 +1404,10 @@ Section sum_until_spec.
           iDestruct ("Hcont_spec" with "Hfrag") as (LI) "[%Hfilled_h_LI HewpLI]".
           iIntros "!> !>".
           iApply (sum_until_loop_invariant with "[] [] [] [] [Hcont] [Hauth] [-]"); try done.
-          done.
+          iPureIntro. 
+          unfold Sum_until_i32.
+          repeat rewrite big_nat_recl //=.
+          by rewrite big_geq.
         - (* Case: upto = 0 *)
           iApply ewp_br_if_false; first done.
           simpl.
@@ -1333,7 +1417,7 @@ Section sum_until_spec.
           inversion H8; subst.
           iApply ewp_label_value; first done.
           iIntros "!> !>".
-          iExists (yx 0), (yx 0), k, [].
+          iExists (yx 0), (yx 0), k.
           iSplitR; first done.
           iSplitR; first done.
           iPureIntro.
@@ -1341,11 +1425,13 @@ Section sum_until_spec.
           rewrite Hltu in H0_leq_upto.
           simpl in H0_leq_upto.
           apply Wasm_int.Int32.same_if_eq in H0_leq_upto as <-. 
-          done.
+          unfold Sum_until_i32.
+          repeat rewrite big_nat_recl //=.
+          by rewrite big_geq.
       }
-      by iIntros (?) "(% & % & % & % & %Hcontra & _)".
+      by iIntros (?) "(% & % & % & %Hcontra & _)".
 
-      iIntros (??) "(% & % & % & % & -> & -> & %HPermitted_upto_xs' & ->)"; simpl.
+      iIntros (??) "(% & % & % & -> & -> & ->)"; simpl.
       iApply ewp_get_local; first done.
       simpl.
       iIntros (LI HLI).
@@ -1355,19 +1441,13 @@ Section sum_until_spec.
       simpl.
       iApply ewp_label_value; first done.
       simpl.
-      instantiate (1 := λ v f , (∃ xs, ⌜Permitted $ upto :: xs⌝ ∗ ⌜v = immV _⌝)%I).
-      iExists xs'.
+      instantiate (1 := λ v f , (⌜v = immV _⌝)%I).
       done.
     }
-    by iIntros (?) "(% & _ & %Hcontra)".
-    iIntros (??) "(% & %HPermitted_upto_xs & ->)".
+    by iIntros (? Hcontra).
+    iIntros (?? ->).
     simpl.
-    iApply ewp_frame_value; try done.
-    iPureIntro.
-    split; first done.
-    simpl.
-    repeat f_equal.
-    by apply Sum_of_permitted.
+    by iApply ewp_frame_value.
   Qed.
 
   Lemma sum_until_100 addr_naturals addr_sum_until addr_tag f :
