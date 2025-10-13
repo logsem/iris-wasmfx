@@ -467,10 +467,7 @@ Section generator_spec.
     iIntros "HI_empty Hwf_naturals #Htag".
 
     rewrite <- (app_nil_l [AI_invoke _]).
-    iApply (ewp_invoke_native with "Hwf_naturals").
-    done.
-    done.
-    done.
+    iApply (ewp_invoke_native with "Hwf_naturals"); try done.
     iIntros "!> _".
     simpl.
 
@@ -556,12 +553,7 @@ Section sum_until_spec.
       sum_until_locs
       sum_until.
 
-  Definition Sum_of_i32s (xs : list i32) :=
-    fold_right Wasm_int.Int32.iadd Wasm_int.Int32.zero xs.
-
   Definition Sum_until_i32 (n : i32) := yx $ \sum_(0 <= i < S $ xy n) i.
-
-  Opaque Sum_of_i32s.
 
   Lemma sum_until_loop_invariant γ addr_naturals addr_sum_until addr_tag xs k h LI (upto v sum: i32) :
     ⌜Wasm_int.Int32.ltu v upto⌝ -∗
@@ -737,13 +729,7 @@ Section sum_until_spec.
       instantiate (1 := λ w f,
         (∃ k' x xs' h', 
           ⌜w = immV _⌝ ∗
-          ⌜f =  {|
-                  f_locs :=
-                    [ VAL_num (VAL_int32 upto); VAL_num (VAL_int32 v);
-                      VAL_num (VAL_int32 $ Sum_until_i32 v);
-                      VAL_ref (VAL_ref_cont k)];
-                  f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
-                |}⌝ ∗
+          ⌜f = Build_frame _ _⌝ ∗
           ⌜Permitted (x :: xs')⌝ ∗
           N.of_nat k'↦[wcont]Live (Tf [] []) h' ∗
           frag_list γ xs' ∗
@@ -826,9 +812,7 @@ Section sum_until_spec.
         iSplitR.
         2: {
           instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
-          iApply ewp_get_local.
-          done.
-          done.
+          by iApply ewp_get_local.
         }
         by iIntros (? [Hcontra ?]).
       }
@@ -875,9 +859,7 @@ Section sum_until_spec.
       iSplitR.
       2: {
         instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
-        iApply ewp_get_local.
-        done.
-        done.
+        by iApply ewp_get_local.
       }
       by iIntros "!>" (? [Hcontra _]).
     }
@@ -938,11 +920,6 @@ Section sum_until_spec.
         rewrite Z_Int32_incr.
         f_equal.
         by apply yx_xy_yx.
-
-        
-        (*instantiate (1 := (v :: xs)).*)
-        (*unfold Wasm_int.Int32.iadd.*)
-        (*by rewrite Wasm_int.Int32.add_commut.*)
       + done.
       + done.
       + done.
@@ -959,42 +936,28 @@ Section sum_until_spec.
       iClear (HLI' H7 H8 H1) "IH".
       iPureIntro.
       destruct HPermitted_x_xs' as [[HPermitted_xs Hv] Hx].
+      simpl in Hx.
+      rewrite Z_Int32_incr in Hx.
+      replace (@length (Equality.sort i32) xs) with (@length Wasm_int.Int32.T xs) in Hv; last done.
+      rewrite <- Hv in Hx.
       assert (x = upto) as <-. {
         apply Wasm_int.Int32.same_if_eq.
-        simpl in Hx.
-        rewrite Z_Int32_incr in Hx.
-        replace (@length (Equality.sort i32) xs) with (@length Wasm_int.Int32.T xs) in Hv; last done.
-        rewrite <- Hv in Hx.
         clear Hv h' HLI HPermitted_xs k'.
-        pose proof (Wasm_int.Int32.not_ltu upto x) as Hleq.
-        rewrite Hltu in Hleq.
-        simpl in Hleq.
-        unfold "||" in Hleq.
-        destruct (Wasm_int.Int32.ltu upto x) eqn:H.
-        2: { rewrite Hleq. apply Wasm_int.Int32.eq_sym. }
-        exfalso.
-        clear Hleq Hltu.
-        pose proof (Wasm_int.Int32.ltu_not x upto) as Hleq.
-        rewrite H in Hleq; simpl in Hleq.
-        subst x.
-        clear H.
-        apply int32_lt_incr in Hv_lt_upto as [Hv1_lt_upto | Hv1_eq_upto].
-        - by rewrite Hv1_lt_upto in Hleq.
-        - rewrite Hv1_eq_upto in Hleq.
-          simpl in Hleq.
-          by destruct (Wasm_int.Int32.ltu (Wasm_int.Int32.iadd v (Wasm_int.Int32.repr 1)) upto).
+        replace (Wasm_int.Int32.iadd v (Wasm_int.Int32.repr 1)) with (Wasm_int.Int32.iadd v Wasm_int.Int32.one) in Hx; last done.
+        apply int32_lt_incr in Hv_lt_upto as [Hv1_lt_upto | Hv1_eq_upto]; rewrite <- Hx in *.
+        - by rewrite Hv1_lt_upto in Hltu.
+        - done.
       }
       repeat eexists.
       unfold Sum_until_i32 at 2.
-      simpl in Hx. rewrite Z_Int32_incr in Hx.
       subst x.
-      subst v.
       rewrite xy_incr_no_overflow; last done.
       rewrite big_nat_recr //=.
       rewrite nat_Int32_add_congruent.
       f_equal.
       rewrite Z_Int32_incr.
       f_equal.
+      rewrite Hv.
       by apply yx_xy_yx.
   Qed.
 
@@ -1180,9 +1143,9 @@ Section sum_until_spec.
           }
           by iIntros (?) "[(% & % & % & % & %Hcontra & _) _]".
 
-          simpl.
           iIntros (??) "[(%k & %h & %x & %xs & -> & Hcont & HPermitted_xs_x & Hfrag & Hcont_spec) ->]".
           simpl.
+
           iApply ewp_value; first done.
           simpl.
           iIntros (LI HLI).
@@ -1204,13 +1167,7 @@ Section sum_until_spec.
           instantiate (1 := λ v f,
             (∃ k x xs h, 
               ⌜v = immV _⌝ ∗
-              ⌜f =  {|
-                      f_locs :=
-                        [VAL_num (VAL_int32 upto); VAL_num (VAL_int32 Wasm_int.Int32.zero);
-                        VAL_num (VAL_int32 Wasm_int.Int32.zero);
-                        VAL_ref (VAL_ref_cont kaddr)];
-                      f_inst := sum_until_inst addr_naturals addr_sum_until addr_tag
-                    |}⌝ ∗
+              ⌜f = Build_frame _ _⌝ ∗
               ⌜Permitted (x :: xs)⌝ ∗
               N.of_nat k↦[wcont]Live (Tf [] []) h ∗
               frag_list γ xs ∗
@@ -1252,7 +1209,7 @@ Section sum_until_spec.
           by iIntros "!>" (?) "[%Hcontra _]".
         }
         by iIntros (?) "[%Hcontra _]".
-        simpl.
+
         iIntros (?? [-> ->]).
         simpl.
 
@@ -1292,9 +1249,7 @@ Section sum_until_spec.
             iSplitR.
             2: {
               instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
-              iApply ewp_get_local.
-              done.
-              done.
+              by iApply ewp_get_local.
             }
             by iIntros (? [Hcontra ?]).
           }
@@ -1337,9 +1292,7 @@ Section sum_until_spec.
           iSplitR.
           2: {
             instantiate (1 := λ v f, (⌜v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
-            iApply ewp_get_local.
-            done.
-            done.
+            by iApply ewp_get_local.
           }
           by iIntros "!>" (? [Hcontra _]).
         }
@@ -1384,7 +1337,7 @@ Section sum_until_spec.
           iApply (sum_until_loop_invariant with "[] [] [] [] [Hcont] [Hauth] [-]"); try done.
           iPureIntro. 
           unfold Sum_until_i32.
-          repeat rewrite big_nat_recl //=.
+          rewrite big_nat_recl //=.
           by rewrite big_geq.
         - (* Case: upto = 0 *)
           iApply ewp_br_if_false; first done.
@@ -1401,10 +1354,10 @@ Section sum_until_spec.
           iPureIntro.
           clear HLI H7 H8 H1.
           apply int32_ltu_zero in Hltu.
-          rewrite Hltu.
+          subst upto.
           unfold yx; simpl.
           unfold Sum_until_i32.
-          repeat rewrite big_nat_recl //=.
+          rewrite big_nat_recl //=.
           by rewrite big_geq.
       }
       by iIntros (?) "(% & % & % & %Hcontra & _)".
