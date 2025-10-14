@@ -1237,7 +1237,7 @@ Proof.
   (* Imported resources in Wasm and typing information *)
 
   simpl.
-  Check import_resources_wasm_lookup.
+
   iDestruct (import_resources_wasm_lookup with "Hwf Hwtag Hwt Hwm Hwg Htsize Htlimit Hmsize Hmlimit Himpwasm") as "%Himpwasm".
   destruct Himpwasm as [Hvtlen Himpwasm].
 

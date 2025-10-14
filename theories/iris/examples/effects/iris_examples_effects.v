@@ -17,7 +17,6 @@ Unset Printing Implicit Defensive.
 Section Example1.
   Context `{!wasmG Σ}.
 
-  Print empty_context.
 
 
   Definition aux_type := Tf [] [].
