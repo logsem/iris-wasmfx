@@ -307,7 +307,7 @@ Section Example1.
                iApply spec_aux.
                iFrame. done.
 
-            (* Resume instruction presime 2: what happens if the computation terminates *)
+            (* Resume instruction premise 2: what happens if the computation terminates *)
             ++ iIntros (w) "%" => //.
 
             (* Resume instruction premise 3: clause triples, i.e. what happens if an effect is triggered *)
