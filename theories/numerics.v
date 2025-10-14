@@ -2,7 +2,7 @@
 (* (C) M. Bodin, J. Pichon - see LICENSE.txt *)
 
 Require Import common.
-From Coq Require Import ZArith.Int ZArith.BinInt.
+From Stdlib Require Import ZArith.Int ZArith.BinInt.
 From compcert Require Integers Floats.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 
@@ -1485,7 +1485,7 @@ Definition ZofB_param (divP divN : Z -> Z -> Z) (z : T) :=
   [div_near] rounds to the nearest, ties to even. **)
 Definition div_down : Z -> Z -> Z := Z.div. 
 Definition div_up (a b : Z) : Z :=
-  ((if Zbool.Zeq_bool (a mod b) 0 then 0 else 1) + a / b)%Z.
+  ((if Z.eqb (a mod b) 0 then 0 else 1) + a / b)%Z.
 Definition div_near (a b : Z) : Z :=
   (if a mod b <? b / 2 then div_down a b
    else if a mod b >? b / 2 then div_up a b

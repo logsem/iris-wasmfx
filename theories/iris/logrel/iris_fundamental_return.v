@@ -1,3 +1,5 @@
+(* TODO: Update iris-wasm logrel to iris-wasmfx *)
+(*
 From mathcomp Require Import ssreflect eqtype seq ssrbool.
 From iris.program_logic Require Import language.
 From iris.proofmode Require Import base tactics classes.
@@ -74,3 +76,4 @@ Section fundamental.
   Qed.
 
 End fundamental.
+*)

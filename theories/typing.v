@@ -1,6 +1,6 @@
 (** Wasm typing rules **)
 (* (C) J. Pichon, M. Bodin - see LICENSE.txt *)
-From Coq Require Import NArith.
+From Stdlib Require Import NArith.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 From Wasm Require Import operations.
 

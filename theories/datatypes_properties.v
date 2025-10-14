@@ -4,9 +4,9 @@
 Require Import bytes common.
 Require Export datatypes.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype seq.
-From Coq Require Import Arith.PeanoNat.
+From Stdlib Require Import Arith.PeanoNat.
 
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

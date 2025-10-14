@@ -1,3 +1,7 @@
+
+(* TODO: Update iris-wasm logrel to iris-wasmfx *)
+(*
+
 From mathcomp Require Import ssreflect ssrbool eqtype seq.
 From iris.program_logic Require Import language.
 From iris.proofmode Require Import base tactics classes.
@@ -635,3 +639,4 @@ Section logrel_host.
     end.
 
 End logrel_host.
+*)

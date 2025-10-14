@@ -35,26 +35,27 @@ Section Examples.
 
 End Examples.
 
+
 (* Tactics *)
 Ltac take_drop_app_rewrite n :=
   match goal with
   | |- context [ EWP ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _  }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   | |- context [ EWP ?e UNDER _ @ _ <| _ |> {{ _  }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ CTX _; _ <| _ |>  {{ _ ; _ , _  }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   end.
 
 Ltac take_drop_app_rewrite_twice n m :=
   take_drop_app_rewrite n;
   match goal with
   | |- context [ EWP _ ++ ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop (length e - m) e);simpl take; simpl drop
   | |- context [ EWP _ ++ ?e UNDER _ @ _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop (length e - m) e);simpl take; simpl drop
   end.
 
 Ltac auto_instantiate :=

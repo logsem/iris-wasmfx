@@ -5,10 +5,10 @@
 From Wasm Require Import datatypes datatypes_properties typing.
 From compcert Require Import Integers.
 From parseque Require Import Parseque.
-From Coq.Strings Require Import Byte.
+From Stdlib.Strings Require Import Byte.
 From Wasm Require Import leb128.
-Require Import PeanoNat.
-Require Import BinNat.
+From Stdlib Require Import PeanoNat.
+From Stdlib Require Import BinNat.
 
 Notation "p $> b" := (cmap b p) (at level 59, right associativity).
 

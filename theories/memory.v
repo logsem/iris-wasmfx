@@ -1,7 +1,7 @@
 (** a typeclass for a Wasm memory *)
 (* (C) J. Pichon - see LICENSE.txt *)
 
-Require Import BinNat.
+From Stdlib Require Import BinNat.
 Require Import bytes.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype.
 

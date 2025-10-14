@@ -2,7 +2,7 @@
 (* (C) J. Pichon - see LICENSE.txt *)
 
 From mathcomp Require Import ssreflect ssrbool eqtype seq.
-Require Import BinNat Lia.
+From Stdlib Require Import BinNat Lia.
 From Wasm Require Import numerics bytes memory.
 
 Record memory_list : Type := {

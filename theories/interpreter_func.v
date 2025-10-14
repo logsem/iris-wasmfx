@@ -2,8 +2,8 @@
 (* (C) J. Pichon, M. Bodin - see LICENSE.txt *)
 
 From Wasm Require Import common.
-From Coq Require Import ZArith.BinInt.
-Require Import BinNat.
+From Stdlib Require Import ZArith.BinInt.
+From Stdlib Require Import BinNat.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 From Wasm Require Export operations (* host *) type_checker.
 

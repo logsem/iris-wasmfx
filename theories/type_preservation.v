@@ -1,7 +1,7 @@
 (** Proof of preservation **)
 
 From Wasm Require Export common.
-From Coq Require Import Program.Equality NArith ZArith_base.
+From Stdlib Require Import Program.Equality NArith ZArith.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 
 From Wasm Require Export operations datatypes_properties typing opsem properties stdpp_aux.
@@ -10,7 +10,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 Set Bullet Behavior "Strict Subproofs".
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 Ltac fold_const0 :=
   match goal with

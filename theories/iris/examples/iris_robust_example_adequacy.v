@@ -1,8 +1,10 @@
+(* TODO: Update iris-wasm examples to iris-wasmfx *)
+(*
 From iris.algebra Require Import auth agree excl gmap frac.
 From iris.proofmode Require Import tactics.
 From iris.base_logic Require Import invariants.
 From iris.program_logic Require Import adequacy.
-Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 Require Import iris_robust_example.
 From Wasm.iris.host Require Import iris_host.
 
@@ -133,3 +135,4 @@ Proof.
       ]).
   eapply (@ex_adequacy Σ); typeclasses eauto.
 Qed.
+*)

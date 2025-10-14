@@ -2,7 +2,7 @@
 (* (C) J. Pichon, M. Bodin - see LICENSE.txt *)
 
 From Wasm Require Import common memory_list.
-From Coq Require Import BinNat Eqdep_dec.
+From Stdlib Require Import BinNat Eqdep_dec.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 From compcert Require Floats.
 From Wasm Require Export datatypes_properties list_extra.

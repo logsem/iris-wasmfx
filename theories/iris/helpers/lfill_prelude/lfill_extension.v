@@ -1,5 +1,5 @@
 From mathcomp Require Import ssreflect ssrbool eqtype seq.
-From Coq Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 From stdpp Require Import base list.
 From Wasm Require Export common operations opsem properties list_extra.
 

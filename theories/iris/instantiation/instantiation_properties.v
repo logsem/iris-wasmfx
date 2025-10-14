@@ -1,4 +1,4 @@
-Require Import Coq.Program.Equality.
+Require Import Stdlib.Program.Equality.
 
 From mathcomp Require Import ssreflect eqtype seq ssrbool .
 From Wasm Require Export datatypes operations properties opsem instantiation.

@@ -35,103 +35,103 @@ Definition ewp_wasm_ctx_frame `{!wasmG Σ}
 
 (* Context wps for blocks *)
  Notation "'EWP' e 'UNDER' f @ E 'CTX' i ; lh <| Ψ |> {{ Φ } }" := (ewp_wasm_ctx E e%E f Ψ Φ i lh)
-  (at level 20, e, f, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
+  (at level 20, e, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f @ E 'CTX' i ; lh {{ Φ } }" := (ewp_wasm_ctx E e%E f ( λ _, iProt_bottom ) Φ i lh)
-  (at level 20, e, f, Φ, lh at level 200, only parsing) : bi_scope.
+  (at level 20, e, Φ, lh at level 200, only parsing) : bi_scope.
  Notation "'EWP' e 'UNDER' f 'CTX' i ; lh <| Ψ |> {{ Φ } }" := (ewp_wasm_ctx ⊤ e%E f Ψ Φ i lh)
-  (at level 20, e, f, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
+  (at level 20, e, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f 'CTX' i ; lh {{ Φ } }" := (ewp_wasm_ctx ⊤ e%E f ( λ _, iProt_bottom ) Φ i lh)
-                                              (at level 20, e, f, Φ, lh at level 200, only parsing) : bi_scope.
+                                              (at level 20, e, Φ, lh at level 200, only parsing) : bi_scope.
 
 (* Empty context *)
  Notation "'EWP' e 'UNDER' f @ E 'CTX_EMPTY' <| Ψ |> {{ Φ } }" := (ewp_wasm_ctx E e%E f Ψ Φ 0 (LH_base [] []))
-                                                         (at level 20, e, f, Ψ, Φ at level 200, only parsing) : bi_scope. 
+                                                         (at level 20, e, Ψ, Φ at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f @ E 'CTX_EMPTY' {{ Φ } }" := (ewp_wasm_ctx E e%E f (λ _, iProt_bottom) Φ 0 (LH_base [] []))
-                                                 (at level 20, e, f, Φ at level 200, only parsing) : bi_scope.
+                                                 (at level 20, e, Φ at level 200, only parsing) : bi_scope.
  Notation "'EWP' e 'UNDER' f 'CTX_EMPTY' <| Ψ |> {{ Φ } }" := (ewp_wasm_ctx ⊤ e%E f Ψ Φ 0 (LH_base [] []))
-                                                     (at level 20, e, f, Ψ, Φ at level 200, only parsing) : bi_scope. 
+                                                     (at level 20, e, Ψ, Φ at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f 'CTX_EMPTY' {{ Φ } }" := (ewp_wasm_ctx ⊤ e%E f (λ _, iProt_bottom) Φ 0 (LH_base [] []))
-                                                 (at level 20, e, f, Φ at level 200, only parsing) : bi_scope.
+                                                 (at level 20, e, Φ at level 200, only parsing) : bi_scope.
 
 (* With explicit v *)
 
  Notation "'EWP' e 'UNDER' f @ E 'CTX' i ; lh <| Ψ |> {{ v ; h , Φ } }" := (ewp_wasm_ctx E e%E f Ψ (λ v h, Φ) i lh)
-  (at level 20, e, f, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
+  (at level 20, e, v, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f @ E 'CTX' i ; lh {{ v ; h , Φ } }" := (ewp_wasm_ctx E e%E f (λ _, iProt_bottom) (λ v h, Φ) i lh)
-  (at level 20, e, f, Φ, lh at level 200, only parsing) : bi_scope.
+  (at level 20, e, v, Φ, lh at level 200, only parsing) : bi_scope.
  Notation "'EWP' e 'UNDER' f 'CTX' i ; lh <| Ψ |> {{ v ; h , Φ } }" := (ewp_wasm_ctx ⊤ e%E f Ψ (λ v h, Φ) i lh)
-  (at level 20, e, f, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
+  (at level 20, e, v, Ψ, Φ, lh at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f 'CTX' i ; lh {{ v ; h , Φ } }" := (ewp_wasm_ctx ⊤ e%E f (λ _, iProt_bottom) (λ v h, Φ) i lh)
-                                              (at level 20, e, f, Φ, lh at level 200, only parsing) : bi_scope.
+                                              (at level 20, e, v, Φ, lh at level 200, only parsing) : bi_scope.
  Notation "'EWP' e 'UNDER' f @ E 'CTX_EMPTY' <| Ψ |> {{ v ; h , Φ } }" := (ewp_wasm_ctx E e%E f Ψ (λ v h, Φ) 0 (LH_base [] []))
-                                                         (at level 20, e, f, Ψ, Φ at level 200, only parsing) : bi_scope. 
+                                                         (at level 20, e, v, Ψ, Φ at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f @ E 'CTX_EMPTY' {{ v ; h , Φ } }" := (ewp_wasm_ctx E e%E f (λ _, iProt_bottom) (λ v, Φ) 0 (LH_base [] []))
-                                                 (at level 20, e, f, Φ at level 200, only parsing) : bi_scope.
+                                                 (at level 20, e, v, Φ at level 200, only parsing) : bi_scope.
  Notation "'EWP' e 'UNDER' f 'CTX_EMPTY' <| Ψ |> {{ v ; h , Φ } }" := (ewp_wasm_ctx ⊤ e%E f Ψ (λ v h, Φ) 0 (LH_base [] []))
-                                                     (at level 20, e, f, Ψ, Φ at level 200, only parsing) : bi_scope. 
+                                                     (at level 20, e, v, Ψ, Φ at level 200, only parsing) : bi_scope. 
 Notation "'EWP' e 'UNDER' f 'CTX_EMPTY' {{ v ; h , Φ } }" := (ewp_wasm_ctx ⊤ e%E f (λ _, iProt_bottom) (λ v h, Φ) 0 (LH_base [] []))
-                                                 (at level 20, e, f, Φ at level 200, only parsing) : bi_scope.
+                                                 (at level 20, e, v, Φ at level 200, only parsing) : bi_scope.
 
 
 (* Frame wps for Local *)
 
  Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f <| Ψ |> {{ Φ } }" := (ewp_wasm_frame E e%E g Ψ Φ n f)
-  (at level 20, e, g, Ψ, Φ, n, f at level 200, only parsing) : bi_scope. 
+  (at level 20, e, Ψ, Φ, n, f at level 200, only parsing) : bi_scope. 
 
  Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f <| Ψ |> {{ v ; h , Q } }" := (ewp_wasm_frame E e%E g Ψ (λ v h, Q) n f)
-  (at level 20, e, g, Ψ, Q, n, f at level 200,
+  (at level 20, e, v, Ψ, Q, n, f at level 200,
     format "'[hv' 'EWP'  e  '/' 'UNDER'  g  @  '[' '/' E  ']' 'FRAME'  '/' '[' n ;  '/' f ']'  '/' <| '[' Ψ ']' |>  '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope. 
 
  Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f 'CTX' i ; lh <| Ψ |> {{ v ; h , Q } }" := (ewp_wasm_ctx_frame E e%E g Ψ (λ v h, Q) n f i lh)
-  (at level 20, e, g, Q, lh at level 200,
+  (at level 20, e, v, n, f, Q, lh at level 200,
    format "'[hv' 'EWP'  e  '/' 'UNDER'  g  @  '[' '/' E  ']' 'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX'  '/' '[' i ;  '/' lh ']'  '/' <| '[' Ψ ']' |> '/' {{  '[' v ; h ,  '/' Q  ']'   } } ']'") : bi_scope. 
- Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f 'CTX_EMPTY' <| Ψ |> {{ v ; h , Q  } }" := (ewp_wasm_ctx_frame E e%E g Ψ (λ v h, Q) n f 0 (LH_base [] []))
-  (at level 20, e, g, Q at level 200,
+ Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f 'CTX_EMPTY' <| Ψ |> {{ v ; h , Q } }" := (ewp_wasm_ctx_frame E e%E g Ψ (λ v h, Q) n f 0 (LH_base [] []))
+  (at level 20, e, n, f, Q at level 200,
     format "'[hv' 'EWP'  e  '/' 'UNDER'  g  @  '[' '/' E  ']' 'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX_EMPTY'  '/' <| '[' Ψ ']' |> '/' {{  '[' v ; h ,  '/' Q  ']' } } ']'") : bi_scope. 
 
 (* no Ψ *)
 Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f {{ Φ } }" := (ewp_wasm_frame E e%E g (λ _, iProt_bottom) Φ n f)
-  (at level 20, e, g, Φ, n, f at level 200, only parsing) : bi_scope.
+  (at level 20, e, Φ, n, f at level 200, only parsing) : bi_scope.
 
 Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f {{ v ; h , Q } }" := (ewp_wasm_frame E e%E g (λ _, iProt_bottom) (λ v h, Q) n f)
-  (at level 20, e, g, Q, n, f at level 200,
+  (at level 20, e, v, Q, n, f at level 200,
     format "'[hv' 'EWP'  e  '/' 'UNDER'  g  @  '[' '/' E  ']' 'FRAME'  '/' '[' n ;  '/' f ']'  '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope.
 
 Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f 'CTX' i ; lh {{ v ; h , Q } }" := (ewp_wasm_ctx_frame E e%E g (λ _, iProt_bottom) (λ v h, Q) n f i lh)
-  (at level 20, e, g, Q, lh at level 200,
+  (at level 20, e, n, f, Q, lh at level 200,
    format "'[hv' 'EWP'  e  '/' 'UNDER'  g  @  '[' '/' E  ']' 'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX'  '/' '[' i ;  '/' lh ']'  '/' {{  '[' v ; h ,  '/' Q  ']'   } } ']'") : bi_scope.
 Notation "'EWP' e 'UNDER' g @ E 'FRAME' n ; f 'CTX_EMPTY' {{ v ; h , Q } }" := (ewp_wasm_ctx_frame E e%E g (λ _, iProt_bottom) (λ v h, Q) n f 0 (LH_base [] []))
-  (at level 20, e, g, Q at level 200,
+  (at level 20, e, n, f, Q at level 200,
     format "'[hv' 'EWP'  e  '/' 'UNDER'  g  @  '[' '/' E  ']' 'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX_EMPTY'  '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope.
 
 (* no @E *)
  Notation "'EWP' e 'UNDER' g 'FRAME' n ; f <| Ψ |> {{ Φ } }" := (ewp_wasm_frame ⊤ e%E g Ψ Φ n f)
-  (at level 20, e, g, Ψ, Φ, n, f at level 200, only parsing) : bi_scope.
+  (at level 20, e, Ψ, Φ, n, f at level 200, only parsing) : bi_scope.
 
 Notation "'EWP' e 'UNDER' g 'FRAME' n ; f <| Ψ |> {{ v ; h , Q } }" := (ewp_wasm_frame ⊤ e%E g Ψ (λ v h, Q) n f)
-  (at level 20, e, g, Ψ, Q, n, f at level 200,
+  (at level 20, e, v, Ψ, Q, n, f at level 200,
     format "'[hv' 'EWP'  e  '/' 'UNDER'  g  'FRAME'  '/' '[' n ;  '/' f ']'  '/' <| '[' Ψ ']' |>  '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope.
 
 Notation "'EWP' e 'UNDER' g 'FRAME' n ; f 'CTX' i ; lh <| Ψ |> {{ v ; h , Q } }" := (ewp_wasm_ctx_frame ⊤ e%E g Ψ (λ v h, Q) n f i lh)
-  (at level 20, e, g, Q, lh at level 200,
+  (at level 20, e, n,f, Q, lh at level 200,
    format "'[hv' 'EWP'  e  '/' 'UNDER'  g  'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX'  '/' '[' i ;  '/' lh ']'  '/' <| '[' Ψ ']' |> '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope.
 Notation "'EWP' e 'UNDER' g 'FRAME' n ; f 'CTX_EMPTY' <| Ψ |> {{ v ; h , Q } }" := (ewp_wasm_ctx_frame ⊤ e%E g Ψ (λ v h, Q) n f 0 (LH_base [] []))
-  (at level 20, e, g, Q at level 200,
+  (at level 20, e, n, f, Q at level 200,
     format "'[hv' 'EWP'  e  '/' 'UNDER'  g  'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX_EMPTY'  '/' <| '[' Ψ ']' |> '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope. 
 
 (* no Ψ, no @E *)
 Notation "'EWP' e 'UNDER' g 'FRAME' n ; f {{ Φ } }" := (ewp_wasm_frame ⊤ e%E g (λ _, iProt_bottom) Φ n f)
-  (at level 20, e, f, Φ, n, g at level 200, only parsing) : bi_scope.
+  (at level 20, e, f, Φ, n at level 200, only parsing) : bi_scope.
 
 Notation "'EWP' e 'UNDER' g 'FRAME' n ; f {{ v ; h , Q } }" := (ewp_wasm_frame ⊤ e%E g (λ _, iProt_bottom) (λ v h, Q) n f)
-  (at level 20, e, g, Q, n, f at level 200,
+  (at level 20, e, v, Q, n, f at level 200,
     format "'[hv' 'EWP'  e  '/' 'UNDER'  g  'FRAME'  '/' '[' n ;  '/' f ']'  '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope.
 
 Notation "'EWP' e 'UNDER' g 'FRAME' n ; f 'CTX' i ; lh {{ v ; h , Q } }" := (ewp_wasm_ctx_frame ⊤ e%E g (λ _, iProt_bottom) (λ v h, Q) n f i lh)
-  (at level 20, e, g, Q, lh at level 200,
+  (at level 20, e, n, f, Q, lh at level 200,
    format "'[hv' 'EWP'  e  '/' 'UNDER'  g  'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX'  '/' '[' i ;  '/' lh ']'  '/' {{  '[' v ; h ,  '/' Q  ']'   } } ']'") : bi_scope.
 Notation "'EWP' e 'UNDER' g 'FRAME' n ; f 'CTX_EMPTY' {{ v ; h , Q } }" := (ewp_wasm_ctx_frame ⊤ e%E g (λ _, iProt_bottom) (λ v h, Q) n f 0 (LH_base [] []))
-  (at level 20, e, g, Q at level 200,
+  (at level 20, e, n, f, Q at level 200,
    format "'[hv' 'EWP'  e  '/' 'UNDER'  g  'FRAME'  '/' '[' n ;  '/' f ']'  '/' 'CTX_EMPTY'  '/' {{  '[' v ; h ,  '/' Q  ']'  } } ']'") : bi_scope.
 
 

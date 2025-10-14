@@ -3,7 +3,7 @@
 
 Set Implicit Arguments.
 
-From Coq Require Import List.
+From Stdlib Require Import List.
 
 
 (* Section extra_ssreflect.

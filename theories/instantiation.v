@@ -1,7 +1,7 @@
 (* Instantiation *)
 (* see https://webassembly.github.io/spec/core/exec/modules.html#exec-instantiation *)
 
-From Coq Require Import BinNat.
+From Stdlib Require Import BinNat.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
 From Wasm Require Import list_extra datatypes datatypes_properties operations
                          typing opsem memory memory_list.

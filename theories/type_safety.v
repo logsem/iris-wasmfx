@@ -1,5 +1,5 @@
 (** Proof of type safety by progress and preservation **)
-From Coq Require Import Program.Equality NArith.
+From Stdlib Require Import Program.Equality NArith.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 
 From Wasm Require Export operations typing datatypes_properties typing opsem properties type_preservation type_progress.

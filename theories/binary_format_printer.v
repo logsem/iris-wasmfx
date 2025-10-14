@@ -2,9 +2,9 @@
 Breaks non-determinism ties; see binary_format_spec.v for the spec. *)
 Require Import datatypes_properties numerics.
 From compcert Require Integers.
-From Coq.Strings Require Import Byte.
+From Stdlib.Strings Require Import Byte.
 Require leb128.
-Require Import PeanoNat.
+From Stdlib Require Import PeanoNat.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 
 Definition binary_of_number_type (t : number_type) : byte :=

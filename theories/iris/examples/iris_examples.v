@@ -1,3 +1,6 @@
+(* TODO: update iris-wasm examples to iris-wasmfx *)
+(*
+
 From mathcomp Require Import ssreflect eqtype seq ssrbool.
 From iris.program_logic Require Import language.
 From iris.proofmode Require Import base tactics classes.
@@ -19,7 +22,7 @@ Section Examples.
 
 Context `{!wasmG Σ}.
 
-Definition my_add : iris.expr :=
+Definition my_add :=
   [AI_basic (BI_const (xx 3));
      AI_basic (BI_const (xx 2));
   AI_basic (BI_binop T_i32 (Binop_i BOI_add))].
@@ -376,3 +379,4 @@ Qed.
 
 End Examples.
 
+*)

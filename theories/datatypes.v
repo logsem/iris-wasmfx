@@ -2,7 +2,7 @@
     See https://webassembly.github.io/spec/core/syntax/index.html
     and https://webassembly.github.io/spec/core/exec/index.html **)
 
-Require Import BinNat.
+From Stdlib Require Import BinNat.
 From Wasm Require array.
 From Wasm Require Import common memory memory_list.
 From Wasm Require Export numerics bytes.
@@ -12,7 +12,7 @@ From compcert Require common.Memdata.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-Unset Automatic Proposition Inductives. 
+(* Unset Automatic Proposition Inductives.  *)
 
 (** * Basic Datatypes **)
 

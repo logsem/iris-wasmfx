@@ -11,7 +11,7 @@ Unset Printing Implicit Defensive.
 
 Lemma build_llfill_local n f llh es e l1 l2 :
   llfill llh e = es ->
-  llfill (LL_local l1 n f llh l2) e = (v_to_e_list l1) ++ [AI_frame n f es] ++ l2.
+  llfill (LL_frame l1 n f llh l2) e = (v_to_e_list l1) ++ [AI_frame n f es] ++ l2.
 Proof.
   simpl. intros ->. auto.
 Qed.
@@ -262,20 +262,20 @@ Tactic Notation "bind_seq_base_callhost" constr(e) "with" constr(h) :=
 Ltac take_drop_app_rewrite n :=
   match goal with
   | |- context [ EWP ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   | |- context [ EWP ?e UNDER _ @ _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ CTX _; _  <| _ |> {{ _ ; _ , _ }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   | |- context [ EWP ?e UNDER _ @ _ FRAME _; _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop n e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop n e);simpl take; simpl drop
   end.
   
 Ltac take_drop_app_rewrite_twice n m :=
   take_drop_app_rewrite n;
   match goal with
   | |- context [ EWP _ ++ ?e UNDER _ @ _ CTX _; _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop (length e - m) e);simpl take; simpl drop
   | |- context [ EWP _ ++ ?e UNDER _ @ _ <| _ |> {{ _ }} %I ] =>
-      rewrite -(list.take_drop (length e - m) e);simpl take; simpl drop
+      rewrite -(list_basics.take_drop (length e - m) e);simpl take; simpl drop
   end.

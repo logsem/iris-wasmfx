@@ -1,11 +1,11 @@
 (** Tests for the binary parser. **)
-From Coq.Strings Require Import Byte.
+From Stdlib.Strings Require Import Byte.
 From parseque Require Import Parseque.
 From Wasm Require Import binary_format_parser binary_format_printer bytes_pp
                          datatypes_properties check_toks pp.
 
 Open Scope string_scope.
-Import Coq.Strings.String.StringSyntax.
+Import Stdlib.Strings.String.StringSyntax.
 Open Scope list_scope.
 
 Lemma test_unreachable : check_toks (x00 :: nil) parse_be = Running.Singleton BI_unreachable.

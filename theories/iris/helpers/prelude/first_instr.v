@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect eqtype seq ssrbool.
 From stdpp Require Import base list.
 Require Import iris_wasm_lang_properties.
-Require Import Coq.Program.Equality.
+Require Import Stdlib.Program.Equality.
 
 Set Bullet Behavior "Strict Subproofs".
 

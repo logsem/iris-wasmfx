@@ -1,6 +1,6 @@
 
 (** ANSI escape sequences -- work in progress *)
-Require Import Coq.Strings.String.
+Require Import Stdlib.Strings.String.
 Open Scope string_scope.
 
 Definition ansi_escape_char : Ascii.ascii := Ascii.ascii_of_byte Byte.x1b.

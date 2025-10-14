@@ -1,6 +1,6 @@
 From mathcomp Require Import ssreflect ssrbool eqtype seq.
 From iris.program_logic Require Import language.
-From Coq Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 From Wasm.iris.helpers Require Export lfill_prelude.
 
 Set Implicit Arguments.

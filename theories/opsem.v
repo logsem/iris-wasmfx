@@ -1,7 +1,7 @@
 (** Wasm operational semantics **)
 (** The interpreter in the [interpreter] module is an executable version of this operational semantics. **)
 
-From Coq Require Import ZArith.BinInt.
+From Stdlib Require Import ZArith.BinInt.
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 Require Export operations (* host *).
 

@@ -2,10 +2,10 @@
 
 From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool eqtype seq.
 
-From Coq Require Import Program.
+From Stdlib Require Import Program.
 (* From StrongInduction Require Import StrongInduction Inductions. *)
 
-Require Import Lia.
+From Stdlib Require Import Lia.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

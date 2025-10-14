@@ -4,7 +4,7 @@ From iris.proofmode Require Import base tactics classes.
 From iris.base_logic Require Export gen_heap ghost_map proph_map.
 From iris.base_logic.lib Require Export fancy_updates.
 Require Export iris_rules_structural.
-Require Import Coq.Program.Equality.
+Require Import Stdlib.Program.Equality.
 
 
 Set Bullet Behavior "Strict Subproofs".

@@ -106,14 +106,17 @@ Proof.
         f_equiv.
         apply HΨ1.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
-        apply IH; try lia; eapply dist_le; eauto with lia. 
+        apply IH.
+        done.
+        all: eapply dist_le; eauto with lia.
+        all: by apply SIdx.lt_le_incl. 
     + do 3 f_equiv. 
       * f_equiv. apply IProt_ne. f_equiv. apply HΨ1.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv). 
-        apply IH; try lia; eapply dist_le; eauto with lia.
+        apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
     + f_equiv. f_equiv. f_equiv. f_equiv. apply IProt_ne. f_equiv. apply HΨ1.  
   - do 5 f_equiv. do 10 (f_contractive || f_equiv).
-    apply IH; try lia; eapply dist_le; eauto with lia. 
+    apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
 Qed.
 
 Global Instance ewp_proper `{!wasmG Σ} E e:
@@ -127,11 +130,11 @@ Qed.
 (* -------------------------------------------------------------------------- *)
 (** Notation. *)
 
-Notation "'EWP' e 'UNDER'  f @ E {{ Φ } }" :=
+Notation "'EWP' e 'UNDER' f @ E {{ Φ } }" :=
   (ewp_def E (e, f)%E (λ _, iProt_bottom) (λ '(v, h), Φ v h))
   (at level 20, e, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  @  E  {{  Φ  } } ']' ']'") : bi_scope.
-Notation "'EWP' e 'UNDER'  f @ E <| Ψ |>  {{ Φ } }" :=
+Notation "'EWP' e 'UNDER' f @ E <| Ψ |> {{ Φ } }" :=
   (ewp_def E (e, f)%E Ψ (λ '(v, h), Φ v h))
   (at level 20, e, Ψ, Φ at level 200,
     format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  @  E  <|  Ψ  |>  {{  Φ  } } ']' ']'") : bi_scope. 
@@ -139,35 +142,35 @@ Notation "'EWP' e 'UNDER'  f @ E <| Ψ |>  {{ Φ } }" :=
 
 (* Postcondition includes binder. *)
 
-Notation "'EWP' e 'UNDER'  f @ E {{ v ; h , Φ } }" :=
+Notation "'EWP' e 'UNDER' f @ E {{ v ; h , Φ } }" :=
   (ewp_def E (e, f)%E ( λ _, iProt_bottom ) (λ '(v,h), Φ))
-  (at level 20, e, Φ at level 200,
+  (at level 20, e, v, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  @  E  {{  v  ; h  , Φ  } } ']' ']'") : bi_scope.
- Notation "'EWP' e 'UNDER'  f @ E <| Ψ |>  {{ v ; h , Φ } }" :=
+ Notation "'EWP' e 'UNDER' f @ E <| Ψ |> {{ v ; h , Φ } }" :=
   (ewp_def E (e, f)%E Ψ (λ '(v, h), Φ))
-  (at level 20, e, Ψ, Φ at level 200,
+  (at level 20, e, v, Ψ, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  @  E  <| Ψ |>  {{  v ; h , Φ   } } ']' ']'") : bi_scope. 
 
 (* Mask is implicitly specified by ⊤. *)
 
-Notation "'EWP' e 'UNDER'  f {{ v ; h , Φ } }" :=
+Notation "'EWP' e 'UNDER' f {{ v ; h , Φ } }" :=
   (ewp_def ⊤ (e, f)%E ( λ _, iProt_bottom ) (λ '(v, h), Φ))
   (at level 20, e, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  {{ v ; h , Φ   } } ']' ']'") : bi_scope.
- Notation "'EWP' e 'UNDER'  f <| Ψ |>  {{ v ; h , Φ } }" :=
+ Notation "'EWP' e 'UNDER' f <| Ψ |> {{ v ; h , Φ } }" :=
   (ewp_def ⊤ (e, f)%E Ψ (λ '(v, h), Φ))
   (at level 20, e, Ψ, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          '  'UNDER'  f  <|  Ψ  |>  {{  v ; h , Φ  } } ']' ']'") : bi_scope. 
 
 (* No binder and no mask. *)
 
-Notation "'EWP' e 'UNDER'  f {{ Φ } }" :=
+Notation "'EWP' e 'UNDER' f {{ Φ } }" :=
   (ewp_def ⊤ (e, f)%E ( λ _, iProt_bottom ) (λ '(v, h), Φ v h))
-  (at level 20, e, Φ at level 200,
+  (at level 20, e at level 200,
    format "'[' 'EWP'  e  '/' '[          '  'UNDER'  f  {{  Φ  } } ']' ']'") : bi_scope.
- Notation "'EWP' e 'UNDER'  f <| Ψ |>  {{ Φ } }" :=
+ Notation "'EWP' e 'UNDER' f <| Ψ |> {{ Φ } }" :=
   (ewp_def ⊤ (e, f)%E Ψ (λ '(v, h), Φ v h))
-  (at level 20, e, Ψ, Φ at level 200,
+  (at level 20, e, Ψ at level 200,
    format "'[' 'EWP'  e  '/' '[          '  'UNDER'  f  <|  Ψ  |>  {{  Φ } } ']' ']'") : bi_scope. 
 
 (* Tests *)

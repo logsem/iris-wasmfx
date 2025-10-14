@@ -1,9 +1,9 @@
 From mathcomp Require Import ssreflect ssrbool eqtype seq.
-From Coq Require Import Eqdep_dec.
+From Stdlib Require Import Eqdep_dec.
 From stdpp Require Import base list.
 From Wasm Require Export common operations opsem properties list_extra stdpp_aux.
 Require Export lfill_extension.
-Require Import Coq.Program.Equality.
+Require Import Stdlib.Program.Equality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

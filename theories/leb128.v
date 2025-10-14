@@ -2,8 +2,8 @@
 (* https://en.wikipedia.org/wiki/LEB128 *)
 (* TODO: size bound *)
 Require Import Numbers.BinNums.
-Require Import NArith.BinNat.
-Require Import Coq.Init.Byte.
+From Stdlib Require Import NArith.BinNat.
+Require Import Stdlib.Init.Byte.
 From parseque Require Import Parseque.
 
 (** expects 7 bits, with MSB at head *)
@@ -78,14 +78,14 @@ Section Language.
   Definition byte_parser A n := Parser Toks byte M A n.
 
   Definition byte_as_N {n} : byte_parser N n :=
-    Coq.Strings.Byte.to_N <$> anyTok.
+    Stdlib.Strings.Byte.to_N <$> anyTok.
 
   (* parse a final byte *)
   Definition parse_unsigned_end {n} : byte_parser N n :=
     guardM
       (fun b =>
         let '(_, (_, (_, (_, (_, (_, (_, msb))))))) := Byte.to_bits b in
-        if msb then None else Some (Coq.Strings.Byte.to_N b))
+        if msb then None else Some (Stdlib.Strings.Byte.to_N b))
       anyTok.
 
   (* parse a non-final byte *)
@@ -93,7 +93,7 @@ Section Language.
     guardM
       (fun b =>
        let '(b1, (b2, (b3, (b4, (b5, (b6, (b7, msb))))))) := Byte.to_bits b in
-       if msb then Some (Coq.Strings.Byte.to_N (make_msb_zero b))
+       if msb then Some (Stdlib.Strings.Byte.to_N (make_msb_zero b))
        else None)
       anyTok.
 
@@ -129,8 +129,8 @@ guardM
   (fun b =>
     let '(_, (_, (_, (_, (_, (_, (b7, b8))))))) := Byte.to_bits b in
     if b8 then None
-    else if b7 then  Some (sub_2_7 (Coq.Strings.Byte.to_N b))
-    else Some (ZArith.BinInt.Z_of_N (Coq.Strings.Byte.to_N b)))
+    else if b7 then  Some (sub_2_7 (Stdlib.Strings.Byte.to_N b))
+    else Some (ZArith.BinInt.Z_of_N (Stdlib.Strings.Byte.to_N b)))
   anyTok.
 
 (* parse a final byte *)
@@ -138,7 +138,7 @@ Definition parse_signed_ctd {n} : byte_parser Z n :=
   guardM
     (fun b =>
       let '(_, (_, (_, (_, (_, (_, (_, msb))))))) := Byte.to_bits b in
-      if msb then Some (sub_2_7 (Coq.Strings.Byte.to_N b))
+      if msb then Some (sub_2_7 (Stdlib.Strings.Byte.to_N b))
       else None)
     anyTok.
 

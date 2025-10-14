@@ -1,7 +1,7 @@
 (* TODO: more tests *)
 Require Import leb128.
-Require Import Coq.Init.Byte.
-Require Import NArith.BinNat.
+Require Import Stdlib.Init.Byte.
+From Stdlib Require Import NArith.BinNat.
 From parseque Require Import Running Induction.
 Require Import check_toks.
 
