@@ -223,7 +223,7 @@ Theorem ewp_strong_adequacy Σ `{!invGpreS Σ} es f σ1 n es2 f2 σ2 φ:
          can conclude [φ] in the logic. After opening all required invariants,
          one can use [fupd_mask_subseteq] to introduce the fancy update. *)
          |={⊤,∅}=> ⌜ φ ⌝)) →
-  nsteps reduce_tuple n (σ1, f, es) (σ2, f2, es2) →
+  nsteps reduce_tuple n (σ1, f, es) (σ2, f2, es2) → 
   (* Then we can conclude [φ] at the meta-level. *)
   φ.
 Proof.

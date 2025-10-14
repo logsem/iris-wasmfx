@@ -1764,8 +1764,10 @@ Section reasoning_rules.
      destruct h => //=.
      all: intros Hvs Hfill.
      all: move/hfilledP in Hfill; inversion Hfill; subst.
-     apply const_es_exists in Hvs as [? ->].
-     left. repeat eexists.
+     { rewrite catA. apply const_es_exists in Hvs as [? ->].
+       rewrite v_to_e_cat. left. repeat eexists. }
+(*     apply const_es_exists in Hvs as [? ->].
+     left. repeat eexists. *)
      right; right; left. eauto.
    Qed.
 
@@ -1795,7 +1797,7 @@ Section reasoning_rules.
      exact H0.
    Qed.
 
-      Lemma of_to_valid_hholed h h':
+   Lemma of_to_valid_hholed h h':
      valid_hholed_of_hholed h = Some h' -> hholed_of_valid_hholed h' = h.
    Proof.
      destruct h => //=.
@@ -1805,7 +1807,6 @@ Section reasoning_rules.
          simpl.
          apply v_to_e_e_to_v in Hl as ->.
          done. }
-     destruct l => //.
      destruct l0 => //.
      destruct a => //.
      destruct l0 => //.
@@ -1813,7 +1814,9 @@ Section reasoning_rules.
      destruct b => //.
      destruct t => //.
      destruct l0 => //.
+     destruct (e_to_v_list_opt l) eqn:Hl => //.
      intros H; inversion H; subst.
+     apply v_to_e_e_to_v in Hl as <-. 
      simpl. done.
    Qed.
 
@@ -1821,7 +1824,7 @@ Section reasoning_rules.
      valid_hholed_of_hholed (hholed_of_valid_hholed h) = Some h.
    Proof.
      destruct h => //=.
-     rewrite e_to_v_v_to_e => //.
+     all: rewrite e_to_v_v_to_e => //.
    Qed.
 
    Lemma of_to_continuation_resource h:
@@ -3281,7 +3284,7 @@ Section reasoning_rules.
   
   Lemma ewp_contnew addr i E Ψ ft f:
     stypes (f_inst f) i = Some ft ->
-     ⊢ EWP [AI_ref addr; AI_basic $ BI_contnew i] UNDER f @ E <| Ψ |> {{ w ; f' , ∃ kaddr, ⌜ w = immV [VAL_ref $ VAL_ref_cont kaddr] ⌝ ∗ ⌜ f' = f ⌝ ∗ N.of_nat kaddr ↦[wcont] Live ft (Initial addr ft) }}.
+     ⊢ EWP [AI_ref addr; AI_basic $ BI_contnew i] UNDER f @ E <| Ψ |> {{ w ; f' , ∃ kaddr, ⌜ w = immV [VAL_ref $ VAL_ref_cont kaddr] ⌝ ∗ ⌜ f' = f ⌝ ∗ N.of_nat kaddr ↦[wcont] Live ft (Initial [::] addr ft) }}.
   Proof.
     iIntros (Hi).
     iApply ewp_lift_atomic_step => //=.

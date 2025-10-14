@@ -29,15 +29,20 @@ Canonical Structure wasm_lang := Language wasm_mixin.
 Local Definition reducible := @reducible wasm_lang.
 
 Inductive valid_hholed : Type :=
-| Initial : immediate -> function_type -> valid_hholed
-| Running : list value (* always empty in practice but tricky to enforce syntactically *) -> nat -> frame -> hholed -> valid_hholed
+| Initial : list value -> immediate -> function_type -> valid_hholed
+| Running : list value -> nat -> frame -> hholed -> valid_hholed
 .
 
-
+Definition vhh_plug vs vhh :=
+  match vhh with
+  | Initial vs0 i tf => Initial (vs ++ vs0) i tf
+  | Running vs0 n f hh => Running vs0 n f (hhplug (v_to_e_list vs) hh)
+  end. 
+ 
 
 Definition hholed_of_valid_hholed hr :=
   match hr with 
-  | Initial x tf => HH_base [::] [:: AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))]
+  | Initial vs x tf => HH_base (v_to_e_list vs) [:: AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))]
   | Running vs n f hh => HH_local (v_to_e_list vs) n f hh [::]
   end
 .
@@ -47,9 +52,13 @@ Definition hholed_of_valid_hholed hr :=
 
 Definition valid_hholed_of_hholed hh :=
   match hh with
-  | HH_base [::]
+  | HH_base es
       [:: AI_ref x; AI_basic (BI_call_reference (Type_explicit tf))] =>
-      Some (Initial x tf)
+      match e_to_v_list_opt es with
+      | Some vs => 
+          Some (Initial vs x tf)
+      | None => None
+      end
   | HH_local es n f hh [::] =>
       match e_to_v_list_opt es with
       | Some vs => Some (Running vs n f hh)
