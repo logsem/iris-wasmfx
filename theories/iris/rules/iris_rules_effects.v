@@ -1820,11 +1820,20 @@ Section reasoning_rules.
      simpl. done.
    Qed.
 
-      Lemma to_of_valid_hholed h:
+   Lemma to_of_valid_hholed h:
      valid_hholed_of_hholed (hholed_of_valid_hholed h) = Some h.
    Proof.
      destruct h => //=.
      all: rewrite e_to_v_v_to_e => //.
+   Qed.
+
+
+   Lemma hhplug_vhh_plug vs vhh:
+    hhplug (v_to_e_list vs) (hholed_of_valid_hholed vhh) =
+    hholed_of_valid_hholed $ vhh_plug vs vhh.
+   Proof.
+     destruct vhh => //=.
+     by rewrite v_to_e_cat.
    Qed.
 
    Lemma of_to_continuation_resource h:
@@ -3181,19 +3190,19 @@ Section reasoning_rules.
      length conts = length l.
    Proof.
      apply length_those.
-   Qed. 
-     
+   Qed.
+ 
 
-   
+ 
   Lemma ewp_resume vs addr i ccs dccs LI E Ψ Ψ' Φ Φ' t1s t2s h f:
-       is_true (const_list vs) ->
+    is_true (const_list vs) ->
     stypes f.(f_inst) i = Some (Tf t1s t2s) ->
     length vs = length t1s ->
     map (desugar_continuation_clause (f_inst f)) ccs = map Some dccs ->
     agree_on_uncaptured dccs Ψ Ψ' ->
     is_true (hfilled No_var (hholed_of_valid_hholed h) vs LI) ->
 
-    
+ 
     (N.of_nat addr ↦[wcont] Live (Tf t1s t2s) h ∗
        (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ 
        (* clause_resources dccs ∗ *)
@@ -3226,8 +3235,9 @@ Section reasoning_rules.
            ) as Hred2.
     { eapply r_resume => //.
       destruct (const_list vs) => //.
-      exact Hlook'. 
-      destruct (hfilled No_var _ vs LI) => //. } 
+      exact Hlook'.
+      exact HLI.
+    }
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.
@@ -3236,7 +3246,7 @@ Section reasoning_rules.
       exact Hred2.
 
     - iApply fupd_mask_intro; first solve_ndisj.
-      iIntros "Hclose !>" (es σ2 ? HStep). 
+      iIntros "Hclose !>" (es σ2 ? HStep).
       destruct HStep as (H & _).
       edestruct reduce_det.
       exact H. exact Hred2.
@@ -3245,12 +3255,10 @@ Section reasoning_rules.
       2:{ destruct H0.
           destruct H0 as (? & Habs).
           (* rewrite -cat_app in Habs. *)
-          rewrite first_instr_const in Habs.
-          done.
-          destruct (const_list vs) => //.
+          by rewrite first_instr_const in Habs.
           destruct H0 as (? & ? & ? & Habs & _).
           rewrite (* -cat_app *) first_instr_const in Habs => //.
-      } 
+      }
       iMod (gen_heap_update with "Hconts Hcont") as "[Hconts Hcont]".
       iMod "Hclose". iModIntro.
       iFrame.
@@ -3258,7 +3266,7 @@ Section reasoning_rules.
       2: exact Hconts.
       2: done.
       2:{ apply nth_error_Some.
-          by rewrite Hlook'. } 
+          by rewrite Hlook'. }
       iSplitL "Hconts".
       { unfold update_list_at. simpl.
         unfold replace_nth_cont.
@@ -3275,7 +3283,7 @@ Section reasoning_rules.
         all: done. }
       destruct f. iApply ewp_prompt.
       exact HΨ.
-      eapply hfilled_continuation_expression; eauto. 
+      eapply hfilled_continuation_expression; eauto.
       iFrame.
   Qed.
 
@@ -3294,7 +3302,7 @@ Section reasoning_rules.
     { repeat split => //=.
       apply r_contnew.
       exact Hi. done. }
-    destruct (resources_of_s_cont _) eqn:Hconts => //. 
+    destruct (resources_of_s_cont _) eqn:Hconts => //.
     iMod (gen_heap_alloc with "Hconts") as "(Hconts & Hcont & Htok)"; last first.
     iModIntro.
     iSplit.
@@ -3321,11 +3329,99 @@ Section reasoning_rules.
       rewrite Nat2N.id.
       apply lookup_ge_None_2.
       lia.
-  Qed. 
-      
-    
-      
-    
+  Qed.
+
+  Lemma ewp_contbind f kaddr vhh i i' vs ves ts t1s t2s :
+    stypes (f_inst f) i = Some (Tf (ts ++ t1s) t2s) ->
+    stypes (f_inst f) i' = Some (Tf t1s t2s) ->
+    length ves = length ts ->
+    ves = v_to_e_list vs ->
+
+    N.of_nat kaddr ↦[wcont] Live (Tf (ts ++ t1s) t2s) vhh
+    ⊢ EWP ves ++ [AI_ref_cont kaddr; AI_basic $ BI_contbind i i'] UNDER f
+      {{ v; f', ∃ kaddr',
+        ⌜ v = immV [VAL_ref $ VAL_ref_cont kaddr'] ⌝ ∗
+        ⌜ f' = f ⌝ ∗
+        N.of_nat kaddr' ↦[wcont] Live (Tf t1s t2s) (vhh_plug vs vhh)
+      }}.
+  Proof.
+    iIntros (Htype_bef Htype_aft Hlength Hves) "Hcont_old".
+    iApply ewp_lift_atomic_step => //.
+    { rewrite to_val_cat_None2 => //. rewrite Hves. apply v_to_e_is_const_list. }
+    { rewrite to_eff_cat_None2 => //. rewrite Hves. apply v_to_e_is_const_list. }
+    iIntros (σ) "Hσ".
+    iApply fupd_frame_l.
+    iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Htables & Hmems & Hglobals & Hframe & Hrest)".
+    destruct (resources_of_s_cont (s_conts σ)) eqn:Hconts => //.
+    iDestruct (gen_heap_valid with "Hconts Hcont_old") as "%Hlook".
+    rewrite gmap_of_list_lookup Nat2N.id in Hlook.
+    rewrite - nth_error_lookup in Hlook.
+    eapply resources_of_s_cont_lookup in Hlook as Hlook'; last exact Hconts.
+    eassert (prim_step (ves ++ [AI_ref_cont kaddr; AI_basic (BI_contbind i i')],_) _ [] (_,_) _ []) as HStep.
+    { repeat split => //=.
+      apply r_contbind.
+      rewrite Hves. apply v_to_e_is_const_list.
+      exact Htype_bef.
+      exact Htype_aft.
+      done.
+      exact Hlook'.
+    }
+    iSplit.
+    { iPureIntro. repeat eexists. exact HStep. }
+
+    iApply fupd_mask_intro; first solve_ndisj.
+    iIntros "Hclose !>" (es σ2 ? HStep').
+
+    destruct HStep as [Hred _].
+    destruct HStep' as [Hred' _].
+    edestruct reduce_det as [Hf H].
+    exact Hred. exact Hred'.
+    subst.
+
+    destruct H as [[<- <-] | H].
+    2 : {
+      rewrite first_instr_const in H; last apply v_to_e_is_const_list.
+      by destruct H as [(? & Hcontra) | (? & ? & ? & Hcontra & _)].
+    }
+    iFrame.
+
+    assert (kaddr < length l) as Hkaddr_l_length.
+    { apply nth_error_Some. by rewrite Hlook. }
+    apply resources_of_s_cont_length in Hconts as Hl_length.
+
+    iMod (gen_heap_update with "Hconts Hcont_old") as "[Hconts Hcont_old_dead]".
+    iMod (gen_heap_alloc with "Hconts") as "(Hconts & Hcont_new & Htok)"; last first.
+    iModIntro.
+    iFrame "Hcont_new".
+    iSplit; last done.
+    erewrite resources_of_s_cont_new.
+    2: {
+      apply resources_of_s_cont_update.
+      eauto.
+      done.
+      lias.
+    }
+    2: {
+      simpl.
+      rewrite hhplug_vhh_plug.
+      by rewrite to_of_valid_hholed.
+    }
+    2: {
+      rewrite Hl_length.
+      rewrite -gmap_of_list_insert; last by rewrite Nat2N.id.
+      rewrite gmap_of_list_lookup.
+      do 2 rewrite Nat2N.id.
+      apply lookup_ge_None_2.
+      by rewrite length_insert.
+    }
+    rewrite gmap_of_list_append.
+    rewrite Hl_length.
+    rewrite length_update; last done.
+    rewrite update_list_at_insert; last done.
+    replace (kaddr) with (N.to_nat $ N.of_nat kaddr); last apply Nat2N.id.
+    rewrite gmap_of_list_insert; rewrite Nat2N.id; last done.
+    iApply "Hconts".
+  Qed.
 
 End reasoning_rules.
 
