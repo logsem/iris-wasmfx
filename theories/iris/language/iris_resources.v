@@ -35,7 +35,7 @@ Inductive valid_hholed : Type :=
 
 Definition vhh_plug vs vhh :=
   match vhh with
-  | Initial vs0 i tf => Initial (vs ++ vs0) i tf
+  | Initial vs0 i tf => Initial (vs0 ++ vs) i tf
   | Running vs0 n f hh => Running vs0 n f (hhplug (v_to_e_list vs) hh)
   end. 
  
