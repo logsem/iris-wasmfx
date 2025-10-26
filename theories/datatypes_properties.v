@@ -14,13 +14,13 @@ Unset Printing Implicit Defensive.
 Set Bullet Behavior "Strict Subproofs".
 
 
-Scheme Equality for number_type.
-Definition number_type_eqb v1 v2 : bool := number_type_eq_dec v1 v2.
-Definition eqnumber_typeP : Equality.axiom number_type_eqb :=
-  eq_dec_Equality_axiom number_type_eq_dec.
+Scheme Equality for numtype.
+Definition numtype_eqb v1 v2 : bool := numtype_eq_dec v1 v2.
+Definition eqnumtypeP : Equality.axiom numtype_eqb :=
+  eq_dec_Equality_axiom numtype_eq_dec.
 
-Canonical Structure number_type_eqMixin := Equality.Mixin eqnumber_typeP.
-Canonical Structure number_type_eqType := Eval hnf in Equality.Pack (sort := number_type) (Equality.Class number_type_eqMixin).
+Canonical Structure numtype_eqMixin := Equality.Mixin eqnumtypeP.
+Canonical Structure numtype_eqType := Eval hnf in Equality.Pack (sort := numtype) (Equality.Class numtype_eqMixin).
 
 Definition merge_list l := List.fold_left (fun acc i => acc + i) l 0.
 Lemma merge_move x l : List.fold_left (fun acc i => acc + i) l x = x + List.fold_left (fun acc i => acc + i) l 0.
@@ -35,6 +35,7 @@ Qed.
 
     
 Lemma merge_nil : merge_list [::] = 0. Proof. done. Qed.
+Lemma merge_list_singleton n : merge_list [:: n] = n. Proof. done. Qed. 
 Lemma merge_cons x l : merge_list (x :: l) = x + merge_list l.
 Proof.
   unfold merge_list => //=.
@@ -42,147 +43,413 @@ Proof.
 Qed. 
 
 
-Fixpoint vt_size (t : value_type) :=
-  match t with
-  | T_ref (T_funcref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s))
-  | T_ref (T_contref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s))
-(*  | T_ref (T_exnref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s)) *)
+Fixpoint tu_size (tu: typeuse) :=
+  match tu with
+  | TU_def (DT_rec (RT_rec l) _) =>
+      S (merge_list (map (fun '(ST_sub _ tus ct) =>
+                            S (merge_list (map tu_size tus) +
+                                 match ct with
+                                 | CT_func (RT_res t1s) (RT_res t2s) =>
+                                  S (merge_list (map (fun v =>
+                                                     match v with
+                                                     | VT_ref (RT_ref _ (HT_concrete tu)) =>
+                                                         tu_size tu
+                                                     | _ => 1
+                                                     end) t1s) +
+                                       merge_list  (map (fun v =>
+                                                     match v with
+                                                     | VT_ref (RT_ref _ (HT_concrete tu)) =>
+                                                         tu_size tu
+                                                     | _ => 1
+                                                     end) t2s))
+                              | CT_cont (RT_res t1s) (RT_res t2s) =>
+                                  S (merge_list (map (fun v =>
+                                                     match v with
+                                                     | VT_ref (RT_ref _ (HT_concrete tu)) =>
+                                                         tu_size tu
+                                                     | _ => 1
+                                                     end) t1s) +
+                                    merge_list  (map (fun v =>
+                                                     match v with
+                                                     | VT_ref (RT_ref _ (HT_concrete tu)) =>
+                                                         tu_size tu
+                                                     | _ => 1
+                                                     end) t2s))
+                                 | CT_exn => 1
+                              end)) l))
   | _ => 1
   end.
+                                                  
+                                                  
 
-Lemma vt_size_not_zero t : vt_size t > 0.
+
+Lemma tu_size_not_zero t : tu_size t > 0.
 Proof.
   destruct t => //=.
+  destruct d => //=.
   destruct r => //=.
-  destruct f => //=.
-  lia.
-  destruct f => //=.
-  lia.
-  (* destruct f => //=.
-  lia. *)
+  lia. 
 Qed.
 
-Definition value_type_eq_dec : forall t1 t2: value_type,
+
+Definition typeidx_eq_dec : forall tf1 tf2 : typeidx,
+  {tf1 = tf2} + {tf1 <> tf2}.
+Proof. decidable_equality. Defined.
+
+Definition typeidx_eqb v1 v2 : bool := typeidx_eq_dec v1 v2.
+Definition eqtypeidxP : Equality.axiom typeidx_eqb :=
+  eq_dec_Equality_axiom typeidx_eq_dec.
+
+Canonical Structure typeidx_eqMixin := Equality.Mixin eqtypeidxP.
+Canonical Structure typeidx_eqType :=
+  Eval hnf in Equality.Pack (sort := typeidx) (Equality.Class typeidx_eqMixin).
+
+Definition typeuse_eq_dec : forall t1 t2: typeuse,
     { t1 = t2 } + { t1 <> t2 }.
 Proof.
-  assert (forall n t1 t2, vt_size t1 + vt_size t2 < n -> { t1 = t2 } + { t1 <> t2 }) as H.
-  2:{ intros t1 t2; apply (H (S (vt_size t1 + vt_size t2))). done. }
+  assert (forall n t1 t2, tu_size t1 + tu_size t2 < n -> { t1 = t2 } + { t1 <> t2 }) as H.
+  2:{ intros t1 t2; apply (H (S (tu_size t1 + tu_size t2))). done. }
   induction n; first lias.
   intros t1 t2 Hn.
   destruct t1, t2; try by (left + right).
-  { destruct (number_type_eq_dec n0 n1) as [-> | H].
-    - by left.
-    - right; intros Habs. by inversion Habs. }
-  destruct r, r0; try by (left + right).
-  - destruct f, f0; try by right.
-    destruct l, l0, l1, l2; try by (left + right).
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l0))) (T_ref (T_funcref (Tf [::] l2))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l))) (T_ref (T_funcref (Tf [::] l1))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 4 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      specialize (vt_size_not_zero v1) as Hv1nz.
-      specialize (vt_size_not_zero v2) as Hv2nz.
-      
-      destruct (IHn v v1) as [-> | Hv];
-        destruct (IHn v0 v2) as [-> | Hv''];
-        destruct (IHn (T_ref (T_funcref (Tf l l0))) (T_ref (T_funcref (Tf l1 l2))))
-        as [Hv' | Hv'];
-        try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-  - destruct f, f0; try by right.
-    destruct l, l0, l1, l2; try by (left + right).
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l0))) (T_ref (T_funcref (Tf [::] l2))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l))) (T_ref (T_funcref (Tf [::] l1))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 4 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      specialize (vt_size_not_zero v1) as Hv1nz.
-      specialize (vt_size_not_zero v2) as Hv2nz.
-      
-      destruct (IHn v v1) as [-> | Hv];
-        destruct (IHn v0 v2) as [-> | Hv''];
-        destruct (IHn (T_ref (T_funcref (Tf l l0))) (T_ref (T_funcref (Tf l1 l2))))
-        as [Hv' | Hv'];
-        try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
- (* - destruct f, f0; try by right.
-    destruct l, l0, l1, l2; try by (left + right).
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l0))) (T_ref (T_funcref (Tf [::] l2))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l))) (T_ref (T_funcref (Tf [::] l1))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 4 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      specialize (vt_size_not_zero v1) as Hv1nz.
-      specialize (vt_size_not_zero v2) as Hv2nz.
-      
-      destruct (IHn v v1) as [-> | Hv];
-        destruct (IHn v0 v2) as [-> | Hv''];
-        destruct (IHn (T_ref (T_funcref (Tf l l0))) (T_ref (T_funcref (Tf l1 l2))))
-        as [Hv' | Hv'];
-        try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.  *)
+  - destruct (typeidx_eq_dec t t0) eqn:Ht.
+    + subst; by left.
+    + right; intros Habs; inversion Habs; subst. done.
+  - destruct d, d0.
+    destruct (Nat.eqb n0 n1) eqn:Hn';
+      last by right; intros Habs; inversion Habs; subst; rewrite Nat.eqb_refl in Hn'.
+    apply Nat.eqb_eq in Hn' as ->.
+    destruct r, r0.
+    destruct l, l0; try by (left + right).
+    destruct s, s0. 
+    destruct (IHn (TU_def (DT_rec (RT_rec l) n1)) (TU_def (DT_rec (RT_rec l0) n1))) as [Heq | Hneq].
+    + simpl in Hn. simpl. do 2 rewrite merge_cons in Hn.
+      lia.
+    + inversion Heq; subst l0; clear Heq. 
+      destruct (Bool.eqb b b0) eqn:Hb;
+        last by right; intros Habs; inversion Habs; subst; rewrite Bool.eqb_reflx in Hb.
+      apply Bool.eqb_true_iff in Hb as ->.
+      destruct l1, l2; try by right.
+      * destruct c, c0; try by right.
+        -- destruct r, r0, r1, r2.
+           destruct l0, l2; try by right.
+           ++ destruct l1, l3; try by (left + right).
+              destruct (IHn (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res [::]) (RT_res l1)) :: l)) n1)) (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res [::]) (RT_res l3)) :: l)) n1))) as [Heq | Hneq].
+              ** simpl in Hn. simpl. repeat rewrite merge_cons in Hn.
+                 repeat rewrite merge_cons.
+                 destruct v, v0; try lia.
+                 destruct r, r0.
+                 destruct h, h0.
+                 specialize (tu_size_not_zero t) as Hnz.
+                 specialize (tu_size_not_zero t0) as Hnz0.    
+                 lia.
+              ** inversion Heq; subst; clear Heq. 
+                 destruct v, v0; try by right.
+                 --- destruct (numtype_eq_dec n0 n2) as [-> | Hneq]; first by left.
+                     right; intros Habs; inversion Habs; subst; done.
+                 --- destruct r, r0.
+                     destruct (Bool.eqb b b1) eqn:Hb;
+                       last by right; intros Habs; inversion Habs; subst; rewrite Bool.eqb_reflx in Hb.
+                     apply Bool.eqb_true_iff in Hb as ->.
+                     destruct h, h0.
+                     destruct (IHn t t0) as [-> | Hneq].
+                     +++ simpl in Hn.
+                         repeat rewrite merge_cons in Hn.
+                         lia.
+                     +++ by left.
+                     +++ right; intros Habs; inversion Habs; subst => //.
+              ** right; intros Habs; inversion Habs; subst => //.
+           ++ destruct (IHn (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res l0) (RT_res l1)) :: l)) n1)) (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res l2) (RT_res l3)) :: l)) n1))) as [Heq | Hneq].
+              ** simpl in Hn. simpl. repeat rewrite merge_cons in Hn.
+                 repeat rewrite merge_cons.
+                 destruct v, v0; try lia.
+                 destruct r, r0.
+                 destruct h, h0.
+                 specialize (tu_size_not_zero t) as Hnz.
+                 specialize (tu_size_not_zero t0) as Hnz0.    
+                 lia.
+              ** inversion Heq; subst; clear Heq. 
+                 destruct v, v0; try by right.
+                 --- destruct (numtype_eq_dec n0 n2) as [-> | Hneq]; first by left.
+                     right; intros Habs; inversion Habs; subst; done.
+                 --- destruct r, r0.
+                     destruct (Bool.eqb b b1) eqn:Hb;
+                       last by right; intros Habs; inversion Habs; subst; rewrite Bool.eqb_reflx in Hb.
+                     apply Bool.eqb_true_iff in Hb as ->.
+                     destruct h, h0.
+                     destruct (IHn t t0) as [-> | Hneq].
+                     +++ simpl in Hn.
+                         repeat rewrite merge_cons in Hn.
+                         lia.
+                     +++ by left.
+                     +++ right; intros Habs; inversion Habs; subst => //.
+              ** right; intros Habs; inversion Habs; subst => //.
+        -- destruct r, r0, r1, r2.
+           destruct l0, l2; try by right.
+           ++ destruct l1, l3; try by (left + right).
+              destruct (IHn (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res [::]) (RT_res l1)) :: l)) n1)) (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res [::]) (RT_res l3)) :: l)) n1))) as [Heq | Hneq].
+              ** simpl in Hn. simpl. repeat rewrite merge_cons in Hn.
+                 repeat rewrite merge_cons.
+                 destruct v, v0; try lia.
+                 destruct r, r0.
+                 destruct h, h0.
+                 specialize (tu_size_not_zero t) as Hnz.
+                 specialize (tu_size_not_zero t0) as Hnz0.    
+                 lia.
+              ** inversion Heq; subst; clear Heq. 
+                 destruct v, v0; try by right.
+                 --- destruct (numtype_eq_dec n0 n2) as [-> | Hneq]; first by left.
+                     right; intros Habs; inversion Habs; subst; done.
+                 --- destruct r, r0.
+                     destruct (Bool.eqb b b1) eqn:Hb;
+                       last by right; intros Habs; inversion Habs; subst; rewrite Bool.eqb_reflx in Hb.
+                     apply Bool.eqb_true_iff in Hb as ->.
+                     destruct h, h0.
+                     destruct (IHn t t0) as [-> | Hneq].
+                     +++ simpl in Hn.
+                         repeat rewrite merge_cons in Hn.
+                         lia.
+                     +++ by left.
+                     +++ right; intros Habs; inversion Habs; subst => //.
+              ** right; intros Habs; inversion Habs; subst => //.
+           ++ destruct (IHn (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res l0) (RT_res l1)) :: l)) n1)) (TU_def (DT_rec (RT_rec (ST_sub b0 [::] (CT_func (RT_res l2) (RT_res l3)) :: l)) n1))) as [Heq | Hneq].
+              ** simpl in Hn. simpl. repeat rewrite merge_cons in Hn.
+                 repeat rewrite merge_cons.
+                 destruct v, v0; try lia.
+                 destruct r, r0.
+                 destruct h, h0.
+                 specialize (tu_size_not_zero t) as Hnz.
+                 specialize (tu_size_not_zero t0) as Hnz0.    
+                 lia.
+              ** inversion Heq; subst; clear Heq. 
+                 destruct v, v0; try by right.
+                 --- destruct (numtype_eq_dec n0 n2) as [-> | Hneq]; first by left.
+                     right; intros Habs; inversion Habs; subst; done.
+                 --- destruct r, r0.
+                     destruct (Bool.eqb b b1) eqn:Hb;
+                       last by right; intros Habs; inversion Habs; subst; rewrite Bool.eqb_reflx in Hb.
+                     apply Bool.eqb_true_iff in Hb as ->.
+                     destruct h, h0.
+                     destruct (IHn t t0) as [-> | Hneq].
+                     +++ simpl in Hn.
+                         repeat rewrite merge_cons in Hn.
+                         lia.
+                     +++ by left.
+                     +++ right; intros Habs; inversion Habs; subst => //.
+              ** right; intros Habs; inversion Habs; subst => //.
+        -- by left. 
+      * destruct (IHn (TU_def (DT_rec (RT_rec (ST_sub b0 l1 c :: l)) n1))
+                    (TU_def (DT_rec (RT_rec (ST_sub b0 l2 c0 :: l)) n1)))
+          as [Heq | Hneq].
+        -- simpl in Hn. simpl. repeat rewrite merge_cons in Hn.
+           repeat rewrite merge_cons.
+           specialize (tu_size_not_zero t) as Hnz.
+           specialize (tu_size_not_zero t0) as Hnz0.
+           lia.
+        -- inversion Heq; subst; clear Heq.
+           destruct (IHn t t0) as [-> | Hneq].
+           ++ simpl in Hn. repeat rewrite merge_cons in Hn. lia.
+           ++ by left.
+           ++ right; intros Habs; inversion Habs; subst => //.
+        -- right; intros Habs; inversion Habs; subst => //.
+    + right; intros Habs; inversion Habs; subst => //.
+  - destruct (Nat.eqb n0 n1) eqn:Hn';
+      last by right; intros Habs; inversion Habs; subst; rewrite Nat.eqb_refl in Hn'.
+    apply Nat.eqb_eq in Hn' as ->.
+    by left. 
 Defined.
+
+Definition typeuse_eqb v1 v2 : bool := typeuse_eq_dec v1 v2.
+Definition eqtypeuseP : Equality.axiom typeuse_eqb :=
+  eq_dec_Equality_axiom typeuse_eq_dec.
+
+Canonical Structure typeuse_eqMixin := Equality.Mixin eqtypeuseP.
+Canonical Structure typeuse_eqType :=
+  Eval hnf in Equality.Pack (sort := typeuse) (Equality.Class typeuse_eqMixin).
+
+
+Definition heaptype_eq_dec : forall t1 t2: heaptype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2.
+  destruct (typeuse_eq_dec t t0) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+Defined.
+
+Definition heaptype_eqb v1 v2 : bool := heaptype_eq_dec v1 v2.
+Definition eqheaptypeP : Equality.axiom heaptype_eqb :=
+  eq_dec_Equality_axiom heaptype_eq_dec.
+
+Canonical Structure heaptype_eqMixin := Equality.Mixin eqheaptypeP.
+Canonical Structure heaptype_eqType :=
+  Eval hnf in Equality.Pack (sort := heaptype) (Equality.Class heaptype_eqMixin).
+
+
+Definition reftype_eq_dec : forall t1 t2: reftype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2.
+  destruct (Bool.eqb b b0) eqn:Hb;
+    last by right; intros Habs; inversion Habs; subst; rewrite Bool.eqb_reflx in Hb.
+  apply Bool.eqb_true_iff in Hb as ->.
+  destruct (heaptype_eq_dec h h0) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+Defined.
+
+Definition reftype_eqb v1 v2 : bool := reftype_eq_dec v1 v2.
+Definition eqreftypeP : Equality.axiom reftype_eqb :=
+  eq_dec_Equality_axiom reftype_eq_dec.
+
+Canonical Structure reftype_eqMixin := Equality.Mixin eqreftypeP.
+Canonical Structure reftype_eqType :=
+  Eval hnf in Equality.Pack (sort := reftype) (Equality.Class reftype_eqMixin).
+
+
+
+Definition valtype_eq_dec : forall t1 t2: valtype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2; try by right.
+  destruct (numtype_eq_dec n n0) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+  destruct (reftype_eq_dec r r0) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+Defined. 
+
+Definition valtype_eqb v1 v2 : bool := valtype_eq_dec v1 v2.
+Definition eqvaltypeP : Equality.axiom valtype_eqb :=
+  eq_dec_Equality_axiom valtype_eq_dec.
+
+Canonical Structure valtype_eqMixin := Equality.Mixin eqvaltypeP.
+Canonical Structure valtype_eqType :=
+  Eval hnf in Equality.Pack (sort := valtype) (Equality.Class valtype_eqMixin).
+
+
+
+Definition resulttype_eq_dec : forall t1 t2: resulttype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2.
+  generalize dependent l0.  
+  induction l; destruct l0; try by right.
+  by left.
+  destruct (IHl l0) as [Heq | Hneq].
+  inversion Heq; subst.
+  destruct (valtype_eq_dec a v) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+  right. intros Habs; inversion Habs; subst.
+  done.
+Defined.
+
+Definition resulttype_eqb v1 v2 : bool := resulttype_eq_dec v1 v2.
+Definition eqresulttypeP : Equality.axiom resulttype_eqb :=
+  eq_dec_Equality_axiom resulttype_eq_dec.
+
+Canonical Structure resulttype_eqMixin := Equality.Mixin eqresulttypeP.
+Canonical Structure resulttype_eqType :=
+  Eval hnf in Equality.Pack (sort := resulttype) (Equality.Class resulttype_eqMixin).
+
+
+
+Definition comptype_eq_dec : forall t1 t2: comptype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2; try by right.
+  3: by left. 
+  all: destruct (resulttype_eq_dec r r1) as [-> | Hneq].
+  all: try by right; intros Habs; inversion Habs.
+  all: destruct (resulttype_eq_dec r0 r2) as [-> | Hneq].
+  all: try by right; intros Habs; inversion Habs.
+  all: by left.
+Defined.
+Definition comptype_eqb v1 v2 : bool := comptype_eq_dec v1 v2.
+Definition eqcomptypeP : Equality.axiom comptype_eqb :=
+  eq_dec_Equality_axiom comptype_eq_dec.
+
+Canonical Structure comptype_eqMixin := Equality.Mixin eqcomptypeP.
+Canonical Structure comptype_eqType :=
+  Eval hnf in Equality.Pack (sort := comptype) (Equality.Class comptype_eqMixin).
+
+
+
+Definition subtype_eq_dec : forall t1 t2: subtype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2.
+  destruct (Bool.eqb b b0) eqn:Hb;
+    last by right; intros Habs; inversion Habs; subst; rewrite Bool.eqb_reflx in Hb.
+  apply Bool.eqb_true_iff in Hb as ->.
+  destruct (comptype_eq_dec c c0) as [-> | Hneq].
+  2: by right; intros Habs; inversion Habs => //.
+  generalize dependent l0.
+  induction l; destruct l0; try by right.
+  by left.
+  destruct (IHl l0) as [Heq | Hneq]; last by right; intros Habs; inversion Habs; subst.
+  inversion Heq; subst.
+  destruct (typeuse_eq_dec a t) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+Defined.
+
+Definition subtype_eqb v1 v2 : bool := subtype_eq_dec v1 v2.
+Definition eqsubtypeP : Equality.axiom subtype_eqb :=
+  eq_dec_Equality_axiom subtype_eq_dec.
+
+Canonical Structure subtype_eqMixin := Equality.Mixin eqsubtypeP.
+Canonical Structure subtype_eqType :=
+  Eval hnf in Equality.Pack (sort := subtype) (Equality.Class subtype_eqMixin).
+
+
+
+Definition rectype_eq_dec : forall t1 t2: rectype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2.
+  generalize dependent l0.  
+  induction l; destruct l0; try by right.
+  by left.
+  destruct (IHl l0) as [Heq | Hneq].
+  inversion Heq; subst.
+  destruct (subtype_eq_dec a s) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+  right. intros Habs; inversion Habs; subst.
+  done.
+Defined.
+
+Definition rectype_eqb v1 v2 : bool := rectype_eq_dec v1 v2.
+Definition eqrectypeP : Equality.axiom rectype_eqb :=
+  eq_dec_Equality_axiom rectype_eq_dec.
+
+Canonical Structure rectype_eqMixin := Equality.Mixin eqrectypeP.
+Canonical Structure rectype_eqType :=
+  Eval hnf in Equality.Pack (sort := rectype) (Equality.Class rectype_eqMixin).
+
+
+
+Definition deftype_eq_dec : forall t1 t2: deftype,
+    { t1 = t2 } + { t1 <> t2 }.
+Proof.
+  destruct t1, t2.
+  destruct (Nat.eqb n0 n) eqn:Hn';
+      last by right; intros Habs; inversion Habs; subst; rewrite Nat.eqb_refl in Hn'.
+  apply Nat.eqb_eq in Hn' as ->.
+  destruct (rectype_eq_dec r r0) as [-> | Hneq].
+  by left. right; intros Habs; inversion Habs => //.
+Defined. 
+
+Definition deftype_eqb v1 v2 : bool := deftype_eq_dec v1 v2.
+Definition eqdeftypeP : Equality.axiom deftype_eqb :=
+  eq_dec_Equality_axiom deftype_eq_dec.
+
+Canonical Structure deftype_eqMixin := Equality.Mixin eqdeftypeP.
+Canonical Structure deftype_eqType :=
+  Eval hnf in Equality.Pack (sort := deftype) (Equality.Class deftype_eqMixin).
+
+
+  
+
+
+
+
 
 From mathcomp Require Import ssrnat.
 
@@ -218,89 +485,6 @@ Canonical Structure byte_eqType :=
   Eval hnf in Equality.Pack (sort := Byte.byte) (Equality.Class byte_eqMixin).
 
 
-Definition reference_type_eq_dec : forall t1 t2: reference_type,
-    { t1 = t2 } + { t1 <> t2 }.
-Proof.
-  intros t1 t2.
-  destruct t1, t2; try by (left + right).
-  - destruct f, f0; try by right.
-    generalize dependent l1; induction l; intros l1.
-    + destruct l1; last by right.
-      generalize dependent l2. induction l0; intros l2.
-      * by destruct l2; [left | right].
-      * destruct l2; first by right.
-        destruct (value_type_eq_dec a v) as [-> | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        destruct (IHl0 l2) as [H | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        inversion H; subst; by left.
-    + destruct l1; first by right.
-      destruct (value_type_eq_dec a v) as [-> | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      destruct (IHl l1) as [H | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      inversion H; subst; by left.
-  - destruct f, f0; try by right.
-    generalize dependent l1; induction l; intros l1.
-    + destruct l1; last by right.
-      generalize dependent l2. induction l0; intros l2.
-      * by destruct l2; [left | right].
-      * destruct l2; first by right.
-        destruct (value_type_eq_dec a v) as [-> | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        destruct (IHl0 l2) as [H | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        inversion H; subst; by left.
-    + destruct l1; first by right.
-      destruct (value_type_eq_dec a v) as [-> | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      destruct (IHl l1) as [H | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      inversion H; subst; by left.
-      (* - destruct f, f0; try by right.
-    generalize dependent l1; induction l; intros l1.
-    + destruct l1; last by right.
-      generalize dependent l2. induction l0; intros l2.
-      * by destruct l2; [left | right].
-      * destruct l2; first by right.
-        destruct (value_type_eq_dec a v) as [-> | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        destruct (IHl0 l2) as [H | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        inversion H; subst; by left.
-    + destruct l1; first by right.
-      destruct (value_type_eq_dec a v) as [-> | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      destruct (IHl l1) as [H | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      inversion H; subst; by left.  *)
-Defined. 
-      
-Definition reference_type_eqb v1 v2 : bool := reference_type_eq_dec v1 v2.
-Definition eqreference_typeP : Equality.axiom reference_type_eqb :=
-  eq_dec_Equality_axiom reference_type_eq_dec.
-
-Canonical Structure reference_type_eqMixin := Equality.Mixin eqreference_typeP.
-Canonical Structure reference_type_eqType := Eval hnf in Equality.Pack (sort := reference_type) (Equality.Class reference_type_eqMixin). 
-
-Definition value_type_eqb v1 v2 : bool := value_type_eq_dec v1 v2.
-Definition eqvalue_typeP : Equality.axiom value_type_eqb :=
-  eq_dec_Equality_axiom value_type_eq_dec.
-
-Canonical Structure value_type_eqMixin := Equality.Mixin eqvalue_typeP.
-Canonical Structure value_type_eqType := Eval hnf in Equality.Pack (sort := value_type) (Equality.Class value_type_eqMixin).
-(*
-Definition list_value_type_eq_dec : forall t1 t2: list value_type,
-    { t1 = t2 } + { t1 <> t2 }.
-Proof. decidable_equality. Qed.
-
-Definition list_value_type_eqb v1 v2 : bool := list_value_type_eq_dec v1 v2.
-Definition eqlist_value_typeP : Equality.axiom list_value_type_eqb :=
-  eq_dec_Equality_axiom list_value_type_eq_dec.
-
-Canonical Structure list_value_type_eqMixin := Equality.Mixin eqlist_value_typeP.
- Canonical Structure list_value_type_eqType := Eval hnf in Equality.Pack (sort := list value_type) (Equality.Class list_value_type_eqMixin).  *)
-
 Scheme Equality for packed_type.
 Definition packed_type_eqb v1 v2 : bool := packed_type_eq_dec v1 v2.
 Definition eqpacked_typeP : Equality.axiom packed_type_eqb :=
@@ -322,7 +506,7 @@ Definition global_type_eq_dec : forall g1 g2: global_type,
 Proof.
   intros g1 g2; destruct g1, g2.
   destruct (mutability_eq_dec tg_mut tg_mut0); last by right; intros Habs; inversion Habs; subst.
-  destruct (number_type_eq_dec tg_t tg_t0); last by right; intros Habs; inversion Habs; subst.
+  destruct (valtype_eq_dec tg_t tg_t0); last by right; intros Habs; inversion Habs; subst.
   subst; by left.
 Qed. 
 Definition global_type_eqb v1 v2 : bool := global_type_eq_dec v1 v2.
@@ -332,17 +516,6 @@ Definition eqglobal_typeP : Equality.axiom global_type_eqb :=
 Canonical Structure global_type_eqMixin := Equality.Mixin eqglobal_typeP.
 Canonical Structure global_type_eqType := Eval hnf in Equality.Pack (sort := global_type) (Equality.Class global_type_eqMixin). 
 
- Definition function_type_eq_dec : forall tf1 tf2 : function_type,
-  {tf1 = tf2} + {tf1 <> tf2}.
-Proof. decidable_equality. Defined.
-
-Definition function_type_eqb v1 v2 : bool := function_type_eq_dec v1 v2.
-Definition eqfunction_typeP : Equality.axiom function_type_eqb :=
-  eq_dec_Equality_axiom function_type_eq_dec.
-
-Canonical Structure function_type_eqMixin := Equality.Mixin eqfunction_typeP.
-Canonical Structure function_type_eqType :=
-  Eval hnf in Equality.Pack (sort := function_type) (Equality.Class function_type_eqMixin). 
 
 Definition t_context_eq_dec : forall x y : t_context, {x = y} + {x <> y}.
 Proof. decidable_equality. Defined.
@@ -444,6 +617,7 @@ Definition value_num_rec_safe (P : Type)
            (f64 : Wasm_float.FloatSize64.T -> P) v : P :=
   value_num_rect i32 i64 f32 f64 v.
 
+(*
 Definition value_ref_rec_safe (P : Type)
   (null : reference_type -> P)
   (func : funcaddr -> P)
@@ -452,7 +626,7 @@ Definition value_ref_rec_safe (P : Type)
 (*  (extern : externaddr -> P) *)
   v : P :=
   value_ref_rect null func cont (* extern *) exn v.
-
+*)
 (* Definition value_rec_safe (P : Type)
            (i32 : Wasm_int.Int32.int -> P)
            (i64 : Wasm_int.Int64.int -> P)
@@ -501,17 +675,17 @@ Local Definition administrative_instruction_rect :=
   @administrative_instruction_rect
   : forall (P : administrative_instruction -> Type), _.
 
- Definition function_closure_eq_dec : forall (cl1 cl2 : function_closure),
+ Definition funcinst_eq_dec : forall (cl1 cl2 : funcinst),
   {cl1 = cl2} + {cl1 <> cl2}.
 Proof. decidable_equality. Defined.
 
-Definition function_closure_eqb cl1 cl2 : bool := function_closure_eq_dec cl1 cl2.
-Definition eqfunction_closureP : Equality.axiom function_closure_eqb :=
-  eq_dec_Equality_axiom function_closure_eq_dec.
+Definition funcinst_eqb cl1 cl2 : bool := funcinst_eq_dec cl1 cl2.
+Definition eqfuncinstP : Equality.axiom funcinst_eqb :=
+  eq_dec_Equality_axiom funcinst_eq_dec.
 
-Canonical Structure function_closure_eqMixin := Equality.Mixin eqfunction_closureP.
-Canonical Structure function_closure_eqType :=
-  Eval hnf in Equality.Pack (sort := function_closure) (Equality.Class function_closure_eqMixin). 
+Canonical Structure funcinst_eqMixin := Equality.Mixin eqfuncinstP.
+Canonical Structure funcinst_eqType :=
+  Eval hnf in Equality.Pack (sort := funcinst) (Equality.Class funcinst_eqMixin). 
 
 Definition tableinst_eq_dec : forall v1 v2 : tableinst, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.

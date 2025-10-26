@@ -14,6 +14,8 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 (* Unset Automatic Proposition Inductives.  *)
 
+
+
 (** * Basic Datatypes **)
 
 Definition depth := nat.
@@ -79,52 +81,50 @@ The types i32 and i64 classify 32 and 64 bit integers, respectively. Integers ar
 The types f32 and f64 classify 32 and 64 bit floating-point data, respectively. They correspond to the respective binary floating-point representations, also known as single and double precision, as defined by the IEEE 754-2019 standard (Section 3.3).
 [https://webassembly.github.io/spec/core/syntax/types.html#value-types]
 *)
-Inductive number_type : Type := (* nt *)
+Inductive numtype : Type := (* nt *)
   | T_i32
   | T_i64
   | T_f32
   | T_f64
   .
 
+  Inductive typeidx : Type :=
+  | Mk_typeidx : nat -> typeidx.
 
-  Inductive reference_type : Type :=
-  | T_funcref : function_type -> reference_type
-  | T_contref : function_type -> reference_type
-  | T_exnref : (* function_type -> *) reference_type
- 
+  Inductive heaptype : Type :=
+  | HT_concrete : typeuse -> heaptype
+  
+  with reftype : Type :=
+  | RT_ref : bool -> heaptype -> reftype
 
-  with value_type : Type := (* t *)
-  | T_num : number_type -> value_type
-  | T_ref : reference_type -> value_type
-
-
-(** std-doc:
-Result types classify the result of executing instructions or functions, which is a sequence of values written with brackets.
-[https://webassembly.github.io/spec/core/syntax/types.html#result-types]
-*)
-(* Inductive  result_type : Type :=
-  list value_type *)
-(** Note from the specification:
-  In the current version of WebAssembly, at most one value is allowed as a result.
-  However, this may be generalized to sequences of values in future versions. **)
-
-
-(** std-doc:
-Function types classify the signature of functions, mapping a vector of
-parameters to a vector of results. They are also used to classify the inputs
-and outputs of instructions.
-[https://webassembly.github.io/spec/core/syntax/types.html#function-types]
-*)
-with function_type : Type := (* tf *)
-  | Tf : list value_type -> list value_type -> function_type
-  (** Note from the specification:
-    In the current version of Wasm, the result list has an arity of at most [1]. **)
-(* | Cont : list value_type -> list value_type -> function_type  *)
+  
+  with valtype : Type :=
+  | VT_num : numtype -> valtype
+  | VT_ref : reftype -> valtype
+  
+  with resulttype : Type :=
+  | RT_res : list (valtype) -> resulttype 
+  
+  with comptype : Type :=
+  | CT_func : resulttype -> resulttype -> comptype
+  | CT_cont : resulttype -> resulttype -> comptype
+  | CT_exn : comptype
+  
+  with subtype : Type :=
+  | ST_sub : bool -> list typeuse -> comptype -> subtype
+  
+  with rectype : Type :=
+  | RT_rec : list subtype -> rectype
+  
+  with deftype : Type :=
+  | DT_rec : rectype -> nat -> deftype
+  
+  with typeuse : Type :=
+  | TU_idx : typeidx -> typeuse
+  | TU_def : deftype -> typeuse
+  | TU_recn : nat -> typeuse
   .
-
-(*  Inductive continuation_type : Type :=
-  | Cont : function_type -> continuation_type
-  .  *)
+  
 
 Inductive packed_type : Type := (* tp *)
   | Tp_i8
@@ -146,7 +146,7 @@ Global types classify global variables, which hold a value and can either be mut
 *)
 Record global_type : Type := (* tg *) {
   tg_mut : mutability;
-  tg_t : number_type
+  tg_t : valtype
 }.
 
 
@@ -197,16 +197,16 @@ empty elsewhere. The label stack is the only part of the context that changes
 as validation of an instruction sequence proceeds.
 *)
 Record t_context : Type := {
-  tc_types_t : list function_type; 
-  tc_func_t : list function_type;
+  tc_types_t : list deftype; 
+  tc_func_t : list deftype;
   tc_global : list global_type;
   tc_table : list table_type;
   tc_memory : list memory_type;
-  tc_local : list value_type;
-  tc_label : list (list value_type);
-    tc_return : option (list value_type);
+  tc_local : list valtype;
+  tc_label : list resulttype;
+    tc_return : option resulttype;
     tc_refs : list immediate;
-    tc_tags_t : list function_type;
+    tc_tags_t : list (resulttype * resulttype);
 }.
 
 (** std-doc:
@@ -313,15 +313,6 @@ Inductive cvtop : Type :=
   .
 
 
-  Inductive type_identifier : Type :=
-  | Type_lookup : immediate -> type_identifier
-  | Type_explicit : function_type -> type_identifier
-  .
-
-(*  Inductive tag_identifier : Type :=
-  | Tag_lookup : immediate -> tag_identifier
-  | Tag_explicit : immediate -> function_type -> tag_identifier
-  . *)
   Inductive tag_identifier : Type :=
 | Mk_tagident : immediate -> tag_identifier
 .
@@ -363,48 +354,48 @@ Inductive basic_instruction : Type := (* be *)
   | BI_nop
   | BI_drop
   | BI_select
-  | BI_block : function_type -> list basic_instruction -> basic_instruction
-  | BI_loop : function_type -> list basic_instruction -> basic_instruction
-  | BI_if : function_type -> list basic_instruction -> list basic_instruction -> basic_instruction
+  | BI_block : typeidx -> list basic_instruction -> basic_instruction
+  | BI_loop : typeidx -> list basic_instruction -> basic_instruction
+  | BI_if : typeidx -> list basic_instruction -> list basic_instruction -> basic_instruction
   | BI_br : immediate -> basic_instruction
   | BI_br_if : immediate -> basic_instruction
   | BI_br_table : list immediate -> immediate -> basic_instruction
 | BI_return
   | BI_call : immediate -> basic_instruction
-| BI_call_indirect : type_identifier -> basic_instruction
+| BI_call_indirect : typeidx -> basic_instruction
   | BI_get_local : immediate -> basic_instruction
   | BI_set_local : immediate -> basic_instruction
   | BI_tee_local : immediate -> basic_instruction
   | BI_get_global : immediate -> basic_instruction
   | BI_set_global : immediate -> basic_instruction
-  | BI_load : number_type -> option (packed_type * sx) -> alignment_exponent -> static_offset -> basic_instruction
-  | BI_store : number_type -> option packed_type -> alignment_exponent -> static_offset -> basic_instruction
+  | BI_load : numtype -> option (packed_type * sx) -> alignment_exponent -> static_offset -> basic_instruction
+  | BI_store : numtype -> option packed_type -> alignment_exponent -> static_offset -> basic_instruction
   | BI_current_memory
   | BI_grow_memory
   | BI_const : value_num -> basic_instruction
-  | BI_unop : number_type -> unop -> basic_instruction
-  | BI_binop : number_type -> binop -> basic_instruction
-  | BI_testop : number_type -> testop -> basic_instruction
-  | BI_relop : number_type -> relop -> basic_instruction
-| BI_cvtop : number_type -> cvtop -> number_type -> option sx -> basic_instruction
+  | BI_unop : numtype -> unop -> basic_instruction
+  | BI_binop : numtype -> binop -> basic_instruction
+  | BI_testop : numtype -> testop -> basic_instruction
+  | BI_relop : numtype -> relop -> basic_instruction
+| BI_cvtop : numtype -> cvtop -> numtype -> option sx -> basic_instruction
     (* Wasm 2.0 instructions necessary to accomodate WasmFX *)
-| BI_ref_null : reference_type -> basic_instruction
+| BI_ref_null : heaptype -> basic_instruction
 | BI_ref_is_null
 | BI_ref_func : immediate -> basic_instruction
-| BI_call_reference : type_identifier -> basic_instruction
+| BI_call_reference : typeuse -> basic_instruction
 
 (* Wasm exception handling instructions necessary to accomodate WasmFX *)
-| BI_try_table: type_identifier -> list exception_clause_identifier -> list basic_instruction -> basic_instruction
+| BI_try_table: typeuse -> list exception_clause_identifier -> list basic_instruction -> basic_instruction
 | BI_throw : immediate -> basic_instruction
 | BI_throw_ref : basic_instruction
 
   (* New wasmFX instructions: *)
-| BI_contnew : type_identifier -> basic_instruction
-| BI_resume : type_identifier -> list continuation_clause_identifier -> basic_instruction
+| BI_contnew : typeuse -> basic_instruction
+| BI_resume : typeuse -> list continuation_clause_identifier -> basic_instruction
 | BI_suspend : tag_identifier -> basic_instruction
-| BI_contbind : type_identifier -> type_identifier -> basic_instruction
-| BI_resume_throw : type_identifier -> immediate -> list continuation_clause_identifier -> basic_instruction
-| BI_switch : type_identifier -> tag_identifier -> basic_instruction
+| BI_contbind : typeuse -> typeuse -> basic_instruction
+| BI_resume_throw : typeuse -> immediate -> list continuation_clause_identifier -> basic_instruction
+| BI_switch : typeuse -> tag_identifier -> basic_instruction
   .
 
 (** * Functions and Store **)
@@ -427,13 +418,17 @@ Definition tagaddr := immediate.
 Inductive tagidx : Type :=
 | Mk_tagidx : nat -> tagidx.
 
+Inductive addrref : Set :=
+| REF_func : funcaddr -> addrref
+| REF_cont : funcaddr -> addrref
+| REF_exn : exnaddr -> (* tagidx -> *) addrref
+.
 
 Inductive value_ref : Set :=
-| VAL_ref_null : reference_type -> value_ref
-| VAL_ref_func : funcaddr -> value_ref
-| VAL_ref_cont : funcaddr -> value_ref
-| VAL_ref_exn : exnaddr -> tagidx -> value_ref
+| VAL_ref_null : heaptype -> value_ref
+| VAL_ref_addr : addrref -> value_ref
 .
+
 
 Inductive value : Type :=
 | VAL_num : value_num -> value
@@ -461,7 +456,7 @@ It is an invariant of the semantics that all export instances in a given module
 instance have different names.
 *)
 Record instance : Type := (* inst *) {
-  inst_types : list function_type;
+  inst_types : list deftype;
   inst_funcs : list funcaddr;
   inst_tab : list tableaddr;
   inst_memory : list memaddr;
@@ -473,11 +468,27 @@ A function instance is the runtime representation of a function. It effectively
 is a closure of the original function over the runtime module instance of its
 originating module. The module instance is used to resolve references to other
 definitions during execution of the function.
-*)
-Inductive function_closure : Type := (* cl *)
-  | FC_func_native : instance -> function_type -> list value_type -> list basic_instruction -> function_closure
-  | FC_func_host : function_type -> hostfuncidx -> function_closure
-.
+ *)
+
+  Inductive native_code : Type :=
+  | NC_func : typeidx -> list valtype -> list basic_instruction -> native_code
+  .
+
+  
+  
+  
+  Inductive code : Type :=
+  | CODE_native : native_code -> code
+  | CODE_host : hostfuncidx -> code
+  . 
+
+  Record funcinst : Type := {
+      func_type : deftype ;
+      func_instance : instance ;
+      func_code : code
+    }
+  .
+    
 
 
 (** std-doc:
@@ -560,17 +571,17 @@ Inductive administrative_instruction : Type := (* e *)
 | AI_basic : basic_instruction -> administrative_instruction
 | AI_trap
 | AI_ref : funcaddr -> administrative_instruction
-| AI_ref_exn : exnaddr -> tagidx -> administrative_instruction
+| AI_ref_exn : exnaddr -> (* tagidx -> *) administrative_instruction
 | AI_ref_cont : funcaddr -> administrative_instruction
 | AI_throw_ref_desugared : seq value -> exnaddr -> tagidx -> administrative_instruction
 | AI_suspend_desugared : seq value -> tagidx -> administrative_instruction
-| AI_switch_desugared : seq value -> funcaddr -> function_type -> tagidx -> administrative_instruction
+| AI_switch_desugared : seq value -> funcaddr -> deftype -> tagidx -> administrative_instruction
 | AI_handler : list exception_clause -> list administrative_instruction -> administrative_instruction
-| AI_prompt : list value_type -> list continuation_clause -> list administrative_instruction -> administrative_instruction
+| AI_prompt : list valtype -> list continuation_clause -> list administrative_instruction -> administrative_instruction
 | AI_invoke : funcaddr -> administrative_instruction
 | AI_label : nat -> seq administrative_instruction -> seq administrative_instruction -> administrative_instruction
 | AI_frame : nat -> frame -> seq administrative_instruction -> administrative_instruction
-| AI_call_host : function_type -> hostfuncidx -> seq value -> administrative_instruction
+| AI_call_host : deftype -> hostfuncidx -> seq value -> administrative_instruction
 .
 
 Definition AI_const v :=
@@ -579,9 +590,12 @@ Definition AI_const v :=
   | VAL_ref r =>
       match r with
       | VAL_ref_null t => AI_basic (BI_ref_null t)
-      | VAL_ref_func x => AI_ref x
-      | VAL_ref_cont x => AI_ref_cont x
-      | VAL_ref_exn x i => AI_ref_exn x i
+      | VAL_ref_addr r =>
+          match r with
+          | REF_func x => AI_ref x
+          | REF_cont x => AI_ref_cont x
+          | REF_exn x => AI_ref_exn x
+          end 
       end
   end
   .
@@ -590,7 +604,7 @@ Inductive lholed : Type :=
 | LH_base : list administrative_instruction -> list administrative_instruction -> lholed
 | LH_rec : list administrative_instruction -> nat -> list administrative_instruction -> lholed -> list administrative_instruction -> lholed
 | LH_handler : list administrative_instruction -> list exception_clause -> lholed -> list administrative_instruction -> lholed
-| LH_prompt : list administrative_instruction -> list value_type -> list continuation_clause -> lholed -> list administrative_instruction -> lholed
+| LH_prompt : list administrative_instruction -> list valtype -> list continuation_clause -> lholed -> list administrative_instruction -> lholed
 .
 
 Inductive hholed : Type := (* Handler context *)
@@ -603,7 +617,7 @@ Inductive hholed : Type := (* Handler context *)
 | HH_handler :
   list administrative_instruction -> list exception_clause -> hholed -> list administrative_instruction -> hholed
 | HH_prompt :
-  list administrative_instruction -> list value_type -> list continuation_clause -> hholed -> list administrative_instruction -> hholed
+  list administrative_instruction -> list valtype -> list continuation_clause -> hholed -> list administrative_instruction -> hholed
 .
 
 Inductive avoiding : Type := (* The variable not to be captured by a handler/prompt *)
@@ -614,8 +628,8 @@ Inductive avoiding : Type := (* The variable not to be captured by a handler/pro
 .
 
 Inductive continuation : Type :=
-| Cont_hh : function_type -> hholed -> continuation
-| Cont_dagger : function_type -> continuation
+| Cont_hh : deftype -> hholed -> continuation
+| Cont_dagger : deftype -> continuation
 .
 
 
@@ -626,10 +640,10 @@ functions, tables, memories, and globals that have been allocated during the
 life time of the abstract machine
 *)
 Record store_record : Type := (* s *) {
-  s_funcs : list function_closure;
+  s_funcs : list funcinst;
   s_tables : list tableinst;
     s_mems : list memory;
-    s_tags : list function_type;
+    s_tags : list (resulttype * resulttype);
     s_globals : list global;
     s_exns : list exception;
     s_conts : list continuation;
@@ -653,9 +667,6 @@ Inductive tableidx : Type :=
 
 Inductive memidx : Type :=
 | Mk_memidx : nat -> memidx.
-
-Inductive typeidx : Type :=
-| Mk_typeidx : nat -> typeidx.
 
 Inductive localidx : Type :=
 | Mk_localidx : nat -> localidx.
@@ -700,10 +711,10 @@ Record module_element : Type := {
   modelem_init : list funcidx;
 }.
 
-Record code_func : Type := {
-  fc_locals : list value_type;
+(* Record code_func : Type := {
+  fc_locals : list valtype;
   fc_expr : expr;
-}.
+}. *)
 
 Record module_data : Type := {
   moddata_data : memidx;
@@ -724,37 +735,38 @@ Record module_export : Type := {
   modexp_desc : module_export_desc;
 }.
 
-Record module_func : Type := {
+(* Record module_func : Type := {
   modfunc_type : typeidx;
   modfunc_locals : list value_type;
   modfunc_body : expr;
-}.
+}. *)
 
 (** std-doc:
 WebAssembly programs are organized into modules, which are the unit of deployment, loading, and compilation. A module collects definitions for types, functions, tables, memories, and globals. In addition, it can declare imports and exports and provide initialization logic in the form of data and element segments or a start function.
 [https://webassembly.github.io/spec/core/syntax/modules.html]
 *)
 Record module : Type := {
-  mod_types : list function_type;
-  mod_funcs : list module_func;
+  mod_types : list rectype;
+  mod_funcs : list native_code;
   mod_tables : list module_table;
   mod_mems : list memory_type;
   mod_globals : list module_glob;
   mod_elem : list module_element;
     mod_data : list module_data;
-    mod_tags : list function_type;
+    mod_tags : list (resulttype * resulttype);
   mod_start : option module_start;
   mod_imports : list module_import;
   mod_exports : list module_export;
 }.
 
+(* 
 Inductive extern_t : Type :=
 | ET_func : function_type -> extern_t
 | ET_tab : table_type -> extern_t
 | ET_mem : memory_type -> extern_t
 | ET_glob : global_type -> extern_t
 | ET_tag : function_type -> extern_t
-.
+. *)
 
 
 (** Some types used in the interpreter. **)
@@ -772,7 +784,7 @@ Inductive res_step : Type :=
   | RS_break : nat -> seq value -> res_step
   | RS_return : seq value -> res_step
 | RS_normal : seq administrative_instruction -> res_step
-| RS_call_host : function_type -> hostfuncidx -> seq value -> res_step
+| RS_call_host : deftype -> hostfuncidx -> seq value -> res_step
   .
 
 Definition res_tuple : Type := store_record * frame * res_step.

@@ -14,7 +14,8 @@ Unset Printing Implicit Defensive.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Definition AI_const v :=
+(* already defined in datatypes.v *)
+(* Definition AI_const v :=
   match v with
   | VAL_num n => AI_basic (BI_const n)
   | VAL_ref r =>
@@ -25,7 +26,7 @@ Definition AI_const v :=
       | VAL_ref_exn x i => AI_ref_exn x i
       end
   end
-  .
+  . *)
 
 
 Definition empty_frame :=
@@ -269,7 +270,7 @@ Definition store (m : memory) (n : N) (off : static_offset) (bs : bytes) (l : na
 
 Definition store_packed := store.
 
-Definition wasm_deserialise (bs : bytes) (vt : number_type) : value_num :=
+Definition wasm_deserialise (bs : bytes) (vt : numtype) : value_num :=
   match vt with
   | T_i32 => VAL_int32 (Wasm_int.Int32.repr (common.Memdata.decode_int bs))
   | T_i64 => VAL_int64 (Wasm_int.Int64.repr (common.Memdata.decode_int bs))
@@ -278,7 +279,7 @@ Definition wasm_deserialise (bs : bytes) (vt : number_type) : value_num :=
   end.
 
 
-Definition typeof_num (v : value_num) : number_type :=
+Definition typeof_num (v : value_num) : numtype :=
   match v with
   | VAL_int32 _ => T_i32
   | VAL_int64 _ => T_i64
@@ -286,43 +287,43 @@ Definition typeof_num (v : value_num) : number_type :=
   | VAL_float64 _ => T_f64
   end.
 
-Definition cl_type (cl : function_closure) : function_type :=
-  match cl with
-  | FC_func_native _ tf _ _ => tf
-  | FC_func_host tf _ => tf
-  end.
+Definition cl_type (cl : funcinst) : deftype := cl.(func_type). 
+
 
 Definition typeof_cont c :=
   match c with
   | Cont_hh tf _ | Cont_dagger tf => tf
   end.
 
-Definition typeof_ref s (v : value_ref) : option reference_type :=
+Definition typeof_ref s (v : value_ref) : option heaptype :=
   match v with
   | VAL_ref_null t => Some t
-  | VAL_ref_func i =>
-      match List.nth_error (s_funcs s) i with
-      | Some cl => Some (T_funcref (cl_type cl))
-      | None => None
-      end
-  | VAL_ref_cont i =>
-      match List.nth_error (s_conts s) i with
-      | Some cont => Some (T_contref (typeof_cont cont))
-      | _ => None
-      end
-  | VAL_ref_exn i t =>
-      match List.nth_error (s_exns s) i with 
-      | Some exn =>
-          if (e_tag exn == t) then Some T_exnref
-          else None
-      | _ => None
+  | VAL_ref_addr a =>
+      match a with 
+      | REF_func i =>
+          match List.nth_error (s_funcs s) i with
+          | Some cl => Some (HT_concrete (TU_def (cl_type cl)))
+          | None => None
+          end
+      | REF_cont i =>
+          match List.nth_error (s_conts s) i with
+          | Some cont => Some (HT_concrete (TU_def (typeof_cont cont)))
+          | _ => None
+          end
+      | REF_exn i =>
+          match List.nth_error (s_exns s) i with 
+          | Some exn =>
+  (*            if (e_tag exn == t) then *) Some (HT_concrete (TU_def (DT_rec (RT_rec [:: ST_sub false [::] CT_exn]) 0)))
+(*              else None *)
+          | _ => None
+          end 
       end
   end.
 
-Definition typeof C (v : value) : option value_type :=
+Definition typeof C (v : value) : option valtype :=
   match v with
-  | VAL_num n => Some (T_num (typeof_num n))
-  | VAL_ref r => option_map T_ref (typeof_ref C r)
+  | VAL_num n => Some (VT_num (typeof_num n))
+  | VAL_ref r => option_map (fun x => VT_ref (RT_ref true x)) (typeof_ref C r)
   end.
 
 Definition option_projl (A B : Type) (x : option (A * B)) : option A :=
@@ -331,7 +332,7 @@ Definition option_projl (A B : Type) (x : option (A * B)) : option A :=
 Definition option_projr (A B : Type) (x : option (A * B)) : option B :=
   option_map snd x.
 
-Definition length_tnum (t : number_type) : nat :=
+Definition length_tnum (t : numtype) : nat :=
   match t with
   | T_i32 => 4
   | T_i64 => 8
@@ -346,7 +347,7 @@ Definition length_tp (tp : packed_type) : nat :=
   | Tp_i32 => 4
   end.
 
-Definition is_int_t (t : number_type) : bool :=
+Definition is_int_t (t : numtype) : bool :=
   match t with
   | T_i32 => true
   | T_i64 => true
@@ -354,7 +355,7 @@ Definition is_int_t (t : number_type) : bool :=
   | T_f64 => false
   end.
 
-Definition is_float_t (t : number_type) : bool :=
+Definition is_float_t (t : numtype) : bool :=
   match t with
   | T_i32 => false
   | T_i64 => false
@@ -542,13 +543,13 @@ Definition app_relop (op: relop) (v1: value_num) (v2: value_num) :=
     end
   end.
 
-Definition types_num_agree (t : number_type) (v : value_num) : bool :=
+Definition types_num_agree (t : numtype) (v : value_num) : bool :=
   (typeof_num v) == t.
 
-Definition types_ref_agree C (t : reference_type) (v : value_ref) : bool :=
+Definition types_ref_agree C (t : heaptype) (v : value_ref) : bool :=
   (typeof_ref C v) == Some t.
 
-Definition types_agree C (t: value_type) (v : value) : bool :=
+Definition types_agree C (t: valtype) (v : value) : bool :=
   (typeof C v) == Some t.
 
 
@@ -566,17 +567,18 @@ Definition option_bind (A B : Type) (f : A -> option B) (x : option A) :=
 
 Definition empty_instance := Build_instance [::] [::] [::] [::] [::].
 
-Definition stypes (i : instance) j : option function_type :=
+Definition stypes (i : instance) j : option deftype :=
   match j with 
-  | Type_lookup j => List.nth_error (inst_types i) j
-  | Type_explicit t => Some t
+  | TU_idx (Mk_typeidx j) => List.nth_error (inst_types i) j
+  | TU_def t => Some t
+  | TU_recn j => List.nth_error (inst_types i) j
   end
 .
 
 Definition sfunc_ind (s : store_record) (i : instance) (j : nat) : option nat :=
   List.nth_error (inst_funcs i) j.
 
-Definition sfunc (s : store_record) (i : instance) (j : nat) : option function_closure :=
+Definition sfunc (s : store_record) (i : instance) (j : nat) : option funcinst :=
   option_bind (List.nth_error (s_funcs s)) (sfunc_ind s i j).
 
 Definition sglob_ind (s : store_record) (i : instance) (j : nat) : option nat :=
@@ -620,13 +622,13 @@ Definition stab_addr (s: store_record) (f: frame) (c: nat) : option nat :=
   end.
 
 
-Definition stab_s (s : store_record) (i j : nat) : option function_closure :=
+Definition stab_s (s : store_record) (i j : nat) : option funcinst :=
   let n := stab_index s i j in
   option_bind
     (fun id => List.nth_error (s_funcs s) id)
   n.
 
-Definition stab (s : store_record) (i : instance) (j : nat) : option function_closure :=
+Definition stab (s : store_record) (i : instance) (j : nat) : option funcinst :=
   match i.(inst_tab) with
   | nil => None
   | k :: _ => stab_s s k j
@@ -768,9 +770,9 @@ Definition e_to_vref (e: administrative_instruction) : value_ref :=
 Definition e_to_vref_opt (e : administrative_instruction) : option value_ref :=
   match e with
   | AI_basic (BI_ref_null t) => Some (VAL_ref_null t)
-  | AI_ref addr => Some (VAL_ref_func addr)
-  | AI_ref_cont addr => Some (VAL_ref_cont addr)
-  | AI_ref_exn addr addr' => Some (VAL_ref_exn addr addr')
+  | AI_ref addr => Some (VAL_ref_addr (REF_func addr))
+  | AI_ref_cont addr => Some (VAL_ref_addr (REF_cont addr))
+  | AI_ref_exn addr => Some (VAL_ref_addr (REF_exn addr))
 (*  | AI_ref_extern addr => Some (VAL_ref_extern addr) *)
   | _ => None
   end.
@@ -1238,13 +1240,13 @@ Proof.
     by rewrite HLFBool in HContra.
 Qed.
 
-Definition result_types_agree C (ts : list value_type) r :=
+Definition result_types_agree C (ts : list valtype) r :=
   match r with
   | result_values vs => all2 (types_agree C) ts vs
   | result_trap => true
   end.
 
-Definition load_store_t_bounds (a : alignment_exponent) (tp : option packed_type) (t : number_type) : bool :=
+Definition load_store_t_bounds (a : alignment_exponent) (tp : option packed_type) (t : numtype) : bool :=
   match tp with
   | None => Nat.pow 2 a <= length_tnum t
   | Some tp' => (Nat.pow 2 a <= length_tp tp') && (length_tp tp' < length_tnum t) && (is_int_t t)
@@ -1328,7 +1330,7 @@ Definition cvt_f64 (s : option sx) (v : value_num) : option f64 :=
   end.
 
 
-Definition cvt (t : number_type) (s : option sx) (v : value_num) : option value_num :=
+Definition cvt (t : numtype) (s : option sx) (v : value_num) : option value_num :=
   match t with
   | T_i32 => option_map VAL_int32 (cvt_i32 s v)
   | T_i64 => option_map VAL_int64 (cvt_i64 s v)
@@ -1344,7 +1346,7 @@ Definition bits (v : value_num) : bytes :=
   | VAL_float64 c => serialise_f64 c
   end.
 
-Definition bitzero (t : number_type) : value_num :=
+Definition bitzero (t : numtype) : value_num :=
   match t with
   | T_i32 => VAL_int32 (Wasm_int.int_zero i32m)
   | T_i64 => VAL_int64 (Wasm_int.int_zero i64m)
@@ -1352,18 +1354,16 @@ Definition bitzero (t : number_type) : value_num :=
   | T_f64 => VAL_float64 (Wasm_float.float_zero f64m)
   end.
 
-Definition n_zeros (ts : seq number_type) : seq value_num :=
+Definition n_zeros (ts : seq numtype) : seq value_num :=
   map bitzero ts.
 
-Definition default_val (t: value_type) : value :=
+Definition default_val (t: valtype) : value :=
   match t with
-  | T_num t => VAL_num (bitzero t)
-  | T_ref (T_funcref t) => VAL_ref (VAL_ref_null (T_funcref t))
-  | T_ref (T_contref t) => VAL_ref (VAL_ref_null (T_contref t))
-  | T_ref (T_exnref (* t *)) => VAL_ref (VAL_ref_null (T_exnref (* t *) )) (* placeholder *)
-  end.
+  | VT_num t => VAL_num (bitzero t)
+  | VT_ref (RT_ref _ t) => VAL_ref (VAL_ref_null t)
+  end. 
 
-Definition default_vals (ts: seq value_type) : seq value :=
+Definition default_vals (ts: seq valtype) : seq value :=
   map default_val ts.
 
 (* TODO: lots of lemmas *)

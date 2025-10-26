@@ -10,6 +10,9 @@ Require Import ansi list_extra.
 
 Open Scope string_scope.
 
+(* TODO: update to new rectypes *)
+(*
+
 
 Definition newline_char : Ascii.ascii := Ascii.ascii_of_byte Byte.x0a.
 
@@ -26,7 +29,7 @@ Fixpoint indent (i : indentation) (s : string) : string :=
 
 Definition type_style := FG_cyan.
 
-Definition pp_number_type (vt : number_type) : string :=
+Definition pp_number_type (vt : numtype) : string :=
   let s :=
     match vt with
     | T_i32 => "i32"
@@ -562,3 +565,4 @@ End Show.
 
 End PP. *)
 
+*)

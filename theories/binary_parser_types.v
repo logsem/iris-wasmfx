@@ -11,6 +11,9 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 (* Unset Automatic Proposition Inductives.  *)
 
+(* TODO: update to actual binary *)
+(* 
+
 Definition expr := list basic_instruction.
 
 Inductive labelidx : Type :=
@@ -125,3 +128,4 @@ Record module : Type := {
   mod_exports : list export;
 }.
 
+*)
