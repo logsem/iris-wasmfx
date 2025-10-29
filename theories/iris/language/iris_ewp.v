@@ -20,21 +20,50 @@ Set Bullet Behavior "Strict Subproofs".
 (* -------------------------------------------------------------------------- *)
 (** Definition. *)
 
- Inductive effect_identifier : Type :=
+Definition meta_protocol `{!wasmG Σ} : Type :=
+  ( (tagidx -d> iProt Σ) *
+    (tagidx -d> (iProt Σ * (hholed -d> iPropO Σ))) *
+      (tagidx -d> list value -d> iPropO Σ) )%type.
+
+Definition get_suspend `{!wasmG Σ} i (Ψ : meta_protocol) : iProt Σ :=
+  let '(Ψ,_,_) := Ψ in Ψ i.
+Definition get_switch `{!wasmG Σ} i (Ψ : meta_protocol) :=
+  let '(_,Ψ,_) := Ψ in Ψ i.
+Definition get_switch1 `{!wasmG Σ} i (Ψ : meta_protocol) :=
+  let '(Ψ,_) := get_switch i Ψ in Ψ.
+Definition get_switch2 `{!wasmG Σ} i (Ψ : meta_protocol) :=
+  let '(_,Ψ) := get_switch i Ψ in Ψ.
+Definition get_throw `{!wasmG Σ} i (Ψ : meta_protocol) :=
+  let '(_,_,Ψ) := Ψ in Ψ i.
+
+Definition bot_suspend `{!wasmG Σ} : tagidx -d> iProt Σ := 
+  λ (_: tagidx), iProt_bottom.
+Definition bot_switch `{!wasmG Σ} : tagidx -d> (iProt Σ * (hholed -d> iPropO Σ))%type :=
+  λ (_: tagidx), (iProt_bottom, λ (_: hholed), False%I).
+Definition bot_throw `{!wasmG Σ} : tagidx -d> list value -d> iPropO Σ :=
+  λ (_: tagidx) (_ : list value), False%I.
+Definition meta_bottom `{!wasmG Σ}: meta_protocol :=
+  ( bot_suspend, bot_switch, bot_throw ).
+
+
+
+
+
+(*  Inductive effect_identifier : Type :=
 | SuspendE : tagidx -> effect_identifier
 | SwitchE : tagidx -> effect_identifier
-| ThrowE : tagidx -> effect_identifier
-.
+| ThrowE : tagidx -> effect_identifier 
+. *)
 
 
   
 
 Definition ewp_pre `{!wasmG Σ} :
-  (coPset -d> expr -d> 
-     (effect_identifier -d> iProt Σ) -d> 
+  (coPset -d> expr -d>
+     meta_protocol -d>
      (val -d> iPropO Σ) -d> iPropO Σ) →
   (coPset -d> expr -d> 
-     (effect_identifier -d> iProt Σ) -d> 
+     meta_protocol -d>
      (val -d> iPropO Σ) -d> iPropO Σ)
   := λ ewp E e₁ Ψ Φ,
   match to_val e₁ with
@@ -43,13 +72,17 @@ Definition ewp_pre `{!wasmG Σ} :
   | None =>
       match to_eff e₁ with
       | Some (thrE vs i a sh, f) =>
-          iProt_car (upcl $ Ψ $ ThrowE a) vs (λ w, False)%I
+          (* weird that i is unused; not weird for sh that part makes sense actually *) 
+          get_throw a Ψ vs
       | Some (susE vs i sh, f) =>
-          iProt_car (upcl $ Ψ $ SuspendE i) vs
+          iProt_car (upcl $ get_suspend i Ψ) vs
             (λ w, ▷ ewp E (susfill i sh (v_to_e_list w), f) Ψ Φ)
-      | Some (swE vs k tf i sh, f) => (* this is weird, tf' and k not used at all? *)
-          iProt_car (upcl $ Ψ $ SwitchE i) vs
-            ( λ w, ▷ ewp E (swfill i sh (v_to_e_list w), f) Ψ Φ)
+      | Some (swE vs k tf i sh, f) => (* attempt *)
+          ∃ cont,
+            N.of_nat k ↦[wcont] Live tf cont ∗
+              get_switch2 i Ψ (hholed_of_valid_hholed cont) ∗ 
+              iProt_car (upcl $ get_switch1 i Ψ) vs
+              ( λ w, ▷ ewp E (swfill i sh (v_to_e_list w), f) Ψ Φ)
       | None =>
           ∀ s1,
             state_interp s1 ={E,∅}=∗ 
@@ -69,12 +102,14 @@ Proof.
     intros => ?. f_equiv. f_contractive. apply Hwp. *)
       
   do 5 f_equiv; try by intros => ?; try f_contractive; apply Hwp.
-  do 12 (f_contractive || f_equiv).
-  apply Hwp.
+  2:{ do 12 (f_contractive || f_equiv).
+      apply Hwp. }
+  f_equiv. f_equiv. f_equiv. f_equiv. 
+  intros => ?. f_contractive. apply Hwp. 
 Qed.
 Definition ewp_def `{!wasmG Σ} :
   coPset -d> expr -d> 
-    (effect_identifier -d> iProt Σ) -d> 
+    meta_protocol -d> 
     (val -d> iPropO Σ) -d> iPropO Σ :=
   fixpoint ewp_pre.
 Definition ewp_aux `{!wasmG Σ} : seal ewp_def. Proof. by eexists. Qed.
@@ -101,20 +136,46 @@ Proof.
   f_equiv.
   - f_equiv. f_equiv.
     + do 3 f_equiv. 
-      * f_equiv. 
-        apply IProt_ne.
+      * apply IProt_ne.
         f_equiv.
-        apply HΨ1.
+        inversion HΨ1.
+        destruct Ψ1, Ψ1'.
+        simpl in H.
+        destruct H.
+        destruct p, p0.
+        simpl.
+        simpl in H.
+        f_equiv.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         apply IH.
         done.
         all: eapply dist_le; eauto with lia.
         all: by apply SIdx.lt_le_incl. 
-    + do 3 f_equiv. 
-      * f_equiv. apply IProt_ne. f_equiv. apply HΨ1.
-      * f_equiv. intros ?. do 2 (f_contractive || f_equiv). 
-        apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
-    + f_equiv. f_equiv. f_equiv. f_equiv. apply IProt_ne. f_equiv. apply HΨ1.  
+    + destruct (get_switch i Ψ1) eqn:H1.
+      destruct (get_switch i Ψ1') eqn:H1'.
+      f_equiv. f_equiv. f_equiv. f_equiv. 
+      * inversion HΨ1. destruct Ψ1. destruct Ψ1'.
+        inversion H. destruct p, p0.
+        simpl in H3. simpl in H1. simpl in H1'.
+        unfold get_switch2.
+        simpl.
+        rewrite H1 H1'.
+        assert (o0 ≡{n}≡ o2); last by f_equiv.
+        assert ((o, o0) ≡{n}≡ (o1, o2)) as Hres; last by inversion Hres.
+        rewrite -H1 -H1'. f_equiv. 
+      * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
+        -- destruct Ψ1, Ψ1'. destruct p, p0.
+           inversion HΨ1. inversion H.
+           apply IProt_ne.
+           f_equiv.
+           simpl in H1, H1', H3.
+           rewrite /get_switch1 /= H1 H1'. 
+           assert ((o, o0) ≡{n}≡ (o1, o2)) as Hres; last by inversion Hres.
+           rewrite -H1 -H1'. f_equiv. 
+        -- f_equiv. f_equiv. f_contractive.
+           apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
+    + destruct Ψ1, Ψ1'. inversion HΨ1. destruct p, p0. simpl.
+      simpl in H0. f_equiv. 
   - do 5 f_equiv. do 10 (f_contractive || f_equiv).
     apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
 Qed.
@@ -131,7 +192,7 @@ Qed.
 (** Notation. *)
 
 Notation "'EWP' e 'UNDER' f @ E {{ Φ } }" :=
-  (ewp_def E (e, f)%E (λ _, iProt_bottom) (λ '(v, h), Φ v h))
+  (ewp_def E (e, f)%E meta_bottom (λ '(v, h), Φ v h))
   (at level 20, e, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  @  E  {{  Φ  } } ']' ']'") : bi_scope.
 Notation "'EWP' e 'UNDER' f @ E <| Ψ |> {{ Φ } }" :=
@@ -143,7 +204,7 @@ Notation "'EWP' e 'UNDER' f @ E <| Ψ |> {{ Φ } }" :=
 (* Postcondition includes binder. *)
 
 Notation "'EWP' e 'UNDER' f @ E {{ v ; h , Φ } }" :=
-  (ewp_def E (e, f)%E ( λ _, iProt_bottom ) (λ '(v,h), Φ))
+  (ewp_def E (e, f)%E meta_bottom (λ '(v,h), Φ))
   (at level 20, e, v, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  @  E  {{  v  ; h  , Φ  } } ']' ']'") : bi_scope.
  Notation "'EWP' e 'UNDER' f @ E <| Ψ |> {{ v ; h , Φ } }" :=
@@ -154,7 +215,7 @@ Notation "'EWP' e 'UNDER' f @ E {{ v ; h , Φ } }" :=
 (* Mask is implicitly specified by ⊤. *)
 
 Notation "'EWP' e 'UNDER' f {{ v ; h , Φ } }" :=
-  (ewp_def ⊤ (e, f)%E ( λ _, iProt_bottom ) (λ '(v, h), Φ))
+  (ewp_def ⊤ (e, f)%E meta_bottom (λ '(v, h), Φ))
   (at level 20, e, Φ at level 200,
    format "'[' 'EWP'  e  '/' '[          ' 'UNDER'  f  {{ v ; h , Φ   } } ']' ']'") : bi_scope.
  Notation "'EWP' e 'UNDER' f <| Ψ |> {{ v ; h , Φ } }" :=
@@ -165,7 +226,7 @@ Notation "'EWP' e 'UNDER' f {{ v ; h , Φ } }" :=
 (* No binder and no mask. *)
 
 Notation "'EWP' e 'UNDER' f {{ Φ } }" :=
-  (ewp_def ⊤ (e, f)%E ( λ _, iProt_bottom ) (λ '(v, h), Φ v h))
+  (ewp_def ⊤ (e, f)%E meta_bottom (λ '(v, h), Φ v h))
   (at level 20, e at level 200,
    format "'[' 'EWP'  e  '/' '[          '  'UNDER'  f  {{  Φ  } } ']' ']'") : bi_scope.
  Notation "'EWP' e 'UNDER' f <| Ψ |> {{ Φ } }" :=
@@ -181,11 +242,11 @@ Notation "'EWP' e 'UNDER' f {{ Φ } }" :=
 Section wp.
   Context `{!wasmG Σ}.
 
-  Lemma ewp_value_fupd' (E : coPset) (f: frame) (Ψ : effect_identifier -d> iProt Σ) Φ (v: val0) :
+  Lemma ewp_value_fupd' (E : coPset) (f: frame) (Ψ : meta_protocol) Φ (v: val0) :
     EWP of_val0 v UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ |={E}=> Φ v f .
   Proof. rewrite ewp_unfold /ewp_pre. rewrite /to_val /= to_of_val0. auto. Qed.
 
-  Lemma ewp_effect_sus' E f Ψ Φ vs i sh : EWP of_eff0 (susE vs i sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ Ψ $ SuspendE i) vs (λ w, ▷ EWP susfill i sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }}).
+  Lemma ewp_effect_sus' E f Ψ Φ vs i sh : EWP of_eff0 (susE vs i sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ get_suspend i Ψ) vs (λ w, ▷ EWP susfill i sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }}).
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite /to_eff /to_val to_of_eff0.
     destruct (to_val0 _) eqn:Habs => //.
@@ -193,7 +254,12 @@ Section wp.
     rewrite to_of_eff0 //.
   Qed.
 
-  Lemma ewp_effect_sw' E f Ψ Φ vs k tf i sh : EWP of_eff0 (swE vs k tf i sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ Ψ $ SwitchE i) vs (λ w, ▷ EWP (swfill i sh (v_to_e_list w)) UNDER f @ E <| Ψ |> {{ Φ }}).
+  Lemma ewp_effect_sw' E f Ψ Φ vs k tf i sh : EWP of_eff0 (swE vs k tf i sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ 
+          ∃ cont,
+            N.of_nat k ↦[wcont] Live tf cont ∗
+              get_switch2 i Ψ (hholed_of_valid_hholed cont) ∗ 
+              iProt_car (upcl $ get_switch1 i Ψ) vs
+              ( λ w, ▷ EWP swfill i sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }}).
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite /to_val /to_eff to_of_eff0.
     destruct (to_val0 _) eqn:Habs => //.
@@ -202,7 +268,7 @@ Section wp.
   Qed.
 
 
-   Lemma ewp_effect_thr' E f Ψ  Φ vs i a sh : EWP of_eff0 (thrE vs i a sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ Ψ $ ThrowE a) vs (λ w, False)%I.
+   Lemma ewp_effect_thr' E f Ψ  Φ vs i a sh : EWP of_eff0 (thrE vs i a sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢  get_throw a Ψ vs.
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite /to_eff to_of_eff0 /to_val.
     destruct (to_val0 _) eqn:Habs => //.
@@ -210,14 +276,31 @@ Section wp.
     rewrite to_of_eff0 //.
   Qed.
 
-  
+
+  Definition meta_leq (Ψ1 Ψ2: meta_protocol) : iProp Σ :=
+    ((∀ i, get_suspend i Ψ1 ⊑ get_suspend i Ψ2)%iprot ∗
+       (∀ i, get_switch1 i Ψ1 ⊑ get_switch1 i Ψ2)%iprot ∗
+       □ (∀ i c, get_switch2 i Ψ1 c -∗ get_switch2 i Ψ2 c) ∗
+       □ (∀ i v, get_throw i Ψ1 v -∗ get_throw i Ψ2 v))%I.
+
+  Lemma meta_leq_refl Ψ : ⊢ meta_leq Ψ Ψ.
+  Proof.
+    destruct Ψ as [[??]?].
+    iSplit; first by iIntros (?); iApply iProt_le_refl.
+    iSplit; first by iIntros (?); iApply iProt_le_refl.
+    iSplit; first by iIntros "!>" (??) "?".
+    by iIntros "!>" (??) "?".
+  Qed. 
   
 
   Lemma ewp_strong_mono E1 E2 e f Φ1 Φ2 Ψ1 Ψ2  :
     E1 ⊆ E2 →
-    EWP e UNDER f @ E1 <| Ψ1 |> {{ Φ1 }} -∗ (∀ x, Ψ1 x ⊑ Ψ2 x)%iprot -∗ (∀ v f, Φ1 v f ={E2}=∗ Φ2 v f) -∗ EWP e UNDER f @ E2 <| Ψ2 |> {{ Φ2 }}.
+    EWP e UNDER f @ E1 <| Ψ1 |> {{ Φ1 }} -∗
+            meta_leq Ψ1 Ψ2 -∗
+            (∀ v f, Φ1 v f ={E2}=∗ Φ2 v f) -∗
+            EWP e UNDER f @ E2 <| Ψ2 |> {{ Φ2 }}.
   Proof.
-    iIntros (HE) "H #HΨ HΦ". 
+    iIntros (HE) "H #HΨ HΦ".
     iLöb as "IH" forall (e f E1 E2 HE Φ1 Φ2).
     rewrite !ewp_unfold /ewp_pre /=.
     destruct (to_val0 e) as [v|] eqn:?.
@@ -225,20 +308,31 @@ Section wp.
       done.
       iFrame.
       iApply ("HΦ" with "[> -]").
-      done. } 
-(*      iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). } *)
+      done. }
     destruct (to_eff0 e) as [eff|] eqn:?.
     { destruct eff.
       all: destruct i.
-      all: iDestruct "H" as (Φ) "[HΦ1 H]".
-      all: iExists Φ.
-      all: iSplitL "HΦ1".
-      all: try iApply ("HΨ" with "HΦ1").
-      all: iIntros (w) "Hw".
-      all: iDestruct ("H" with "Hw") as "H".
-      3: done.
-      all: iNext.
-      all: iApply ("IH" with "[] H"); eauto.
+      - iDestruct "H" as (Φ) "[HΦ1 H]".
+        iDestruct "HΨ" as "[HΨ Hrest]".
+        iExists Φ.
+        iSplitL "HΦ1".
+        iApply ("HΨ" with "HΦ1").
+        iIntros (w) "Hw".
+        iDestruct ("H" with "Hw") as "H".
+        iNext.
+        iApply ("IH" with "[] H [$]"); eauto.
+      - iDestruct "HΨ" as "(Hrest1 & HΨ1 & HΨ2 & Hrest2)".
+        iDestruct "H" as (cont) "(Hk & Hcont0 & %Φ & HΦ1 & H)".
+        iFrame.
+        iSplitL "Hcont0"; first by iApply "HΨ2".
+        iExists Φ.
+        iSplitL "HΦ1"; first by iApply "HΨ1".
+        iIntros (w) "Hw".
+        iDestruct ("H" with "Hw") as "H".
+        iNext.
+        iApply ("IH" with "[] H [$]"); eauto. 
+      - iDestruct "HΨ" as "(Hrest1 & Hrest2 & Hrest3 & HΨ)".
+        by iApply "HΨ". 
     } 
     iIntros (σ1) "Hσ".
     iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
@@ -249,12 +343,11 @@ Section wp.
     iMod ("H" with "[//]") as "H". iIntros "!> !>".  iMod "H". iModIntro.
     iMod "H" as "[Hσ H]".
     iMod "Hclose".
-    (*    iApply (step_fupdN_wand with "[H]"); first by iApply "H". *)
     iModIntro.
     iFrame.
     destruct e2.
     iApply ("IH" with "[] H"); eauto.
-  Qed.
+  Qed. 
 
   Lemma fupd_ewp E e f Ψ  Φ :
     TCEq (to_eff0 e) None ->
@@ -270,9 +363,10 @@ Section wp.
   Qed. 
   
   Lemma ewp_fupd E e f Ψ Φ : EWP e UNDER f @ E <| Ψ |> {{ v ; h , |={E}=> Φ v h }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }}.
-  Proof. iIntros "H". iApply (ewp_strong_mono E with "H"); auto.
-         iIntros (x). iApply iProt_le_refl. 
-  Qed.
+  Proof.
+    iIntros "H". iApply (ewp_strong_mono E with "H"); auto.
+    iApply meta_leq_refl. 
+  Qed. 
 
 
   (* Is this true anymore? *)
@@ -321,7 +415,7 @@ Section wp.
     destruct n as [|n].
     { iIntros (? ? ?) "/= [_ [HP Hwp]]".
       iApply (ewp_strong_mono with "Hwp") => //.
-      iIntros (x); iApply iProt_le_refl. 
+      iApply meta_leq_refl. 
       iIntros (v ?) "H". iApply ("H" with "[>HP]"). by do 2 iMod "HP". }
     rewrite !ewp_unfold /ewp_pre /=. iIntros (-> -> ?) "H".
     iIntros (σ1) "Hσ".
@@ -342,35 +436,33 @@ Section wp.
     iModIntro.
     iFrame.
     destruct e2.
-    iApply (ewp_strong_mono with "Hwp"); [done | set_solver | ].
+    iApply (ewp_strong_mono with "Hwp"); [done | iApply meta_leq_refl | ].
     iIntros (v ?) "HΦ". iApply ("HΦ" with "HP").
-  Qed.
+  Qed. 
 
 
   (** * Derived rules *)
-  Lemma ewp_mono E e f Φ1 Φ2 Ψ1 Ψ2 : (∀ v f, Φ1 v f ⊢ Φ2 v f) →  (∀ v, ⊢ (Ψ1 v ⊑ Ψ2 v)%iprot) -> EWP e UNDER f @ E <| Ψ1 |> {{ Φ1 }} ⊢ EWP e UNDER f @ E <| Ψ2 |> {{ Φ2 }}.
+  Lemma ewp_mono E e f Φ1 Φ2 Ψ1 Ψ2 : (∀ v f, Φ1 v f ⊢ Φ2 v f) → (⊢ meta_leq Ψ1 Ψ2) -> EWP e UNDER f @ E <| Ψ1 |> {{ Φ1 }} ⊢ EWP e UNDER f @ E <| Ψ2 |> {{ Φ2 }}.
   Proof.
     iIntros (HΦ HΨ) "H"; iApply (ewp_strong_mono with "H"); auto.
-    iIntros (v). iApply HΨ. 
     iIntros (v ?) "?". iFrame. by iApply HΦ.
-  Qed.
+  Qed. 
 
    Lemma ewp_mono_post E e f Φ1 Φ2 Ψ : (∀ v f, Φ1 v f ⊢ Φ2 v f) → EWP e UNDER f @ E <| Ψ |> {{ Φ1 }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ2 }}.
-  Proof.
-    iIntros (HΦ) "H"; iApply (ewp_strong_mono with "H"); auto.
-    iIntros (?); iApply iProt_le_refl. 
+   Proof.
+     iIntros (HΦ) "H"; iApply (ewp_strong_mono with "H"); auto.
+     iApply meta_leq_refl. 
     iIntros (v ?) "?". iFrame. by iApply HΦ.
-  Qed.
+  Qed. 
 
-   Lemma ewp_mono_prot E e f Φ Ψ1 Ψ2 : (∀ v, ⊢ (Ψ1 v ⊑ Ψ2 v)%iprot) -> EWP e UNDER f @ E <| Ψ1 |> {{ Φ }} ⊢ EWP e UNDER f @ E <| Ψ2 |> {{ Φ }}.
+   Lemma ewp_mono_prot E e f Φ Ψ1 Ψ2 : (⊢ meta_leq Ψ1 Ψ2) -> EWP e UNDER f @ E <| Ψ1 |> {{ Φ }} ⊢ EWP e UNDER f @ E <| Ψ2 |> {{ Φ }}.
   Proof.
     iIntros (HΨ) "H"; iApply (ewp_strong_mono with "H"); auto.
-    iIntros (v). iApply HΨ.
-  Qed. 
+  Qed.  
   
   Lemma ewp_mask_mono E1 E2 e f Ψ  Φ : E1 ⊆ E2 → EWP e UNDER f @ E1 <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E2 <| Ψ |> {{ Φ }}.
   Proof. iIntros (?) "H"; iApply (ewp_strong_mono with "H"); auto.
-         iIntros (?); iApply iProt_le_refl. 
+         iApply meta_leq_refl. 
   Qed.
 
 (*
@@ -390,7 +482,7 @@ Section wp.
 
   Lemma ewp_effect_sus E f Ψ Φ vs i sh es:
     to_eff0 es = Some (susE vs i sh) ->
-    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ Ψ $ SuspendE i) vs (λ w, ▷ EWP (susfill i sh (v_to_e_list w)) UNDER f @ E <| Ψ |> {{ Φ }}).
+    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ get_suspend i Ψ) vs (λ w, ▷ EWP (susfill i sh (v_to_e_list w)) UNDER f @ E <| Ψ |> {{ Φ }}).
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_sus'.
   Qed.
@@ -398,25 +490,30 @@ Section wp.
   
   Lemma ewp_effect_sw E f Ψ Φ vs k tf i sh es:
     to_eff0 es = Some (swE vs k tf i sh) ->
-    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ Ψ $ SwitchE i) vs  (λ w, ▷ EWP (swfill i sh (v_to_e_list w)) UNDER f @ E <| Ψ |> {{ Φ }}).
+    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢  
+          ∃ cont,
+            N.of_nat k ↦[wcont] Live tf cont ∗
+              get_switch2 i Ψ (hholed_of_valid_hholed cont) ∗ 
+              iProt_car (upcl $ get_switch1 i Ψ) vs
+              ( λ w, ▷ EWP swfill i sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }} ).
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_sw'.
   Qed.
 
   Lemma ewp_effect_thr E f Ψ Φ vs i a sh es:
     to_eff0 es = Some (thrE vs i a sh) ->
-    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ iProt_car (upcl $ Ψ $ ThrowE a) vs  (λ w, False)%I.
+    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢  get_throw a Ψ vs.
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_thr'.
   Qed. 
 
   Lemma ewp_frame_l E e f Ψ Φ R : R ∗ EWP e UNDER f @ E <| Ψ |> {{ Φ }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ v ; h , R ∗ Φ v h }}.
   Proof. iIntros "[? H]". iApply (ewp_strong_mono with "H"); auto with iFrame.
-         iIntros (?); iApply iProt_le_refl. 
+         iApply meta_leq_refl. 
   Qed.
   Lemma ewp_frame_r E e f Ψ  Φ R : EWP e UNDER f @ E <| Ψ |> {{ Φ }} ∗ R ⊢ EWP e UNDER f @ E <| Ψ |> {{ v ; h , Φ v h ∗ R }}.
   Proof. iIntros "[H ?]". iApply (ewp_strong_mono with "H"); auto with iFrame.
-         iIntros (?); iApply iProt_le_refl. 
+         iApply meta_leq_refl. 
   Qed.
 
   (** This lemma states that if we can prove that [n] laters are used in
@@ -479,7 +576,7 @@ Section wp.
     EWP e UNDER f @ E <| P |> {{ Φ }} -∗ (∀ v f, Φ v f -∗ Ψ v f) -∗ EWP e UNDER f @ E <| P |>  {{ Ψ }}.
   Proof.
     iIntros "Hwp H". iApply (ewp_strong_mono with "Hwp"); auto.
-    iIntros (?); iApply iProt_le_refl. 
+    iApply meta_leq_refl. 
     iIntros (??) "?". by iApply "H".
   Qed.
   Lemma ewp_wand_l E e f P Φ Ψ :

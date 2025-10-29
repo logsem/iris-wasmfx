@@ -16,7 +16,7 @@ Context `{!wasmG Σ}.
 
 
 
-Lemma ewp_wasm_empty_ctx (E : coPset) (f: frame) (Ψ : effect_identifier -> iProt Σ) (Φ : val0 -> frame -> iProp Σ) (e: expr0) :
+Lemma ewp_wasm_empty_ctx (E : coPset) (f: frame) (Ψ : meta_protocol) (Φ : val0 -> frame -> iProp Σ) (e: expr0) :
   ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }} ∗-∗ EWP e UNDER f @ E CTX_EMPTY <| Ψ |> {{ Φ }}.
 Proof.
   iSplit.
@@ -82,7 +82,7 @@ Proof.
         iApply ("IH" with "[$Hntrap $Hres]"). 
       * erewrite to_eff_cons_swE; last done.
         destruct i.
-        iDestruct "H" as "(%Φ0 & HΨ & Hallw)".
+        iDestruct "H" as "(%cont & Hk & Hcont & %Φ0 & HΨ & Hallw)".
         iFrame. 
         iIntros (w) "Hw".
         iDestruct ("Hallw" with "Hw") as "Hres".
@@ -463,6 +463,7 @@ Proof.
       * destruct (to_val0 es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
         rewrite Hin.
         destruct i.
+        iDestruct "Hes1" as (cont) "(Hk & Hcont & Hes1)".
         iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
         iFrame.
         iIntros (w) "Hw".
@@ -487,9 +488,7 @@ Proof.
       * rewrite Hin // in Hes2.  
       * destruct (to_val0 es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
         rewrite Hin.
-        destruct i.
-        iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
-        iFrame.
+        iFrame. 
       * constructor.
   - (* Ind *)
     iIntros (σ) "Hσ".
@@ -643,6 +642,7 @@ Proof.
          eapply to_val_to_eff in Habs => //.
          rewrite Hin.
          destruct i0.
+         iDestruct "Hes1" as (cont) "(Hk & Hcont & Hes1)".
          iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
          iFrame.
          iIntros (w) "Hw".
@@ -672,8 +672,6 @@ Proof.
        * destruct (to_val0 es1) eqn:Habs.
          eapply to_val_to_eff in Habs => //.
          rewrite Hin.
-         destruct i0.
-         iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
          iFrame.
 
    - repeat rewrite ewp_unfold. rewrite /ewp_pre /=.
@@ -887,9 +885,9 @@ Proof.
       * destruct (to_val0 es1) eqn:Habs.
         eapply to_val_to_eff in Habs => //.
         rewrite ewp_unfold /ewp_pre /= Habs Hin Hetov Hetof.
+        iDestruct "Hes1" as (cont) "(Hk & Hcont & Hes1)".
         iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
-        iExists Ξ.
-        iFrame.
+        iFrame. 
         iIntros (w) "Hw".
         iDestruct ("Hnext" with "Hw") as "H".
         iNext.
@@ -924,8 +922,6 @@ Proof.
       * destruct (to_val0 es1) eqn:Habs.
         eapply to_val_to_eff in Habs => //.
         rewrite ewp_unfold /ewp_pre /= Habs Hin Hetov Hetof.
-        iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
-        iExists Ξ.
         iFrame. } 
 
   repeat rewrite ewp_unfold /ewp_pre /=. rewrite Hetov Hetof.

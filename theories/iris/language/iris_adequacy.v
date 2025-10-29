@@ -34,7 +34,9 @@ Proof.
   simpl.
   destruct (to_eff0 e1) eqn:Htf.
   { destruct e => //=.
-    all: iDestruct "H" as (?) "[? _]" => //. } 
+    all: iDestruct "H" as (?) "[? Hrest]" => //.
+    iDestruct "Hrest" as "(_ & % & ? & _)" => //.
+  } 
 (*
     destruct H as (H & -> & ->).
     apply eff_head_stuck_reduce in H as [Habs | (vs & k & tf & tfk & i & sh & hh & Htf' & Hconts & -> & -> & Hfill)];

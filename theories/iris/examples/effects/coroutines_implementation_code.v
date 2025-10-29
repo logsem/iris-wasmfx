@@ -222,10 +222,9 @@ Section yield_par.
     iIntros (addr_tag -> ->) "#Htag".
     iIntros (P1 P2 Q1 Q2 I).
     remember (N.of_nat addr_yield ↦[wf] closure_yield addr_yield addr_par addr_tag)%I as J.
-    iExists (λ eid, match eid with
-                    | SuspendE (Mk_tagidx n) => if (Nat.eqb n addr_tag) then (!  [] {{ I ∗ J }} ; ? [] {{ I ∗ J }})%iprot else iProt_bottom
-                    | _ => iProt_bottom
-                    end).
+    iExists ((λ eid, match eid with
+                    | (Mk_tagidx n) => if (Nat.eqb n addr_tag) then (!  [] {{ I ∗ J }} ; ? [] {{ I ∗ J }})%iprot else iProt_bottom
+                    end), bot_switch, bot_throw).
     iSplit.
     - (* yield *)
       iIntros "!>" (f) "HI Hcl".
@@ -252,8 +251,8 @@ Section yield_par.
       by instantiate (1 := []).
       iFrame "Htag".
 (*      iApply ewp_suspend. *)
-
-      rewrite Nat.eqb_refl.
+      unfold get_suspend. 
+      rewrite Nat.eqb_refl. 
       rewrite (upcl_tele' [tele] [tele]).
       iSimpl. subst J.
       iFrame.
@@ -392,15 +391,14 @@ Section yield_par.
       (*      instantiate (3 := λ f, (∃ locs, ⌜ f = Build_frame locs (coroutine_inst addr_yield addr_par addr_tag) ⌝)%I). 
 
       instantiate (3 := Φf'). *)
-      remember ( λ eid : effect_identifier,
+      remember ( (λ eid,
                    match eid with
-                   | SuspendE (Mk_tagidx n) =>
+                   | (Mk_tagidx n) =>
                        if n =? addr_tag
                        then (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot
                        else iProt_bottom
-                   | _ => iProt_bottom
                    end
-               ) as Ψ.
+               ), bot_switch, bot_throw) as Ψ.
       (*      instantiate (3 := λ f, True%I).
       instantiate (2 := λ f, True%I).
       instantiate (1 := λ v, (⌜ v = immV [] ⌝ ∗ Q1 v ∗ Q2 v ∗ I)%I). *)
@@ -438,7 +436,7 @@ Section yield_par.
                               VAL_ref (VAL_ref_cont kaddra); VAL_ref (VAL_ref_cont kaddrb);
                               VAL_num (xx b)];
                            f_inst := coroutine_inst addr_yield addr_par addr_tag
-                         |} {{w;f0,ewp_wasm_ctx ⊤ (of_val0 w) f0 (λ _ : effect_identifier, iProt_bottom)
+                         |} {{w;f0,ewp_wasm_ctx ⊤ (of_val0 w) f0 meta_bottom
                                      (λ (w0 : val0) (_ : frame), ⌜
                                       w0 = immV []⌝ ∗ Q1 ∗ Q2 ∗ I ∗ N.of_nat f1 ↦[wf] cl1 ∗ N.of_nat f2 ↦[wf] cl2 ∗ J ) 1
                                      (LH_rec [] 0 [] (LH_base [] []) [])  }}
@@ -688,8 +686,8 @@ Section yield_par.
             iExact "H".
         * (* Case 2: the continuation yielded *)
           iSimpl.
-          replace (Ψ (SuspendE (Mk_tagidx addr_tag))) with (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot.
-          2:{ subst Ψ. rewrite Nat.eqb_refl. done. }
+          replace (get_suspend (Mk_tagidx addr_tag) Ψ) with (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot.
+          2:{ subst Ψ. rewrite /get_suspend Nat.eqb_refl. done. }
           rewrite (upcl_tele' [tele] [tele]).
           simpl.
           iDestruct "HΨ" as "(%Heq & HI & Hrunb)".
@@ -1170,8 +1168,8 @@ Section yield_par.
             iExact "H".
         * (* Case 2: the continuation yielded *)
           iSimpl.
-          replace (Ψ (SuspendE (Mk_tagidx addr_tag))) with (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot.
-          2:{ subst Ψ. rewrite Nat.eqb_refl. done. }
+          replace (get_suspend (Mk_tagidx addr_tag) Ψ) with (! []{{ I ∗ J }};?  [] {{ I ∗ J }} )%iprot.
+          2:{ subst Ψ. rewrite /get_suspend Nat.eqb_refl. done. }
           rewrite (upcl_tele' [tele] [tele]).
           simpl.
           iDestruct "HΨ" as "(%Heq & [HI Hyield] & Hrunb)".

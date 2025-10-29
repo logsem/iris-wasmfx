@@ -203,6 +203,8 @@ Proof.
        * destruct (to_val0 es) eqn:Htv.
          by exfalso; eapply to_val_to_eff.
          rewrite /= Hin He He' Htv.
+         iDestruct "H" as (cont) "(Hk & Hcont & H)".
+         iFrame. 
          iApply (monotonic_prot with "[] H").
          iIntros (w) "H !>".
          subst sh.
@@ -345,6 +347,7 @@ Proof.
           rewrite flatten_simplify. done.
         * rewrite merge_switch in Hetof.
           inversion Hetof; subst.
+          iDestruct "H" as (cont) "(Hk & Hcont & H)".
           iDestruct "H" as (Ξ) "[HΞ H]".
           iFrame. iIntros (w) "Hw".
           iDestruct ("H" with "Hw") as "H".
@@ -358,7 +361,6 @@ Proof.
           rewrite flatten_simplify. done.
         * rewrite merge_throw in Hetof.
           inversion Hetof; subst.
-          iDestruct "H" as (Ξ) "[? H]".
           iFrame. 
       + rewrite merge_notval in Hetof => //. 
           

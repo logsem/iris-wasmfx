@@ -52,11 +52,11 @@ Section Example1.
         
   
 
-  Definition Ψaux x :=
-    match x with
-    | SuspendE (Mk_tagidx 0) => aux_prot
+  Definition Ψaux :=
+    ( λ x, match x with
+    | (Mk_tagidx 0) => aux_prot
     | _ => iProt_bottom
-    end.
+    end, bot_switch, bot_throw).
 
 
 

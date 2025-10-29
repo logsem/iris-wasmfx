@@ -905,8 +905,12 @@ forall (s E es Φ fr).
     by iApply "Hwp". }
   destruct (to_eff0 es) eqn:Hes'.
   { destruct e.
-    all: iDestruct "Hwp" as (?) "[??]".
-    all: done. } 
+    3: done.
+    all: iDestruct "Hwp" as (?) "[? H]".
+    done.
+    iDestruct "H" as "(_ & % & ? & _)".
+    done.
+  } 
   destruct σ as [[[s0 vis] ms] has].
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ?)".
   iSpecialize ("Hwp" $! s0 with "[$]").

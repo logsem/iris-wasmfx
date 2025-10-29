@@ -291,11 +291,11 @@ Section generator_spec.
       ! ([VAL_num $ VAL_int32 x]) {{ ⌜Permitted (x :: xs)⌝ ∗ I xs}} ;
       ? ([]) {{ I (x :: xs) }})%iprot.
 
-  Definition Ψgen (addr_tag : nat) I x :=
+  Definition Ψgen (addr_tag : nat) I :=
+    (λ x, 
     match x with
-    | SuspendE (Mk_tagidx addr) => if Nat.eqb addr addr_tag then SEQ I else iProt_bottom
-    | _ => iProt_bottom
-    end.
+    | (Mk_tagidx addr) => if Nat.eqb addr addr_tag then SEQ I else iProt_bottom
+    end, bot_switch, bot_throw).
 
   Definition naturals_inst addr_naturals addr_tag :=
     {|
@@ -645,11 +645,12 @@ Section sum_until_spec.
       2: {
         (* reason about resumption *)
         rewrite <- (app_nil_l [AI_ref_cont _; _]).
-        iApply ewp_resume; try done.
+        iApply ewp_resume.
+        done. done. done.
         simpl. instantiate (1 := [_]) => //.
         unfold agree_on_uncaptured => /=.
-        instantiate (1 := Ψgen addr_tag (frag_list γ)).
-        repeat split => //.
+        instantiate (1 := Ψgen addr_tag (frag_list γ)). 
+        repeat split => //. 
         intros i.
         destruct (i == Mk_tagidx addr_tag) eqn:Hi => //.
         move/eqP in Hi.
@@ -659,6 +660,8 @@ Section sum_until_spec.
         destruct (addr =? addr_tag) eqn:Hn => //.
         exfalso; apply Hi.
         by apply Nat.eqb_eq in Hn as ->.
+        unfold get_suspend. rewrite Hn. done.
+        done.
         iFrame "Hcont".
         iSplitR; last iSplitR; last iSplitL "Hcont_spec".
         3: {
@@ -693,13 +696,13 @@ Section sum_until_spec.
           done.
           iFrame.
           iFrame "%".
-          iSplitR; first done.
+          done. (* iSplitR; first done.
           iIntros "Hfrag".
           iDestruct ("Hcont_spec" with "Hfrag") as (LI') "[%HLI' Hcont_spec]".
           iExists LI'.
           iSplit; last done.
           iPureIntro.
-          by (destruct (hfilled No_var (hholed_of_valid_hholed h') [] LI')).
+          by (destruct (hfilled No_var (hholed_of_valid_hholed h') [] LI')). *)
         }
         by iIntros "(% & % & % & % & %Hcontra & _)".
       }
@@ -1081,7 +1084,8 @@ Section sum_until_spec.
           2: {
             (* reason about resumption *)
             rewrite <- (app_nil_l [AI_ref_cont _; _]).
-            iApply ewp_resume; try done.
+            iApply ewp_resume.
+            done. done. done. 
             simpl. instantiate (1 := [_]) => //.
             unfold agree_on_uncaptured => /=.
             instantiate (1 := Ψgen addr_tag (frag_list γ)).
@@ -1095,6 +1099,7 @@ Section sum_until_spec.
             destruct (addr =? addr_tag) eqn:Hn => //.
             exfalso; apply Hi.
             by apply Nat.eqb_eq in Hn as ->.
+            rewrite /get_suspend Hn //.
             2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
             iSplitR; last iSplitR; last iSplitL "Hwf_naturals Hfrag".
@@ -1131,13 +1136,14 @@ Section sum_until_spec.
               iApply ewp_value.
               done.
               iFrame.
-              iSplitR; first done.
+              done.
+(*              iSplitR; first done.
               iIntros "Hfrag".
               iDestruct ("Hcont_spec" with "Hfrag") as (LI) "[%HLI Hewp]".
               iExists LI.
               iSplit; last done.
               iPureIntro.
-              by (destruct (hfilled No_var (hholed_of_valid_hholed h) [] LI)).
+              by (destruct (hfilled No_var (hholed_of_valid_hholed h) [] LI)). *)
             }
             by iIntros "(% & % & % & % & %Hcontra & _)".
           }
