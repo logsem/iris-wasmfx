@@ -23,7 +23,7 @@ Section Example2.
   Definition g_type := Tf [T_ref f'_cont_type] [T_num T_i32].
   Definition g_cont_type := T_contref g_type.
 
-  Definition f_type := Tf [] [T_num T_i32].
+  Definition f_type := Tf [T_ref g_cont_type] [T_num T_i32].
   Definition f_cont_type := T_contref f_type.
 
   Definition main_type := Tf [] [T_num T_i32].
@@ -32,7 +32,10 @@ Section Example2.
   Definition swap_tag_type := Tf [] [T_num T_i32].
 
   Definition main_body :=
-    [ BI_ref_func 1;
+    [ BI_ref_func 2;
+      BI_contnew (Type_lookup 1);
+
+      BI_ref_func 1;
       BI_contnew (Type_lookup 2);
 
       BI_resume (Type_lookup 2) [HC_switch swap_tag];
@@ -41,9 +44,7 @@ Section Example2.
     ].
 
   Definition f_body :=
-    [ BI_ref_func 2;
-      BI_contnew (Type_lookup 1);
-
+    [ BI_get_local 0;
       BI_switch (Type_lookup 1) (Mk_tagident 0);
       BI_unreachable
     ].
@@ -73,19 +74,9 @@ Section Example2.
   Lemma f_body_type : be_typing typing_context f_body (Tf [] [T_num T_i32]).
   Proof.
     unfold f_body.
-    rewrite /main_body separate1.
-    eapply bet_composition'.
-    {
-      apply /b_e_type_checker_reflects_typing.
-      simpl.
-      done.
-    }
     rewrite separate1.
     eapply bet_composition'.
-    {
-      constructor.
-      done.
-    }
+    by constructor.
     rewrite separate1.
     eapply bet_composition'.
     eapply bet_switch; try done.
@@ -129,10 +120,27 @@ Section Example2.
       constructor.
       done.
     }
+
     rewrite separate1.
     eapply bet_composition'.
     {
-      rewrite <- (app_nil_l [T_ref _]).
+      apply /b_e_type_checker_reflects_typing.
+      simpl.
+      done.
+    }
+    rewrite separate1.
+    eapply bet_composition'.
+    {
+      rewrite (separate1 (T_ref _)).
+      eapply bet_weakening.
+      constructor.
+      done.
+    }
+    simpl.
+    rewrite separate1.
+    eapply bet_composition'.
+    {
+      rewrite (separate1 (T_ref _)).
       apply bet_resume.
       done.
       repeat constructor.
@@ -195,22 +203,22 @@ Section Example2.
     bot_throw).
 
 
-  Lemma f_spec : ∀(addrg addrf addrmain tag: nat) f,
-    (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
+  Lemma f_spec : ∀(addrg addrf addrmain tag: nat) f k vh,
+    (N.of_nat k↦[wcont]Live (Tf [T_ref f'_cont_type] [T_num T_i32]) vh) -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
     (N.of_nat tag) ↦□[tag] swap_tag_type -∗
-    EWP [AI_invoke addrf] UNDER f <| Ψ tag |> {{ v; f', False }}.
+    EWP [AI_ref_cont k; AI_invoke addrf] UNDER f <| Ψ tag |> {{ v; f', False }}.
   Proof.
-    iIntros (?????) "Hwf_g Hwf_f #Htag".
+    iIntros (???????) "Hwcont_g Hwf_addrf #Htag".
 
     (* Reason about invocation of f function *)
-    rewrite <- (app_nil_l [AI_invoke _]).
-    iApply (ewp_invoke_native with "Hwf_f"); try done.
+    rewrite (separate1 (AI_ref_cont _)).
+    iApply (ewp_invoke_native with "Hwf_addrf"); try done.
 
     (* Reason about f_body in a frame *)
-    iIntros "!> Hwf_f"; simpl.
+    iIntros "!> Hwf_addrf"; simpl.
     iApply ewp_frame_bind => //.
-    iSplitR; last iSplitL "Hwf_g".
+    iSplitR; last iSplitL "Hwcont_g".
 
     2: {
       unfold f_body.
@@ -227,23 +235,10 @@ Section Example2.
       rewrite (separate1 (AI_basic _)).
       iApply ewp_seq; first done.
       repeat iSplitR.
-      2: {
-        iApply ewp_ref_func; first done.
-        auto_instantiate.
-      }
+      2: { iApply ewp_get_local. done. auto_instantiate. }
       by iIntros (? [Hcontra _]).
-      iIntros (?? [-> ->]); simpl.
-
-      (* create continuation *)
-      rewrite separate2.
-      iApply ewp_seq; first done.
-      repeat iSplitR.
-      2: by iApply ewp_contnew.
-      by iIntros (?) "(% & %Hcontra & _)".
-      iIntros (??) "(%kaddrg & -> & -> & Hwcont_g)"; simpl.
-      rewrite (separate1 (AI_basic _)).
+      iIntros (?? [-> ->]).
       simpl.
-
       (* Reason about switch *)
       rewrite separate2.
       iApply ewp_seq; first done.
@@ -315,25 +310,72 @@ Section Example2.
       repeat iSplitR.
       2: by iApply ewp_contnew.
       by iIntros (?) "(% & %Hcontra & _)".
-      iIntros (??) "(%kaddrf & -> & -> & Hwcont_f)"; simpl.
+      iIntros (??) "(%kaddrg & -> & -> & Hcontg)"; simpl.
 
-      rewrite (separate2 (AI_ref_cont _)).
+      rewrite (separate3 (AI_ref_cont _)).
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitR.
+      2: {
+        rewrite (separate1 (AI_ref_cont _)).
+        iApply ewp_val_app; first done.
+        iSplitR.
+        2: {
+          instantiate (1 := λ v f, (∃ kaddrf, ⌜ v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∗ N.of_nat kaddrf↦[wcont]Live f_type (Initial [] addrf f_type))%I).
+          rewrite (separate1 (AI_basic _)).
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: {
+            iApply ewp_ref_func; first done.
+            auto_instantiate.
+          }
+          by iIntros (? [Hcontra _]).
+          iIntros (?? [-> ->]); simpl.
+
+          (* create continuation *)
+          rewrite separate2.
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: by iApply ewp_contnew.
+          by iIntros (?) "(% & %Hcontra & _)".
+          iIntros (??) "(% & -> & -> & Hcont)"; simpl.
+          iApply ewp_value.
+          done.
+          auto.
+        }
+        by iIntros "!>" (?) "[%kaddrf [%Hcontra _]]".
+      }
+      by iIntros (?) "[%kaddrf [%Hcontra _]]".
+
+      iIntros (??) "[%kaddrf [-> [-> Hcontf]]]"; simpl.
+
+      rewrite (separate3 (AI_ref_cont _)).
       iApply ewp_seq; first done.
       iSplitR; last iSplitL.
       2: {
-        rewrite <- (app_nil_l [AI_ref_cont _; _]).
+        rewrite separate1.
         iApply ewp_resume; try done.
         simpl. instantiate (1 := [_]) => //.
-        2: iFrame "Hwcont_f".
+        2: iFrame "Hcontf".
         simpl.
         by unfold hfilled, hfill; simpl.
         iSplitR; last iSplitR; last iSplitL.
         3: {
           iNext.
-          iApply (ewp_call_reference with "[Hwf_f] [-]"); try done.
+          iApply (ewp_call_reference_ctx with "[Hwf_f] [-] []"); try done.
+          3: {
+            iPureIntro.
+            instantiate (1 := (Type_explicit f_type)).
+            instantiate (2 := 0).
+            instantiate (1 := LH_base [AI_ref_cont kaddrg] []).
+            by unfold lfilled, lfill; simpl.
+          }
           done.
           iIntros "!> Hwf_f".
-          iApply (f_spec with "[Hwf_g] [Hwf_f]").
+          iIntros (LI HLI).
+          move /lfilledP in HLI.
+          inversion HLI; subst.
+          simpl.
+          iApply (f_spec with "[Hcontg] [Hwf_f] [Hwf_g]").
           done.
           done.
           done.
