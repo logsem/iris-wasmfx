@@ -32,13 +32,13 @@ Section Example2.
   Definition swap_tag_type := Tf [] [T_num T_i32].
 
   Definition main_body :=
-    [ BI_ref_func 1;
+    [ BI_ref_func 2;
       BI_contnew (Type_lookup 1);
 
-      BI_ref_func 0;
-      BI_contnew (Type_lookup 0);
+      BI_ref_func 1;
+      BI_contnew (Type_lookup 2);
 
-      BI_resume (Type_lookup 0) [HC_switch swap_tag];
+      BI_resume (Type_lookup 2) [HC_switch swap_tag];
 
       BI_return
     ].
@@ -54,8 +54,8 @@ Section Example2.
 
   Definition typing_context : t_context :=
   {|
-    tc_types_t := [f_type; g_type; f'_type; main_type];
-    tc_func_t := [f_type; g_type; main_type];
+    tc_types_t := [f'_type; g_type; f_type];
+    tc_func_t := [main_type; f_type; g_type];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
@@ -92,8 +92,8 @@ Section Example2.
 
   Definition typing_context_main : t_context :=
   {|
-    tc_types_t := [f_type; g_type; f'_type; main_type];
-    tc_func_t := [f_type; g_type; main_type];
+    tc_types_t := [f'_type; g_type; f_type];
+    tc_func_t := [main_type; f_type; g_type];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
@@ -152,8 +152,8 @@ Section Example2.
 
   Definition inst addrg addrf addrmain tag :=
     {|
-      inst_types  := [f'_type; g_type; f_type; main_type];
-      inst_funcs  := [addrg; addrf; addrmain];
+      inst_types  := [f'_type; g_type; f_type];
+      inst_funcs  := [addrmain; addrf; addrg];
       inst_tab    := [];
       inst_memory := [];
       inst_globs  := [];
@@ -272,6 +272,115 @@ Section Example2.
     (N.of_nat tag) ↦□[tag] Tf [] [] -∗
     EWP [AI_invoke addrmain] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝}}.
   Proof.
+    iIntros (?????) "Hwf_g Hwf_f Hwf_main #Htag".
+    rewrite <- (app_nil_l [AI_invoke _]).
+    iApply (ewp_invoke_native with "Hwf_main"); try done.
+
+    (* Reason about f_body in a frame *)
+    iIntros "!> Hwf_main"; simpl.
+    iApply ewp_frame_bind => //.
+    iSplitR; last iSplitL "Hwf_g Hwf_f".
+
+    2: {
+      unfold main_body.
+      rewrite <- (app_nil_l [AI_basic _]).
+      iApply ewp_block; try done.
+      iModIntro; simpl.
+      iApply (ewp_label_bind with "[-]").
+      2: {
+        iPureIntro.
+        instantiate (5 := []).
+        unfold lfilled; simpl.
+        by rewrite app_nil_r.
+      }
+
+      rewrite (separate1 (AI_basic _)).
+      iApply ewp_seq; first done.
+      repeat iSplitR.
+      2: {
+        iApply ewp_ref_func; first done.
+        auto_instantiate.
+      }
+      by iIntros (? [Hcontra _]).
+      iIntros (?? [-> ->]); simpl.
+
+      (* create continuation *)
+      rewrite separate2.
+      iApply ewp_seq; first done.
+      repeat iSplitR.
+      2: by iApply ewp_contnew.
+      by iIntros (?) "(% & %Hcontra & _)".
+      iIntros (??) "(%kaddrg & -> & -> & Hcontg)"; simpl.
+
+      rewrite (separate3 (AI_ref_cont _)).
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitR.
+      2: {
+        rewrite (separate1 (AI_ref_cont _)).
+        iApply ewp_val_app; first done.
+        iSplitR.
+        2: {
+          instantiate (1 := λ v f, (∃ kaddrf, ⌜ v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∗ N.of_nat kaddrf↦[wcont]Live f_type (Initial [] addrf f_type))%I).
+          rewrite (separate1 (AI_basic _)).
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: {
+            iApply ewp_ref_func; first done.
+            auto_instantiate.
+          }
+          by iIntros (? [Hcontra _]).
+          iIntros (?? [-> ->]); simpl.
+
+          (* create continuation *)
+          rewrite separate2.
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: by iApply ewp_contnew.
+          by iIntros (?) "(% & %Hcontra & _)".
+          iIntros (??) "(% & -> & -> & Hcont)"; simpl.
+          iApply ewp_value.
+          done.
+          auto.
+        }
+        by iIntros "!>" (?) "[%kaddrf [%Hcontra _]]".
+      }
+      by iIntros (?) "[%kaddrf [%Hcontra _]]".
+
+      iIntros (??) "[%kaddrf [-> [-> Hcontf]]]"; simpl.
+
+      rewrite (separate3 (AI_ref_cont _)).
+      iApply ewp_seq; first done.
+      iSplitR; last iSplitL.
+      2: {
+        rewrite separate1.
+        iApply ewp_resume; try done.
+        simpl. instantiate (1 := [_]) => //.
+        2: iFrame "Hcontf".
+        simpl.
+        by unfold hfilled, hfill; simpl.
+        iSplitR; last iSplitR; last iSplitL.
+        3: {
+          iNext.
+          iApply (ewp_call_reference_ctx with "[Hwf_f] [] [-]"); try done.
+          3: {
+            iPureIntro.
+            instantiate (1 := (Type_explicit f_type)).
+            instantiate (1 := ).
+            unfold lfilled, lfill; simpl.
+          }
+          iApply ewp_val_app; first done.
+          iSplitR.
+          2: {
+            instantiate (1 := λ v f, (⌜ v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
+            iApply ewp_wand_r.
+            iSplitR.
+            iApply ewp_call_reference; try done.
+          }
+          iApply ewp_call_reference.
+          iApply f_spec.
+        }
+      }
+
   Admitted.
 
 End Example2.
