@@ -269,8 +269,8 @@ Section Example2.
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
     (N.of_nat addrmain) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) main_type [] main_body -∗
-    (N.of_nat tag) ↦□[tag] Tf [] [] -∗
-    EWP [AI_invoke addrmain] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝}}.
+    (N.of_nat tag) ↦□[tag] swap_tag_type -∗
+    EWP [AI_invoke addrmain] UNDER f <| Ψ tag |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝}}.
   Proof.
     iIntros (?????) "Hwf_g Hwf_f Hwf_main #Htag".
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -361,26 +361,39 @@ Section Example2.
         iSplitR; last iSplitR; last iSplitL.
         3: {
           iNext.
-          iApply (ewp_call_reference_ctx with "[Hwf_f] [] [-]"); try done.
+          iApply (ewp_call_reference_ctx with "[Hwf_f] [-] []"); try done.
           3: {
             iPureIntro.
             instantiate (1 := (Type_explicit f_type)).
-            instantiate (1 := ).
-            unfold lfilled, lfill; simpl.
+            instantiate (2 := 0).
+            instantiate (1 := LH_base [AI_ref_cont kaddrg] []).
+            by unfold lfilled, lfill; simpl.
           }
-          iApply ewp_val_app; first done.
-          iSplitR.
-          2: {
-            instantiate (1 := λ v f, (⌜ v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝)%I).
-            iApply ewp_wand_r.
-            iSplitR.
-            iApply ewp_call_reference; try done.
-          }
-          iApply ewp_call_reference.
-          iApply f_spec.
+          done.
+          iIntros "!> Hwf_f".
+          iIntros (LI HLI).
+          move /lfilledP in HLI.
+          inversion HLI; subst.
+          simpl.
+          iApply (f_spec with "[Hcontg] [Hwf_f] [Hwf_g]").
+          done.
+          done.
+          done.
         }
+        by iIntros.
+        2 :{
+          iSplitL; first by iIntros "!>" (?) "Hcontra".
+          iNext.
+          iSplitL; last done.
+          admit.
+        }
+        admit.
       }
-
+      admit.
+      admit.
+    }
+    admit.
+    admit.
   Admitted.
 
 End Example2.
