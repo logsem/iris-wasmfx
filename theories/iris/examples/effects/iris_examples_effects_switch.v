@@ -154,7 +154,7 @@ Section Example2.
 
   Lemma g_spec : ∀ (addrg addrf addrmain tag: nat) f k,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
-    EWP [AI_ref_cont k; AI_invoke addrg] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }}.
+    EWP [AI_ref_cont k; AI_invoke addrg] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }}.
   Proof.
     iIntros (??????) "Hwf_addrg".
 
@@ -186,10 +186,9 @@ Section Example2.
   Definition fg_prot : iProt Σ :=
     ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
 
-  Definition Ξ hh := (∃ f addrg LI k,
-    ⌜LI = [AI_ref addrg; AI_basic (BI_call_reference (Type_explicit g_type))]⌝ ∗
-    ⌜hfilled No_var hh [] LI⌝ ∗
-    EWP [AI_ref_cont k] ++ LI UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }})%I.
+  Definition Ξ hh := (∀ k f, ∃ LI,
+    ⌜hfilled No_var hh [AI_ref_cont k] LI⌝ ∗
+    EWP LI UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }})%I.
 
   Definition Ψ (addr_tag : nat) : meta_protocol :=
     (bot_suspend,
@@ -203,7 +202,7 @@ Section Example2.
     bot_throw).
 
 
-  Lemma f_spec : ∀(addrg addrf addrmain tag: nat) f,
+  Lemma f_spec : ∀ (addrg addrf addrmain tag: nat) f,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
     (N.of_nat tag) ↦□[tag] swap_tag_type -∗
@@ -272,16 +271,16 @@ Section Example2.
         -
           unfold get_switch2, get_switch; simpl.
           rewrite Nat.eqb_refl.
-          iExists f, addrg, _, _.
-          iSplitR; first done.
+          iIntros (k f0).
+          iExists _.
           iSplitR; first by unfold hfilled, hfill; simpl.
 
           iApply (ewp_call_reference_ctx with "[Hwf_g] [-]"); try done.
           3: {
             iPureIntro.
-            instantiate (4 := 0).
-            instantiate (3 := LH_base [AI_ref_cont _] _).
-            instantiate (2 := (Type_explicit g_type)).
+            instantiate (3 := 0).
+            instantiate (2 := LH_base [AI_ref_cont _] _).
+            instantiate (1 := (Type_explicit g_type)).
             unfold lfilled, lfill; simpl.
             done.
           }
@@ -310,8 +309,6 @@ Section Example2.
     }
     by iIntros.
     by iIntros.
-    Unshelve.
-    apply kaddrg.
   Qed.
 
   Lemma main_spec : ∀(addrg addrf addrmain tag: nat) f,
@@ -396,27 +393,10 @@ Section Example2.
           rewrite Nat.eqb_refl.
           rewrite (upcl_tele' [tele] [tele]).
           simpl.
-          (*iDestruct "HΨ" as "(-> & )"*)
-
-          (*iDestruct "HΨgen" as "(%x & %xs' & -> & [%HPermitted_x_xs' Hfrag] & Hcont_spec)".*)
-          (*iSimpl.*)
-          (*instantiate (1 := λ v,*)
-          (*  ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗*)
-          (*    N.of_nat k ↦[wcont] Live _ h ∗*)
-          (*    ⌜Permitted xs ∧ x = yx (length xs)⌝ ∗*)
-          (*    frag_list γ xs ∗*)
-          (*    ( frag_list γ (x :: xs) -∗*)
-          (*      ∃ LI , ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ ∗*)
-          (*    ▷ EWP LI*)
-          (*      UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_,False }}*)
-          (*    )*)
-          (*  )%I*)
-          (*).*)
-          (*iApply ewp_value.*)
-          (*done.*)
-          (*iFrame.*)
-          (*iFrame "%".*)
-          (*done.*)
+          iDestruct "HΨ" as "(-> & _)"; simpl.
+          iDestruct ("HΞ" $! k' empty_frame) as "(%LI & %Hfill & H)".
+          iExists _.
+          iFrame "%".
           admit.
         }
         admit.
