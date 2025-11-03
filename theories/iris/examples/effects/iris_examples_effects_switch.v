@@ -152,8 +152,8 @@ Section Example2.
       inst_tags   := [tag];
     |}.
 
-  Lemma g_spec : ∀(addrg addrf addrmain tag: nat) f k,
-    (N.of_nat addrg) ↦[wf] FC_func_native (inst addrf addrg addrmain tag) g_type [] g_body -∗
+  Lemma g_spec : ∀ (addrg addrf addrmain tag: nat) f k,
+    (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     EWP [AI_ref_cont k; AI_invoke addrg] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }}.
   Proof.
     iIntros (??????) "Hwf_addrg".
@@ -183,12 +183,20 @@ Section Example2.
     by iApply ewp_frame_value.
   Qed.
 
+  Definition fg_prot : iProt Σ :=
+    ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
+
+  Definition Ξ hh := (∃ f addrg LI k,
+    ⌜LI = [AI_ref addrg; AI_basic (BI_call_reference (Type_explicit g_type))]⌝ ∗
+    ⌜hfilled No_var hh [] LI⌝ ∗
+    EWP [AI_ref_cont k] ++ LI UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }})%I.
+
   Definition Ψ (addr_tag : nat) : meta_protocol :=
     (bot_suspend,
     λ t, match t with
           | (Mk_tagidx addr) =>
               if Nat.eqb addr addr_tag then
-                (iProt_bottom, λ hh, (∃ f LI, ⌜hfilled No_var hh [] LI⌝ ∗ EWP LI UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 42]) ∧ f = f'⌝ }})%I)
+                (fg_prot, Ξ)
               else
                 (iProt_bottom, λ hh, False%I)
           end,
@@ -248,7 +256,7 @@ Section Example2.
       rewrite separate2.
       iApply ewp_seq; first done.
       simpl.
-      iSplitR; last iSplitL "Hwcont_g".
+      iSplitR; last iSplitL "Hwcont_g Hwf_g".
       2: {
         rewrite <- (app_nil_l [AI_ref_cont _; _]).
         iApply ewp_switch.
@@ -260,15 +268,51 @@ Section Example2.
         done.
         iFrame "#".
         iFrame "Hwcont_g".
-        admit.
-      }
-      admit.
-      admit.
-    }
-    admit.
-    admit.
+        iSplitL.
+        -
+          unfold get_switch2, get_switch; simpl.
+          rewrite Nat.eqb_refl.
+          iExists f, addrg, _, _.
+          iSplitR; first done.
+          iSplitR; first by unfold hfilled, hfill; simpl.
 
-  Admitted.
+          iApply (ewp_call_reference_ctx with "[Hwf_g] [-]"); try done.
+          3: {
+            iPureIntro.
+            instantiate (4 := 0).
+            instantiate (3 := LH_base [AI_ref_cont _] _).
+            instantiate (2 := (Type_explicit g_type)).
+            unfold lfilled, lfill; simpl.
+            done.
+          }
+          done.
+          iIntros "!> Hwf_g" (LI HLI).
+          move /lfilledP in HLI.
+          inversion HLI; subst; simpl.
+          by iApply g_spec.
+        - iIntros "!>".
+          eassert (upcl ((get_switch1 (Mk_tagidx tag) (Ψ tag))) = _ ).
+          {
+            unfold get_switch1, get_switch.
+            simpl.
+            rewrite Nat.eqb_refl.
+            done.
+          }
+          rewrite H.
+          rewrite (upcl_tele' [tele] [tele]).
+          simpl.
+          instantiate (1 := (λ v f , False)%I).
+          by repeat iSplitR.
+      }
+      by iIntros.
+      instantiate (1 := (λ v f , False)%I).
+      by iIntros.
+    }
+    by iIntros.
+    by iIntros.
+    Unshelve.
+    apply kaddrg.
+  Qed.
 
   Lemma main_spec : ∀(addrg addrf addrmain tag: nat) f,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
@@ -350,8 +394,10 @@ Section Example2.
           rewrite Nat.eqb_refl.
           unfold get_switch2, get_switch; simpl.
           rewrite Nat.eqb_refl.
-          (*rewrite (upcl_tele' [tele _ _] [tele]).*)
-          (*simpl.*)
+          rewrite (upcl_tele' [tele] [tele]).
+          simpl.
+          (*iDestruct "HΨ" as "(-> & )"*)
+
           (*iDestruct "HΨgen" as "(%x & %xs' & -> & [%HPermitted_x_xs' Hfrag] & Hcont_spec)".*)
           (*iSimpl.*)
           (*instantiate (1 := λ v,*)
