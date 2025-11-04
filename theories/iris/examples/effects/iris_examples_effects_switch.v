@@ -311,7 +311,7 @@ Section Example2.
     by iIntros.
   Qed.
 
-  Lemma main_spec : ∀(addrg addrf addrmain tag: nat) f,
+  Lemma main_spec : ∀ (addrg addrf addrmain tag: nat) f,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
     (N.of_nat addrmain) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) main_type [] main_body -∗
