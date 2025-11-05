@@ -75,7 +75,7 @@ Section GeneratorModule.
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
   Lemma instantiate_generator naturals_exp_addr sum_until_exp_addr mod_addr:
-    ⊢ {{{{ 
+    ⊢ {{{{
               mod_addr ↪[mods] generator_module ∗
                 (∃ exp1, naturals_exp_addr ↪[vis] exp1) ∗
                 (∃ exp2, sum_until_exp_addr ↪[vis] exp2)
@@ -164,4 +164,4 @@ Section GeneratorModule.
   Qed.
     
     
-End CoroutinesModule.
+End GeneratorModule.
