@@ -458,13 +458,17 @@ Section generator_spec.
     - done.
   Qed.
 
-  Lemma naturals_spec addr_naturals addr_tag f (I : list i32 -> iProp Σ) :
-    I [] -∗
+
+  Definition naturals_spec addr_naturals addr_tag (I : list i32 -> iProp Σ) : iProp Σ :=
+    (□ (∀ f, I [] -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
-    EWP [AI_invoke addr_naturals] UNDER f <| Ψgen addr_tag I  |> {{ v ; f, False }}.
+    EWP [AI_invoke addr_naturals] UNDER f <| Ψgen addr_tag I  |> {{ v ; f, False }})).
+
+  Lemma naturals_spec_proof addr_naturals addr_tag (I : list i32 -> iProp Σ) :
+    ⊢ naturals_spec addr_naturals addr_tag I.
   Proof.
-    iIntros "HI_empty Hwf_naturals #Htag".
+    iIntros (f) "!> HI_empty Hwf_naturals #Htag".
 
     rewrite <- (app_nil_l [AI_invoke _]).
     iApply (ewp_invoke_native with "Hwf_naturals"); try done.
@@ -964,14 +968,18 @@ Section sum_until_spec.
       by apply yx_xy_yx.
   Qed.
 
-  Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (upto : i32) :
-    N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
+
+  Definition sum_until_spec addr_naturals addr_sum_until addr_tag : iProp Σ :=
+(□ (∀ f upto, N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 upto; AI_invoke addr_sum_until] UNDER f
-      {{ v ; f', ⌜f = f'⌝ ∗ ⌜v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 upto]⌝ }}.
+      {{ v ; f', ⌜f = f'⌝ ∗ ⌜v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 upto]⌝ }})).
+
+  Lemma sum_until_spec_proof addr_naturals addr_sum_until addr_tag :
+   ⊢ sum_until_spec addr_naturals addr_sum_until addr_tag.
   Proof.
-    iIntros "Hwf_sum_until Hwf_naturals #Htag".
+    iIntros (f upto) "!> Hwf_sum_until Hwf_naturals #Htag".
 
     rewrite separate1.
     iApply (ewp_invoke_native with "Hwf_sum_until"); try done.
@@ -1106,7 +1114,7 @@ Section sum_until_spec.
             3: {
               iApply (ewp_call_reference with "Hwf_naturals"); try done.
               iIntros "!> !> Hwf_naturals".
-              by iApply (naturals_spec with "[Hfrag] [Hwf_naturals]").
+              by iApply (naturals_spec_proof with "[Hfrag] [Hwf_naturals]").
             }
             by iIntros.
             2: iSplitR; first by iIntros (? HFalse).
@@ -1396,7 +1404,7 @@ Section sum_until_spec.
   Proof.
     iIntros "Haddr_sum_until Haddr_naturals #Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec with "[Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
@@ -1416,7 +1424,7 @@ Section sum_until_spec.
   Proof.
     iIntros "Haddr_sum_until Haddr_naturals #Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec with "[Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
@@ -1436,7 +1444,7 @@ Section sum_until_spec.
   Proof.
     iIntros "Haddr_sum_until Haddr_naturals #Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec with "[Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
