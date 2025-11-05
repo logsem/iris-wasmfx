@@ -158,14 +158,14 @@ Proof.
 Qed.
 
 
-Lemma switch_det tf t1s k ts tf' t2s t1s' t2s' hh' hs hh vs x LI LI' s f s' f' es':
+Lemma switch_det tf t1s k ts tf' t2s tf'' hh' hs hh vs x LI LI' s f s' f' es':
   tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
-  nth_error (s_conts s) k = Some (Cont_hh (Tf t1s' t2s') hh') -> 
+  nth_error (s_conts s) k = Some (Cont_hh tf'' hh') -> 
   firstx_continuation_switch hs x = true ->
   hfilled (Var_prompt_switch x) hh [AI_switch_desugared vs k tf x] LI ->
   hfilled No_var hh' (v_to_e_list vs ++ [AI_ref_cont (length (s_conts s))]) LI' ->
   reduce s f [AI_prompt ts hs LI] s' f' es' ->
-  reduce_det_strong_goal (new_cont (upd_s_cont s k (Cont_dagger (Tf t1s' t2s'))) (Cont_hh tf' hh)) f [AI_prompt t2s' hs LI'] s' f' es' .
+  reduce_det_strong_goal (new_cont (upd_s_cont s k (Cont_dagger tf'')) (Cont_hh tf' hh)) f [AI_prompt ts hs LI'] s' f' es' .
 Proof.
   intros -> Hk Hfirst Hfill Hfill' Hred.
    lazymatch goal with
@@ -229,7 +229,7 @@ Proof.
       apply IHHred => //.
     + destruct bef; last by destruct bef.
       inversion H1; subst.
-      edestruct hfilled_switch_and_reduce as (tf'' & sh & hh'' & Hfill'' & Hcont' & Heq & Heq' & Htrap).
+      edestruct hfilled_switch_and_reduce as (tf''' & sh & hh'' & Hfill'' & Hcont' & Heq & Heq' & Htrap).
       exact Hred.
       exact Hfill.
       apply/lfilledP => //.

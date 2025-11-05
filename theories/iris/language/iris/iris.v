@@ -998,7 +998,7 @@ Lemma val_not_val_combine_assoc v1 v2 x :
     end. *)
 Proof.
   (* might this be simpler? *)
- (* unfold val_not_val_combine.
+(*  unfold val_not_val_combine.
   destruct v1 => //=.
   - destruct v => //=.
     + destruct v2 => //=.
@@ -1081,11 +1081,19 @@ Proof.
               ** destruct l => //=.
                  by rewrite -v_to_e_cat.
               ** destruct l => //=.
-              ** destruct l => //=. 
-                destruct (vfill _ _) eqn:Hfill.
-                 --- apply vfill_is_nil in Hfill as [??] => //.
-                 --- destruct l => //=.
+              ** destruct l => //=.
+                 --- rewrite vh_push_const_nil //.
+                 --- destruct (vfill _ _) eqn:Hfill.
+                     +++ apply vfill_is_nil in Hfill as [??] => //.
+                     +++ rewrite separate1 in Hfill.
+                         rewrite -cat_app in Hfill. 
+                         rewrite vh_push_const_app in Hfill. 
+                         destruct lh. 
+                         destruct l => //=.
+                     +++ rewrite vh_push_const_nil in Hfill.
+                         rewrite Hfill //.
                      +++ 
+
  *)
 
   destruct v1
@@ -1271,7 +1279,8 @@ Proof.
     rewrite - Habs2 ;
     destruct llh2 => //= ; rewrite - app_assoc.
   all : try by destruct vh2 => //= ; rewrite app_comm_cons app_assoc.
-  all : try by destruct sh2 => //= ; rewrite app_comm_cons app_assoc.
+(*  all: try by destruct es2. *)
+(*  all : try by destruct sh2 => //= ; rewrite app_comm_cons app_assoc. *)
   all : try by destruct llh2 => //= ; rewrite app_comm_cons app_assoc.
 (*  all: try by repeat f_equal; destruct sh2 ; simpl; repeat rewrite -catA; repeat rewrite -cat_app. *)
 (*   all: try by repeat f_equal; destruct vs2; 
@@ -1341,8 +1350,16 @@ Proof.
          simpl in H000; rewrite H000;
          rewrite -v_to_e_cat => //=; repeat rewrite -catA). *)
   all: try by destruct vh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
-  all: try by destruct sh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
-  all: try by destruct llh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA. 
+(*   all: try by destruct sh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA. *)
+  all: try by destruct llh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
+  1-200: by destruct sh2 ; rewrite /= app_comm_cons app_assoc.
+  1-200: by destruct sh2 => //= ; rewrite app_comm_cons app_assoc.
+  1-200: by destruct sh2 ; rewrite /= app_comm_cons app_assoc.
+  1-100: by destruct sh2 ; rewrite /= app_comm_cons app_assoc.
+  1-100: try by destruct sh2 ; rewrite /= app_comm_cons app_assoc.
+  1-30: by destruct sh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
+  1-30: by destruct sh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
+  all: by destruct sh2; simpl; repeat rewrite -cat_app; repeat rewrite -catA.
 Qed.
 
 

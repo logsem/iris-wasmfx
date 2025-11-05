@@ -41,11 +41,12 @@ Section clause_triple.
             iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) vs (λ w, ∃ LI, ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
             EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
 | DC_switch (Mk_tagidx taddr) =>
-      ∃ t1s t2s,
-    N.of_nat taddr ↦□[tag] Tf t1s t2s ∗
-      ∀ vs kaddr h cont Φ'',
+(*      ∃ ts', *)
+    N.of_nat taddr ↦□[tag] Tf [] ts ∗
+      □ ∀ vs kaddr h cont Φ'' t1s t2s tf',
         get_switch2 (Mk_tagidx taddr) Ψ cont -∗
-        N.of_nat kaddr ↦[wcont] Live (Tf t2s ts) h -∗
+        ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ -∗
+        N.of_nat kaddr ↦[wcont] Live tf' h -∗
         iProt_car (upcl $ get_switch1 (Mk_tagidx taddr) Ψ) vs
         (λ w, ∃ LI,
             ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗
@@ -53,11 +54,11 @@ Section clause_triple.
                    so adding this later to symbolise that step *)
               EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
         ∃ LI, ⌜ is_true $ hfilled No_var cont (v_to_e_list vs ++ [AI_ref_cont kaddr]) LI ⌝ ∗
-                EWP LI UNDER empty_frame @ E <| Ψ' |> {{ Φ'' }} ∗
+                EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ'' }} ∗
                 ∀ w f, Φ'' w f -∗ EWP [AI_prompt ts dccs (of_val0 w)] UNDER f @ E <| Ψ' |> {{ Φ' }}
     end.
 
-  Lemma monotonic_clause_triple E Ψ1 Ψ2 Φ1 Φ2 dcc ts dccs Ψ'1 Ψ'2 Φ'1 Φ'2 :
+(*  Lemma monotonic_clause_triple E Ψ1 Ψ2 Φ1 Φ2 dcc ts dccs Ψ'1 Ψ'2 Φ'1 Φ'2 :
     meta_leq Ψ2 Ψ1 -∗ 
         (∀ v f , Φ2 v f ={E}=∗ Φ1 v f) -∗
         meta_leq Ψ'1 Ψ'2 -∗
@@ -87,11 +88,12 @@ Section clause_triple.
       + iApply (ewp_strong_mono with "Htrip [] HΦ'").
         done. done.
     - destruct t.
-      iDestruct "Htrip" as (t1s t2s) "[#Htag Htrip]".
-      iExists t1s, t2s. iFrame "Htag".
-      iIntros (vs kaddr h cont Φ'') "Hcont Hk H".
-      iDestruct ("Htrip" with "[Hcont] Hk [H HΦ]") as "Htrip".
+      iDestruct "Htrip" as "[#Htag Htrip]".
+      iFrame "Htag".
+      iIntros (vs kaddr h cont Φ'' t1s t2s tf') "Hcont -> Hk H".
+      iDestruct ("Htrip" with "[Hcont] [] Hk [H HΦ]") as "Htrip".
       + iDestruct "HΨ" as "(_ & _ & HΨ & _)". by iApply "HΨ".
+      + done.
       + iDestruct "H" as (Ξ) "[HΞ H]".
         iExists Ξ. iSplitL "HΞ"; first by iDestruct "HΨ" as "(_ & HΨ & _)"; iApply "HΨ".
         iIntros (w) "Hw".
@@ -110,7 +112,7 @@ Section clause_triple.
         iDestruct ("HΦ" with "H") as "H".
         iApply (ewp_strong_mono with "H [] HΦ'").
         done. done.
-  Qed.
+  Qed. *)
 
         
 (*  Definition clause_resources dccs :=
@@ -159,14 +161,20 @@ Section reasoning_rules.
     iFrame.
   Qed.
 
-  Lemma ewp_switch_desugared vs k tf i E Ψ Φ f cont:
-    N.of_nat k ↦[wcont] Live tf cont ∗ get_switch2 i Ψ (hholed_of_valid_hholed cont) ∗
-     iProt_car (upcl (get_switch1 i Ψ)) vs (λ v, ▷ Φ (immV v) f) 
-      ⊢ EWP [ AI_switch_desugared vs k tf i ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
+  Lemma ewp_switch_desugared vs k tf tf' t1s t2s ts i E Ψ Φ f cont:
+    tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ->
+    tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
+    N.of_nat i ↦□[tag] Tf [] ts ∗
+    N.of_nat k ↦[wcont] Live tf cont ∗
+      get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
+     iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f) 
+      ⊢ EWP [ AI_switch_desugared vs k tf (Mk_tagidx i) ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
-    iIntros "(Hk & Hcont & HΨ)".
+    iIntros (-> ->) "(Htag & Hk & Hcont & HΨ)".
     iApply ewp_effect_sw => //.
     iFrame.
+    iExists _,_,_.
+    do 2 (iSplit; first done).
     iApply (monotonic_prot with "[] HΨ").
     iIntros (w) "Hw".
     iSimpl.
@@ -377,23 +385,31 @@ Section reasoning_rules.
     iApply ewp_suspend_desugared => //.
   Qed.
 
-   Lemma ewp_switch f ves vs i i' k x a tf' cont t1s t2s E Ψ Φ:
+   Lemma ewp_switch f ves vs i i' k x a tf ts cont t1s t2s E Ψ Φ:
      i = Mk_tagident x ->
-     stypes (f_inst f) i' = Some (Tf t1s t2s) ->
+     tf = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ->
+     stypes (f_inst f) i' = Some (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) ->
      f.(f_inst).(inst_tags) !! x = Some a ->
-      S (length vs) = length t1s ->
+      length vs = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦□[tag] tf' ∗ N.of_nat k ↦[wcont] Live (Tf t1s t2s) cont ∗ get_switch2 (Mk_tagidx a) Ψ (hholed_of_valid_hholed cont) ∗
+    N.of_nat a ↦□[tag] (Tf [] ts) ∗
+      N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont ∗
+      get_switch2 (Mk_tagidx a) Ψ (hholed_of_valid_hholed cont) ∗
       ▷ iProt_car (upcl (get_switch1 (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (-> ??? ->) "(? & ? & ? & H)".
-    iApply ewp_switch_desugar => //; eauto.
-    2: iFrame.
+    iIntros (-> -> ??? ->) "(#? & ? & ? & H)".
+    iApply ewp_switch_desugar.
+    7: iFrame.
+    done. exact H. exact H0. 
+    simpl. done.
+    rewrite length_app //=.
+    erewrite H1. lia.
     done.
-    iIntros "!> ?".
-    iApply ewp_switch_desugared => //.
-    iFrame. 
+    iFrame "#". iIntros "!> ?".
+    iApply ewp_switch_desugared.
+    3: iFrame.
+    done. done. done.
   Qed. 
 
 
@@ -1590,9 +1606,18 @@ Section reasoning_rules.
       (es = es' /\ is_true (const_list es) /\ f = f' /\ s = s') \/
       (exists lh, lfilled 0 lh [AI_trap] es /\ es' = [AI_trap] /\ f = f' /\ s = s') \/
       (exists vs a sh l t1s t2s, to_eff0 es = Some (susE vs (Mk_tagidx a) sh) /\ firstx_continuation_suspend dccs (Mk_tagidx a) = Some l /\ nth_error (s_tags s) a = Some (Tf t1s t2s) /\ es' = v_to_e_list vs  ++ [:: AI_ref_cont (length (s_conts s)); AI_basic (BI_br l)] /\ f = f' /\ s' = new_cont s (Cont_hh (Tf t2s ts) (hh_of_sush (Mk_tagidx a) sh))) \/
-      (exists vs k t1s t2s t1s' t2s' hh' tf' i sh LI, to_eff0 es = Some (swE vs k (Tf (t1s' ++ [:: T_ref (T_contref tf')]) t2s') i sh) /\ nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh') /\ firstx_continuation_switch dccs i = true /\ is_true (hfilled No_var hh' (v_to_e_list vs ++ [:: AI_ref_cont (length (s_conts s))])
-      LI) /\ es' = [AI_prompt t2s dccs LI] /\ f = f' /\ s' =  new_cont (upd_s_cont s k (Cont_dagger (Tf t1s t2s)))
-    (Cont_hh tf' (hh_of_swh i sh)) ).
+      (exists vs k tf'' t1s' t2s' hh' tf' i sh LI,
+          to_eff0 es =
+            Some (swE vs k (Tf (t1s' ++ [:: T_ref (T_contref tf')]) t2s') i sh) /\
+            nth_error (s_conts s) k = Some (Cont_hh tf'' hh') /\
+            firstx_continuation_switch dccs i = true /\
+            is_true (hfilled No_var hh' (v_to_e_list vs ++
+                                           [:: AI_ref_cont (length (s_conts s))])
+                       LI) /\
+            es' = [AI_prompt ts dccs LI] /\
+            f = f' /\
+            s' =  new_cont (upd_s_cont s k (Cont_dagger tf''))
+                    (Cont_hh tf' (hh_of_swh i sh)) ).
   Proof.
     intros Hred.
     remember [_] as es0.
@@ -1621,7 +1646,7 @@ Section reasoning_rules.
     - inversion Heq; subst.
       right; right; right; right.
       apply hfilled_to_swfill in H2 as (sh & Htf & ->).
-      do 11 eexists.
+      do 10 eexists.
       split; first exact Htf.
       split; first exact H1.
       repeat split => //. 
@@ -1991,7 +2016,7 @@ Section reasoning_rules.
     reduce s fany [AI_prompt ts dccs es] s' fany es' /\ f = f'.
   Proof.
     intros Hred Hes.
-    apply reduce_in_prompt in Hred as [(esf & Hred & ->) | [(-> & Hconst & -> & ->) | [(lh & Htrap & -> & -> & ->) | [(vs & i & sh & l & t1s & t2s & Htf & Hsus & Htag & -> & -> & -> ) | (vs & k & t1s & t2s & t1s' & t2s' & hh' & tf & i & sh & LI & Htf & Hk & Hsw & Hfill & -> & -> & -> )]]]].
+    apply reduce_in_prompt in Hred as [(esf & Hred & ->) | [(-> & Hconst & -> & ->) | [(lh & Htrap & -> & -> & ->) | [(vs & i & sh & l & t1s & t2s & Htf & Hsus & Htag & -> & -> & -> ) | (vs & k & t1s & t1s' & t2s' & hh' & tf & i & sh & LI & Htf & Hk & Hsw & Hfill & -> & -> & -> )]]]].
     all: try (split; last done).
     - eapply continuation_ignores_frame in Hred as [Hred ->] => //.
       split => //.
@@ -2226,7 +2251,11 @@ Section reasoning_rules.
       3: done.
       all: eapply continuation_expr_to_eff in Hes as (vs' & n & f' & es' & ->);
         last by rewrite /to_eff0 Htf'.
-      2: iDestruct "Hes" as (cont) "(Hcont & HΨ & Hes)"; iFrame. 
+      2: destruct i. 
+      2: iDestruct "Hes" as (cont t1s t2s tf' ts0) "(#Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
+      2: iExists _,_,_,_; iSplit; first done.
+      2: iSplit; first done.
+      2: iSplit; first done.
       all: iApply (monotonic_prot with "[-Hes] Hes").
       all: iIntros (w) "H".
       all: iNext.
@@ -2283,7 +2312,7 @@ Section reasoning_rules.
     iMod "Hes" as "[Hs2 Hes2]".
     iModIntro.
     iFrame.
-    apply reduce_in_prompt in Hstep as [(esf & Hstep & ->) | [ (-> & Hconst & _ & ->) | [ (lh & Htrap & -> & _ & ->) | [ (vs & i & sh & l' & t1s & t2s & Htf' & Hclauses & Htags & -> & _ & ->) | (vs & k & t1s & t2s & t1s' & t2s' & hh' & tf & i & sh & LI & Htf' & Hk & Hclauses & Hfill & -> & _ & ->)]]]].
+    apply reduce_in_prompt in Hstep as [(esf & Hstep & ->) | [ (-> & Hconst & _ & ->) | [ (lh & Htrap & -> & _ & ->) | [ (vs & i & sh & l' & t1s & t2s & Htf' & Hclauses & Htags & -> & _ & ->) | (vs & k & t1s & t2s & t1s' & hh' & tf & i & sh & LI & Htf' & Hk & Hclauses & Hfill & -> & _ & ->)]]]].
     - iApply "IH".
       2: iFrame.
       iPureIntro.
@@ -3193,7 +3222,7 @@ Section reasoning_rules.
             exfalso.
             destruct Habs as [(? & Habs) | (? & ? & ? & Habs & _)] => //.
             all: inversion Htf0; inversion Habs; subst => //. 
-      - iDestruct (ewp_effect_sw with "Hes") as "Hes" ; eauto.
+      - destruct i. iDestruct (ewp_effect_sw with "Hes") as "Hes" ; eauto.
         remember (Logic.eq_refl (to_eff0 [AI_prompt ts dccs es])) as Htf'; clear HeqHtf'.
         unfold to_eff0 in Htf' at 2.
         simpl in Htf'.
@@ -3201,21 +3230,24 @@ Section reasoning_rules.
         unfold to_eff0 in Htf.
         destruct (merge_values _) => //.
         inversion Htf; subst.
-        destruct (swelts_of_continuation_clauses dccs i) eqn:Helts.
+        destruct (swelts_of_continuation_clauses dccs (Mk_tagidx _)) eqn:Helts.
         + simpl in Htf'.
           iApply ewp_effect_sw; eauto.
-          iFrame.
           remember HΨ as HΨ'; clear HeqHΨ'.
           destruct HΨ as (_ & HΨ & _).
-          iDestruct "Hes" as (cont) "(Hk & Hcont & Hes)".
-          iFrame.
+          iDestruct "Hes" as (cont t1s t2s tf' ts0) "(#Htag & Hk & -> & -> & Hcont & Hes)".
+          iFrame. iExists _,_,_,_. iSplit; first done.
+          iSplit; first done.
+          iSplit; first done.
           unfold get_switch2, get_switch1.
           rewrite -HΨ.
           iFrame.
           2: by eapply swelts_firstx.
+          
           iApply (monotonic_prot with "[-Hes] Hes").
           iIntros (w) "Hw".
-          iNext. iSimpl.
+          iNext. Opaque continuation_clause_of_swelt.
+          iSimpl.
           erewrite swelts_of_continuation_clauses_inj => //.
           unfold to_eff0 in Htf'.
           simpl in Htf'.
@@ -3232,7 +3264,7 @@ Section reasoning_rules.
           simpl in Htf' => //.
           destruct (suselts_of_continuation_clauses _ _) => //. 
           simpl in Htf' => //.
-          destruct (swelts_of_continuation_clauses _ i0) eqn:Helts' => //.
+          destruct (swelts_of_continuation_clauses _ i) eqn:Helts' => //.
           simpl in Htf'.
           inversion Htf'; subst.
           iApply "IH".
@@ -3250,32 +3282,31 @@ Section reasoning_rules.
           iIntros (σ) "Hσ".
           iApply fupd_mask_intro; first solve_ndisj.
           iIntros "Hclose".
-          destruct i.
           apply firstx_switch_lookup in Hfirst as Hfirst'.
           destruct Hfirst' as [k' Hk].
-          iDestruct (big_sepL_lookup with "Hclauses") as "Hclause".
+          iDestruct (big_sepL_lookup_acc with "Hclauses") as "[Hclause Hrefill]".
           exact Hk.
-          iDestruct "Hclause" as (t1s t2s) "[#Hclres Hclause]".
+          iDestruct "Hclause" as "[#Hclres #Hclause]".
           iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
           rewrite -nth_error_lookup in Htag.
-          iDestruct "Hes" as (cont) "(Hk & Hcont & Hes)".
+          iDestruct "Hes" as (cont t1s' t2s' tf' ts0) "(#Htag & Hk & -> & -> & Hcont & Hes)".
+          iDestruct (pointsto_agree with "Hclres Htag") as %Heq.
+          inversion Heq; subst ts0. 
           destruct (resources_of_s_cont _) eqn:Hconts => //. 
           iDestruct (gen_heap_valid with "Hconts Hk") as %Hcont.
           rewrite gmap_of_list_lookup -nth_error_lookup in Hcont.
           eapply resources_of_s_cont_lookup in Hcont; last exact Hconts.
-          rewrite Nat2N.id in Hcont. destruct tf.
+          rewrite Nat2N.id in Hcont. 
           assert (exists LI', is_true $ hfilled No_var (hholed_of_valid_hholed cont)
     (v_to_e_list vs0 ++ [:: AI_ref_cont (length (s_conts σ))]) 
     LI') as [? Hassump].
           { admit. } 
-          eassert (reduce σ (Build_frame _ _) [AI_prompt ts dccs _] _ _ _).
+          eassert (reduce σ (Build_frame _ _) [AI_prompt _ dccs _] _ _ _).
           { eapply r_switch.
             exact Hfirst.
-            instantiate (4 := Tf l0 l1).
-            f_equal.
-            admit. 
+            done.
             exact Hcont. 
             apply swfill_to_hfilled.
             exact Hassump. 
@@ -3303,11 +3334,11 @@ Section reasoning_rules.
           destruct Hstep as (Hstep & _ & _).
           
           edestruct reduce_det. 
-          exact Hstep.
-          apply of_to_eff0 in Htf0.
-          unfold of_eff0 in Htf0.
-          rewrite -Htf0.
-          exact H.
+          { exact Hstep. } 
+          { apply of_to_eff0 in Htf0.
+            unfold of_eff0 in Htf0.
+            rewrite -Htf0.
+            exact H. } 
           subst f2.
           destruct H1 as [(-> & ->) | Habs].
           * iFrame.
@@ -3335,8 +3366,8 @@ Section reasoning_rules.
             rewrite -Hlenl.
             rewrite update_list_at_insert; last done.
             iFrame.
-
-            iDestruct ("Hclause" with "Hcont Hk' [Hes]") as (?) "(%Hfill & H & Himpl)".
+            iDestruct ("Hclause" with "Hcont [] Hk' [Hes]") as (?) "(%Hfill & H & Himpl)".
+            { done. } 
             { iApply (monotonic_prot with "[] Hes").
               iIntros (w) "H".
               iExists _.
@@ -3356,8 +3387,8 @@ Section reasoning_rules.
             iMod "Hclose" as "_".
             iModIntro.
             iApply "IH"; last first.
-            -- iFrame.
-               admit.
+            -- iFrame. 
+               iApply ("Hrefill" with "[$]").
             -- iPureIntro.
                eapply hfilled_continuation_expression; eauto.
                apply const_list_concat => //.
