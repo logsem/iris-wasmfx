@@ -82,8 +82,11 @@ Proof.
         iApply ("IH" with "[$Hntrap $Hres]"). 
       * erewrite to_eff_cons_swE; last done.
         destruct i.
-        iDestruct "H" as "(%cont & Hk & Hcont & %Φ0 & HΨ & Hallw)".
-        iFrame. 
+        iDestruct "H" as "(%cont & %t1s & %t2s & %tf' & %ts & #Htag & Hk & -> & -> & Hcont & %Φ0 & HΨ & Hallw)".
+        iFrame "#".
+        iFrame.
+        iExists _,_,_.
+        iSplit; first done. iSplit; first done.
         iIntros (w) "Hw".
         iDestruct ("Hallw" with "Hw") as "Hres".
         rewrite swfill_sw_push_const /=.
@@ -463,9 +466,11 @@ Proof.
       * destruct (to_val0 es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
         rewrite Hin.
         destruct i.
-        iDestruct "Hes1" as (cont) "(Hk & Hcont & Hes1)".
+        iDestruct "Hes1" as (cont t1s t2s tf' ts) "(#Htag & Hk & -> & -> & Hcont & Hes1)".
         iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
         iFrame.
+        iFrame "#".
+        iExists _,_,_. iSplit; first done. iSplit; first done.
         iIntros (w) "Hw".
         simpl in Hout.
         inversion Hout; subst.
@@ -642,9 +647,11 @@ Proof.
          eapply to_val_to_eff in Habs => //.
          rewrite Hin.
          destruct i0.
-         iDestruct "Hes1" as (cont) "(Hk & Hcont & Hes1)".
+         iDestruct "Hes1" as (cont t1s t2s tf' ts) "(#Htag & Hk & -> & -> & Hcont & Hes1)".
          iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
-         iFrame.
+         iFrame. iFrame "#".
+         iExists _,_,_. 
+         iSplit; first done. iSplit; first done.
          iIntros (w) "Hw".
          iDestruct ("Hnext" with "Hw") as "H".
          iNext.
@@ -885,9 +892,11 @@ Proof.
       * destruct (to_val0 es1) eqn:Habs.
         eapply to_val_to_eff in Habs => //.
         rewrite ewp_unfold /ewp_pre /= Habs Hin Hetov Hetof.
-        iDestruct "Hes1" as (cont) "(Hk & Hcont & Hes1)".
+        destruct tf. 
+        iDestruct "Hes1" as (cont t1s t2s tf' ts) "(#Htag & Hk & -> & -> & Hcont & Hes1)".
         iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
-        iFrame. 
+        iFrame. iFrame "#". iExists _,_,_.
+        iSplit; first done. iSplit; first done.
         iIntros (w) "Hw".
         iDestruct ("Hnext" with "Hw") as "H".
         iNext.

@@ -906,10 +906,10 @@ forall (s E es Φ fr).
   destruct (to_eff0 es) eqn:Hes'.
   { destruct e.
     3: done.
+    2: destruct i.
+    2: iDestruct "Hwp" as (?????) "(_ & _ & _ & _ & _ & Hwp)".
     all: iDestruct "Hwp" as (?) "[? H]".
-    done.
-    iDestruct "H" as "(_ & % & ? & _)".
-    done.
+    all: done.
   } 
   destruct σ as [[[s0 vis] ms] has].
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ?)".

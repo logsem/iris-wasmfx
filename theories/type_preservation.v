@@ -8818,7 +8818,7 @@ Proof.
     apply et_weakening_empty_1.
     rewrite H1 in Hconts. inversion Hconts; subst cont.
     simpl in Hcont.
-    inversion Hcont; subst t1s' t2s'.
+    subst.
     constructor.
     { rewrite -List.Forall_forall in Hclauses.
       eapply List.Forall_impl; last exact Hclauses.
@@ -8878,12 +8878,12 @@ Proof.
     inversion Htypes'; subst tf'.
     rewrite H1 in Hk.
     inversion Hk; subst cont.
-    inversion Hcont; subst t1s' t2s'.
+    simpl in Hcont; subst tf''. 
     
     apply firstx_continuation_switch_In in H.
     rewrite List.Forall_forall in Hclauses.
     apply Hclauses in H. inversion H; subst.
-    rewrite H6 in Htag. inversion Htag; subst t2s; clear Htag. 
+    rewrite H6 in Htag. inversion Htag; subst t2s. 
     apply et_weakening_empty_1.
     constructor.
     { rewrite -List.Forall_forall in Hclauses.
