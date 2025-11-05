@@ -46,14 +46,14 @@ Definition naturals :=
 
 Definition t_ctxt_naturals :=
   {|
-    tc_types_t := [];
-    tc_func_t := [];
+    tc_types_t := [naturals_type; sum_until_type];
+    tc_func_t := [naturals_type; sum_until_type];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
     tc_local := naturals_locs;
     tc_label := [[]];
-    tc_return := None;
+    tc_return := Some [];
     tc_refs := [];
     tc_tags_t := [tag_type]
   |}.
@@ -97,16 +97,16 @@ Definition sum_until := [
 
 Definition t_ctxt_sum_until :=
   {|
-    tc_types_t := [naturals_type];
-    tc_func_t := [naturals_type];
+    tc_types_t := [naturals_type; sum_until_type];
+    tc_func_t := [naturals_type; sum_until_type];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
     tc_local := T_num T_i32 :: sum_until_locs;
-    tc_label := [[]];
-    tc_return := None;
+    tc_label := [[T_num T_i32]];
+    tc_return := Some [T_num T_i32];
     tc_refs := [];
-    tc_tags_t := [Tf [T_num T_i32] []]
+    tc_tags_t := [tag_type]
   |}.
 
 Lemma sum_until_typing : be_typing t_ctxt_sum_until sum_until sum_until_body_type.
