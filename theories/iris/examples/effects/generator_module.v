@@ -93,6 +93,7 @@ Section GeneratorModule.
                             ⌜ cl_type cl_sum_until = sum_until_type ⌝ ∗
                             N.of_nat addr_naturals ↦[wf] cl_naturals ∗
                             N.of_nat addr_sum_until ↦[wf] cl_sum_until ∗
+                            (*(∀ I, ∃ Ψ, naturals_spec addr_naturals cl_naturals Ψ I) ∗*)
                             sum_until_spec addr_naturals addr_sum_until cl_naturals cl_sum_until
         }}}} .
   Proof.
