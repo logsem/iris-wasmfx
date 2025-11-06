@@ -71,13 +71,13 @@ Definition ewp_pre `{!wasmG Σ} :
             (λ w, ▷ ewp E (susfill i sh (v_to_e_list w), f) Ψ Φ)
       | Some (swE vs k tf (Mk_tagidx i) sh, f) => (* attempt *)
           ∃ cont t1s t2s tf' ts,
-  ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
-  N.of_nat i ↦□[tag] Tf [] ts ∗
-  N.of_nat k ↦[wcont] Live tf cont ∗
-    ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ ∗
-    ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-             get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗ 
-             iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
+          ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
+          N.of_nat i ↦□[tag] Tf [] ts ∗
+          N.of_nat k ↦[wcont] Live tf cont ∗
+          ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ ∗
+          ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
+          get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
+          iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
              ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ)
       | None =>
           ∀ s1,
