@@ -4826,14 +4826,21 @@ Proof.
            destruct cont.
            ++ simpl in Hcont; subst f0.
               subst.
+              edestruct List.Forall_forall as [Hforall _].
+              eapply Hforall in Hclauses.
+              2:{ apply firstx_continuation_switch_In. exact Hfirst. }
+              inversion Hclauses; subst.
+              rewrite Htags in H2.
+              inversion H2; subst ts2. 
               destruct s.
               destruct HST as (_ & _ & _ & _ & Hcontt & _).
               rewrite List.Forall_forall in Hcontt.
               apply List.nth_error_In in Hconts as Hin.
               apply Hcontt in Hin.
               inversion Hin; subst.
-              apply (hfilled_change (v_to_e_list vs ++ [:: AI_ref_cont (length s_conts)]) (y := No_var)) in H5 as [LI' HLI'].
+              apply (hfilled_change (v_to_e_list vs ++ [:: AI_ref_cont (length s_conts)]) (y := No_var)) in H6 as [LI' HLI'].
               2: by left.
+              simpl in *. 
               repeat eexists.
               eapply r_switch.
               exact Hfirst.
@@ -4973,13 +4980,20 @@ Proof.
            2: exact Hfill.
            apply AI_switch_desugared_typing in Hswitch as (ts & t1s' & t2s' & cont & Htags & Hconts & Hcont & Hvs & Htf & ->).
            destruct cont.
-           ++ simpl in Hcont; subst f0 tf. destruct s.
+           ++ simpl in Hcont; subst f0 tf.
+              edestruct List.Forall_forall as [Hforall _].
+              eapply Hforall in Hclauses.
+              2:{ apply firstx_continuation_switch_In. exact Hfirst. }
+              inversion Hclauses; subst.
+              rewrite Htags in H2.
+              inversion H2; subst ts2.
+              destruct s.
               destruct HST as (_ & _ & _ & _ & Hcontt & _).
               rewrite List.Forall_forall in Hcontt.
               apply List.nth_error_In in Hconts as Hin.
               apply Hcontt in Hin.
               inversion Hin; subst.
-              apply (hfilled_change (v_to_e_list vs ++ [:: AI_ref_cont (length s_conts)]) (y := No_var)) in H5 as [LI' HLI'].
+              apply (hfilled_change (v_to_e_list vs ++ [:: AI_ref_cont (length s_conts)]) (y := No_var)) in H6 as [LI' HLI'].
               2: by left.
               repeat eexists.
               eapply r_switch.

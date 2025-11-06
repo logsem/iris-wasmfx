@@ -34,8 +34,10 @@ Proof.
   simpl.
   destruct (to_eff0 e1) eqn:Htf.
   { destruct e => //=.
-    all: iDestruct "H" as (?) "[? Hrest]" => //.
-    iDestruct "Hrest" as "(_ & % & ? & _)" => //.
+    2: destruct i. 
+    - iDestruct "H" as (?) "[? Hrest]" => //.
+    - iDestruct "H" as "(% & % & % & % & % & _ & _ & _ & _ & _ & _ & H)".
+      iDestruct "H" as (?) "[? Hrest]" => //. 
   } 
 (*
     destruct H as (H & -> & ->).

@@ -46,14 +46,14 @@ Definition naturals :=
 
 Definition t_ctxt_naturals :=
   {|
-    tc_types_t := [];
-    tc_func_t := [];
+    tc_types_t := [naturals_type; sum_until_type];
+    tc_func_t := [naturals_type; sum_until_type];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
     tc_local := naturals_locs;
     tc_label := [[]];
-    tc_return := None;
+    tc_return := Some [];
     tc_refs := [];
     tc_tags_t := [tag_type]
   |}.
@@ -97,16 +97,16 @@ Definition sum_until := [
 
 Definition t_ctxt_sum_until :=
   {|
-    tc_types_t := [naturals_type];
-    tc_func_t := [naturals_type];
+    tc_types_t := [naturals_type; sum_until_type];
+    tc_func_t := [naturals_type; sum_until_type];
     tc_global := [];
     tc_table := [];
     tc_memory := [];
     tc_local := T_num T_i32 :: sum_until_locs;
-    tc_label := [[]];
-    tc_return := None;
+    tc_label := [[T_num T_i32]];
+    tc_return := Some [T_num T_i32];
     tc_refs := [];
-    tc_tags_t := [Tf [T_num T_i32] []]
+    tc_tags_t := [tag_type]
   |}.
 
 Lemma sum_until_typing : be_typing t_ctxt_sum_until sum_until sum_until_body_type.
@@ -297,25 +297,25 @@ Section generator_spec.
     | (Mk_tagidx addr) => if Nat.eqb addr addr_tag then SEQ I else iProt_bottom
     end, bot_switch, bot_throw).
 
-  Definition naturals_inst addr_naturals addr_tag :=
+  Definition generator_inst addr_naturals addr_sum_until addr_tag :=
     {|
-      inst_types := [ naturals_type ];
-      inst_funcs := [ addr_naturals ];
+      inst_types := [ naturals_type; sum_until_type ];
+      inst_funcs := [ addr_naturals; addr_sum_until ];
       inst_tab := [];
       inst_memory := [];
       inst_globs := [];
       inst_tags := [ addr_tag ]
     |}.
 
-  Definition closure_naturals addr_naturals addr_tag :=
-    FC_func_native (naturals_inst addr_naturals addr_tag)
+  Definition closure_naturals addr_naturals addr_sum_until addr_tag :=
+    FC_func_native (generator_inst addr_naturals addr_sum_until addr_tag)
       naturals_type
       naturals_locs
       naturals.
 
   Opaque upcl.
 
-  Lemma naturals_loop_invariant addr_naturals addr_tag n Φ (I : list i32 -> iProp Σ) xs :
+  Lemma naturals_loop_invariant addr_naturals addr_sum_until addr_tag n Φ (I : list i32 -> iProp Σ) xs :
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     ⌜yx $ length xs = n⌝ -∗
     ⌜Permitted xs⌝ -∗
@@ -327,7 +327,7 @@ Section generator_spec.
               BI_set_local 0; BI_br 0])]
       UNDER {|
         f_locs := [VAL_num (VAL_int32 n)];
-        f_inst := naturals_inst addr_naturals addr_tag
+        f_inst := generator_inst addr_naturals addr_sum_until addr_tag
       |} <| Ψgen addr_tag I |> {{ Φ }}.
   Proof.
     iIntros "#Htag H_xs_agree_n HPermitted_xs HI_xs".
@@ -458,13 +458,21 @@ Section generator_spec.
     - done.
   Qed.
 
-  Lemma naturals_spec addr_naturals addr_tag f (I : list i32 -> iProp Σ) :
-    I [] -∗
-    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
-    N.of_nat addr_tag ↦□[tag] tag_type -∗
-    EWP [AI_invoke addr_naturals] UNDER f <| Ψgen addr_tag I  |> {{ v ; f, False }}.
+
+  Definition naturals_spec addr_naturals cl_naturals Ψ (I : list i32 -> iProp Σ) : iProp Σ :=
+    (□ (∀ f, I [] -∗
+    N.of_nat addr_naturals ↦[wf] cl_naturals -∗
+    EWP [AI_invoke addr_naturals] UNDER f <| Ψ |> {{ v ; f, False }})).
+
+  Lemma naturals_spec_proof addr_naturals addr_sum_until cl_naturals (I : list i32 -> iProp Σ) :
+   ∀ addr_tag,
+   cl_naturals = closure_naturals addr_naturals addr_sum_until addr_tag ->
+   N.of_nat addr_tag ↦□[tag] tag_type
+   ⊢ naturals_spec addr_naturals cl_naturals (Ψgen addr_tag I) I.
   Proof.
-    iIntros "HI_empty Hwf_naturals #Htag".
+    iIntros (addr_tag ->) "#Htag".
+    iIntros (f) "!>".
+    iIntros "HI_empty Hwf_naturals".
 
     rewrite <- (app_nil_l [AI_invoke _]).
     iApply (ewp_invoke_native with "Hwf_naturals"); try done.
@@ -964,14 +972,22 @@ Section sum_until_spec.
       by apply yx_xy_yx.
   Qed.
 
-  Lemma sum_until_spec addr_naturals addr_sum_until addr_tag f (upto : i32) :
-    N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
-    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
-    N.of_nat addr_tag ↦□[tag] tag_type -∗
+
+  Definition sum_until_spec addr_naturals addr_sum_until cl_naturals cl_sum_until : iProp Σ :=
+    (□ (∀ f upto, N.of_nat addr_sum_until ↦[wf] cl_sum_until -∗
+    N.of_nat addr_naturals ↦[wf] cl_naturals -∗
     EWP [AI_const $ VAL_num $ VAL_int32 upto; AI_invoke addr_sum_until] UNDER f
-      {{ v ; f', ⌜f = f'⌝ ∗ ⌜v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 upto]⌝ }}.
+      {{ v ; f', ⌜f = f'⌝ ∗ ⌜v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 upto]⌝ }})).
+
+  Lemma sum_until_spec_proof addr_naturals addr_sum_until cl_naturals cl_sum_until :
+   ∀ addr_tag,
+   cl_naturals = closure_naturals addr_naturals addr_sum_until addr_tag ->
+   cl_sum_until = closure_sum_until addr_naturals addr_sum_until addr_tag ->
+   N.of_nat addr_tag ↦□[tag] tag_type
+   ⊢ sum_until_spec addr_naturals addr_sum_until cl_naturals cl_sum_until.
   Proof.
-    iIntros "Hwf_sum_until Hwf_naturals #Htag".
+    iIntros (addr_tag -> ->) "#Htag".
+    iIntros (f upto) "!> Hwf_sum_until Hwf_naturals".
 
     rewrite separate1.
     iApply (ewp_invoke_native with "Hwf_sum_until"); try done.
@@ -1106,7 +1122,7 @@ Section sum_until_spec.
             3: {
               iApply (ewp_call_reference with "Hwf_naturals"); try done.
               iIntros "!> !> Hwf_naturals".
-              by iApply (naturals_spec with "[Hfrag] [Hwf_naturals]").
+              by iApply (naturals_spec_proof with "[] [Hfrag] [Hwf_naturals]").
             }
             by iIntros.
             2: iSplitR; first by iIntros (? HFalse).
@@ -1389,14 +1405,14 @@ Section sum_until_spec.
 
   Lemma sum_until_100 addr_naturals addr_sum_until addr_tag f :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
-    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
+    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 $ yx 100; AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ yx 5050]⌝ }}.
   Proof.
     iIntros "Haddr_sum_until Haddr_naturals #Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec with "[Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[] [Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
@@ -1409,14 +1425,14 @@ Section sum_until_spec.
 
   Lemma sum_until_0 addr_naturals addr_sum_until addr_tag f :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
-    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
+    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 $ yx 0; AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ yx 0]⌝ }}.
   Proof.
     iIntros "Haddr_sum_until Haddr_naturals #Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec with "[Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[] [Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
@@ -1429,14 +1445,14 @@ Section sum_until_spec.
 
   Lemma sum_until_3_neg addr_naturals addr_sum_until addr_tag f :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
-    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_tag -∗
+    N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_tag ↦□[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 $ yx (-4294967293); AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ yx 6]⌝ }}.
   Proof.
     iIntros "Haddr_sum_until Haddr_naturals #Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec with "[Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[] [Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
@@ -1448,3 +1464,7 @@ Section sum_until_spec.
   Qed.
 
 End sum_until_spec.
+
+
+
+

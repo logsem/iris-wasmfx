@@ -203,22 +203,25 @@ Proof.
        * destruct (to_val0 es) eqn:Htv.
          by exfalso; eapply to_val_to_eff.
          rewrite /= Hin He He' Htv.
-         iDestruct "H" as (cont) "(Hk & Hcont & H)".
-         iFrame. 
+         destruct i0. 
+         iDestruct "H" as (cont t1s t2s tf' ts) "(? & #Htag & Hk & -> & -> & Hcont & H)".
+         iFrame. iFrame "#".
+         iExists _,_,_.
+         iSplit; first done. iSplit; first done.
          iApply (monotonic_prot with "[] H").
          iIntros (w) "H !>".
          subst sh.
          rewrite swfill_trans.
          eapply swfill_to_lfilled in Hout as Hfilled.
-         2:{ instantiate (2 := swfill i0 shin (v_to_e_list w)).
-             instantiate (2 := i0).
+         2:{ instantiate (2 := swfill (Mk_tagidx n) shin (v_to_e_list w)).
+             instantiate (2 := Mk_tagidx n).
              done. } 
          destruct Hfilled as [k' Hfilled].
          apply lfilled_depth in HLI as Hdepth1.
          apply lfilled_depth in Hfilled as Hdepth2.
          rewrite Hdepth1 in Hdepth2; subst i k'.
 
-         iSpecialize ("IH" $! lh (swfill i0 shin (v_to_e_list w)) Ψ _ Hpure Hlh).
+         iSpecialize ("IH" $! lh (swfill (Mk_tagidx n) shin (v_to_e_list w)) Ψ _ Hpure Hlh).
          iDestruct ("IH" with "H") as "H".
 
          iSpecialize ("H" $! _ Hfilled).
@@ -347,9 +350,13 @@ Proof.
           rewrite flatten_simplify. done.
         * rewrite merge_switch in Hetof.
           inversion Hetof; subst.
-          iDestruct "H" as (cont) "(Hk & Hcont & H)".
+          destruct i. 
+          iDestruct "H" as (cont t1s t2s tf' ts) "(? & Htag & Hk & -> & -> & Hcont & H)".
           iDestruct "H" as (Ξ) "[HΞ H]".
-          iFrame. iIntros (w) "Hw".
+          iFrame. iExists _,_,_. 
+          iSplit; first done.
+          iSplit; first done.
+          iIntros (w) "Hw".
           iDestruct ("H" with "Hw") as "H".
           iNext.
           iApply "IH"; last first.
