@@ -93,8 +93,7 @@ Section GeneratorModule.
                             ⌜ cl_type cl_sum_until = sum_until_type ⌝ ∗
                             N.of_nat addr_naturals ↦[wf] cl_naturals ∗
                             N.of_nat addr_sum_until ↦[wf] cl_sum_until ∗
-                            (∀ addr_tag I, naturals_spec addr_naturals addr_tag I ∗
-                              sum_until_spec addr_naturals addr_sum_until addr_tag)
+                            sum_until_spec addr_naturals addr_sum_until cl_naturals cl_sum_until
         }}}} .
   Proof.
     iIntros "!>" (Φ) "(Hmod & Hvis1 & Hvis2) HΦ".
@@ -141,9 +140,9 @@ Section GeneratorModule.
       destruct inst_tab; last done.
       iClear "Htabs Hmems Hglobs".
       destruct inst_funcs; first done.
-      iDestruct "Hfuncs" as "[Hyield Hfuncs]".
+      iDestruct "Hfuncs" as "[Hnaturals Hfuncs]".
       destruct inst_funcs; first done.
-      iDestruct "Hfuncs" as "[Hpar Hfuncs]".
+      iDestruct "Hfuncs" as "[Hsum_until Hfuncs]".
       destruct inst_funcs; last done.
       iClear "Hfuncs".
       destruct inst_tags; first done.
@@ -157,10 +156,7 @@ Section GeneratorModule.
       iFrame.
       iSplit; first done.
       iSplit; first done.
-      iIntros (addr_tag I).
-      iSplitL.
-      iApply naturals_spec_proof.
-      iApply sum_until_spec_proof.
+      by iApply sum_until_spec_proof.
   Qed.
     
     
