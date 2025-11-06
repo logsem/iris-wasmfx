@@ -162,6 +162,7 @@ Section reasoning_rules.
   Qed.
 
   Lemma ewp_switch_desugared vs k tf tf' t1s t2s ts i E Ψ Φ f cont:
+    is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
     tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ->
     tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
     N.of_nat i ↦□[tag] Tf [] ts ∗
@@ -170,11 +171,11 @@ Section reasoning_rules.
      iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f) 
       ⊢ EWP [ AI_switch_desugared vs k tf (Mk_tagidx i) ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
-    iIntros (-> ->) "(Htag & Hk & Hcont & HΨ)".
+    iIntros (? -> ->) "(Htag & Hk & Hcont & HΨ)".
     iApply ewp_effect_sw => //.
     iFrame.
     iExists _,_,_.
-    do 2 (iSplit; first done).
+    do 3 (iSplit; first done).
     iApply (monotonic_prot with "[] HΨ").
     iIntros (w) "Hw".
     iSimpl.
@@ -388,6 +389,7 @@ Section reasoning_rules.
    Lemma ewp_switch f ves vs i i' k x a tf ts cont t1s t2s E Ψ Φ:
      i = Mk_tagident x ->
      tf = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ->
+     is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
      stypes (f_inst f) i' = Some (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) ->
      f.(f_inst).(inst_tags) !! x = Some a ->
       length vs = length t1s ->
@@ -398,16 +400,17 @@ Section reasoning_rules.
       ▷ iProt_car (upcl (get_switch1 (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (-> -> ??? ->) "(#? & ? & ? & H)".
+    iIntros (-> -> ???? ->) "(#? & ? & ? & H)".
     iApply ewp_switch_desugar.
     7: iFrame.
-    done. exact H. exact H0. 
+    done. exact H0. exact H1. 
     simpl. done.
     rewrite length_app //=.
-    erewrite H1. lia.
+    erewrite H2. lia.
     done.
     iFrame "#". iIntros "!> ?".
     iApply ewp_switch_desugared.
+    exact H. 
     3: iFrame.
     done. done. done.
   Qed. 
@@ -2252,7 +2255,7 @@ Section reasoning_rules.
       all: eapply continuation_expr_to_eff in Hes as (vs' & n & f' & es' & ->);
         last by rewrite /to_eff0 Htf'.
       2: destruct i. 
-      2: iDestruct "Hes" as (cont t1s t2s tf' ts0) "(#Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
+      2: iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & #Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
       2: iExists _,_,_,_; iSplit; first done.
       2: iSplit; first done.
       2: iSplit; first done.
@@ -3235,7 +3238,7 @@ Section reasoning_rules.
           iApply ewp_effect_sw; eauto.
           remember HΨ as HΨ'; clear HeqHΨ'.
           destruct HΨ as (_ & HΨ & _).
-          iDestruct "Hes" as (cont t1s t2s tf' ts0) "(#Htag & Hk & -> & -> & Hcont & Hes)".
+          iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & #Htag & Hk & -> & -> & Hcont & Hes)".
           iFrame. iExists _,_,_,_. iSplit; first done.
           iSplit; first done.
           iSplit; first done.
@@ -3291,7 +3294,7 @@ Section reasoning_rules.
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
           rewrite -nth_error_lookup in Htag.
-          iDestruct "Hes" as (cont t1s' t2s' tf' ts0) "(#Htag & Hk & -> & -> & Hcont & Hes)".
+          iDestruct "Hes" as (cont t1s' t2s' tf' ts0) "(%Hconst & #Htag & Hk & -> & -> & Hcont & Hes)".
           iDestruct (pointsto_agree with "Hclres Htag") as %Heq.
           inversion Heq; subst ts0. 
           destruct (resources_of_s_cont _) eqn:Hconts => //. 
@@ -3302,7 +3305,7 @@ Section reasoning_rules.
           assert (exists LI', is_true $ hfilled No_var (hholed_of_valid_hholed cont)
     (v_to_e_list vs0 ++ [:: AI_ref_cont (length (s_conts σ))]) 
     LI') as [? Hassump].
-          { admit. } 
+          { by apply iris_lfilled_properties.fillable_constant_hholed. } 
           eassert (reduce σ (Build_frame _ _) [AI_prompt _ dccs _] _ _ _).
           { eapply r_switch.
             exact Hfirst.
@@ -3342,12 +3345,23 @@ Section reasoning_rules.
           subst f2.
           destruct H1 as [(-> & ->) | Habs].
           * iFrame.
-            assert (exists h', valid_hholed_of_hholed (hh_of_swh (Mk_tagidx n0) sh) = Some h') as [h' Hh'].
-            { admit. } 
+            rewrite /to_eff0 /= in Htf0.
+            specialize (v_to_e_is_const_list vs) as Hvs.
+            apply const_list_to_val in Hvs as (? & Hvs & ?).
+            unfold to_val0 in Hvs.
+            rewrite map_app merge_app in Htf0.
+            destruct (merge_values (List.map _ (_ vs))) => //.
+            inversion Hvs; subst.
+            simpl in Htf0.
+            destruct (merge_values (List.map _ LI)) eqn:HLI => //.
+            destruct v => //.
+            destruct e => //.
+            simpl in Htf0.
+            inversion Htf0; subst.
             erewrite resources_of_s_cont_new.
             2:{ apply resources_of_s_cont_update.
                 exact Hconts. done. done. } 
-            2:{ simpl. rewrite Hh'. done. } 
+            2:{ simpl. rewrite e_to_v_v_to_e. done. }  
             iMod (gen_heap_update with "Hconts Hk") as "[Hconts Hk]".
             iMod (gen_heap_alloc with "Hconts") as "(Hconts & Hk' & Htok)".
             { instantiate (2 := N.of_nat (length l)).
@@ -3374,9 +3388,12 @@ Section reasoning_rules.
               iSplit; last first.
               iNext. iExact "H".
               iPureIntro.
-              apply of_to_valid_hholed in Hh'.
-              rewrite Hh'.
-              eapply hfilled_forget_avoiding. 
+              simpl.
+              apply/hfilledP.
+              constructor.
+              rewrite cats0. apply v_to_e_is_const_list.
+              apply/hfilledP.
+              eapply hfilled_forget_avoiding.
               apply swfill_to_hfilled. }
 
             apply resources_of_s_cont_length in Hconts.
@@ -3501,7 +3518,7 @@ Section reasoning_rules.
       
       iMod ("H" with "Hes") as "Habs".
       iDestruct ("Hntrap" with "Habs") as "Habs" => //.
-  Admitted. 
+  Qed. 
 
 
    Lemma ewp_prompt ts dccs es E Ψ Ψ' Φ Φ' f:
