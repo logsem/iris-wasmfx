@@ -1285,4 +1285,35 @@ Section lfilled_properties.
     all: by apply/hfilledP.
   Qed. 
 
+
+
+Fixpoint constant_hholed hh :=
+  match hh with
+  | HH_base bef _ => const_list bef
+  | HH_label bef _ _ hh _ => const_list bef && constant_hholed hh
+  | HH_local bef _ _ hh _ => const_list bef && constant_hholed hh
+  | HH_prompt bef _ _ hh _ => const_list bef && constant_hholed hh 
+  | HH_handler bef _ hh _ => const_list bef && constant_hholed hh
+  end.
+
+Lemma fillable_constant_hholed hh es :
+  constant_hholed hh -> exists LI, hfilled No_var hh es LI.
+Proof.
+  induction hh.
+  { intros Hl. eexists. apply/hfilledP. 
+    constructor. exact Hl. } 
+  all: intros H.
+  all: simpl in H. 
+  all: remove_bools_options.
+  all: apply IHhh in H0 as [LI HLI].
+  all: eexists.
+  all: apply/hfilledP.
+  all: constructor.
+  all: try done.
+  all: apply/hfilledP.
+  all: done.
+Qed. 
+
+
+  
 End lfilled_properties.

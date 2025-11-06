@@ -36,7 +36,7 @@ Proof.
   { destruct e => //=.
     2: destruct i. 
     - iDestruct "H" as (?) "[? Hrest]" => //.
-    - iDestruct "H" as "(% & % & % & % & % & _ & _ & _ & _ & _ & H)".
+    - iDestruct "H" as "(% & % & % & % & % & _ & _ & _ & _ & _ & _ & H)".
       iDestruct "H" as (?) "[? Hrest]" => //. 
   } 
 (*
