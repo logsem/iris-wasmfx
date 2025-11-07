@@ -785,40 +785,25 @@ Proof.
 Qed.
 
 
-(*  Lemma exnelts_of_exception_clauses_None cls i:
+  Lemma exnelts_of_exception_clauses_None cls i:
     exnelts_of_exception_clauses cls i = None ->
-    is_Some (firstx_exception cls i).
+    firstx_exception cls i <> No_label.
   Proof.
     induction cls => //=.
-    destruct (swelt_of_continuation_clause a i) eqn:Helt => //.
-    - destruct (swelts_of_continuation_clauses cls i) => //.
-      destruct a => //. destruct (eqtype.eq_op i t) => //.
-    - unfold swelt_of_continuation_clause in Helt.
+    destruct (exnelt_of_exception_clause a i) eqn:Helt => //.
+    - destruct (exnelts_of_exception_clauses cls i) => //.
+      destruct a => //. all: destruct (eqtype.eq_op i t) => //.
+    - unfold exnelt_of_exception_clause in Helt.
       destruct i.
       destruct a => //.
-      destruct t => //.
-      destruct (n0 <? n) eqn:Hn => //.
-      destruct (n0 =? n) eqn:Hn' => //.
-      apply Nat.eqb_eq in Hn' as ->.
-      rewrite eqtype.eq_refl. done.
+      all: destruct t => //.
+      all: destruct (n0 <? n) eqn:Hn => //.
+      all: destruct (n0 =? n) eqn:Hn' => //.
+      all: apply Nat.eqb_eq in Hn' as ->.
+      all: rewrite eqtype.eq_refl.
+      all: done.
   Qed.
 
-  Lemma firstx_switch_lookup dccs i :
-    firstx_continuation_switch dccs i = true ->
-    exists k, dccs !! k = Some (DC_switch i).
-  Proof.
-    induction dccs => //=.
-    destruct a => //=.
-    - intros H; apply IHdccs in H as [k Hres].
-      exists (S k) => //.
-    - destruct (eqtype.eq_op i t) eqn:Hit => //.
-      + intros H; inversion H; subst; clear H.
-        apply b2p in Hit as ->.
-        exists 0 => //.
-      + intros H; apply IHdccs in H as [k Hres].
-        exists (S k) => //.
-
-  Qed.  *)
 
 Lemma exnelts_of_exception_clauses_inv i l: 
  exnelts_of_exception_clauses

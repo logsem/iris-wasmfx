@@ -950,6 +950,7 @@ Section coroutines_client_adequacy.
   Context {has_preg: gen_heapGpreS N host_action Σ}.
   Context {tag_preg: gen_heapGpreS N function_type Σ}.
   Context {cont_preg: gen_heapGpreS N continuation_resource Σ}.
+  Context {exn_preg: gen_heapGpreS N exception Σ}.
   Context {one_shotg: one_shotG Σ}.
 
   Definition near_empty_store : store_record := Build_store_record [] [] [] [] [ (* {| g_mut := MUT_mut; g_val := xx 0 |};  {| g_mut := MUT_mut; g_val := xx 0 |};  {| g_mut := MUT_mut; g_val := xx 0 |};  {| g_mut := MUT_mut; g_val := xx 0 |}*) ] [] [].
@@ -1002,6 +1003,7 @@ Section coroutines_client_adequacy.
       iMod (gen_heap_init (∅:gmap N global)) as (global_heapg) "[Hglobal_ctx _]".
       iMod (gen_heap_init (∅: gmap N function_type)) as (tag_heapg) "[Htag_ctx _]".
       iMod (gen_heap_init (∅: gmap N continuation_resource)) as (cont_heapg) "[Hcont_ctx _]".
+      iMod (gen_heap_init (∅: gmap N exception)) as (exn_heapg) "[Hexn_ctx _]".
       
 (*      apply (@gen_heapGpreS_heap) in locs_preg as frame_heapg.
       iMod (ghost_map_alloc (∅:gmap unit frame)) as (γframe) "[Hframe_ctx _]". *)
@@ -1013,7 +1015,7 @@ Section coroutines_client_adequacy.
       iMod (ghost_map_alloc (∅:gmap N host_action)) as (γhas) "[Hhas_ctx _]".
 
       iMod (@na_alloc Σ na_invg) as (logrel_nais) "Hna".
-      pose wasmg := WasmG Σ Hinv func_heapg cont_heapg tag_heapg tab_heapg tabsize_heapg
+      pose wasmg := WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg tabsize_heapg
                           tablimit_heapg mem_heapg memsize_heapg memlimit_heapg
                           global_heapg.
       pose visgg := HVisG Σ vis_heapg γvis.
@@ -1086,6 +1088,7 @@ Proof.
                gen_heapΣ N host_action;
                gen_heapΣ N function_type;
                gen_heapΣ N continuation_resource;
+               gen_heapΣ N exception;
                one_shotΣ
       ]).
   eapply (@coroutines_client_adequacy Σ); typeclasses eauto.

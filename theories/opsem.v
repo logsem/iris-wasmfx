@@ -386,7 +386,7 @@ Inductive reduce : store_record -> frame -> list administrative_instruction ->
     List.nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh) ->
     stypes (f_inst f) i = Some (Tf t1s t2s) ->
     map (desugar_continuation_clause (f_inst f)) hs = map Some hsd ->
-    hfilled No_var hh ([:: AI_ref_exn (List.length (s_exns s)) (Mk_tagidx a) ; AI_basic BI_throw_ref]) LI -> 
+    hfilled No_var hh ([:: AI_throw_ref_desugared vcs (List.length (s_exns s)) (Mk_tagidx a)]) LI -> 
     reduce s f (ves ++ [:: AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]) s'' f [:: AI_prompt t2s hsd LI]
 | r_resume_throw_failure :
   forall s f k i x hs tf,

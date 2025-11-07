@@ -10,9 +10,9 @@
 
 From iris.proofmode Require Import base tactics classes.
 From iris.program_logic Require Import weakestpre.
-From Wasm.iris.language Require Import iris_ewp_ctx (* iris_adequacy *). 
+From Wasm.iris.language Require Import iris_ewp_ctx.
 From Wasm.iris.helpers Require Import iris_properties.
-(* From Wasm.iris.rules Require Import iris_rules_structural. *)
+From Wasm.iris.rules Require Import iris_rules_exceptions.
 From stdpp Require Import base list.
 From mathcomp Require Import ssreflect eqtype seq ssrbool.
 
@@ -43,7 +43,7 @@ Section clause_triple.
 | DC_switch (Mk_tagidx taddr) =>
 (*      ∃ ts', *)
     N.of_nat taddr ↦□[tag] Tf [] ts ∗
-      □ ∀ vs kaddr h cont Φ'' t1s t2s tf',
+    (* hmmm is this persistent modality necessary? *)  □ ∀ vs kaddr h cont Φ'' t1s t2s tf',
         get_switch2 (Mk_tagidx taddr) Ψ cont -∗
         ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ -∗
         N.of_nat kaddr ↦[wcont] Live tf' h -∗
@@ -58,6 +58,7 @@ Section clause_triple.
                 ∀ w f, Φ'' w f -∗ EWP [AI_prompt ts dccs (of_val0 w)] UNDER f @ E <| Ψ' |> {{ Φ' }}
     end.
 
+  (* No longer true due to persistent modality above *)
 (*  Lemma monotonic_clause_triple E Ψ1 Ψ2 Φ1 Φ2 dcc ts dccs Ψ'1 Ψ'2 Φ'1 Φ'2 :
     meta_leq Ψ2 Ψ1 -∗ 
         (∀ v f , Φ2 v f ={E}=∗ Φ1 v f) -∗
@@ -185,13 +186,7 @@ Section reasoning_rules.
     iFrame.
   Qed.
 
-  Lemma tag_valid gm a tf:
-    gen_heap_interp gm -∗ a ↦□[tag] tf -∗ ⌜ gm !! a = Some tf ⌝.
-  Proof.
-    iIntros "Htags Htag".
-    iDestruct (gen_heap_valid with "Htags Htag") as "%Htag".
-    done.
-  Qed. 
+ 
 
   Lemma ewp_suspend_desugar f ves vs i x a t1s t2s E Ψ Φ:
     i = Mk_tagident x ->
@@ -212,7 +207,7 @@ Section reasoning_rules.
     iApply fupd_mask_intro; first solve_ndisj.
     iIntros "Hclose".
 
-    iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hmems & Htabs & Hglobs & Hrest)".
+    iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Hmems & Htabs & Hglobs & Hrest)".
     iDestruct (tag_valid with "Htags Htag") as "%Htag".
     rewrite gmap_of_list_lookup in Htag.
     rewrite Nat2N.id in Htag.
@@ -327,7 +322,7 @@ Section reasoning_rules.
     iApply fupd_mask_intro; first solve_ndisj.
     iIntros "Hclose".
 
-    iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hmems & Htabs & Hglobs & Hrest)".
+    iDestruct "Hσ" as "(Hfuncs & Hconts & Hexn & Htags & Hmems & Htabs & Hglobs & Hrest)".
     destruct (resources_of_s_cont (s_conts σ)) eqn:Hconts => //. 
     iDestruct (gen_heap_valid with "Hconts Hcont") as "%Hlook".
     rewrite gmap_of_list_lookup Nat2N.id in Hlook.
@@ -1176,7 +1171,10 @@ Section reasoning_rules.
       (exists vs n f es0, es = v_to_e_list vs ++ [AI_frame n f es0]) \/
       (exists vs, es = v_to_e_list vs ++ [AI_trap]) \/
       is_true (const_list es) \/
-      (exists vs vs' k tf, es = v_to_e_list vs ++ [AI_call_host vs' k tf])
+      (exists vs vs' k tf, es = v_to_e_list vs ++ [AI_call_host vs' k tf]) (* \/
+      (exists vs a b i tf, es = v_to_e_list vs ++ [AI_ref_exn a b; AI_basic BI_throw_ref; AI_ref i; AI_basic (BI_call_reference (Type_explicit tf))])  \/
+      (exists vs a b c i tf, es = v_to_e_list vs ++ [AI_throw_ref_desugared a b c; AI_ref i; AI_basic (BI_call_reference (Type_explicit tf))])  *)
+      
   .
 
 
@@ -1186,7 +1184,7 @@ Section reasoning_rules.
     intros Hvs Hes.
     apply const_es_exists in Hvs as Hvs'.
     destruct Hvs' as [vs'' ->].
-    destruct Hes as [(vs' & i & tf & ->) | [(vs' & i & ->) | [(vs' & n & f0 & es0 & ->) | [(vs' & ->) | [Hes | (vs & vs' & k & tf & ->)]]]]].
+    destruct Hes as [(vs' & i & tf & ->) | [(vs' & i & ->) | [(vs' & n & f0 & es0 & ->) | [(vs' & ->) | [Hes | (vs & vs' & k & tf & ->)]]]]].  (* | [ (vs & a & b & i & tf & ->) | (vs & a & b & c & i & tf & ->)] ]]]]]]. *)
     1-4,6: rewrite catA.
     1-5: rewrite v_to_e_cat.
     by left; repeat eexists.
@@ -1194,6 +1192,8 @@ Section reasoning_rules.
     by right; right; left; repeat eexists.
     by right; right; right; left; repeat eexists.
     by right; right; right; right; right; repeat eexists.
+(*    by right; right; right; right; right; right; left; repeat eexists.
+    by right; right; right; right; right; right; right;  repeat eexists.  *)
     by right; right; right; right; left; apply const_list_concat => //.
   Qed. 
     
@@ -1204,7 +1204,7 @@ Section reasoning_rules.
     continuation_expr es'.
   Proof.
     intros Hred Hes.
-    destruct Hes as [(vs & i & tf & ->) | [(vs & i & ->) | [(vs & n & f0 & es0 & ->) | [(vs & ->) | [Hes | (vs & vs' & k & tf & ->)]]]]].
+    destruct Hes as [(vs & i & tf & ->) | [(vs & i & ->) | [(vs & n & f0 & es0 & ->) | [(vs & ->) | [Hes |  (vs & vs' & k & tf & ->)]]]]].  (* | [ (vs & a & b & i & tf & ->) | (vs & a & b & c & i & tf & ->)] ]]]]]].  *)
     - remember (S $ length vs) as m.
       assert (length vs < m) as Hm; first lia.
       clear Heqm.
@@ -1311,7 +1311,7 @@ Section reasoning_rules.
       all: try by right; right; right; right; left.
       right; right; left; eexists [], _,_,_ => //.
       all: try by rewrite separate1 cat_app app_assoc in Heq; apply concat_cancel_last in Heq as [??]; try apply const_list_concat.
-      repeat right; eexists [], _,_,_ => //. 
+      right; right ; right; right; right; eexists [], _,_,_ => //. 
       move/lfilledP in H.
       inversion H; subst.
       all: try by apply first_values in H1 as (? & ? & ?) => //; try apply const_list_concat; try apply v_to_e_is_const_list.
@@ -3103,7 +3103,7 @@ Section reasoning_rules.
 (*          iDestruct (big_sepL_lookup with "Hclres") as "Hclres".
           exact Hk. *)
           iDestruct "Hclause" as (t1s t2s) "[#Hclres Hclause]".
-          iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hrest)".
+          iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
           rewrite -nth_error_lookup in Htag.
@@ -3290,7 +3290,7 @@ Section reasoning_rules.
           iDestruct (big_sepL_lookup_acc with "Hclauses") as "[Hclause Hrefill]".
           exact Hk.
           iDestruct "Hclause" as "[#Hclres #Hclause]".
-          iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Hrest)".
+          iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
           rewrite -nth_error_lookup in Htag.
@@ -3776,6 +3776,143 @@ Section reasoning_rules.
     replace (kaddr) with (N.to_nat $ N.of_nat kaddr); last apply Nat2N.id.
     rewrite gmap_of_list_insert; rewrite Nat2N.id; last done.
     iApply "Hconts".
+  Qed.
+
+
+  Lemma ewp_resume_throw ves vcs addr i ccs dccs E Ψ Ψ' Φ Φ' t1s t2s ts h f x a:
+    List.nth_error f.(f_inst).(inst_tags) x = Some a ->
+    stypes f.(f_inst) i = Some (Tf t1s t2s) ->
+    ves = v_to_e_list vcs ->
+    length ves = length ts ->
+    map (desugar_continuation_clause (f_inst f)) ccs = map Some dccs ->
+    agree_on_uncaptured dccs Ψ Ψ' ->
+    is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed h) ->
+
+ 
+    (N.of_nat a ↦□[tag] Tf ts [] ∗
+       N.of_nat addr ↦[wcont] Live (Tf t1s t2s) h ∗ 
+       (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ 
+       (* clause_resources dccs ∗ *)
+       ▷ (∀ k LI, N.of_nat k ↦[we] {| e_tag := Mk_tagidx a ; e_fields := vcs |} -∗
+               ⌜ is_true (hfilled No_var (hholed_of_valid_hholed h) [AI_throw_ref_desugared vcs k (Mk_tagidx a)] LI) ⌝ -∗
+                EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) ∗
+       ▷ (∀ w, Φ w empty_frame -∗ EWP [AI_prompt t2s dccs (of_val0 w)] UNDER empty_frame @ E <| Ψ' |> {{ v; _ , Φ' v }}) ∗
+       ▷ [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc t2s dccs Ψ' (λ v _, Φ' v)
+        )%I
+      ⊢ EWP ves ++ [AI_ref_cont addr ; AI_basic $ BI_resume_throw i x ccs] UNDER f @ E <| Ψ' |> {{ v ; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
+  Proof.
+    iIntros (Hx Hi -> Hlen Hclauses HΨ Hconst) "(#Htag & Hcont & Hntrap & Hntrap' & HΦ & Hnext & Hclauses)".
+    iApply ewp_lift_step => //.
+    { rewrite to_val_cat_None2 => //. apply v_to_e_is_const_list. } 
+    { rewrite to_eff_cat_None2 => //. apply v_to_e_is_const_list. } 
+    iIntros (σ) "Hσ".
+    iApply fupd_frame_l.
+    iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Htables & Hmems & Hglobals & Hframe & Hrest)".
+    iDestruct (gen_heap_valid with "Htags Htag") as %Htag.
+    rewrite gmap_of_list_lookup Nat2N.id in Htag.
+    rewrite - nth_error_lookup in Htag. 
+    destruct (resources_of_s_cont (s_conts σ)) eqn:Hconts => //. 
+    iDestruct (gen_heap_valid with "Hconts Hcont") as "%Hlook".
+    rewrite gmap_of_list_lookup Nat2N.id in Hlook.
+    rewrite - nth_error_lookup in Hlook.
+    eapply resources_of_s_cont_lookup in Hlook as Hlook'; last exact Hconts.
+    eapply iris_lfilled_properties.fillable_constant_hholed in Hconst as [??].
+
+
+    
+    eassert (reduce σ f
+              (_ ++ [AI_ref_cont addr; AI_basic (BI_resume_throw i x ccs)])
+              _ f
+              [AI_prompt t2s dccs _]
+           ) as Hred2.
+    { eapply r_resume_throw => //.
+      exact Hx. exact Htag. exact Hlen.
+      exact Hlook'. exact Hi. exact H.
+    }
+    iSplit.
+    - iPureIntro.
+      unfold language.reducible, language.prim_step => /=.
+      eexists [], (_, _), _, [].
+      repeat split => //.
+      exact Hred2.
+
+    - iApply fupd_mask_intro; first solve_ndisj.
+      iIntros "Hclose !>" (es σ2 ? HStep).
+      destruct HStep as (H' & _).
+      edestruct reduce_det.
+      exact H'. exact Hred2.
+      subst.
+      destruct H1 as [[-> ->] | H0].
+      2:{ destruct H0.
+          destruct H0 as (? & Habs).
+          (* rewrite -cat_app in Habs. *)
+          by rewrite first_instr_const in Habs; try apply v_to_e_is_const_list.
+          destruct H0 as (? & ? & ? & Habs & _).
+          rewrite (* -cat_app *) first_instr_const in Habs => //.
+          apply v_to_e_is_const_list. 
+      }
+      iMod (gen_heap_update with "Hconts Hcont") as "[Hconts Hcont]".
+      iMod (gen_heap_alloc with "Hexns") as "(Hexns & Hexn & Htok)"; last first. 
+      iMod "Hclose". iModIntro.
+      iFrame "Hfuncs Htags Htables Hmems Hglobals Hframe Hrest".
+      erewrite resources_of_s_cont_update.
+      2: exact Hconts.
+      2: done.
+      2:{ apply nth_error_Some.
+          by rewrite Hlook'. }
+      iSplitL "Hconts Hexns".
+      2:{ destruct h.
+          - iDestruct ("HΦ" with "Hexn []") as "HΦ".
+            done.
+            move/hfilledP in H; inversion H; subst.
+            edestruct const_list_to_val as (? & ? & ?).
+            exact H5.
+                          
+            iDestruct (ewp_effect_thr with "HΦ") as "HΨ".
+            { rewrite /to_eff0 /=.
+              rewrite map_app merge_app.
+              rewrite /to_val0 /= in H0.
+              destruct (merge_values _) => //.
+              inversion H0; subst v.
+              simpl. done. }
+            iApply ewp_effect_thr.
+            { rewrite /to_eff0 /=.
+              rewrite map_app merge_app.
+              rewrite /to_val0 /= in H0.
+              destruct (merge_values _) => //.
+              inversion H0; subst v.
+              simpl. done. }
+            destruct HΨ as (_ & _ & HΨ).
+            rewrite HΨ. iFrame.
+          - iApply ewp_prompt.
+            exact HΨ.
+            move/hfilledP in H; inversion H; subst.
+            right; right; left.
+            repeat eexists. 
+            iFrame.
+            iApply ("HΦ" with "Hexn").
+            done. } 
+      { iSplitL "Hconts".
+        - unfold update_list_at. simpl.
+          unfold replace_nth_cont.
+          rewrite - gmap_of_list_insert.
+          rewrite insert_take_drop.
+          rewrite firstn_is_take_n.
+          repeat rewrite -cat_app.
+          rewrite Nat2N.id.
+          replace (ssrnat.addn addr 1) with (S addr); last lias.
+          done.
+          all: rewrite Nat2N.id.
+          all: rewrite nth_error_lookup in Hlook.
+          all: apply lookup_lt_Some in Hlook.
+          all: done.
+        - unfold add_exn. simpl.
+          rewrite -gmap_of_list_append.
+          iFrame. 
+      }
+      rewrite gmap_of_list_lookup Nat2N.id.
+      apply lookup_ge_None_2.
+      lia. 
   Qed.
 
 End reasoning_rules.

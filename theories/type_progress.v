@@ -1112,7 +1112,7 @@ Proof.
         rewrite List.Forall_forall in Hconts.
         apply List.nth_error_In in Hf0 as Hf0'.
         apply Hconts in Hf0'.
-        apply (typed_cont_hfilled  [:: AI_ref_exn (length s_exns) (Mk_tagidx itag); AI_basic BI_throw_ref] ) in Hf0' as [LI HLI].
+        apply (typed_cont_hfilled  [:: AI_throw_ref_desugared (take (size [seq Some i | i <- ts]) vcs)  (length s_exns) (Mk_tagidx itag)] ) in Hf0' as [LI HLI].
         eapply continuation_clause_typing_desugar in H1 as [csd Hcsd].
         2:{ subst C. rewrite strip_upd_label.
             rewrite strip_upd_local_return.

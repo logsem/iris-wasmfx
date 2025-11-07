@@ -104,6 +104,8 @@ Class wasmG Σ :=
 
       cont_gen_hsG :: gen_heapGS N continuation_resource Σ;
 
+      exn_gen_hsG :: gen_heapGS N exception Σ;
+
       tag_gen_hsG :: gen_heapGS N function_type Σ;
       
       tab_gen_hsG :: gen_heapGS (N*N) funcelem Σ;
@@ -146,7 +148,8 @@ Definition gen_heap_wasm_store `{!wasmG Σ} (s: store_record) : iProp Σ :=
      match resources_of_s_cont s.(s_conts) with
      | Some rs => (gen_heap_interp (gmap_of_list rs))
      | None => False
-     end ∗ 
+     end ∗
+     (gen_heap_interp (gmap_of_list s.(s_exns))) ∗
      (gen_heap_interp (gmap_of_list s.(s_tags))) ∗
    (gen_heap_interp (gmap_of_table s.(s_tables))) ∗
    (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
@@ -164,6 +167,7 @@ Definition state_interp `{!wasmG Σ} s :=
      | Some rs => (@gen_heap_interp _ _ _ _ _ cont_gen_hsG (gmap_of_list rs))
      | None => False
      end ∗
+     (@gen_heap_interp _ _ _ _ _ exn_gen_hsG (gmap_of_list s.(s_exns))) ∗
      (@gen_heap_interp _ _ _ _ _ tag_gen_hsG (gmap_of_list s.(s_tags))) ∗
       (@gen_heap_interp _ _ _ _ _ tab_gen_hsG (gmap_of_table s.(s_tables))) ∗
       (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
@@ -206,6 +210,12 @@ Notation "n ↦[wcont]{ q } v" := (pointsto (L:=N) (V:=continuation_resource) n 
                            (at level 20, q at level 5, format "n ↦[wcont]{ q } v") : bi_scope.
 Notation "n ↦[wcont] v" := (pointsto (L:=N) (V:=continuation_resource) n (DfracOwn 1) v%V)
                              (at level 20, format "n ↦[wcont] v") : bi_scope.
+
+Notation "n ↦[we]{ q } v" := (pointsto (L:=N) (V:=exception) n q v%V)
+                           (at level 20, q at level 5, format "n ↦[we]{ q } v") : bi_scope.
+Notation "n ↦[we] v" := (pointsto (L:=N) (V:=exception) n (DfracOwn 1) v%V)
+                             (at level 20, format "n ↦[we] v") : bi_scope.
+
 
 Notation "n ↦□[tag] v" := (pointsto (L:=N) (V:=function_type) n DfracDiscarded v%V)%I
                            (at level 20, format "n ↦□[tag] v") : bi_scope.

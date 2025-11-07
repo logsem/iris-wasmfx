@@ -309,7 +309,7 @@ Qed.
       eapply lfilled_to_eff in Hcontr => //.
       destruct Hcontr => //.
       inversion H => //. } 
-    iIntros (?) "(Hσ1&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
+    iIntros (?) "(Hσ1&?&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
     iApply fupd_frame_l.
     iDestruct (gen_heap_valid with "Hσ2 Ha") as %Hlook.
     iDestruct (gen_heap_valid with "Hσ1 Hcl") as %Hlook2.
@@ -378,7 +378,7 @@ Qed.
   Proof.
     iIntros (Htype Hc) "Ha Hcl Hcont".
     iApply ewp_lift_atomic_step => //.
-    iIntros (?) "(Hσ1&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
+    iIntros (?) "(Hσ1&?&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
     iApply fupd_frame_l.
     iDestruct (gen_heap_valid with "Hσ2 Ha") as %Hlook.
     iDestruct (gen_heap_valid with "Hσ1 Hcl") as %Hlook2.
@@ -453,7 +453,7 @@ Qed.
   Proof.
     iIntros (Hc) "Ha Hcont".
     iApply ewp_lift_atomic_step => //.
-    iIntros (?) "(Hσ1&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
+    iIntros (?) "(Hσ1&?&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6)".
     iApply fupd_frame_l.
     iDestruct (gen_heap_valid with "Hσ2 Ha") as %Hlook.
     simplify_lookup.
@@ -492,7 +492,7 @@ Qed.
   Proof.
     iIntros (Hc Hge) "#Ha Hcont".
     iApply ewp_lift_atomic_step => //.
-    iIntros (?) "(Hσ1&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6&Hσ7&Hσ8)".
+    iIntros (?) "(Hσ1&?&?&?&Hσ2&Hσ3&Hσ4&Hσ5&Hσ6&Hσ7&Hσ8)".
     iApply fupd_frame_l.
     iDestruct (gen_heap_valid with "Hσ6 Ha") as %Hlook.
     rewrite gmap_of_list_lookup Nat2N.id in Hlook.
