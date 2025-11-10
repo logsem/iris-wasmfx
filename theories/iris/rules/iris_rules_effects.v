@@ -31,7 +31,7 @@ Section clause_triple.
     λ f, ⌜ f = empty_frame ⌝%I.
 
   (* ts is the return type of the continuation *)
-  Definition clause_triple E Ψ Φ dcc ts dccs Ψ' Φ': iProp Σ :=
+  Definition clause_triple E Ψ Φ dcc ts Ψ' Φ': iProp Σ :=
     match dcc with
     | DC_catch (Mk_tagidx taddr) ilab =>
         ∃ t1s t2s,
@@ -43,7 +43,8 @@ Section clause_triple.
 | DC_switch (Mk_tagidx taddr) =>
 (*      ∃ ts', *)
     N.of_nat taddr ↦□[tag] Tf [] ts ∗
-    (* hmmm is this persistent modality necessary? *)  □ ∀ vs kaddr h cont Φ'' t1s tf',
+      (* hmmm is this persistent modality necessary? *)   □
+      ∀ vs kaddr h cont t1s tf',
       get_switch2 (Mk_tagidx taddr) Ψ cont -∗
       ⌜ tf' = Tf t1s ts ⌝ -∗
       N.of_nat kaddr ↦[wcont] Live tf' h -∗
@@ -53,19 +54,19 @@ Section clause_triple.
         ▷ (* no calling continuations in wasm,
               so adding this later to symbolise that step *)
         EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
-      ∃ LI, ⌜ is_true $ hfilled No_var cont (v_to_e_list vs ++ [AI_ref_cont kaddr]) LI ⌝ ∗
-      EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ'' }} ∗
-      ∀ w f, Φ'' w f -∗ EWP [AI_prompt ts dccs (of_val0 w)] UNDER f @ E <| Ψ' |> {{ Φ' }}
+        ∃ LI,
+          ⌜ is_true $ hfilled No_var cont (v_to_e_list vs ++ [AI_ref_cont kaddr]) LI ⌝ ∗
+            EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}
     end.
 
   (* No longer true due to persistent modality above *)
-(*  Lemma monotonic_clause_triple E Ψ1 Ψ2 Φ1 Φ2 dcc ts dccs Ψ'1 Ψ'2 Φ'1 Φ'2 :
+(*  Lemma monotonic_clause_triple E Ψ1 Ψ2 Φ1 Φ2 dcc ts Ψ'1 Ψ'2 Φ'1 Φ'2 :
     meta_leq Ψ2 Ψ1 -∗ 
         (∀ v f , Φ2 v f ={E}=∗ Φ1 v f) -∗
         meta_leq Ψ'1 Ψ'2 -∗
         (∀ v f, Φ'1 v f ={E}=∗ Φ'2 v f) -∗
-    clause_triple E Ψ1 Φ1 dcc ts dccs Ψ'1 Φ'1 -∗
-        clause_triple E Ψ2 Φ2 dcc ts dccs Ψ'2 Φ'2.
+    clause_triple E Ψ1 Φ1 dcc ts Ψ'1 Φ'1 -∗
+        clause_triple E Ψ2 Φ2 dcc ts Ψ'2 Φ'2.
   Proof.
     iIntros "#HΨ HΦ #HΨ' HΦ' Htrip".
     destruct dcc => //.
@@ -91,7 +92,7 @@ Section clause_triple.
     - destruct t.
       iDestruct "Htrip" as "[#Htag Htrip]".
       iFrame "Htag".
-      iIntros (vs kaddr h cont Φ'' t1s t2s tf') "Hcont -> Hk H".
+      iIntros (vs kaddr h cont t1s tf') "Hcont -> Hk H".
       iDestruct ("Htrip" with "[Hcont] [] Hk [H HΦ]") as "Htrip".
       + iDestruct "HΨ" as "(_ & _ & HΨ & _)". by iApply "HΨ".
       + done.
@@ -103,14 +104,12 @@ Section clause_triple.
         iNext.
         iApply (ewp_strong_mono with "H [] HΦ").
         done. done.
-      + iDestruct "Htrip" as (LI) "(%HLI & H & HΦ)".
+      + iDestruct "Htrip" as (LI) "(%HLI & H)".
         iExists LI; iSplit; first done.
-        iSplitR "HΦ HΦ'".
-        instantiate (1 := Φ'').
         iApply (ewp_strong_mono with "H [] []").
         done. done. iIntros (??) "H". iExact "H".
         iIntros (??) "H".
-        iDestruct ("HΦ" with "H") as "H".
+        iDestruct ("HΦ" with "H") as "H". 
         iApply (ewp_strong_mono with "H [] HΦ'").
         done. done.
   Qed. *)
@@ -3017,7 +3016,7 @@ Section reasoning_rules.
     (    (∀ f, ¬ Φ trapV f) ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
       (∀ w, Φ w empty_frame -∗ EWP [AI_prompt ts dccs (of_val0 w)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}) ∗
       (* clause_resources dccs ∗ *)
-      [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc ts dccs Ψ' Φ')%I
+      [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc ts Ψ' Φ')%I
       ⊢ EWP [AI_prompt ts dccs es] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}.
   Proof.
     iLöb as "IH" forall (ts dccs es E Ψ Ψ' Φ Φ').
@@ -3380,7 +3379,7 @@ Section reasoning_rules.
             rewrite -Hlenl.
             rewrite update_list_at_insert; last done.
             iFrame.
-            iDestruct ("Hclause" with "Hcont [] Hk' [Hes]") as (?) "(%Hfill & H & Himpl)".
+            iDestruct ("Hclause" with "Hcont [] Hk' [Hes]") as (?) "(%Hfill & H)".
             { done. } 
             { iApply (monotonic_prot with "[] Hes").
               iIntros (w) "H".
@@ -3404,8 +3403,9 @@ Section reasoning_rules.
             iMod "Hclose" as "_".
             iModIntro.
             iApply "IH"; last first.
-            -- iFrame. 
-               iApply ("Hrefill" with "[$]").
+            -- iFrame.
+               iApply "Hrefill".
+               iFrame "#".
             -- iPureIntro.
                eapply hfilled_continuation_expression; eauto.
                apply const_list_concat => //.
@@ -3526,7 +3526,7 @@ Section reasoning_rules.
      continuation_expr es ->
     ((∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ EWP es UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
       (∀ w, Φ w empty_frame -∗ EWP [AI_prompt ts dccs (of_val0 w)] UNDER empty_frame @ E <| Ψ' |> {{ v ; _ , Φ' v }}) ∗
-      [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc ts dccs Ψ' (λ v _, Φ' v) )%I
+      [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc ts Ψ' (λ v _, Φ' v) )%I
       ⊢ EWP [AI_prompt ts dccs es] UNDER f @ E <| Ψ' |> {{ v; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
    Proof.
      iIntros (HΨ Hes) "(HΦ & HΦ' & Hes & Hnext & Htriples)".
@@ -3562,7 +3562,7 @@ Section reasoning_rules.
        (* clause_resources dccs ∗ *)
        ▷ EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
        ▷ (∀ w, Φ w empty_frame -∗ EWP [AI_prompt t2s dccs (of_val0 w)] UNDER empty_frame @ E <| Ψ' |> {{ v; _ , Φ' v }}) ∗
-       ▷ [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc t2s dccs Ψ' (λ v _, Φ' v)
+       ▷ [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc t2s Ψ' (λ v _, Φ' v)
         )%I
       ⊢ EWP vs ++ [AI_ref_cont addr ; AI_basic $ BI_resume i ccs] UNDER f @ E <| Ψ' |> {{ v ; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
   Proof.
@@ -3797,7 +3797,7 @@ Section reasoning_rules.
                ⌜ is_true (hfilled No_var (hholed_of_valid_hholed h) [AI_throw_ref_desugared vcs k (Mk_tagidx a)] LI) ⌝ -∗
                 EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) ∗
        ▷ (∀ w, Φ w empty_frame -∗ EWP [AI_prompt t2s dccs (of_val0 w)] UNDER empty_frame @ E <| Ψ' |> {{ v; _ , Φ' v }}) ∗
-       ▷ [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc t2s dccs Ψ' (λ v _, Φ' v)
+       ▷ [∗ list] dcc ∈ dccs, clause_triple E Ψ Φ dcc t2s Ψ' (λ v _, Φ' v)
         )%I
       ⊢ EWP ves ++ [AI_ref_cont addr ; AI_basic $ BI_resume_throw i x ccs] UNDER f @ E <| Ψ' |> {{ v ; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
   Proof.
