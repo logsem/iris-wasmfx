@@ -73,7 +73,7 @@ Definition ewp_pre `{!wasmG Σ} :
           ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
           N.of_nat i ↦□[tag] Tf [] ts ∗
           N.of_nat k ↦[wcont] Live tf cont ∗
-          ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ ∗
+          ⌜ tf' = Tf t1s ts ⌝ ∗
           ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
           get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
           iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
@@ -258,7 +258,7 @@ Section wp.
                                                   ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
   N.of_nat i ↦□[tag] Tf [] ts ∗                                                
   N.of_nat k ↦[wcont] Live tf cont ∗
-    ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ ∗
+    ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
               get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗ 
               iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
@@ -500,7 +500,7 @@ Section wp.
         ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
         N.of_nat i ↦□[tag] Tf [] ts ∗
   N.of_nat k ↦[wcont] Live tf cont ∗
-    ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ ∗
+    ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
               get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗ 
               iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs

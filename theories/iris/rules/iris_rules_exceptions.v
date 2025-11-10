@@ -385,7 +385,8 @@ Section reasoning_rules.
         destruct HΨ as (_ & HΨ & _).
         unfold get_switch2, get_switch1.
         rewrite -HΨ.
-        iDestruct "Hes" as (?????) "(? & ? & ? & ? & ? & ? & Hes)".
+        iDestruct "Hes" as (?????) "(? & ? & ? & Htf' & Htf & ? & Hes)".
+        iFrame "Htf'".
         iFrame.
         iApply (monotonic_prot with "[-Hes] Hes").
         iIntros (w) "Hw".

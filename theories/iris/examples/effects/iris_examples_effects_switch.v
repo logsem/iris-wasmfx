@@ -20,6 +20,7 @@ Section Example2.
   Definition f'_type := Tf [] [T_num T_i32].
   Definition f'_cont_type := T_contref f'_type.
 
+  Definition g_body_type := Tf [] [T_num T_i32].
   Definition g_type := Tf [T_ref f'_cont_type] [T_num T_i32].
   Definition g_cont_type := T_contref g_type.
 
@@ -65,12 +66,12 @@ Section Example2.
     tc_tags_t := [swap_tag_type]
   |}.
 
-  Lemma g_body_type : be_typing typing_context g_body (Tf [] [T_num T_i32]).
+  Lemma g_body_types : be_typing typing_context g_body g_body_type.
   Proof.
     apply /b_e_type_checker_reflects_typing; done.
   Qed.
 
-  Lemma f_body_type : be_typing typing_context f_body (Tf [] [T_num T_i32]).
+  Lemma f_body_types : be_typing typing_context f_body f_type.
   Proof.
     unfold f_body.
     rewrite /main_body separate1.
@@ -261,9 +262,11 @@ Section Example2.
         iApply ewp_switch.
         done.
         done.
+        instantiate (1 := Initial [] addrg g_type).
         done.
-        instantiate (1 := []).
-        done.
+        2: done.
+        3: by instantiate (1 := []).
+        2: by instantiate (1 := []).
         done.
         iFrame "#".
         iFrame "Hwcont_g".
@@ -386,7 +389,7 @@ Section Example2.
           Opaque upcl.
           iSplitL; last done.
           iFrame "Htag".
-          iIntros (vs k' h' cont Φ) "HΞ Hcont HΨ".
+          iIntros "!>" (vs k' h' cont Φ t1s tf') "HΞ Htf' Hcont HΨ".
           unfold get_switch1, get_switch; simpl.
           rewrite Nat.eqb_refl.
           unfold get_switch2, get_switch; simpl.

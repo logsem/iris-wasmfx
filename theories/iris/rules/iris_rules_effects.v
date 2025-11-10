@@ -43,19 +43,19 @@ Section clause_triple.
 | DC_switch (Mk_tagidx taddr) =>
 (*      ∃ ts', *)
     N.of_nat taddr ↦□[tag] Tf [] ts ∗
-    (* hmmm is this persistent modality necessary? *)  □ ∀ vs kaddr h cont Φ'' t1s t2s tf',
-        get_switch2 (Mk_tagidx taddr) Ψ cont -∗
-        ⌜ tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ⌝ -∗
-        N.of_nat kaddr ↦[wcont] Live tf' h -∗
-        iProt_car (upcl $ get_switch1 (Mk_tagidx taddr) Ψ) vs
-        (λ w, ∃ LI,
-            ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗
-              ▷ (* no calling continuations in wasm,
-                   so adding this later to symbolise that step *)
-              EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
-        ∃ LI, ⌜ is_true $ hfilled No_var cont (v_to_e_list vs ++ [AI_ref_cont kaddr]) LI ⌝ ∗
-                EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ'' }} ∗
-                ∀ w f, Φ'' w f -∗ EWP [AI_prompt ts dccs (of_val0 w)] UNDER f @ E <| Ψ' |> {{ Φ' }}
+    (* hmmm is this persistent modality necessary? *)  □ ∀ vs kaddr h cont Φ'' t1s tf',
+      get_switch2 (Mk_tagidx taddr) Ψ cont -∗
+      ⌜ tf' = Tf t1s ts ⌝ -∗
+      N.of_nat kaddr ↦[wcont] Live tf' h -∗
+      iProt_car (upcl $ get_switch1 (Mk_tagidx taddr) Ψ) vs
+      (λ w, ∃ LI,
+        ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗
+        ▷ (* no calling continuations in wasm,
+              so adding this later to symbolise that step *)
+        EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
+      ∃ LI, ⌜ is_true $ hfilled No_var cont (v_to_e_list vs ++ [AI_ref_cont kaddr]) LI ⌝ ∗
+      EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ'' }} ∗
+      ∀ w f, Φ'' w f -∗ EWP [AI_prompt ts dccs (of_val0 w)] UNDER f @ E <| Ψ' |> {{ Φ' }}
     end.
 
   (* No longer true due to persistent modality above *)
@@ -164,7 +164,7 @@ Section reasoning_rules.
 
   Lemma ewp_switch_desugared vs k tf tf' t1s t2s ts i E Ψ Φ f cont:
     is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
-    tf' = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ->
+    tf' = Tf t1s ts ->
     tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
     N.of_nat i ↦□[tag] Tf [] ts ∗
     N.of_nat k ↦[wcont] Live tf cont ∗
@@ -382,17 +382,17 @@ Section reasoning_rules.
   Qed.
 
    Lemma ewp_switch f ves vs i i' k x a tf ts cont t1s t2s E Ψ Φ:
-     i = Mk_tagident x ->
-     tf = Tf (t1s ++ [T_ref (T_contref (Tf t2s ts))]) ts ->
-     is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
-     stypes (f_inst f) i' = Some (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) ->
-     f.(f_inst).(inst_tags) !! x = Some a ->
-      length vs = length t1s ->
+    i = Mk_tagident x ->
+    tf = Tf t1s ts ->
+    is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
+    stypes (f_inst f) i' = Some (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) ->
+    f.(f_inst).(inst_tags) !! x = Some a ->
+    length vs = length t1s ->
     ves = v_to_e_list vs ->
     N.of_nat a ↦□[tag] (Tf [] ts) ∗
-      N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont ∗
-      get_switch2 (Mk_tagidx a) Ψ (hholed_of_valid_hholed cont) ∗
-      ▷ iProt_car (upcl (get_switch1 (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)
+    N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont ∗
+    get_switch2 (Mk_tagidx a) Ψ (hholed_of_valid_hholed cont) ∗
+    ▷ iProt_car (upcl (get_switch1 (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> -> ???? ->) "(#? & ? & ? & H)".
