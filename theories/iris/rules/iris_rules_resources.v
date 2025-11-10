@@ -242,7 +242,7 @@ Proof.
   iApply (ewp_wand _ _ _ _ _ (λ w h, (Φ w h ∗ N.of_nat k↦[wg]{ q } g))%I with "[-]") ;[|by iIntros (??) "?";iFrame].
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
-  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hg & Hi & ? & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & Hg & Hi & ? & ?)".
   iDestruct (gen_heap_valid with "Hg Hglob") as "%Hglob".
   simplify_map_eq.
   rewrite gmap_of_list_lookup Nat2N.id in Hglob.
@@ -279,7 +279,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hg & Hi & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & Hg & Hi & ?)".
   iDestruct (gen_heap_valid with "Hg Hglob") as "%Hglob".
   
   simplify_map_eq.
@@ -1784,7 +1784,7 @@ Proof.
   iIntros (Htv Hinstn) "(HΦ & Hwms)".
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hm & ? & Hframe & Hγ)".
   
   destruct bv eqn:Hb. destruct t;done.
   iDestruct (wms_implies_smems_is_Some with "Hm Hwms") as "(Hwms & Hm & %Hm)".
@@ -1849,7 +1849,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? &? & ? & ? & Hm & ? & Hframe & Hγ)".
+  iDestruct "Hσ" as "(? & ? &? & ? & ? & Hm & ? & Hframe & Hγ)".
   
   destruct bv eqn:Hb.
   destruct tp;done.
@@ -1897,7 +1897,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hframe & Hγ & ?)".
   iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
     rewrite gmap_of_list_lookup in HH.
@@ -1944,7 +1944,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? &  Hm & ? & Hframe & Hγ & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? &  Hm & ? & Hframe & Hγ & ?)".
   iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
     rewrite gmap_of_list_lookup in HH.
@@ -1992,7 +1992,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
   
   erewrite <- (bits_deserialise bs) => //=.
   remember (wasm_deserialise bs t) as vinit.
@@ -2070,7 +2070,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
   destruct bs.
   { simpl in Hbs. destruct tp;simpl in Hbs;lia. }
   iDestruct (wms_implies_smems_is_Some with "Hm Hwms") as "(Hwms & Hm & %Hm)".
@@ -2134,7 +2134,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hγ & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hm & ? & Hγ & ?)".
 
   iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
@@ -2182,7 +2182,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hγ & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hm & ? & Hγ & ?)".
   iAssert (⌜is_Some (s_mems σ !! n)⌝)%I as %[m Hm].
   { iDestruct (gen_heap_valid with "Hγ Hwms") as %HH.
     rewrite gmap_of_list_lookup in HH.
@@ -2227,7 +2227,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hγ & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hm & ? & Hγ & ?)".
   iDestruct (gen_heap_valid with "Hγ Hmemlength") as "%Hmemlength".
   rewrite - nth_error_lookup in Hf.
   rewrite gmap_of_list_lookup list_lookup_fmap Nat2N.id in Hmemlength => /=.
@@ -2506,7 +2506,7 @@ Proof.
   iApply ewp_lift_atomic_step => //=.
   iIntros (σ) "Hσ !>".
 
-  iDestruct "Hσ" as "(? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
+  iDestruct "Hσ" as "(? & ? & ? & ? & ? & Hm & ? & Hmemlength & ? & Hmemlimit & ?)".
 
   iDestruct (gen_heap_valid with "Hmemlength Hmlength") as "%Hmemlength".
   rewrite - nth_error_lookup in Hfm.

@@ -60,7 +60,7 @@ Lemma resume_throw_det ves vcs x a i ts s2 s'' k t1s t2s hh hs hsd LI s f s' f' 
   s'' = upd_s_cont s2 k (Cont_dagger (Tf t1s t2s)) ->
   nth_error (s_conts s) k = Some (Cont_hh (Tf t1s t2s) hh) ->
   stypes (f_inst f) i = Some (Tf t1s t2s) ->
-  hfilled No_var hh [AI_ref_exn (length (s_exns s)) (Mk_tagidx a); AI_basic BI_throw_ref] LI ->
+  hfilled No_var hh [AI_throw_ref_desugared vcs (length (s_exns s)) (Mk_tagidx a)] LI ->
   [seq desugar_continuation_clause (f_inst f) i | i <- hs] = [seq Some i | i <- hsd] ->
   reduce s f (ves ++ [AI_ref_cont k; AI_basic (BI_resume_throw i x hs)]) s' f' es' ->
   reduce_det_strong_goal s'' f [AI_prompt t2s hsd LI] s' f' es' .
@@ -91,13 +91,14 @@ Proof.
     rewrite H3 in H; inversion H; subst.
     rewrite H4 in H0; inversion H0; subst.
     rewrite H9 in Hcont; inversion Hcont; subst.
+    apply v_to_e_inj in H5 as <-.
+
     
     eapply hfilled_inj in Hfill.
     2: exact H12.
     subst.
     rewrite H11 in Hdesug.
     apply map_Some_inj in Hdesug as ->.
-    apply v_to_e_inj in H5 as <-.
     repeat split => //. 
   - repeat destruct vcs => //.
     inversion Heqes0; subst.

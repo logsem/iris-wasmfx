@@ -24,7 +24,7 @@ Set Bullet Behavior "Strict Subproofs".
 Definition meta_protocol `{!wasmG Σ} : Type :=
   ( (tagidx -d> iProt Σ) *
     (tagidx -d> (iProt Σ * (hholed -d> iPropO Σ))) *
-      (tagidx -d> list value -d> iPropO Σ) )%type.
+      (tagidx -d> list value -d> exnaddr -d> iPropO Σ) )%type.
 
 Definition get_suspend `{!wasmG Σ} i (Ψ : meta_protocol) : iProt Σ :=
   let '(Ψ,_,_) := Ψ in Ψ i.
@@ -41,8 +41,8 @@ Definition bot_suspend `{!wasmG Σ} : tagidx -d> iProt Σ :=
   λ (_: tagidx), iProt_bottom.
 Definition bot_switch `{!wasmG Σ} : tagidx -d> (iProt Σ * (hholed -d> iPropO Σ))%type :=
   λ (_: tagidx), (iProt_bottom, λ (_: hholed), False%I).
-Definition bot_throw `{!wasmG Σ} : tagidx -d> list value -d> iPropO Σ :=
-  λ (_: tagidx) (_ : list value), False%I.
+Definition bot_throw `{!wasmG Σ} : tagidx -d> list value -d> exnaddr -d> iPropO Σ :=
+  λ (_: tagidx) (_ : list value) (_ : exnaddr), False%I.
 Definition meta_bottom `{!wasmG Σ}: meta_protocol :=
   ( bot_suspend, bot_switch, bot_throw ).
 
@@ -64,8 +64,7 @@ Definition ewp_pre `{!wasmG Σ} :
   | None =>
       match to_eff e₁ with
       | Some (thrE vs i a sh, f) =>
-          (* weird that i is unused; not weird for sh that part makes sense actually *) 
-          get_throw a Ψ vs
+          get_throw a Ψ vs i
       | Some (susE vs i sh, f) =>
           iProt_car (upcl $ get_suspend i Ψ) vs
             (λ w, ▷ ewp E (susfill i sh (v_to_e_list w), f) Ψ Φ)
@@ -175,7 +174,7 @@ Proof.
         -- f_equiv. f_equiv. f_contractive.
            apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
     + destruct Ψ1, Ψ1'. inversion HΨ1. destruct p, p0. simpl.
-      simpl in H0. f_equiv. 
+      simpl in H0. apply H0. 
   - do 5 f_equiv. do 10 (f_contractive || f_equiv).
     apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
 Qed.
@@ -272,7 +271,7 @@ Section wp.
   Qed.
 
 
-   Lemma ewp_effect_thr' E f Ψ  Φ vs i a sh : EWP of_eff0 (thrE vs i a sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢  get_throw a Ψ vs.
+   Lemma ewp_effect_thr' E f Ψ  Φ vs i a sh : EWP of_eff0 (thrE vs i a sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ get_throw a Ψ vs i.
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite /to_eff to_of_eff0 /to_val.
     destruct (to_val0 _) eqn:Habs => //.
@@ -285,7 +284,7 @@ Section wp.
     ((∀ i, get_suspend i Ψ1 ⊑ get_suspend i Ψ2)%iprot ∗
        (∀ i, get_switch1 i Ψ1 ⊑ get_switch1 i Ψ2)%iprot ∗
        □ (∀ i c, get_switch2 i Ψ1 c -∗ get_switch2 i Ψ2 c) ∗
-       □ (∀ i v, get_throw i Ψ1 v -∗ get_throw i Ψ2 v))%I.
+       □ (∀ i v a, get_throw i Ψ1 v a -∗ get_throw i Ψ2 v a))%I.
 
   Lemma meta_leq_refl Ψ : ⊢ meta_leq Ψ Ψ.
   Proof.
@@ -293,7 +292,7 @@ Section wp.
     iSplit; first by iIntros (?); iApply iProt_le_refl.
     iSplit; first by iIntros (?); iApply iProt_le_refl.
     iSplit; first by iIntros "!>" (??) "?".
-    by iIntros "!>" (??) "?".
+    by iIntros "!>" (???) "?".
   Qed. 
   
 
@@ -512,7 +511,7 @@ Section wp.
 
   Lemma ewp_effect_thr E f Ψ Φ vs i a sh es:
     to_eff0 es = Some (thrE vs i a sh) ->
-    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢  get_throw a Ψ vs.
+    EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢  get_throw a Ψ vs i.
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_thr'.
   Qed. 

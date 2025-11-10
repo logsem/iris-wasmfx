@@ -3848,7 +3848,7 @@ Proof.
   move => Hmodtype Hmodrestr Hinstantiate.
   iIntros "(Himpwasm & %Hebound & %Hdbound)".
   iIntros "Hσ".
-  iDestruct "Hσ" as "(Hwf & Hwcont & Hwtag & Hwt & Hwm & Hwg & Hmsize & Htsize & Hmlimit & Htlimit)".
+  iDestruct "Hσ" as "(Hwf & Hwcont & Hexn & Hwtag & Hwt & Hwm & Hwg & Hmsize & Htsize & Hmlimit & Htlimit)".
   
   iDestruct (import_resources_wasm_lookup with "Hwf Hwtag Hwt Hwm Hwg Htsize Htlimit Hmsize Hmlimit Himpwasm") as "%Himpwasm".
   

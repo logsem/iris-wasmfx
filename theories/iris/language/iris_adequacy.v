@@ -159,12 +159,12 @@ End adequacy.
 Lemma wp_progress_gen Σ `{!invGpreS Σ} es σ1 es2 σ2 f1 f2 n:
   to_eff0 es2 = None ->
     (∀ `{Hinv : !invGS Σ},
-    ⊢ |={⊤}=> ∃  func_heapg cont_heapg tag_heapg tab_heapg
+    ⊢ |={⊤}=> ∃  func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
                  Φ (* Ψ *),
         let _ : wasmG Σ :=
-        WasmG Σ Hinv func_heapg cont_heapg tag_heapg tab_heapg
+        WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
       in
@@ -177,12 +177,12 @@ Proof.
   eapply pure_soundness.
   eapply (step_fupdN_soundness_lc _ (S n) n) .
   iIntros (Hinv) "Hcred".
-  iMod Hwp as (func_heapg cont_heapg tag_heapg tab_heapg
+  iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
                  Φ (* Ψ *) ) "(Hσ & Hwp)".
   iMod (@ewp_progress Σ
-       ( WasmG Σ Hinv func_heapg cont_heapg tag_heapg tab_heapg
+       ( WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg) 
          with "[Hσ] Hwp") as "H" => //.
@@ -196,12 +196,12 @@ Theorem ewp_strong_adequacy Σ `{!invGpreS Σ} es f σ1 n es2 f2 σ2 φ:
   to_eff0 es2 = None ->
   ( ∀ `{Hinv : !invGS Σ},
       ⊢ |={⊤}=> ∃
-                 func_heapg cont_heapg tag_heapg tab_heapg
+                 func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
                (Φ : (val0 → frame -> iProp Σ)) (* Ψ *),
       let _ : wasmG Σ :=
-        WasmG Σ Hinv func_heapg cont_heapg tag_heapg tab_heapg
+        WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
       in
@@ -235,8 +235,8 @@ Proof.
   eapply pure_soundness.
   eapply (step_fupdN_soundness_lc _ (S n) n).
   iIntros (Hinv) "Hcred".
-  iMod Hwp as (func_heapg cont_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ (* Ψ *)) "(Hσ & Hwp & Hφ)".
-  iMod (@ewp_postconditions Σ ( WasmG Σ Hinv func_heapg cont_heapg tag_heapg tab_heapg
+  iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ (* Ψ *)) "(Hσ & Hwp & Hφ)".
+  iMod (@ewp_postconditions Σ ( WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg) with "Hσ Hwp") as "H"; first exact H.
   iModIntro.
@@ -257,11 +257,11 @@ Proof.
     program) by using the lemma [wp_progress_gen]. In doing so, we can obtain
     the progress part of the adequacy theorem.
   *)
-  eapply (wp_progress_gen); [done|done | clear Φ  func_heapg cont_heapg tag_heapg tab_heapg
+  eapply (wp_progress_gen); [done|done | clear Φ  func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg | done]. 
   iIntros (?).
-  iMod Hwp as (func_heapg cont_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ (* Ψ' *)) "(Hσ & Hwp & Hφ)".
+  iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ (* Ψ' *)) "(Hσ & Hwp & Hφ)".
   iModIntro. iFrame.
 Qed.
 
