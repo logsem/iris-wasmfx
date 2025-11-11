@@ -200,13 +200,13 @@ Section Example_Switch.
     bot_throw).
 
 
-  Lemma f_spec : ∀ (addrg addrf addrmain tag: nat) f,
+  Lemma f_spec : ∀ (addrg addrf addrmain tag: nat) f Φ,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
     (N.of_nat tag) ↦□[tag] swap_tag_type -∗
-    EWP [AI_invoke addrf] UNDER f <| Ψ tag |> {{ v; f', False }}.
+    EWP [AI_invoke addrf] UNDER f <| Ψ tag |> {{ Φ }}.
   Proof.
-    iIntros (?????) "Hwf_g Hwf_f #Htag".
+    iIntros (??????) "Hwf_g Hwf_f #Htag".
 
     (* Reason about invocation of f function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -312,19 +312,6 @@ Section Example_Switch.
   Qed.
 
 
-  Lemma f_spec' : ∀ (addrg addrf addrmain tag: nat) f,
-    (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
-    (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
-    (N.of_nat tag) ↦□[tag] swap_tag_type -∗
-    EWP [AI_invoke addrf] UNDER f <| Ψ tag |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }}.
-  Proof.
-    iIntros (?????) "Hwfg Hwff #Htag".
-    iApply ewp_mono_post.
-    2: iApply (f_spec with "[Hwfg] [Hwff] []"); done.
-    by iIntros.
-  Qed.
-
-
   Lemma main_spec : ∀ (addrg addrf addrmain tag: nat) f,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
@@ -388,18 +375,13 @@ Section Example_Switch.
           iApply (ewp_call_reference with "[Hwf_f] [-]"); try done.
           done.
           iIntros "!> Hwf_f".
-          iApply (f_spec' with "[Hwf_g] [Hwf_f]").
+          iApply (f_spec with "[Hwf_g] [Hwf_f]").
           done.
           done.
           done.
         }
-        by iIntros (? [Hcontra _]).
-        2 :{
-          iSplitL.
-          - iIntros "!>" (? [-> _]).
-            simpl.
-            instantiate (1 := (λ v, ⌜v = (immV [VAL_num $ xx 42])⌝%I)).
-            by iApply ewp_prompt_value.
+        3 :{
+          iSplitL; last first.
           - iNext.
             Opaque upcl.
             iSplitL; last done.
@@ -416,7 +398,12 @@ Section Example_Switch.
             iExists _.
             iFrame "%".
             iApply "H".
+          - iIntros "!>" (? [-> _]).
+            simpl.
+            instantiate (1 := (λ v, ⌜v = (immV [VAL_num $ xx 42])⌝%I)).
+            by iApply ewp_prompt_value.
         }
+        by iIntros (? [Hcontra _]).
         done.
       }
       by iIntros (? [Hcontra _]).
