@@ -21,23 +21,23 @@ Section reasoning_rules.
   Context `{!wasmG Σ}.
 
    Lemma tag_valid gm a tf:
-    gen_heap_interp gm -∗ a ↦□[tag] tf -∗ ⌜ gm !! a = Some tf ⌝.
+    gen_heap_interp gm -∗ a ↦[tag] tf -∗ ⌜ gm !! a = Some tf ⌝.
   Proof.
     iIntros "Htags Htag".
     iDestruct (gen_heap_valid with "Htags Htag") as "%Htag".
     done.
-  Qed. 
+  Qed.
 
   Lemma ewp_throw f x a ves vcs ts E Ψ Φ:
     List.nth_error (inst_tags (f_inst f)) x = Some a ->
     ves = v_to_e_list vcs ->
     length ves = length ts ->
-    N.of_nat a ↦□[tag] (Tf ts []) ∗
+    N.of_nat a ↦[tag] (Tf ts []) ∗
       ▷ (∀ i, N.of_nat i ↦[we] {| e_tag := Mk_tagidx a ; e_fields := vcs |} -∗
              EWP [AI_ref_exn i (Mk_tagidx a); AI_basic BI_throw_ref] UNDER f @ E <| Ψ |> {{ Φ }})
       ⊢ EWP ves ++ [AI_basic (BI_throw x)] UNDER f @ E <| Ψ |> {{ Φ }}.
   Proof.
-    iIntros (Hx -> Hlen) "[#Htag Hwp]".
+    iIntros (Hx -> Hlen) "[Htag Hwp]".
     iApply ewp_lift_step.
     { rewrite to_val_cat_None2 => //.
       apply v_to_e_is_const_list. }
@@ -668,7 +668,7 @@ Section reasoning_rules.
               _
            ) as Hred2.
     { eapply r_try_table => //.
-      exact Hi. done. exact Hhs. } 
+      exact Hi. done. exact Hhs. }
     iSplit.
     - iPureIntro.
       unfold language.reducible, language.prim_step => /=.

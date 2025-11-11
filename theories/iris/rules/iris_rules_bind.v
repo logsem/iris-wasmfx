@@ -204,7 +204,7 @@ Proof.
          by exfalso; eapply to_val_to_eff.
          rewrite /= Hin He He' Htv.
          destruct i0. 
-         iDestruct "H" as (cont t1s t2s tf' ts) "(? & #Htag & Hk & -> & -> & Hcont & H)".
+         iDestruct "H" as (cont t1s t2s tf' ts) "(? & Htag & Hk & -> & -> & Hcont & H)".
          iFrame. iFrame "#".
          iExists _,_,_.
          iSplit; first done. iSplit; first done.

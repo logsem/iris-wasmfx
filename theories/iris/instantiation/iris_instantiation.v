@@ -147,7 +147,7 @@ Definition import_glob_resources (wgs: gmap N global) : iProp Σ :=
   [∗ map] n ↦ v ∈ wgs, n ↦[wg] v.
 
 Definition import_tag_resources (wtags : gmap N function_type) : iProp Σ :=
-  [∗ map] n ↦ v ∈ wtags, n ↦□[tag] v.
+  [∗ map] n ↦ v ∈ wtags, n ↦[tag] v.
 
 Definition func_domcheck v_imps (wfs: gmap N function_closure) : Prop :=
   dom (D := gset N) wfs ≡ list_to_set (N.of_nat <$> (ext_func_addrs (fmap modexp_desc v_imps))).
@@ -259,7 +259,7 @@ Definition import_resources_wasm_typecheck_sepL2 v_imps t_imps wfs wts wms wgs w
   | MED_table (Mk_tableidx i) => (∃ tab tt, N.of_nat i ↦[wtblock] tab ∗ ⌜ wts !! (N.of_nat i) = Some tab /\ t = ET_tab tt /\ tab_typing tab tt ⌝)
   | MED_mem (Mk_memidx i) => (∃ mem mt, N.of_nat i ↦[wmblock] mem ∗ ⌜ wms !! (N.of_nat i) = Some mem /\ t = ET_mem mt /\ mem_typing mem mt ⌝) 
   | MED_global (Mk_globalidx i) => (∃ g gt, N.of_nat i ↦[wg] g ∗ ⌜ wgs !! (N.of_nat i) = Some g /\ t = ET_glob gt /\ global_agree g gt ⌝)
-  | MED_tag (Mk_tagidx i) => (∃ tf, N.of_nat i ↦□[tag] tf ∗ ⌜ wtags !! (N.of_nat i) = Some tf /\ t = ET_tag tf ⌝ ) 
+  | MED_tag (Mk_tagidx i) => (∃ tf, N.of_nat i ↦[tag] tf ∗ ⌜ wtags !! (N.of_nat i) = Some tf /\ t = ET_tag tf ⌝ ) 
   end.
 
 Lemma ifwc_cons_ne v_imps t_imps wfs v t:
@@ -1779,7 +1779,7 @@ Definition module_inst_resources_glob (globs: list global) (inst_g: list globala
 
 Definition module_inst_resources_tag (tags : list function_type) (inst_tag : list tagaddr) : iProp Σ :=
   ([∗ list] i↦g; addr ∈ tags; inst_tag,
-     N.of_nat addr ↦□[tag] g
+     N.of_nat addr ↦[tag] g
   ).
 
 (* The collection of the five types of newly allocated resources *)
@@ -2446,7 +2446,7 @@ Lemma alloc_tag_state_update tags tags' ng:
   tags' = tags ++ ng ->
   gen_heap_interp (gmap_of_list tags) -∗ |==> 
   ((gen_heap_interp (gmap_of_list tags')) ∗
-  ([∗ list] i ↦ v ∈ ng, N.of_nat (length tags + i) ↦□[tag] v)).
+  ([∗ list] i ↦ v ∈ ng, N.of_nat (length tags + i) ↦[tag] v)).
 Proof.
   move => Htags; subst.
   iIntros "Htag".
@@ -2486,7 +2486,6 @@ Proof.
   iDestruct "Htagmaps" as "(Hgm1 & Hgm2 & _)".
   iSplitL "Hgm1"; first by iApply "IH".
   simpl.
-  iMod (pointsto_persist with "Hgm2") as "Hgm2".
   by iFrame.
 Qed.
 

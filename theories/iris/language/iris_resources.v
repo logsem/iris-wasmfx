@@ -217,8 +217,10 @@ Notation "n ↦[we] v" := (pointsto (L:=N) (V:=exception) n (DfracOwn 1) v%V)
                              (at level 20, format "n ↦[we] v") : bi_scope.
 
 
-Notation "n ↦□[tag] v" := (pointsto (L:=N) (V:=function_type) n DfracDiscarded v%V)%I
-                           (at level 20, format "n ↦□[tag] v") : bi_scope.
+Notation "n ↦[tag]{ q } v" := (pointsto (L:=N) (V:=function_type) n q v%V)%I
+                           (at level 20, format "n ↦[tag]{ q } v") : bi_scope.
+Notation "n ↦[tag] v" := (pointsto (L:=N) (V:=function_type) n (DfracOwn 1) v%V)%I
+                           (at level 20, format "n ↦[tag] v") : bi_scope.
 
 Notation "n ↦[wt]{ q } [ i ] v" := (pointsto (L:=N*N) (V:=funcelem) (n, i) q v%V)
                            (at level 20, q at level 5, format "n ↦[wt]{ q } [ i ] v") : bi_scope.

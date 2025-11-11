@@ -35,14 +35,14 @@ Section clause_triple.
     match dcc with
     | DC_catch (Mk_tagidx taddr) ilab =>
         ∃ t1s t2s,
-    N.of_nat taddr ↦□[tag] Tf t1s t2s ∗
+    N.of_nat taddr ↦[tag] Tf t1s t2s ∗
       ∀ vs kaddr h,
         N.of_nat kaddr ↦[wcont] Live (Tf t2s ts) h -∗
             iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) vs (λ w, ∃ LI, ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
             EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
 | DC_switch (Mk_tagidx taddr) =>
 (*      ∃ ts', *)
-    N.of_nat taddr ↦□[tag] Tf [] ts ∗
+    N.of_nat taddr ↦[tag] Tf [] ts ∗
       (* hmmm is this persistent modality necessary? *)   □
       ∀ vs kaddr h cont t1s tf',
       get_switch2 (Mk_tagidx taddr) Ψ cont -∗
@@ -165,7 +165,7 @@ Section reasoning_rules.
     is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
     tf' = Tf t1s ts ->
     tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
-    N.of_nat i ↦□[tag] Tf [] ts ∗
+    N.of_nat i ↦[tag] Tf [] ts ∗
     N.of_nat k ↦[wcont] Live tf cont ∗
       get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
      iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f) 
@@ -192,7 +192,7 @@ Section reasoning_rules.
     f.(f_inst).(inst_tags) !! x = Some a ->
     length vs = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦□[tag] Tf t1s t2s ∗
+    N.of_nat a ↦[tag] Tf t1s t2s ∗
       ▷ EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}
     ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
@@ -306,9 +306,9 @@ Section reasoning_rules.
     typeof_cont (continuation_of_resource cont) = Tf t1s t2s ->
     S (length vs) = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦□[tag] tf' ∗
+    N.of_nat a ↦[tag] tf' ∗
              N.of_nat k ↦[wcont] cont ∗
-      ▷ ( N.of_nat k ↦[wcont] cont -∗ EWP [AI_switch_desugared vs k tf (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
+             ▷ ( N.of_nat a ↦[tag] tf' -∗ N.of_nat k ↦[wcont] cont -∗ EWP [AI_switch_desugared vs k tf (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> Hi' Hx Hcont Hlen ->) "(Htag & Hcont & H)".
@@ -358,11 +358,11 @@ Section reasoning_rules.
     - destruct H0 as [-> ->].
       destruct f; simpl in H; inversion H; subst. iFrame.
       rewrite Hconts. iFrame.
-      iApply ("H" with "Hcont").
+      iApply ("H" with "Htag Hcont").
     - destruct H0 as [[? H'] | (? & ? & ? & H' & _)].
       all: rewrite first_instr_const in H' => //.
       all: apply v_to_e_is_const_list.
-  Qed. 
+  Qed.
   
 
   Lemma ewp_suspend f ves vs i x a t1s t2s E Ψ Φ:
@@ -370,7 +370,7 @@ Section reasoning_rules.
     f.(f_inst).(inst_tags) !! x = Some a ->
     length vs = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦□[tag] Tf t1s t2s ∗
+    N.of_nat a ↦[tag] Tf t1s t2s ∗
       ▷ iProt_car (upcl (get_suspend (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)  
     ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
@@ -388,26 +388,26 @@ Section reasoning_rules.
     f.(f_inst).(inst_tags) !! x = Some a ->
     length vs = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦□[tag] (Tf [] ts) ∗
+    N.of_nat a ↦[tag] (Tf [] ts) ∗
     N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont ∗
     get_switch2 (Mk_tagidx a) Ψ (hholed_of_valid_hholed cont) ∗
     ▷ iProt_car (upcl (get_switch1 (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (-> -> ???? ->) "(#? & ? & ? & H)".
+    iIntros (-> -> ???? ->) "(? & ? & ? & H)".
     iApply ewp_switch_desugar.
     7: iFrame.
-    done. exact H0. exact H1. 
+    done. exact H0. exact H1.
     simpl. done.
     rewrite length_app //=.
     erewrite H2. lia.
     done.
-    iFrame "#". iIntros "!> ?".
+    iFrame "#". iIntros "!> ??".
     iApply ewp_switch_desugared.
-    exact H. 
+    exact H.
     3: iFrame.
-    done. done. done.
-  Qed. 
+    done. done.
+  Qed.
 
 
   Lemma susE_first_instr es vs i sh :
@@ -2254,9 +2254,8 @@ Section reasoning_rules.
       all: eapply continuation_expr_to_eff in Hes as (vs' & n & f' & es' & ->);
         last by rewrite /to_eff0 Htf'.
       2: destruct i. 
-      2: iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & #Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
-      2: iExists _,_,_,_; iSplit; first done.
-      2: iSplit; first done.
+      2: iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
+      2: iExists _,_,_; iSplit; first done.
       2: iSplit; first done.
       all: iApply (monotonic_prot with "[-Hes] Hes").
       all: iIntros (w) "H".
@@ -3101,7 +3100,7 @@ Section reasoning_rules.
           exact Hk.
 (*          iDestruct (big_sepL_lookup with "Hclres") as "Hclres".
           exact Hk. *)
-          iDestruct "Hclause" as (t1s t2s) "[#Hclres Hclause]".
+          iDestruct "Hclause" as (t1s t2s) "[Hclres Hclause]".
           iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
@@ -3237,9 +3236,8 @@ Section reasoning_rules.
           iApply ewp_effect_sw; eauto.
           remember HΨ as HΨ'; clear HeqHΨ'.
           destruct HΨ as (_ & HΨ & _).
-          iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & #Htag & Hk & -> & -> & Hcont & Hes)".
-          iFrame. iExists _,_,_,_. iSplit; first done.
-          iSplit; first done.
+          iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & Htag & Hk & -> & -> & Hcont & Hes)".
+          iFrame. iExists _,_,_. iSplit; first done.
           iSplit; first done.
           unfold get_switch2, get_switch1.
           rewrite -HΨ.
@@ -3288,12 +3286,12 @@ Section reasoning_rules.
           destruct Hfirst' as [k' Hk].
           iDestruct (big_sepL_lookup_acc with "Hclauses") as "[Hclause Hrefill]".
           exact Hk.
-          iDestruct "Hclause" as "[#Hclres #Hclause]".
+          iDestruct "Hclause" as "[Hclres #Hclause]".
           iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
           rewrite -nth_error_lookup in Htag.
-          iDestruct "Hes" as (cont t1s' t2s' tf' ts0) "(%Hconst & #Htag & Hk & -> & -> & Hcont & Hes)".
+          iDestruct "Hes" as (cont t1s' t2s' tf' ts0) "(%Hconst & Htag & Hk & -> & -> & Hcont & Hes)".
           iDestruct (pointsto_agree with "Hclres Htag") as %Heq.
           inversion Heq; subst ts0. 
           destruct (resources_of_s_cont _) eqn:Hconts => //. 
@@ -3406,6 +3404,7 @@ Section reasoning_rules.
             -- iFrame.
                iApply "Hrefill".
                iFrame "#".
+               iFrame.
             -- iPureIntro.
                eapply hfilled_continuation_expression; eauto.
                apply const_list_concat => //.
@@ -3789,7 +3788,7 @@ Section reasoning_rules.
     is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed h) ->
 
  
-    (N.of_nat a ↦□[tag] Tf ts [] ∗
+    (N.of_nat a ↦[tag] Tf ts [] ∗
        N.of_nat addr ↦[wcont] Live (Tf t1s t2s) h ∗ 
        (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ 
        (* clause_resources dccs ∗ *)
@@ -3801,7 +3800,7 @@ Section reasoning_rules.
         )%I
       ⊢ EWP ves ++ [AI_ref_cont addr ; AI_basic $ BI_resume_throw i x ccs] UNDER f @ E <| Ψ' |> {{ v ; f', Φ' v ∗ ⌜ f' = f ⌝ }}.
   Proof.
-    iIntros (Hx Hi -> Hlen Hclauses HΨ Hconst) "(#Htag & Hcont & Hntrap & Hntrap' & HΦ & Hnext & Hclauses)".
+    iIntros (Hx Hi -> Hlen Hclauses HΨ Hconst) "(Htag & Hcont & Hntrap & Hntrap' & HΦ & Hnext & Hclauses)".
     iApply ewp_lift_step => //.
     { rewrite to_val_cat_None2 => //. apply v_to_e_is_const_list. } 
     { rewrite to_eff_cat_None2 => //. apply v_to_e_is_const_list. } 
