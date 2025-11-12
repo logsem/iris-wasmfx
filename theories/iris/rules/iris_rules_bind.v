@@ -208,6 +208,8 @@ Proof.
          iFrame. iFrame "#".
          iExists _,_,_.
          iSplit; first done. iSplit; first done.
+         iIntros "Htag".
+         iPoseProof ("H" with "Htag") as "H".
          iApply (monotonic_prot with "[] H").
          iIntros (w) "H !>".
          subst sh.
@@ -352,10 +354,12 @@ Proof.
           inversion Hetof; subst.
           destruct i. 
           iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont & H)".
-          iDestruct "H" as (Ξ) "[HΞ H]".
           iFrame. iExists _,_,_. 
           iSplit; first done.
           iSplit; first done.
+          iIntros "Htag".
+          iDestruct ("H" with "Htag") as (Ξ) "[HΞ H]".
+          iFrame.
           iIntros (w) "Hw".
           iDestruct ("H" with "Hw") as "H".
           iNext.

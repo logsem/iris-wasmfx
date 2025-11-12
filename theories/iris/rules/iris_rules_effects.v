@@ -42,12 +42,13 @@ Section clause_triple.
         iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) vs (λ w, ∃ LI, ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
             EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
 | DC_switch (Mk_tagidx taddr) =>
-    N.of_nat taddr ↦[tag] Tf [] ts ∗
+   ∃ q,
+    N.of_nat taddr ↦[tag]{q} Tf [] ts ∗
       (* hmmm is this persistent modality necessary? *)   □
       ∀ vs kaddr h cont t1s tf',
       get_switch2 (Mk_tagidx taddr) Ψ cont -∗
       ⌜ tf' = Tf t1s ts ⌝ -∗
-      (∃q, N.of_nat taddr ↦[tag]{q} Tf [] ts) -∗
+      (*N.of_nat taddr ↦[tag]{q} Tf [] ts -∗*)
       N.of_nat kaddr ↦[wcont] Live tf' h -∗
       iProt_car (upcl $ get_switch1 (Mk_tagidx taddr) Ψ) vs
       (λ w, ∃ LI,
@@ -169,7 +170,7 @@ Section reasoning_rules.
     N.of_nat i ↦[tag]{q} Tf [] ts ∗
     N.of_nat k ↦[wcont] Live tf cont ∗
      get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
-     iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f)
+     (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f))
       ⊢ EWP [ AI_switch_desugared vs k tf (Mk_tagidx i) ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
     iIntros (? -> ->) "(Htag & Hk & Hcont & HΨ)".
@@ -177,6 +178,8 @@ Section reasoning_rules.
     iFrame.
     iExists _,_,_.
     do 3 (iSplit; first done).
+    iIntros "Htag".
+    iPoseProof ("HΨ" with "Htag") as "HΨ".
     iApply (monotonic_prot with "[] HΨ").
     iIntros (w) "Hw".
     iSimpl.
@@ -301,16 +304,16 @@ Section reasoning_rules.
    Qed.
 
 
-  Lemma ewp_switch_desugar f ves vs k tf tf' i i' cont x a t1s t2s E Ψ Φ:
+  Lemma ewp_switch_desugar f ves vs k tf tf' i i' cont x a q t1s t2s E Ψ Φ:
     i = Mk_tagident x ->
     stypes (f_inst f) i' = Some tf ->
     f.(f_inst).(inst_tags) !! x = Some a ->
     typeof_cont (continuation_of_resource cont) = Tf t1s t2s ->
     S (length vs) = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦[tag] tf' ∗
+    N.of_nat a ↦[tag]{q} tf' ∗
     N.of_nat k ↦[wcont] cont ∗
-    ▷ ( N.of_nat a ↦[tag] tf' -∗ N.of_nat k ↦[wcont] cont -∗ EWP [AI_switch_desugared vs k tf (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
+    ▷ ( N.of_nat a ↦[tag]{q} tf' -∗ N.of_nat k ↦[wcont] cont -∗ EWP [AI_switch_desugared vs k tf (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> Hi' Hx Hcont Hlen ->) "(Htag & Hcont & H)".
@@ -384,7 +387,7 @@ Section reasoning_rules.
     iApply ("H" with "Htag").
   Qed.
 
-   Lemma ewp_switch f ves vs i i' k x a tf ts cont t1s t2s E Ψ Φ:
+   Lemma ewp_switch f ves vs i i' k x a q tf ts cont t1s t2s E Ψ Φ:
     i = Mk_tagident x ->
     tf = Tf t1s ts ->
     is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
@@ -392,10 +395,10 @@ Section reasoning_rules.
     f.(f_inst).(inst_tags) !! x = Some a ->
     length vs = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦[tag] (Tf [] ts) ∗
+    N.of_nat a ↦[tag]{q} (Tf [] ts) ∗
     N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont ∗
     get_switch2 (Mk_tagidx a) Ψ (hholed_of_valid_hholed cont) ∗
-    ▷ iProt_car (upcl (get_switch1 (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)
+    ▷ (N.of_nat a ↦[tag]{q} (Tf [] ts) -∗ iProt_car (upcl (get_switch1 (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f))
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> -> ???? ->) "(? & ? & ? & H)".
@@ -406,7 +409,7 @@ Section reasoning_rules.
     rewrite length_app //=.
     erewrite H2. lia.
     done.
-    iFrame "#". iIntros "!> ??".
+    iIntros "!> Htag Hcont".
     iApply ewp_switch_desugared.
     exact H.
     3: iFrame.
@@ -2261,6 +2264,8 @@ Section reasoning_rules.
       2: iDestruct "Hes" as (cont t1s t2s tf' ts0 q) "(? & Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
       2: iExists _,_,_; iSplit; first done.
       2: iSplit; first done.
+      2: iIntros "Htag".
+      2: iPoseProof ("Hes" with "Htag") as "Hes".
       all: iApply (monotonic_prot with "[-Hes] Hes").
       all: iIntros (w) "H".
       all: iNext.
@@ -3248,6 +3253,8 @@ Section reasoning_rules.
           iFrame.
           2: by eapply swelts_firstx.
           
+          iIntros "Htag".
+          iPoseProof ("Hes" with "Htag") as "Hes".
           iApply (monotonic_prot with "[-Hes] Hes").
           iIntros (w) "Hw".
           iNext. Opaque continuation_clause_of_swelt.
@@ -3290,7 +3297,7 @@ Section reasoning_rules.
           destruct Hfirst' as [k' Hk].
           iDestruct (big_sepL_lookup_acc with "Hclauses") as "[Hclause Hrefill]".
           exact Hk.
-          iDestruct "Hclause" as "[Hclres #Hclause]".
+          iDestruct "Hclause" as "(%q & Hclres & #Hclause)".
           iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
@@ -3381,10 +3388,12 @@ Section reasoning_rules.
             rewrite -Hlenl.
             rewrite update_list_at_insert; last done.
             iFrame.
-            iDestruct ("Hclause" with "Hcont [] [Htag] Hk' [Hes]") as (?) "(%Hfill & H)".
+            (*iDestruct ("Hclause" with "Hcont [] [Hclres] Hk' [Hes Htag]") as (?) "(%Hfill & H)".*)
+            iDestruct ("Hclause" with "Hcont [] Hk' [Hes Htag]") as (?) "(%Hfill & H)".
             { done. }
-            { by iExists _. }
-            { iApply (monotonic_prot with "[] Hes").
+            (*{ done. }*)
+            { iPoseProof ("Hes" with "Htag") as "Hes".
+              iApply (monotonic_prot with "[] Hes").
               iIntros (w) "H".
               iExists _.
               iSplit; last first.

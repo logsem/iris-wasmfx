@@ -181,32 +181,32 @@ Section Example_Switch.
     by iApply ewp_frame_value.
   Qed.
 
-  Definition fg_prot : iProt Σ :=
-    ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
+  Definition fg_prot tag q: iProt Σ :=
+    ( ! ( []) {{ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
 
   Definition Ξ hh := (∀ k f Ψ, ∃ LI,
     ⌜hfilled No_var hh [AI_ref_cont k] LI⌝ ∗
     EWP LI UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }})%I.
 
-  Definition Ψ (addr_tag : nat) : meta_protocol :=
+  Definition Ψ (addr_tag : nat) q : meta_protocol :=
     (bot_suspend,
     λ t, match t with
           | (Mk_tagidx addr) =>
               if Nat.eqb addr addr_tag then
-                (fg_prot, Ξ)
+                (fg_prot addr_tag q, Ξ)
               else
                 (iProt_bottom, λ hh, False%I)
           end,
     bot_throw).
 
 
-  Lemma f_spec : ∀ (addrg addrf addrmain tag: nat) f Φ,
+  Lemma f_spec : ∀ (addrg addrf addrmain tag: nat) q f Φ,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
-    (N.of_nat tag) ↦□[tag] swap_tag_type -∗
-    EWP [AI_invoke addrf] UNDER f <| Ψ tag |> {{ Φ }}.
+    (N.of_nat tag) ↦[tag]{q} swap_tag_type -∗
+    EWP [AI_invoke addrf] UNDER f <| Ψ tag q |> {{ Φ }}.
   Proof.
-    iIntros (??????) "Hwf_g Hwf_f #Htag".
+    iIntros (???????) "Hwf_g Hwf_f Htag".
 
     (* Reason about invocation of f function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -215,7 +215,7 @@ Section Example_Switch.
     (* Reason about f_body in a frame *)
     iIntros "!> Hwf_f"; simpl.
     iApply ewp_frame_bind => //.
-    iSplitR; last iSplitL "Hwf_g".
+    iSplitR; last iSplitL "Hwf_g Htag".
 
     2: {
       unfold f_body.
@@ -253,7 +253,7 @@ Section Example_Switch.
       rewrite separate2.
       iApply ewp_seq; first done.
       simpl.
-      iSplitR; last iSplitL "Hwcont_g Hwf_g".
+      iSplitR; last iSplitL "Hwcont_g Hwf_g Htag".
       2: {
         rewrite <- (app_nil_l [AI_ref_cont _; _]).
         iApply ewp_switch.
@@ -265,8 +265,8 @@ Section Example_Switch.
         3: by instantiate (1 := []).
         2: by instantiate (1 := []).
         done.
-        iFrame "#".
         iFrame "Hwcont_g".
+        iFrame.
         iSplitL.
         -
           unfold get_switch2, get_switch; simpl.
@@ -290,7 +290,7 @@ Section Example_Switch.
           inversion HLI; subst; simpl.
           by iApply g_spec.
         - iIntros "!>".
-          eassert (upcl ((get_switch1 (Mk_tagidx tag) (Ψ tag))) = _ ).
+          eassert (upcl ((get_switch1 (Mk_tagidx tag) (Ψ tag q))) = _ ).
           {
             unfold get_switch1, get_switch.
             simpl.

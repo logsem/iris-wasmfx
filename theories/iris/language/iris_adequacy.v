@@ -25,7 +25,7 @@ Lemma ewp_step e1 σ1 f1 e2 σ2 f2 (* Ψ *) Φ κ efs:
   prim_step (e1, f1) σ1 κ (e2, f2) σ2 efs →
   state_interp σ1 -∗ EWP e1 UNDER f1 @ ⊤ (* <| Ψ |> *) {{ Φ }}
     ={⊤,∅}=∗ |={∅}▷=> |={∅,⊤}=>
-    state_interp σ2 ∗ EWP e2 UNDER f2 @ ⊤ (* <| Ψ |> *) {{ Φ }} 
+    state_interp σ2 ∗ EWP e2 UNDER f2 @ ⊤ (* <| Ψ |> *) {{ Φ }}
   .
 Proof.
   rewrite {1}ewp_unfold /ewp_pre. iIntros (?) "Hσ H".
@@ -34,10 +34,10 @@ Proof.
   simpl.
   destruct (to_eff0 e1) eqn:Htf.
   { destruct e => //=.
-    2: destruct i. 
+    2: destruct i.
     - iDestruct "H" as (?) "[? Hrest]" => //.
-    - iDestruct "H" as "(% & % & % & % & % & % & _ & _ & _ & _ & _ & _ & H)".
-      iDestruct "H" as (?) "[? Hrest]" => //. 
+    - iDestruct "H" as "(% & % & % & % & % & % & _ & Htag & _ & _ & _ & _ & H)".
+      iDestruct ("H" with "Htag") as (?) "[? Hrest]" => //. 
   } 
 (*
     destruct H as (H & -> & ->).

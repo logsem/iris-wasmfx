@@ -388,6 +388,8 @@ Section reasoning_rules.
         iDestruct "Hes" as (??????) "(? & ? & ? & Htf' & Htf & ? & Hes)".
         iFrame "Htf'".
         iFrame.
+        iIntros "Htag".
+        iPoseProof ("Hes" with "Htag") as "Hes".
         iApply (monotonic_prot with "[-Hes] Hes").
         iIntros (w) "Hw".
         iNext. iSimpl.

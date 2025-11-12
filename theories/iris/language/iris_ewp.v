@@ -76,8 +76,8 @@ Definition ewp_pre `{!wasmG Σ} :
           ⌜ tf' = Tf t1s ts ⌝ ∗
           ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
           get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
-          iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
-             ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ)
+          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
+             ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ))
       | None =>
           ∀ s1,
             state_interp s1 ={E,∅}=∗
@@ -101,7 +101,7 @@ Proof.
       apply Hwp. }
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
-  f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+  f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
   intros => ?. f_contractive. apply Hwp.
 Qed.
 Definition ewp_def `{!wasmG Σ} :
@@ -162,7 +162,7 @@ Proof.
         assert (o0 ≡{n}≡ o2); last by f_equiv.
         assert ((o, o0) ≡{n}≡ (o1, o2)) as Hres; last by inversion Hres.
         rewrite -H1 -H1'. f_equiv. 
-      * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
+      * f_equiv. f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         -- destruct Ψ1, Ψ1'. destruct p, p0.
            inversion HΨ1. inversion H.
            apply IProt_ne.
@@ -260,9 +260,9 @@ Section wp.
   N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-              get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗ 
-              iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
-              ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }}).
+              get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
+              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
+              ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }})).
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite /to_val /to_eff to_of_eff0.
     destruct (to_val0 _) eqn:Habs => //.
@@ -325,17 +325,19 @@ Section wp.
         iNext.
         iApply ("IH" with "[] H [$]"); eauto.
       - iDestruct "HΨ" as "(Hrest1 & HΨ1 & HΨ2 & Hrest2)".
-        iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont0 & %Φ & HΦ1 & H)".
+        iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont0 & H)".
         iFrame.
         iExists _,_,_.
         do 2 (iSplit; first done).
         iSplitL "Hcont0"; first by iApply "HΨ2".
+        iIntros "Htag".
+        iDestruct ("H" with "Htag") as "(%Φ & HΦ1 & H)".
         iExists Φ.
         iSplitL "HΦ1"; first by iApply "HΨ1".
         iIntros (w) "Hw".
         iDestruct ("H" with "Hw") as "H".
         iNext.
-        iApply ("IH" with "[] H [$]"); eauto. 
+        iApply ("IH" with "[] H [$]"); eauto.
       - iDestruct "HΨ" as "(Hrest1 & Hrest2 & Hrest3 & HΨ)".
         by iApply "HΨ".
     } 
@@ -503,8 +505,8 @@ Section wp.
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
               get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
-              iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
-              ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }} ).
+              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
+              ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }} )).
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_sw'.
   Qed.
