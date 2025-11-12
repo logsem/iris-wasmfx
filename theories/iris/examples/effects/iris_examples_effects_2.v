@@ -165,10 +165,10 @@ Section Example2.
   Lemma main_spec : ∀(addrmain addraux tag: nat) f,
   (N.of_nat addraux) ↦[wf] FC_func_native (inst addraux addrmain tag) aux_type [] aux_body -∗
   (N.of_nat addrmain) ↦[wf] FC_func_native (inst addraux addrmain tag) main_type [] main_body -∗
-  (N.of_nat tag) ↦□[tag] Tf [] [] -∗
+  (N.of_nat tag) ↦[tag] Tf [] [] -∗
   EWP [AI_invoke addrmain] UNDER f {{ v; f', ⌜v = (immV [VAL_num $ xx 50]) ∧ f = f'⌝}}.
   Proof.
-    iIntros (addrmain addraux tag f) "Hwf_aux Hwf_main #Htag".
+    iIntros (addrmain addraux tag f) "Hwf_aux Hwf_main Htag".
 
     (* Reason about invocation of main function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -177,7 +177,7 @@ Section Example2.
 
     (* Reason about frame *)
     iApply ewp_frame_bind; try done.
-    iSplitR; last iSplitL "Hwf_aux".
+    iSplitR; last iSplitL "Hwf_aux Htag".
 
     (* The result of main_body will be the value 50 with an unchanged frame. *)
     instantiate (1 := λ v f, ⌜v = immV [VAL_num (xx 50)] ∧ f = {| f_locs := []; f_inst := inst addraux addrmain tag |}⌝%I); simpl.
@@ -268,7 +268,7 @@ Section Example2.
           (* With the continuation on the stack, we reason about the resumption of it. *)
           rewrite separate2.
           iApply ewp_seq; first done.
-          iSplitR; last iSplitL "Hkaddr Hwf_aux".
+          iSplitR; last iSplitL "Hkaddr Hwf_aux Htag".
           2: {
             rewrite <- (app_nil_l [AI_ref_cont _; _]).
             iApply ewp_resume; try done.
@@ -277,7 +277,7 @@ Section Example2.
             by instantiate (1 := meta_bottom). *)
             2: iFrame "Hkaddr".
             unfold hfilled, hfill => //=.
-            iSplitR; last iSplitR; last iSplitL; last iSplitR.
+            iSplitR; last iSplitR; last iSplitL "Hwf_aux"; last iSplitR.
             (* Resumption of the continuation consists of invoking aux. *)
             (* We use our spec for aux, to reason about it. *)
             3: {
@@ -304,10 +304,10 @@ Section Example2.
             {
               simpl.
               iModIntro.
-              iSplitR; last done.
+              iSplitL; last done.
               iExists [], [].
-              iFrame "#".
-              iIntros (vs kaddr' h) "Hkaddr HΦ".
+              iFrame.
+              iIntros (vs kaddr' h) "Htag Hkaddr HΦ".
               iDestruct "HΦ" as "(%Φ & Hcontra & _)".
               done.
             }

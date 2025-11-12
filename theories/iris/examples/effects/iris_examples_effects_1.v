@@ -106,9 +106,9 @@ Section Example1.
       inst_globs := [];
       inst_tags := [0] |}.
 
-  Lemma spec_aux a f:
+  Lemma spec_aux a f q:
     N.of_nat a ↦[wf] FC_func_native inst aux_type [] aux_body ∗
-      0%N ↦□[tag] Tf [] []
+      0%N ↦[tag]{q} Tf [] []
       ⊢ EWP [AI_invoke a] UNDER f <| Ψaux |> {{ v ; f' , False }}.
   Proof.
     iIntros "(Ha & Htag)".
@@ -145,7 +145,7 @@ Section Example1.
     rewrite -(N2Nat.id 0).
     iApply ewp_suspend.
     done. done. instantiate (1 := []). instantiate (1 := []). done. done.
-    iFrame "Htag". 
+    iFrame "Htag".
 (*    iApply (ewp_suspend with "[$Htag]").
     done. done. instantiate (1 := []). done. done. *)
 (*    iIntros "Htag". *)
@@ -154,23 +154,22 @@ Section Example1.
 (*    iApply ewp_suspend. *)
     rewrite (upcl_tele' [tele ] [tele]).
     iSimpl.
+    iIntros "!> Htag".
+    iSplitR. done.
     iSplitL. done.
-    iSplitL. done.
-    iIntros "!> H".
+    iIntros "H".
     done.
-        
     iIntros (w ?) "%" => //.
-
   Qed.
 
 
 
   Lemma spec_main f a:
     N.of_nat a ↦[wf] FC_func_native inst main_type [] main_body
-      ∗  0%N ↦□[tag] Tf [] [] ∗ 0%N ↦[wf] FC_func_native inst aux_type [] aux_body
+      ∗  0%N ↦[tag] Tf [] [] ∗ 0%N ↦[wf] FC_func_native inst aux_type [] aux_body
       ⊢ EWP [AI_invoke a] UNDER f {{ w ; f' , ⌜ w = immV [VAL_num $ xx 1] ⌝ ∗  ⌜ f' = f ⌝ }}.
   Proof.
-    iIntros "(Ha & #Htag & Haux)".
+    iIntros "(Ha & Htag & Haux)".
     
     (* Make the invocation *)
     rewrite -(app_nil_l [_]).
@@ -272,7 +271,8 @@ Section Example1.
           iSplitR; last first.
           iSplitR; last first. 
           (*            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
-          iSplitL; last iSplitR.
+          iDestruct "Htag" as "[Htag1 Htag2]".
+          iSplitR "Htag2"; last iSplitR.
 
           (* Resume instruction premise 1: ewp for the body *)      
           ++ rewrite - (N2Nat.id 0).
@@ -281,15 +281,15 @@ Section Example1.
               iIntros "!> !> Haux".
               (* apply the spec for aux *)
               iApply spec_aux.
-              iFrame. done.
+              iFrame.
 
           (* Resume instruction presime 2: what happens if the computation terminates *)
           ++ iIntros (w) "%" => //.
 
           (* Resume instruction premise 3: clause triples, i.e. what happens if an effect is triggered *)
           ++ Opaque upcl. iSimpl. iSplit; last done.
-              iFrame "Htag".
-              iIntros "!>" (vs k h) "Hcont HΨ".
+              iFrame "Htag2".
+              iIntros "!>" (vs k h) "Htag2 Hcont HΨ".
               (* we know that the triggered effect obeys the protocol *)
               rewrite (upcl_tele' [tele] [tele]).
               simpl.
