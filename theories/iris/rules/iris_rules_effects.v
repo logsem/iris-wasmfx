@@ -168,8 +168,8 @@ Section reasoning_rules.
     tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
     N.of_nat i ↦[tag] Tf [] ts ∗
     N.of_nat k ↦[wcont] Live tf cont ∗
-      get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
-     iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f) 
+     get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
+     iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f)
       ⊢ EWP [ AI_switch_desugared vs k tf (Mk_tagidx i) ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
     iIntros (? -> ->) "(Htag & Hk & Hcont & HΨ)".
@@ -194,7 +194,7 @@ Section reasoning_rules.
     length vs = length t1s ->
     ves = v_to_e_list vs ->
     N.of_nat a ↦[tag] Tf t1s t2s ∗
-      ▷ EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}
+    ▷ (N.of_nat a ↦[tag] Tf t1s t2s -∗ EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
     ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> Hx Hlen ->) "(Htag & H)".
@@ -234,6 +234,7 @@ Section reasoning_rules.
     destruct H0.
     - destruct H0 as [-> ->].
       destruct f; simpl in H; inversion H; subst. iFrame.
+      iApply ("H" with "Htag").
     - destruct H0 as [[? H'] | (? & ? & ? & H' & _)].
       all: rewrite first_instr_const in H' => //.
       all: apply v_to_e_is_const_list.
@@ -308,8 +309,8 @@ Section reasoning_rules.
     S (length vs) = length t1s ->
     ves = v_to_e_list vs ->
     N.of_nat a ↦[tag] tf' ∗
-             N.of_nat k ↦[wcont] cont ∗
-             ▷ ( N.of_nat a ↦[tag] tf' -∗ N.of_nat k ↦[wcont] cont -∗ EWP [AI_switch_desugared vs k tf (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
+    N.of_nat k ↦[wcont] cont ∗
+    ▷ ( N.of_nat a ↦[tag] tf' -∗ N.of_nat k ↦[wcont] cont -∗ EWP [AI_switch_desugared vs k tf (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> Hi' Hx Hcont Hlen ->) "(Htag & Hcont & H)".
@@ -364,7 +365,7 @@ Section reasoning_rules.
       all: rewrite first_instr_const in H' => //.
       all: apply v_to_e_is_const_list.
   Qed.
-  
+ 
 
   Lemma ewp_suspend f ves vs i x a t1s t2s E Ψ Φ:
     i = Mk_tagident x ->
@@ -372,13 +373,15 @@ Section reasoning_rules.
     length vs = length t1s ->
     ves = v_to_e_list vs ->
     N.of_nat a ↦[tag] Tf t1s t2s ∗
-      ▷ iProt_car (upcl (get_suspend (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f)  
+    ▷ (N.of_nat a ↦[tag] Tf t1s t2s -∗ iProt_car (upcl (get_suspend (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f))
     ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
-    iIntros (-> ?? ->) "(? & ?)".
+    iIntros (-> ?? ->) "(Htag & H)".
     iApply ewp_suspend_desugar => //; eauto.
     iFrame.
+    iIntros "!> Htag".
     iApply ewp_suspend_desugared => //.
+    iApply ("H" with "Htag").
   Qed.
 
    Lemma ewp_switch f ves vs i i' k x a tf ts cont t1s t2s E Ψ Φ:
@@ -3540,7 +3543,7 @@ Section reasoning_rules.
    Qed.
 
 
-  
+
 
 
 
@@ -3790,8 +3793,8 @@ Section reasoning_rules.
 
  
     (N.of_nat a ↦[tag] Tf ts [] ∗
-       N.of_nat addr ↦[wcont] Live (Tf t1s t2s) h ∗ 
-       (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ 
+       N.of_nat addr ↦[wcont] Live (Tf t1s t2s) h ∗
+       (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗
        (* clause_resources dccs ∗ *)
        ▷ (∀ k LI, N.of_nat k ↦[we] {| e_tag := Mk_tagidx a ; e_fields := vcs |} -∗
                ⌜ is_true (hfilled No_var (hholed_of_valid_hholed h) [AI_throw_ref_desugared vcs k (Mk_tagidx a)] LI) ⌝ -∗
