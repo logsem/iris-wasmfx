@@ -37,16 +37,17 @@ Section clause_triple.
         ∃ t1s t2s,
     N.of_nat taddr ↦[tag] Tf t1s t2s ∗
       ∀ vs kaddr h,
+        N.of_nat taddr ↦[tag] Tf t1s t2s -∗
         N.of_nat kaddr ↦[wcont] Live (Tf t2s ts) h -∗
-            iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) vs (λ w, ∃ LI, ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
+        iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) vs (λ w, ∃ LI, ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
             EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
 | DC_switch (Mk_tagidx taddr) =>
-(*      ∃ ts', *)
     N.of_nat taddr ↦[tag] Tf [] ts ∗
       (* hmmm is this persistent modality necessary? *)   □
       ∀ vs kaddr h cont t1s tf',
       get_switch2 (Mk_tagidx taddr) Ψ cont -∗
       ⌜ tf' = Tf t1s ts ⌝ -∗
+      N.of_nat taddr ↦[tag] Tf [] ts -∗
       N.of_nat kaddr ↦[wcont] Live tf' h -∗
       iProt_car (upcl $ get_switch1 (Mk_tagidx taddr) Ψ) vs
       (λ w, ∃ LI,
@@ -3171,7 +3172,7 @@ Section reasoning_rules.
                 apply lookup_ge_None_2.
                 apply length_those in Hσ. 
                 lia. }
-            iApply ("Hclause" with "Hcont").
+            iApply ("Hclause" with "Hclres Hcont").
 (*            iDestruct ("Hes" with "[$]") as "Hes". *)
 (*            iDestruct "Hes" as (Ξ) "[HΞ Hes]".
             iExists Ξ. iFrame.
@@ -3377,7 +3378,7 @@ Section reasoning_rules.
             rewrite -Hlenl.
             rewrite update_list_at_insert; last done.
             iFrame.
-            iDestruct ("Hclause" with "Hcont [] Hk' [Hes]") as (?) "(%Hfill & H)".
+            iDestruct ("Hclause" with "Hcont [] Hclres Hk' [Hes]") as (?) "(%Hfill & H)".
             { done. } 
             { iApply (monotonic_prot with "[] Hes").
               iIntros (w) "H".
@@ -3557,7 +3558,7 @@ Section reasoning_rules.
 
  
     (N.of_nat addr ↦[wcont] Live (Tf t1s t2s) h ∗
-       (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗ 
+       (∀ f, ¬ Φ trapV f) ∗ ¬ Φ' trapV ∗
        (* clause_resources dccs ∗ *)
        ▷ EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }} ∗
        ▷ (∀ w, Φ w empty_frame -∗ EWP [AI_prompt t2s dccs (of_val0 w)] UNDER empty_frame @ E <| Ψ' |> {{ v; _ , Φ' v }}) ∗
@@ -3890,7 +3891,7 @@ Section reasoning_rules.
             repeat eexists. 
             iFrame.
             iApply ("HΦ" with "Hexn").
-            done. } 
+            done. }
       { iSplitL "Hconts".
         - unfold update_list_at. simpl.
           unfold replace_nth_cont.
