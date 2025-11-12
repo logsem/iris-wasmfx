@@ -20,8 +20,8 @@ Close Scope byte_scope.
 Section reasoning_rules.
   Context `{!wasmG Σ}.
 
-   Lemma tag_valid gm a tf:
-    gen_heap_interp gm -∗ a ↦[tag] tf -∗ ⌜ gm !! a = Some tf ⌝.
+   Lemma tag_valid gm a q tf:
+    gen_heap_interp gm -∗ a ↦[tag]{q} tf -∗ ⌜ gm !! a = Some tf ⌝.
   Proof.
     iIntros "Htags Htag".
     iDestruct (gen_heap_valid with "Htags Htag") as "%Htag".
@@ -385,7 +385,7 @@ Section reasoning_rules.
         destruct HΨ as (_ & HΨ & _).
         unfold get_switch2, get_switch1.
         rewrite -HΨ.
-        iDestruct "Hes" as (?????) "(? & ? & ? & Htf' & Htf & ? & Hes)".
+        iDestruct "Hes" as (??????) "(? & ? & ? & Htf' & Htf & ? & Hes)".
         iFrame "Htf'".
         iFrame.
         iApply (monotonic_prot with "[-Hes] Hes").

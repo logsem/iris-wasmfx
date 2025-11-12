@@ -908,7 +908,7 @@ forall (s E es Φ fr).
   { destruct e.
     3: done.
     2: destruct i.
-    2: iDestruct "Hwp" as (?????) "(_ & _ & _ & _ & _ & _ & Hwp)".
+    2: iDestruct "Hwp" as (??????) "(_ & _ & _ & _ & _ & _ & Hwp)".
     all: iDestruct "Hwp" as (?) "[? H]".
     all: done.
   } 

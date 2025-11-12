@@ -34,10 +34,10 @@ Section clause_triple.
   Definition clause_triple E Ψ Φ dcc ts Ψ' Φ': iProp Σ :=
     match dcc with
     | DC_catch (Mk_tagidx taddr) ilab =>
-        ∃ t1s t2s,
-    N.of_nat taddr ↦[tag] Tf t1s t2s ∗
+        ∃ t1s t2s q,
+    N.of_nat taddr ↦[tag]{q} Tf t1s t2s ∗
       ∀ vs kaddr h,
-        N.of_nat taddr ↦[tag] Tf t1s t2s -∗
+        N.of_nat taddr ↦[tag]{q} Tf t1s t2s -∗
         N.of_nat kaddr ↦[wcont] Live (Tf t2s ts) h -∗
         iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) vs (λ w, ∃ LI, ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
             EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
@@ -47,7 +47,7 @@ Section clause_triple.
       ∀ vs kaddr h cont t1s tf',
       get_switch2 (Mk_tagidx taddr) Ψ cont -∗
       ⌜ tf' = Tf t1s ts ⌝ -∗
-      N.of_nat taddr ↦[tag] Tf [] ts -∗
+      (∃q, N.of_nat taddr ↦[tag]{q} Tf [] ts) -∗
       N.of_nat kaddr ↦[wcont] Live tf' h -∗
       iProt_car (upcl $ get_switch1 (Mk_tagidx taddr) Ψ) vs
       (λ w, ∃ LI,
@@ -162,11 +162,11 @@ Section reasoning_rules.
     iFrame.
   Qed.
 
-  Lemma ewp_switch_desugared vs k tf tf' t1s t2s ts i E Ψ Φ f cont:
+  Lemma ewp_switch_desugared vs k tf tf' t1s t2s ts i q E Ψ Φ f cont:
     is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ->
     tf' = Tf t1s ts ->
     tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
-    N.of_nat i ↦[tag] Tf [] ts ∗
+    N.of_nat i ↦[tag]{q} Tf [] ts ∗
     N.of_nat k ↦[wcont] Live tf cont ∗
      get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
      iProt_car (upcl (get_switch1 (Mk_tagidx i) Ψ)) vs (λ v, ▷ Φ (immV v) f)
@@ -188,13 +188,13 @@ Section reasoning_rules.
 
  
 
-  Lemma ewp_suspend_desugar f ves vs i x a t1s t2s E Ψ Φ:
+  Lemma ewp_suspend_desugar f ves vs i q x a t1s t2s E Ψ Φ:
     i = Mk_tagident x ->
     f.(f_inst).(inst_tags) !! x = Some a ->
     length vs = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦[tag] Tf t1s t2s ∗
-    ▷ (N.of_nat a ↦[tag] Tf t1s t2s -∗ EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
+    N.of_nat a ↦[tag]{q} Tf t1s t2s ∗
+    ▷ (N.of_nat a ↦[tag]{q} Tf t1s t2s -∗ EWP [AI_suspend_desugared vs (Mk_tagidx a)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }})
     ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> Hx Hlen ->) "(Htag & H)".
@@ -367,13 +367,13 @@ Section reasoning_rules.
   Qed.
  
 
-  Lemma ewp_suspend f ves vs i x a t1s t2s E Ψ Φ:
+  Lemma ewp_suspend f ves vs i q x a t1s t2s E Ψ Φ:
     i = Mk_tagident x ->
     f.(f_inst).(inst_tags) !! x = Some a ->
     length vs = length t1s ->
     ves = v_to_e_list vs ->
-    N.of_nat a ↦[tag] Tf t1s t2s ∗
-    ▷ (N.of_nat a ↦[tag] Tf t1s t2s -∗ iProt_car (upcl (get_suspend (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f))
+    N.of_nat a ↦[tag]{q} Tf t1s t2s ∗
+    ▷ (N.of_nat a ↦[tag]{q} Tf t1s t2s -∗ iProt_car (upcl (get_suspend (Mk_tagidx a) Ψ)) vs (λ v, ▷ Φ (immV v) f))
     ⊢ EWP ves ++ [AI_basic (BI_suspend i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> ?? ->) "(Htag & H)".
@@ -2258,7 +2258,7 @@ Section reasoning_rules.
       all: eapply continuation_expr_to_eff in Hes as (vs' & n & f' & es' & ->);
         last by rewrite /to_eff0 Htf'.
       2: destruct i. 
-      2: iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
+      2: iDestruct "Hes" as (cont t1s t2s tf' ts0 q) "(? & Htag & Hcont & -> & -> & HΨ & Hes)"; iFrame.
       2: iExists _,_,_; iSplit; first done.
       2: iSplit; first done.
       all: iApply (monotonic_prot with "[-Hes] Hes").
@@ -3104,7 +3104,7 @@ Section reasoning_rules.
           exact Hk.
 (*          iDestruct (big_sepL_lookup with "Hclres") as "Hclres".
           exact Hk. *)
-          iDestruct "Hclause" as (t1s t2s) "[Hclres Hclause]".
+          iDestruct "Hclause" as (t1s t2s q) "[Hclres Hclause]".
           iDestruct "Hσ" as "(Hfuncs & Hconts & Hexns & Htags & Hrest)".
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
@@ -3240,7 +3240,7 @@ Section reasoning_rules.
           iApply ewp_effect_sw; eauto.
           remember HΨ as HΨ'; clear HeqHΨ'.
           destruct HΨ as (_ & HΨ & _).
-          iDestruct "Hes" as (cont t1s t2s tf' ts0) "(? & Htag & Hk & -> & -> & Hcont & Hes)".
+  iDestruct "Hes" as (cont t1s t2s tf' ts0 q0) "(? & Htag & Hk & -> & -> & Hcont & Hes)".
           iFrame. iExists _,_,_. iSplit; first done.
           iSplit; first done.
           unfold get_switch2, get_switch1.
@@ -3295,7 +3295,7 @@ Section reasoning_rules.
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
           rewrite -nth_error_lookup in Htag.
-          iDestruct "Hes" as (cont t1s' t2s' tf' ts0) "(%Hconst & Htag & Hk & -> & -> & Hcont & Hes)".
+          iDestruct "Hes" as (cont t1s' t2s' tf' ts0 q0) "(%Hconst & Htag & Hk & -> & -> & Hcont & Hes)".
           iDestruct (pointsto_agree with "Hclres Htag") as %Heq.
           inversion Heq; subst ts0. 
           destruct (resources_of_s_cont _) eqn:Hconts => //. 
@@ -3381,8 +3381,9 @@ Section reasoning_rules.
             rewrite -Hlenl.
             rewrite update_list_at_insert; last done.
             iFrame.
-            iDestruct ("Hclause" with "Hcont [] Hclres Hk' [Hes]") as (?) "(%Hfill & H)".
-            { done. } 
+            iDestruct ("Hclause" with "Hcont [] [Htag] Hk' [Hes]") as (?) "(%Hfill & H)".
+            { done. }
+            { by iExists _. }
             { iApply (monotonic_prot with "[] Hes").
               iIntros (w) "H".
               iExists _.
@@ -3521,7 +3522,7 @@ Section reasoning_rules.
       
       iMod ("H" with "Hes") as "Habs".
       iDestruct ("Hntrap" with "Habs") as "Habs" => //.
-  Qed. 
+  Qed.
 
 
    Lemma ewp_prompt ts dccs es E Ψ Ψ' Φ Φ' f:
@@ -3911,11 +3912,11 @@ Section reasoning_rules.
           all: done.
         - unfold add_exn. simpl.
           rewrite -gmap_of_list_append.
-          iFrame. 
+          iFrame.
       }
       rewrite gmap_of_list_lookup Nat2N.id.
       apply lookup_ge_None_2.
-      lia. 
+      lia.
   Qed.
 
 End reasoning_rules.

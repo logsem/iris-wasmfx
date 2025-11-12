@@ -47,14 +47,13 @@ Section Example1.
   Qed. 
     
   
-  Definition aux_prot : iProt Σ :=
-    ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
-        
-  
+  Definition aux_prot q : iProt Σ :=
+    ( ! ( []) {{ 0%N ↦[tag]{q} Tf [] [] }} ; ? ( []) {{ False }})%iprot.
 
-  Definition Ψaux :=
+
+  Definition Ψaux q :=
     ( λ x, match x with
-    | (Mk_tagidx 0) => aux_prot
+    | (Mk_tagidx 0) => aux_prot q
     | _ => iProt_bottom
     end, bot_switch, bot_throw).
 
@@ -106,10 +105,10 @@ Section Example1.
       inst_globs := [];
       inst_tags := [0] |}.
 
-  Lemma spec_aux a f:
+  Lemma spec_aux a f q:
     N.of_nat a ↦[wf] FC_func_native inst aux_type [] aux_body ∗
-      0%N ↦[tag] Tf [] []
-      ⊢ EWP [AI_invoke a] UNDER f <| Ψaux |> {{ v ; f' , False }}.
+      0%N ↦[tag]{q} Tf [] []
+      ⊢ EWP [AI_invoke a] UNDER f <| Ψaux q |> {{ v ; f' , False }}.
   Proof.
     iIntros "(Ha & Htag)".
     
@@ -145,7 +144,7 @@ Section Example1.
     rewrite -(N2Nat.id 0).
     iApply ewp_suspend.
     done. done. instantiate (1 := []). instantiate (1 := []). done. done.
-    iFrame "Htag". 
+    iFrame "Htag".
     iIntros "!> Htag".
 (*    iApply (ewp_suspend with "[$Htag]").
     done. done. instantiate (1 := []). done. done. *)
@@ -155,20 +154,19 @@ Section Example1.
 (*    iApply ewp_suspend. *)
     rewrite (upcl_tele' [tele ] [tele]).
     iSimpl.
-    iSplitL. done.
+    iSplitR. done.
     iSplitL. done.
     iIntros "H".
     done.
-        
+    
     iIntros (w ?) "%" => //.
-
   Qed.
 
 
   Lemma spec_main f a:
     N.of_nat a ↦[wf] FC_func_native inst main_type [] main_body
-      ∗  0%N ↦[tag] Tf [] [] ∗ 0%N ↦[wf] FC_func_native inst aux_type [] aux_body
-      ⊢ EWP [AI_invoke a] UNDER f {{ w ; f' , ⌜ w = immV [VAL_num $ xx 1] ⌝ ∗  ⌜ f' = f ⌝ }}.
+      ∗ 0%N ↦[tag] Tf [] [] ∗ 0%N ↦[wf] FC_func_native inst aux_type [] aux_body
+      ⊢ EWP [AI_invoke a] UNDER f {{ w ; f' , ⌜ w = immV [VAL_num $ xx 1] ⌝ ∗  ⌜ f' = f ⌝ ∗ 0%N ↦[tag] Tf [] [] }}.
   Proof.
     iIntros "(Ha & Htag & Haux)".
     
@@ -183,7 +181,6 @@ Section Example1.
     (* Bind into the calling frame *)
     iApply ewp_frame_bind => //.
     iSplitR; last first.
-    iFrame.
     iSplitL.
 
     - (* 1. prove a ewp for the inside of the calling frame *)
@@ -275,13 +272,13 @@ Section Example1.
           iSplitR; last first.
           iSplitL.
 
-          -- (* 1. Prove a ewp for the resume *) 
+          -- (* 1. Prove a ewp for the resume *)
 
-
+            iDestruct "Htag" as "[Htag1 Htag2]".
             rewrite -(app_nil_l [AI_ref_cont _;_]).
             iApply (ewp_resume). (* with "[$Hcont Haux]"). *)
             done. done. done. simpl. instantiate (1 := [_]). done.
-            instantiate (1 := Ψaux).
+            instantiate (1 := Ψaux _).
             unfold agree_on_uncaptured.
             repeat split.
             intros i Hi.
@@ -292,11 +289,11 @@ Section Example1.
             unfold hfilled, hfill => //=.
             (* erewrite eq_refl. done. *)
             iSplitR; last first.
-            iSplitR; last first. 
+            iSplitR; last first.
             (*            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
-            iSplitL; last iSplitR.
+            iSplitR "Htag2"; last iSplitR.
 
-            (* Resume instruction premise 1: ewp for the body *)      
+            (* Resume instruction premise 1: ewp for the body *)
             ++ rewrite - (N2Nat.id 0).
                iApply (ewp_call_reference with "Haux").
                done. done.
@@ -310,17 +307,19 @@ Section Example1.
 
             (* Resume instruction premise 3: clause triples, i.e. what happens if an effect is triggered *)
             ++ Opaque upcl. iSimpl. iSplit; last done.
-               iIntros "!>" (vs k h) "Htag Hcont HΨ".
+               iFrame "Htag2".
+               iIntros "!>" (vs k h) "Htag2 Hcont HΨ".
                (* we know that the triggered effect obeys the protocol *)
                rewrite (upcl_tele' [tele] [tele]).
                simpl.
-               iDestruct "HΨ" as "(% & _)".
+               iDestruct "HΨ" as "(% & Htag1 & _)".
                subst.
                iSimpl.
-               instantiate (1 := λ v, (∃ k h, ⌜ v = brV _ ⌝ ∗ N.of_nat k ↦[wcont] Live _ h)%I).
+               iCombine "Htag1 Htag2" as "Htag".
+               instantiate (1 := λ v, (∃ k h, ⌜ v = brV _ ⌝ ∗ N.of_nat 0↦[tag]{_}Tf [] [] ∗ N.of_nat k ↦[wcont] Live _ h)%I).
 (*               instantiate (1 := λ v, ⌜ v = brV _ ⌝%I). *)
                iApply ewp_value.
-               done. 
+               done.
 
                iExists k, h.
                iFrame. done.
@@ -328,7 +327,7 @@ Section Example1.
             ++ iIntros (?) "%" => //.
 
           -- (* 2. now focus on the Br after the resume *)
-            iIntros (w f') "[(%k & %h & -> & Hcont) ->]".
+            iIntros (w f') "[(%k & %h & -> & Htag & Hcont) ->]".
             iSimpl.
             iApply ewp_value. done.
             iIntros (LI HLI).
@@ -344,16 +343,17 @@ Section Example1.
             iIntros "!>".
             iApply ewp_value.
             done.
-            instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ _)%I).
+            instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ N.of_nat 0↦[tag]{_}Tf [] [] ∗ _)%I).
 (*            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
             iExists k, h.
             iSplit; first done.
+            iFrame.
             iExact "Hcont".
           -- by iIntros (?) "[(%k & %h & % & _) _]".
 
 
         * (* 2. now focus on the drop after the block *)
-          iIntros (w f') "(%k & %h & -> & Hcont)".
+          iIntros (w f') "(%k & %h & -> & Htag & Hcont)".
           iSimpl.
           iApply (ewp_wand with "[]").
           fold (AI_const (VAL_ref (VAL_ref_cont k))).
@@ -371,10 +371,11 @@ Section Example1.
           by instantiate (1 := λ v f, ⌜ v = immV _ ⌝%I).
 (*          by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
           iIntros (w ?) "->".
-          instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ _)%I).
+          instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ N.of_nat 0↦[tag]{_}Tf [] [] ∗ _)%I).
           iExists k, h.
           iSplit; first done.
-          iExact "Hcont".
+          iFrame.
+          iApply "Hcont".
 
         * by iIntros (?) "(%k & %h & % & _)".
 
@@ -400,13 +401,13 @@ Section Example1.
       + by iIntros (?) "(% & % & % & _)".
 
 
-    - iIntros (w f') "(%k & %h & -> & Hcont)".
+    - iIntros (w f') "(%k & %h & -> & Htag & Hcont)".
       iApply ewp_frame_value.
       rewrite to_of_val0 => //.
-      done. done. 
+      done. iFrame. done.
 
     - iIntros (?) "(% & % & % & _)" => //.
-  Qed. 
+  Qed.
 
 End Example1.
 

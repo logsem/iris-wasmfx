@@ -69,9 +69,9 @@ Definition ewp_pre `{!wasmG Σ} :
           iProt_car (upcl $ get_suspend i Ψ) vs
             (λ w, ▷ ewp E (susfill i sh (v_to_e_list w), f) Ψ Φ)
       | Some (swE vs k tf (Mk_tagidx i) sh, f) => (* attempt *)
-          ∃ cont t1s t2s tf' ts,
+          ∃ cont t1s t2s tf' ts q,
           ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
-          N.of_nat i ↦[tag] Tf [] ts ∗
+          N.of_nat i ↦[tag]{q} Tf [] ts ∗
           N.of_nat k ↦[wcont] Live tf cont ∗
           ⌜ tf' = Tf t1s ts ⌝ ∗
           ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
@@ -80,9 +80,9 @@ Definition ewp_pre `{!wasmG Σ} :
              ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ)
       | None =>
           ∀ s1,
-            state_interp s1 ={E,∅}=∗ 
-              ⌜ reducible e₁ s1 ⌝ ∗ 
-              ∀ e₂ s2, ⌜ prim_step e₁ s1 [] e₂ s2 [] ⌝ 
+            state_interp s1 ={E,∅}=∗
+              ⌜ reducible e₁ s1 ⌝ ∗
+              ∀ e₂ s2, ⌜ prim_step e₁ s1 [] e₂ s2 [] ⌝
                 ={∅}▷=∗ |={∅,E}=>
                 state_interp s2 ∗ ewp E e₂ Ψ Φ
       end
@@ -101,8 +101,8 @@ Proof.
       apply Hwp. }
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
-  f_equiv. f_equiv. f_equiv. 
-  intros => ?. f_contractive. apply Hwp. 
+  f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+  intros => ?. f_contractive. apply Hwp.
 Qed.
 Definition ewp_def `{!wasmG Σ} :
   coPset -d> expr -d> 
@@ -152,7 +152,7 @@ Proof.
       destruct (get_switch i Ψ1') eqn:H1'.
       f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
-      f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. 
+      f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       * inversion HΨ1. destruct Ψ1. destruct Ψ1'.
         inversion H. destruct p, p0.
         simpl in H3. simpl in H1. simpl in H1'.
@@ -253,10 +253,10 @@ Section wp.
     rewrite to_of_eff0 //.
   Qed.
 
-  Lemma ewp_effect_sw' E f Ψ Φ vs k tf i sh : EWP of_eff0 (swE vs k tf (Mk_tagidx i) sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ 
-                                                ∃ cont t1s t2s tf' ts,
+  Lemma ewp_effect_sw' E f Ψ Φ vs k tf i sh : EWP of_eff0 (swE vs k tf (Mk_tagidx i) sh) UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢
+                                                ∃ cont t1s t2s tf' ts q,
                                                   ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
-  N.of_nat i ↦[tag] Tf [] ts ∗                                                
+  N.of_nat i ↦[tag]{q} Tf [] ts ∗
   N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
@@ -325,7 +325,7 @@ Section wp.
         iNext.
         iApply ("IH" with "[] H [$]"); eauto.
       - iDestruct "HΨ" as "(Hrest1 & HΨ1 & HΨ2 & Hrest2)".
-        iDestruct "H" as (cont t1s t2s tf' ts) "(? & Htag & Hk & -> & -> & Hcont0 & %Φ & HΦ1 & H)".
+        iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont0 & %Φ & HΦ1 & H)".
         iFrame.
         iExists _,_,_.
         do 2 (iSplit; first done).
@@ -496,9 +496,9 @@ Section wp.
   Lemma ewp_effect_sw E f Ψ Φ vs k tf i sh es:
     to_eff0 es = Some (swE vs k tf (Mk_tagidx i) sh) ->
     EWP es UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢
-      ∃ cont t1s t2s tf' ts,
+      ∃ cont t1s t2s tf' ts q,
         ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
-        N.of_nat i ↦[tag] Tf [] ts ∗
+        N.of_nat i ↦[tag]{q} Tf [] ts ∗
   N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗

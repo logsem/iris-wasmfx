@@ -82,7 +82,7 @@ Proof.
         iApply ("IH" with "[$Hntrap $Hres]"). 
       * erewrite to_eff_cons_swE; last done.
         destruct i.
-        iDestruct "H" as "(%cont & %t1s & %t2s & %tf' & %ts & ? & Htag & Hk & -> & -> & Hcont & %Φ0 & HΨ & Hallw)".
+        iDestruct "H" as "(%cont & %t1s & %t2s & %tf' & %ts & %q & ? & Htag & Hk & -> & -> & Hcont & %Φ0 & HΨ & Hallw)".
         iFrame "#".
         iFrame.
         iExists _,_,_.
@@ -466,7 +466,7 @@ Proof.
       * destruct (to_val0 es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
         rewrite Hin.
         destruct i.
-        iDestruct "Hes1" as (cont t1s t2s tf' ts) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
+        iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
         iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
         iFrame.
         iFrame "#".
@@ -647,7 +647,7 @@ Proof.
          eapply to_val_to_eff in Habs => //.
          rewrite Hin.
          destruct i0.
-         iDestruct "Hes1" as (cont t1s t2s tf' ts) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
+         iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
          iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
          iFrame. iFrame "#".
          iExists _,_,_. 
@@ -893,7 +893,7 @@ Proof.
         eapply to_val_to_eff in Habs => //.
         rewrite ewp_unfold /ewp_pre /= Habs Hin Hetov Hetof.
         destruct tf. 
-        iDestruct "Hes1" as (cont t1s t2s tf' ts) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
+        iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
         iDestruct "Hes1" as (Ξ) "[HΞ Hnext]".
         iFrame. iFrame "#". iExists _,_,_.
         iSplit; first done. iSplit; first done.
@@ -1007,7 +1007,7 @@ Proof.
     iFrame.
     rewrite ewp_unfold /ewp_pre /=.
     iMod "H" as "H".
-    by iSpecialize ("Htrap" with "H"). } 
+    by iSpecialize ("Htrap" with "H"). }
 Qed.
 
 
