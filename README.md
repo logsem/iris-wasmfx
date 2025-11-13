@@ -122,8 +122,8 @@ For each figure and theorem in the paper, we provide the approximate paths, name
 | Theorem 4.1 | `iris/rules/iris_rules_effects.v` |
 | Theorem 4.2 | `iris/language/iris_adequacy.v` |
 | Section 5 | `iris/examples/` |
-| Theorem 5.1 | `iris/examples/coroutines_client.v`, line 1069 |
-| Theorem 5.2 | `iris/examples/generator_client.v`, line 57 |
+| Theorem 5.1 | `iris/examples/coroutines_client.v`, line 948 |
+| Theorem 5.2 | `iris/examples/generator_client.v`, line 220 |
 
 
 # Structure
@@ -179,7 +179,7 @@ Under `theories/iris/rules`, we proved a vast number of proof rules that can be 
 
 The other files in the folder are mostly unchanged from Iris-Wasm, and are:
 
-- `theories/iris/rules/iris_rules_pure.v`: contains proof rules for *pure* instructions, i.e. those whose reduction semantics are independent from the state (for example, the `wp_binop` rule in Line 260);
+- `theories/iris/rules/iris_rules_pure.v`: contains proof rules for *pure* instructions, i.e. those whose reduction semantics are independent from the state (for example, the `ewp_binop` rule in Line 36);
 
 - `theories/iris/rules/iris_rules_control.v`: contains proof rules for control instructions;
 
