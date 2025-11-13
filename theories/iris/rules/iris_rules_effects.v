@@ -42,8 +42,7 @@ Section clause_triple.
         iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) vs (λ w, ∃ LI, ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗ ▷ (* no calling continuations in wasm, so adding this later to symbolise that step *) EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
             EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
 | DC_switch (Mk_tagidx taddr) =>
-   ∃ q,
-    N.of_nat taddr ↦[tag]{q} Tf [] ts ∗
+    ∃ q, N.of_nat taddr ↦[tag]{q} Tf [] ts ∗
       (* hmmm is this persistent modality necessary? *)   □
       ∀ vs kaddr h cont t1s tf',
       get_switch2 (Mk_tagidx taddr) Ψ cont -∗
@@ -148,7 +147,7 @@ Section reasoning_rules.
   
 
   Lemma ewp_suspend_desugared vs i E Ψ Φ f:
-    iProt_car (upcl (get_suspend i Ψ)) vs (λ v, ▷ Φ (immV v) f) 
+    iProt_car (upcl (get_suspend i Ψ)) vs (λ v, ▷ Φ (immV v) f)
       ⊢ EWP [ AI_suspend_desugared vs i ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
     iIntros "HΨ".
@@ -3032,7 +3031,7 @@ Section reasoning_rules.
     destruct (to_val0 es) eqn:Htv.
     { iDestruct ewp_value_fupd as "[H _]";
         last iDestruct ("H" with "Hes") as "Hes".
-      exact Htv. 
+      exact Htv.
 
       iApply fupd_ewp.
       unfold to_eff0. simpl.
@@ -3178,18 +3177,18 @@ Section reasoning_rules.
             2:{ rewrite gmap_of_list_lookup.
                 rewrite Nat2N.id.
                 apply lookup_ge_None_2.
-                apply length_those in Hσ. 
+                apply length_those in Hσ.
                 lia. }
             iApply ("Hclause" with "Hclres Hcont").
 (*            iDestruct ("Hes" with "[$]") as "Hes". *)
 (*            iDestruct "Hes" as (Ξ) "[HΞ Hes]".
             iExists Ξ. iFrame.
             iIntros (w) "HΞ".
-            iIntros (LI HLI). 
+            iIntros (LI HLI).
             iDestruct ("Hes" with "HΞ") as "Hes". *)
             iApply (monotonic_prot with "[-Hes] Hes").
             iIntros (w) "Hw".
-            specialize (susfill_to_hfilled (Mk_tagidx n0) sh0 (v_to_e_list w)) as Hfilled. 
+            specialize (susfill_to_hfilled (Mk_tagidx n0) sh0 (v_to_e_list w)) as Hfilled.
             iExists _.
             iSplit; first iPureIntro.
             apply hfilled_forget_avoiding in Hfilled.

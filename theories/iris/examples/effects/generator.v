@@ -461,18 +461,18 @@ Section generator_spec.
   Qed.
 
 
-  Definition naturals_spec addr_tag q addr_naturals cl_naturals Ψ (I : list i32 -> iProp Σ) : iProp Σ :=
-    (□ (∀ f, I [] -∗
+  Definition naturals_spec addr_tag addr_naturals cl_naturals Ψ (I : list i32 -> iProp Σ) : iProp Σ :=
+    (□ (∀ f q, I [] -∗
     N.of_nat addr_tag ↦[tag]{q} tag_type -∗
     N.of_nat addr_naturals ↦[wf] cl_naturals -∗
     EWP [AI_invoke addr_naturals] UNDER f <| Ψ |> {{ v ; f, False }})).
 
-  Lemma naturals_spec_proof addr_naturals addr_tag addr_sum_until q cl_naturals (I : list i32 -> iProp Σ) :
+  Lemma naturals_spec_proof addr_naturals addr_tag addr_sum_until cl_naturals (I : list i32 -> iProp Σ) :
    cl_naturals = closure_naturals addr_naturals addr_sum_until addr_tag ->
-   ⊢ naturals_spec addr_tag q addr_naturals cl_naturals (Ψgen addr_tag I) I.
+   ⊢ naturals_spec addr_tag addr_naturals cl_naturals (Ψgen addr_tag I) I.
   Proof.
     iIntros (->).
-    iIntros (f) "!>".
+    iIntros (f q) "!>".
     iIntros "HI_empty Htag Hwf_naturals".
 
     rewrite <- (app_nil_l [AI_invoke _]).

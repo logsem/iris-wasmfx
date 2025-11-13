@@ -84,7 +84,7 @@ Section GeneratorModule.
          [], empty_frame) : host_expr) 
         {{{{  x,  ⌜x = (immHV [], empty_frame)⌝ ∗
                           mod_addr ↪[mods] generator_module ∗
-                          ∃ addr_naturals addr_sum_until name_naturals name_sum_until cl_naturals cl_sum_until,
+                          ∃ addr_naturals addr_sum_until addr_tag name_naturals name_sum_until cl_naturals cl_sum_until,
                             naturals_exp_addr ↪[vis] {| modexp_name := name_naturals;
                                                     modexp_desc := MED_func (Mk_funcidx addr_naturals) |} ∗
                             sum_until_exp_addr ↪[vis] {| modexp_name := name_sum_until;
@@ -93,16 +93,18 @@ Section GeneratorModule.
                             ⌜ cl_type cl_sum_until = sum_until_type ⌝ ∗
                             N.of_nat addr_naturals ↦[wf] cl_naturals ∗
                             N.of_nat addr_sum_until ↦[wf] cl_sum_until ∗
-                            (*(∀ I, ∃ Ψ, naturals_spec addr_naturals cl_naturals Ψ I) ∗*)
-                            sum_until_spec addr_naturals addr_sum_until cl_naturals cl_sum_until
+                            N.of_nat addr_tag ↦[tag] tag_type ∗
+
+                            (∀ I, ∃ Ψ, naturals_spec addr_tag addr_naturals cl_naturals Ψ I) ∗
+                            sum_until_spec addr_tag addr_naturals addr_sum_until cl_naturals cl_sum_until
         }}}} .
   Proof.
     iIntros "!>" (Φ) "(Hmod & Hvis1 & Hvis2) HΦ".
     iApply (weakestpre.wp_wand _ _ (_ : host_expr) with "[- HΦ]").
     iApply (instantiation_spec_operational_no_start with "[$Hmod Hvis1 Hvis2]") => //.
-    - apply coroutines_module_typing. 
-    - unfold module_restrictions. cbn. repeat split;exists [];auto. 
-    - iFrame. 
+    - apply coroutines_module_typing.
+    - unfold module_restrictions. cbn. repeat split;exists [];auto.
+    - iFrame.
       iSplitR.
       instantiate (1:=[]).
       unfold import_resources_host.
@@ -147,7 +149,7 @@ Section GeneratorModule.
       destruct inst_funcs; last done.
       iClear "Hfuncs".
       destruct inst_tags; first done.
-      iDestruct "Htags" as "[#Htag Htags]".
+      iDestruct "Htags" as "[Htag Htags]".
       destruct inst_tags; last done.
       iClear "Htags".
       simpl.
@@ -157,7 +159,12 @@ Section GeneratorModule.
       iFrame.
       iSplit; first done.
       iSplit; first done.
-      by iApply sum_until_spec_proof.
+      iSplitL.
+      2: by iApply sum_until_spec_proof.
+      iIntros (I).
+      iExists (Ψgen t I).
+      iApply naturals_spec_proof.
+      by unfold closure_naturals, generator_inst.
   Qed.
     
     

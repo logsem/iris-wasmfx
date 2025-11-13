@@ -2848,7 +2848,7 @@ Proof.
     iFrame.
 
 Qed.
-
+    
 Lemma instantiation_spec_operational_start s E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs wtags nstart (Φ: host_val -> iProp Σ) fr:
   m.(mod_start) = Some (Build_module_start (Mk_funcidx nstart)) ->
   module_typing m t_imps t_exps ->

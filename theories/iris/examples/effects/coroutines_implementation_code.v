@@ -256,8 +256,9 @@ Section yield_par.
       rewrite (upcl_tele' [tele] [tele]).
       iSimpl. subst J.
       iFrame.
+      iIntros "!> _".
       iSplit; first done.
-      iIntros "!> HI".
+      iIntros "HI".
       iIntros (LI HLI).
       move/lfilledP in HLI.
       inversion HLI; subst.
@@ -540,7 +541,7 @@ Section yield_par.
         iLeft. iFrame. done. 
         iSimpl.
         iSplitL; last done.
-        iIntros "!>" (vs kaddr h) "Hcont HΨ".
+        iIntros "!>" (vs kaddr h) "_ Hcont HΨ".
         iApply ewp_value.
         unfold to_val0.
         rewrite map_app merge_app.
@@ -1023,7 +1024,7 @@ Section yield_par.
         iLeft. iFrame. done. 
         iSimpl.
         iSplitL; last done.
-        iIntros "!>" (vs kaddr h) "Hcont HΨ".
+        iIntros "!>" (vs kaddr h) "_ Hcont HΨ".
         iApply ewp_value.
         unfold to_val0.
         rewrite map_app merge_app.
@@ -1416,23 +1417,7 @@ Section yield_par.
           iDestruct "H" as "[H | H]".
           iDestruct "H" as "[% _]" => //.
           iDestruct "H" as (???) "[% _]" => //.
-  Qed. 
-              
-              
-              
-              
-          
-            
-            
-End yield_par.
-        
-        
-        
-        
-        
-        
-        
+  Qed.
 
-      
-      
-      
+End yield_par.
+
