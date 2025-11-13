@@ -184,8 +184,6 @@ Section Example_Switch.
   Definition fg_prot tag q: iProt Σ :=
     ( ! ( []) {{ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
 
-  (*Definition fg_prot : iProt Σ :=*)
-  (*  ( ! ( []) {{ True }} ; ? ( []) {{ False }})%iprot.*)
 
   Definition Ξ hh := (∀ k f Ψ, ∃ LI,
     ⌜hfilled No_var hh [AI_ref_cont k] LI⌝ ∗

@@ -4,7 +4,7 @@ From iris.proofmode Require Import base tactics classes.
 From iris.base_logic Require Export gen_heap ghost_map proph_map na_invariants.
 From iris.base_logic.lib Require Export fancy_updates.
 From Wasm.iris.helpers Require Import iris_properties.
-From Wasm Require Import stdpp_aux (* datatypes common operations properties memory_list *).
+From Wasm Require Import stdpp_aux.
 From Wasm.iris.language.iris Require Export iris_locations iris.
 From Wasm.iris.language Require Export iris_ewp.
 
@@ -13,19 +13,19 @@ From Wasm.iris.language Require Export iris_ewp.
 
 
 Definition ewp_wasm_ctx `{!wasmG Σ}
-          (* s : stuckness *) (E : coPset) (e : expr0)
+          (E : coPset) (e : expr0)
   f Ψ (Φ : val0 -> frame -> iProp Σ) (i : nat) (lh : lholed) : iProp Σ := 
   ∀ LI, ⌜lfilled i lh e LI⌝ -∗ EWP LI UNDER f @ E <| Ψ |> {{ Φ }}.
 
 
 Definition ewp_wasm_frame `{!wasmG Σ}
-  (* s : stuckness*) (E : coPset) (es : expr0)
+  (E : coPset) (es : expr0)
   f Ψ (Φ : val0 -> frame -> iProp Σ) (n: nat) (f': frame) : iProp Σ :=
   
   EWP [AI_frame n f' es] UNDER f @ E <| Ψ |> {{ Φ }}.
 
 Definition ewp_wasm_ctx_frame `{!wasmG Σ}
-          (*s : stuckness *) (E : coPset) (es : expr0)
+          (E : coPset) (es : expr0)
   f' Ψ (Φ : val0 -> frame -> iProp Σ) (n: nat) (f: frame) (i : nat) (lh : lholed) : iProp Σ :=
   
   ∀ LI, ⌜lfilled i lh es LI⌝ -∗ EWP [AI_frame n f LI] UNDER f' @ E <| Ψ |> {{ Φ }}.

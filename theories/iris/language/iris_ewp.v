@@ -1,4 +1,3 @@
-(* weakest_precondition.v *)
 
 (* This theory introduces a notion of weakest precondition for reasoning about
    [eff_lang] programs. The key idea is to extend a weakest-precondition
@@ -10,7 +9,6 @@ From iris.proofmode Require Import base tactics classes.
 From iris.program_logic Require Import weakestpre.
 From Wasm.iris.language.iris Require Export iris.
 From Wasm.iris.language Require Export protocols iris_resources.
-(* From Wasm.iris.helpers.prelude Require Import iris_lfilled_properties.  *)
 
 
 Set Bullet Behavior "Strict Subproofs".
@@ -68,7 +66,7 @@ Definition ewp_pre `{!wasmG Σ} :
       | Some (susE vs i sh, f) =>
           iProt_car (upcl $ get_suspend i Ψ) vs
             (λ w, ▷ ewp E (susfill i sh (v_to_e_list w), f) Ψ Φ)
-      | Some (swE vs k tf (Mk_tagidx i) sh, f) => (* attempt *)
+      | Some (swE vs k tf (Mk_tagidx i) sh, f) => 
           ∃ cont t1s t2s tf' ts q,
           ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
           N.of_nat i ↦[tag]{q} Tf [] ts ∗
@@ -91,11 +89,6 @@ Definition ewp_pre `{!wasmG Σ} :
 Local Instance ewp_pre_contractive `{!wasmG Σ} : Contractive ewp_pre.
 Proof.
   rewrite /ewp_pre=> n ewp ewp' Hwp E e Ψ Φ.
-(*  f_equiv.
-  f_equiv.
-  { f_equiv. f_equiv. f_equiv.
-    intros => ?. f_equiv. f_contractive. apply Hwp. *)
-      
   do 5 f_equiv; try by intros => ?; try f_contractive; apply Hwp.
   2:{ do 12 (f_contractive || f_equiv).
       apply Hwp. }
@@ -233,9 +226,6 @@ Notation "'EWP' e 'UNDER' f {{ Φ } }" :=
   (at level 20, e, Ψ at level 200,
    format "'[' 'EWP'  e  '/' '[          '  'UNDER'  f  <|  Ψ  |>  {{  Φ } } ']' ']'") : bi_scope. 
 
-(* Tests *)
-(* Check (λ Σ es P Q, EWP es <| λ _, iProt_bottom |> {{ λ v, True }})%I.
- Check (λ Σ es P Q, EWP es <| λ i w, λne Φ, ⌜ i = SuspendE (Mk_tagidx 1) ⌝ ∗ ((>> v >> ! v {{ P }} ; << w << ? w {{ Q }})%iprot w Φ) |> {{ λ v, True }})%I. *)
 
 
 Section wp.
@@ -376,32 +366,6 @@ Section wp.
   Qed. 
 
 
-  (* Is this true anymore? *)
-  (*
-  Lemma ewp_atomic E1 E2 e Ψ Φ a `{!Atomic (stuckness_to_atomicity NotStuck) e} :
-    (|={E1,E2}=> EWP e UNDER f @ E2 <| Ψ |> {{ v, |={E2,E1}=> Φ v ∗ Pred a }}) ⊢ EWP e UNDER f @ E1 <| Ψ |> {{ v, Φ v ∗ Pred a }}.
-  Proof.
-    iIntros "H". rewrite !ewp_unfold /ewp_pre.
-    destruct (to_val e) as [v|] eqn:He.
-    { by iDestruct "H" as ">>>$". }
-    destruct (to_eff e) as [eff|] eqn:Hf.
-    { destruct eff.
-      - 
-    iIntros (σ1) "Hσ". iMod "H". iMod ("H" $! σ1 with "Hσ") as "[$ H]".
-    iModIntro. iIntros (e2 σ2 efs Hstep).
-    iApply (step_fupdN_wand with "[H]"); first by iApply "H".
-    iIntros ">[Hσ H]". iDestruct "H" as (a') "(H' & H & Hefs)". destruct s.
-    - rewrite !wp_unfold /wp_pre. destruct (to_val e2) as [v2|] eqn:He2.
-      + iDestruct ("H" with "H'") as ">>[? ?]". iFrame.
-        iModIntro. (* iExists _. iFrame. *) iIntros "?".
-        iApply wp_unfold. rewrite /wp_pre /= He2. by iFrame.
-      + iDestruct ("H" with "H'") as "H".
-        iMod ("H" $! _ _ [] with "[$]") as "[H _]". iDestruct "H" as %(? & ? & ? & ? & ?).
-        by edestruct (atomic _ _ _ _ _ Hstep).
-    - destruct (atomic _ _ _ _ _ Hstep) as [v <-%of_to_val].
-      rewrite wp_value_fupd'. iMod ("H" with "[$]") as ">[H H']".
-      iModIntro. iFrame "Hσ Hefs". iExists _. iFrame. iIntros "?". iApply wp_value_fupd'. by iFrame.
-  Qed. *)
 
   (** In this stronger version of [wp_step_fupdN], the masks in the
       step-taking fancy update are a bit weird and somewhat difficult to
@@ -471,14 +435,6 @@ Section wp.
   Proof. iIntros (?) "H"; iApply (ewp_strong_mono with "H"); auto.
          iApply meta_leq_refl. 
   Qed.
-
-(*
-  Global Instance ewp_mono' E e :
-    Proper (pointwise_relation _ (⊢) ==> (⊢)) (ewp_def E e).
-  Proof. by intros Φ Φ' ?; apply wp_mono. Qed.
-  Global Instance wp_flip_mono' s E e :
-    Proper (pointwise_relation _ (flip (⊢)) ==> (flip (⊢))) (wp (PROP:=iProp Σ) s E e).
-  Proof. by intros Φ Φ' ?; apply wp_mono. Qed. *)
 
   Lemma ewp_value_fupd E f Ψ  Φ e v : to_val0 e = Some v → EWP e UNDER f @ E <| Ψ |> {{ Φ }} ⊣⊢ |={E}=> Φ v f .
   Proof. intros H. apply of_to_val0 in H as <-. by apply ewp_value_fupd'. Qed.
@@ -625,19 +581,7 @@ Section wp.
      iApply "H".
      done.
    Qed. 
-(*     iIntros "H" (σ1) "Hσ".
-     iMod ("H" with "Hσ") as "(Hred & H)".
-     iFrame.
-     done.
-     iIntros "!>" (e2 σ2 Hred).
-     iSpecialize ("H" $! e2 σ2 Hred).
-     iApply (step_fupdN_mono with "H").
-     iIntros "H".
-     iMod "H" as "[Hσ H]".
-     iModIntro. iFrame.
-     iDestruct "H" as (a) "[Ha H]".
-     iApply ("H" with "Ha").
-   Qed. *)
+
 
    Lemma ewp_lift_step_fupd E f Ψ Φ e1 :
   to_val0 e1 = None → to_eff0 e1 = None ->
@@ -763,28 +707,6 @@ Section wp.
     iIntros (κ e' σ f (_&?&?&->)%Hpuredet); auto.
   Qed.
 
- (* Lemma ewp_pure_step_fupd E E' e1 e2 φ n Ψ  Φ a :
-    PureExec φ n ((e1, a): expr) (e2, a) →
-    φ →
-    (|={E}[E']▷=>^n EWP e2 UNDER a @ E <| Ψ |> {{ Φ }}) ⊢ EWP e1 UNDER a @ E <| Ψ |> {{ Φ }}.
-  Proof.
-    iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
-    iInduction Hexec as [e|n e1' e2' e3 [Hsafe ?]] "IH"; simpl; first done.
-    destruct e1'. iApply ewp_lift_pure_det_step_no_fork.
-    - intros σ. specialize (Hsafe σ). eauto using reducible_not_val.
-    - intros.  apply pure_step_det in H as (-> & -> & -> & _).
-      done.
-    - by iApply (step_fupd_wand with "Hwp").
-  Qed.
-
-  Lemma ewp_pure_step_later E e1 e2 φ n Ψ Φ a :
-    PureExec φ n e1 e2 →
-    φ →
-    ▷^n (EWP e2 UNDER a @ E <| Ψ |> {{ Φ }}) ⊢ EWP e1 UNDER a @ E <| Ψ |> {{ Φ }}.
-  Proof.
-    intros Hexec ?. rewrite -ewp_pure_step_fupd //. clear Hexec.
-    induction n as [|n IH]; by rewrite //= -step_fupd_intro // IH.
-  Qed. *)
 
   (* proofmode classes *)
   Global Instance frame_ewp p E e R P f Φ Ψ :
@@ -792,57 +714,6 @@ Section wp.
     Frame p R (EWP e UNDER f @ E <| P |>  {{ Φ }}) (EWP e UNDER f @ E <| P |> {{ Ψ }}) | 2.
   Proof. rewrite /Frame=> HR. rewrite ewp_frame_l. apply ewp_mono_post, HR. Qed.
 
-(*  Global Instance is_except_0_ewp E e Ψ Φ : IsExcept0 (EWP e UNDER f @ E <| Ψ |> {{ Φ }}).
-  Proof. by rewrite /IsExcept0 -{2}fupd_ewp -except_0_fupd -fupd_intro. Qed. *)
-
-(*  Global Instance elim_modal_bupd_ewp p E e P Ψ Φ :
-    ElimModal True p false (|==> P) P (EWP e UNDER f @ E <| Ψ |> {{ Φ }}) (EWP e UNDER f @ E <| Ψ |> {{ Φ }}).
-  Proof.
-    by rewrite /ElimModal intuitionistically_if_elim
-      (bupd_fupd E) fupd_frame_r wand_elim_r fupd_ewp.
-  Qed. *)
-
-(*  Global Instance elim_modal_fupd_ewp p E e P Ψ Φ :
-    ElimModal True p false (|={E}=> P) P (EWP e UNDER f @ E <| Ψ |> {{ Φ }}) (EWP e UNDER f @ E <| Ψ |> {{ Φ }}).
-  Proof.
-    by rewrite /ElimModal intuitionistically_if_elim
-      fupd_frame_r wand_elim_r fupd_ewp.
-  Qed. *)
-
-(*  Global Instance elim_modal_fupd_ewp_atomic p E1 E2 e P Ψ Φ a :
-    ElimModal (Atomic (stuckness_to_atomicity NotStuck) e) p false
-            (|={E1,E2}=> P) P
-            (EWP e UNDER f @ E1 <| Ψ |> {{ v, Φ v ∗ Pred a }})%I (EWP e UNDER f @ E2 <| Ψ |> {{ v, |={E2,E1}=> Φ v ∗ Pred a }})%I | 100.
-  Proof.
-    intros ?. rewrite bi.intuitionistically_if_elim
-                      fupd_frame_r bi.wand_elim_r ewp_atomic. auto.
-  Qed. *)
-
-(*  Global Instance add_modal_fupd_ewp E e P Φ :
-    AddModal (|={E}=> P) P (WP e @ s; E {{ Φ }}).
-  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_wp. Qed. *)
-
-(*  Global Instance elim_acc_ewp_atomic {X} E1 E2 α β γ e Ψ Φ a :
-    ElimAcc (X:=X) (Atomic (stuckness_to_atomicity NotStuck) e)
-            (fupd E1 E2) (fupd E2 E1)
-            α β γ (EWP e UNDER f @ E1 <| Ψ |> {{ v, Φ v ∗ Pred a }})%I
-            (λ x, EWP e UNDER f @ E2 <| Ψ |> {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) ∗ Pred a }})%I | 100.
-  Proof.
-    iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply (wp_wand with "(Hinner Hα)").
-    iIntros (v) ">[H [H' $]]". iApply "H'". by iApply "Hclose".
-  Qed. 
-
-  Global Instance elim_acc_wp_nonatomic {X} E α β γ e s Φ :
-    ElimAcc (X:=X) True (fupd E E) (fupd E E)
-            α β γ (WP e @ s; E {{ Φ }})
-            (λ x, WP e @ s; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
-  Proof.
-    iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply wp_fupd.
-    iApply (wp_wand with "(Hinner Hα)").
-    iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
-  Qed. *)
 
 
 End wp.

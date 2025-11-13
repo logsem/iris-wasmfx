@@ -146,12 +146,8 @@ Section Example1.
     done. done. instantiate (1 := []). instantiate (1 := []). done. done.
     iFrame "Htag".
     iIntros "!> Htag".
-(*    iApply (ewp_suspend with "[$Htag]").
-    done. done. instantiate (1 := []). done. done. *)
-(*    iIntros "Htag". *)
 
     (* Perform suspend operation *)
-(*    iApply ewp_suspend. *)
     rewrite (upcl_tele' [tele ] [tele]).
     iSimpl.
     iSplitR. done.
@@ -276,7 +272,7 @@ Section Example1.
 
             iDestruct "Htag" as "[Htag1 Htag2]".
             rewrite -(app_nil_l [AI_ref_cont _;_]).
-            iApply (ewp_resume). (* with "[$Hcont Haux]"). *)
+            iApply (ewp_resume). 
             done. done. done. simpl. instantiate (1 := [_]). done.
             instantiate (1 := Ψaux _).
             unfold agree_on_uncaptured.
@@ -287,10 +283,8 @@ Section Example1.
             destruct n => //=.
             2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
-            (* erewrite eq_refl. done. *)
             iSplitR; last first.
             iSplitR; last first.
-            (*            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
             iSplitR "Htag2"; last iSplitR.
 
             (* Resume instruction premise 1: ewp for the body *)
@@ -317,7 +311,6 @@ Section Example1.
                iSimpl.
                iCombine "Htag1 Htag2" as "Htag".
                instantiate (1 := λ v, (∃ k h, ⌜ v = brV _ ⌝ ∗ N.of_nat 0↦[tag]{_}Tf [] [] ∗ N.of_nat k ↦[wcont] Live _ h)%I).
-(*               instantiate (1 := λ v, ⌜ v = brV _ ⌝%I). *)
                iApply ewp_value.
                done.
 
@@ -344,7 +337,6 @@ Section Example1.
             iApply ewp_value.
             done.
             instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ N.of_nat 0↦[tag]{_}Tf [] [] ∗ _)%I).
-(*            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
             iExists k, h.
             iSplit; first done.
             iFrame.
@@ -369,7 +361,6 @@ Section Example1.
           iApply ewp_label_value.
           done.
           by instantiate (1 := λ v f, ⌜ v = immV _ ⌝%I).
-(*          by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
           iIntros (w ?) "->".
           instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ N.of_nat 0↦[tag]{_}Tf [] [] ∗ _)%I).
           iExists k, h.
@@ -382,8 +373,6 @@ Section Example1.
       + iIntros (w f') "(%k & %h & -> & Hcont)".
         iSimpl.
         iApply ewp_value. done.
-        (* iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
-        (* iIntros (f') "->". *)
         iIntros (LI HLI).
         move/lfilledP in HLI; inversion HLI; subst.
         inversion H8; subst.

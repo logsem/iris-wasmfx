@@ -11,21 +11,17 @@ we prove a number of auxilary results. *)
 Set Bullet Behavior "Strict Subproofs".
 
 Section adequacy.
-  (* Context `{!irisGS Λ Σ}. *)
   Context `{!wasmG Σ}.
   Implicit Types e : expr0.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val0 → frame -> iProp Σ.
-(* Implicit Types Φs : list (val Λ → iProp Σ). *)
-
-(* Notation wptp s t Φs := ([∗ list] e;Φ ∈ t;Φs, WP e @ s; ⊤ <| Ψ |> {{ Φ }})%I. *)
 
 
-Lemma ewp_step e1 σ1 f1 e2 σ2 f2 (* Ψ *) Φ κ efs:
+Lemma ewp_step e1 σ1 f1 e2 σ2 f2 Φ κ efs:
   prim_step (e1, f1) σ1 κ (e2, f2) σ2 efs →
-  state_interp σ1 -∗ EWP e1 UNDER f1 @ ⊤ (* <| Ψ |> *) {{ Φ }}
+  state_interp σ1 -∗ EWP e1 UNDER f1 @ ⊤ {{ Φ }}
     ={⊤,∅}=∗ |={∅}▷=> |={∅,⊤}=>
-    state_interp σ2 ∗ EWP e2 UNDER f2 @ ⊤ (* <| Ψ |> *) {{ Φ }}
+    state_interp σ2 ∗ EWP e2 UNDER f2 @ ⊤ {{ Φ }}
   .
 Proof.
   rewrite {1}ewp_unfold /ewp_pre. iIntros (?) "Hσ H".
@@ -39,12 +35,6 @@ Proof.
     - iDestruct "H" as "(% & % & % & % & % & % & _ & Htag & _ & _ & _ & _ & H)".
       iDestruct ("H" with "Htag") as (?) "[? Hrest]" => //. 
   } 
-(*
-    destruct H as (H & -> & ->).
-    apply eff_head_stuck_reduce in H as [Habs | (vs & k & tf & tfk & i & sh & hh & Htf' & Hconts & -> & -> & Hfill)];
-      first by rewrite Htf in Habs.
-    rewrite Htf' in Htf. inversion Htf; subst.
-    destruct H as [? _] => //. } *)
   iMod ("H" $! σ1 with "Hσ") as "(_ & H)". iModIntro.
   apply iris_reduce_properties.prim_step_obs_efs_empty in H as H'.
   inversion H'; subst.
@@ -54,46 +44,20 @@ Qed.
 
 
   
-(* Lemma ewp_step' es1 es2 σ1 f1 σ2 f2 Φ :
-  reduce σ1 f1 es1 σ2 f2 es2 →
-  state_interp σ1 -∗ EWP es1 UNDER f1 @ ⊤ (* <| Ψ |> *) {{ Φ }} -∗
-|={⊤,∅}=> |={∅}▷=>^(S $ num_laters_per_step$ ns) |={∅,⊤}=>
-         state_interp σ2 (S ns) κs (nt + nt') ∗
-         wptp s es2 (Φs ++ replicate nt' fork_post).
-Proof.
-  iIntros (Hstep) "Hσ Ht".
-  destruct Hstep as [e1' σ1' e2' σ2' efs t2' t3 Hstep]; simplify_eq/=.
-  iDestruct (big_sepL2_app_inv_l with "Ht") as (Φs1 Φs2 ->) "[? Ht]".
-  iDestruct (big_sepL2_cons_inv_l with "Ht") as (Φ Φs3 ->) "[Ht ?]".
-  iExists _. iMod (wp_step with "Hσ Ht") as "H"; first done. iModIntro.
-  iApply (step_fupdN_wand with "H"). iIntros ">($ & He2 & Hefs) !>".
-  rewrite -(assoc_L app) -app_comm_cons. iFrame.
-Qed. 
-
-(* The total number of laters used between the physical steps number
-   [start] (included) to [start+ns] (excluded). *)
-Local Fixpoint steps_sum (num_laters_per_step : nat → nat) (start ns : nat) : nat :=
-  match ns with
-  | O => 0
-  | S ns =>
-    S $ num_laters_per_step start + steps_sum num_laters_per_step (S start) ns
-  end.
-*)
 
   
-Lemma ewp_preservation n es1 es2 σ1 σ2 f1 f2 (* Ψ *) Φ :
+Lemma ewp_preservation n es1 es2 σ1 σ2 f1 f2  Φ :
   nsteps reduce_tuple n (σ1, f1, es1) (σ2, f2, es2) →
-  state_interp σ1 -∗ EWP es1 UNDER f1 @ ⊤ (* <| Ψ |> *) {{ Φ }}
+  state_interp σ1 -∗ EWP es1 UNDER f1 @ ⊤  {{ Φ }}
   ={⊤,∅}=∗ |={∅}▷=>^n |={∅,⊤}=> 
     state_interp σ2 ∗
-    EWP es2 UNDER f2 @ ⊤ (* <| Ψ |> *) {{ Φ }} .
+    EWP es2 UNDER f2 @ ⊤  {{ Φ }} .
 Proof.
-  revert es1 es2 σ1 σ2 f1 f2 (* Ψ *) Φ.
-  induction n as [|n IH]=> es1 es2 σ1 σ2 f1 f2 (* Ψ *) Φ /=.
+  revert es1 es2 σ1 σ2 f1 f2  Φ.
+  induction n as [|n IH]=> es1 es2 σ1 σ2 f1 f2  Φ /=.
   { inversion_clear 1; iIntros "? ?" => /=. 
     iFrame. by iApply fupd_mask_subseteq. }
   iIntros (Hsteps) "Hσ He". inversion_clear Hsteps as [|?? [[σ1' f1'] es1']].
-(*  destruct f1.  *)
   iDestruct (ewp_step with "Hσ He") as ">H".
   { repeat split => //. } 
   iModIntro.
@@ -104,25 +68,23 @@ Proof.
   done.
 Qed. 
 
-Lemma ewp_not_stuck e f σ (* Ψ *) Φ :
+Lemma ewp_not_stuck e f σ  Φ :
   to_eff0 e = None ->
-  state_interp σ -∗ EWP e UNDER f (* <| Ψ |> *) {{ Φ }} ={⊤, ∅}=∗ ⌜not_stuck ((e, f): expr) σ⌝.
+  state_interp σ -∗ EWP e UNDER f  {{ Φ }} ={⊤, ∅}=∗ ⌜not_stuck ((e, f): expr) σ⌝.
 Proof.
   rewrite ewp_unfold /ewp_pre /not_stuck. iIntros (Htf) "Hσ H".
   simpl.
   destruct (to_val0 e) as [v|] eqn:?.
   { iMod (fupd_mask_subseteq ∅); first set_solver. iModIntro. eauto. }
   rewrite Htf.
-(*  destruct (to_eff0 e) eqn:Htf.
-  { destruct e0. all: iDestruct "H" as (?) "[??]". all: done. }  *)
   iSpecialize ("H" $! σ with "Hσ"). rewrite sep_elim_l. 
   iMod "H" as "%". iModIntro. eauto.
 Qed.
 
 
-Lemma ewp_postconditions Φ n es1 es2 σ1 σ2 f1 f2 (* Ψ *):
+Lemma ewp_postconditions Φ n es1 es2 σ1 σ2 f1 f2 :
   nsteps reduce_tuple n (σ1, f1, es1) (σ2, f2, es2) →
-  state_interp σ1 -∗ EWP es1 UNDER f1 @ ⊤ (* <| Ψ |> *) {{ Φ }} 
+  state_interp σ1 -∗ EWP es1 UNDER f1 @ ⊤  {{ Φ }} 
   ={⊤,∅}=∗ |={∅}▷=>^n |={∅,⊤}=> 
       state_interp σ2 ∗
       match (to_val0 es2) with
@@ -140,11 +102,11 @@ Proof.
   apply of_to_val0 in He2' as <-. simpl. iApply ewp_value_fupd'. done.
 Qed.
 
-Lemma ewp_progress Φ n es1 es2 σ1 σ2 f1 f2 (* Ψ *):
+Lemma ewp_progress Φ n es1 es2 σ1 σ2 f1 f2 :
   to_eff0 es2 = None ->
   nsteps reduce_tuple n (σ1, f1, es1) (σ2, f2, es2) →
   state_interp σ1 -∗
-  EWP es1 UNDER f1 @ ⊤ (* <| Ψ |> *) {{ Φ }}
+  EWP es1 UNDER f1 @ ⊤  {{ Φ }}
   ={⊤,∅}=∗ |={∅}▷=>^n |={∅}=> ⌜not_stuck ((es2, f2) : expr) σ2⌝.
 Proof.
   iIntros (Htf Hstep) "Hσ He".
@@ -162,14 +124,14 @@ Lemma wp_progress_gen Σ `{!invGpreS Σ} es σ1 es2 σ2 f1 f2 n:
     ⊢ |={⊤}=> ∃  func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
-                 Φ (* Ψ *),
+                 Φ ,
         let _ : wasmG Σ :=
         WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
       in
       state_interp σ1 ∗
-      EWP es UNDER f1 @ ⊤ (* <| Ψ |> *) {{ Φ }}) ->
+      EWP es UNDER f1 @ ⊤  {{ Φ }}) ->
     nsteps reduce_tuple n (σ1, f1, es) (σ2, f2, es2) →
     not_stuck ((es2, f2): expr) σ2.
 Proof.
@@ -180,7 +142,7 @@ Proof.
   iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
-                 Φ (* Ψ *) ) "(Hσ & Hwp)".
+                 Φ  ) "(Hσ & Hwp)".
   iMod (@ewp_progress Σ
        ( WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
@@ -199,7 +161,7 @@ Theorem ewp_strong_adequacy Σ `{!invGpreS Σ} es f σ1 n es2 f2 σ2 φ:
                  func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg
-               (Φ : (val0 → frame -> iProp Σ)) (* Ψ *),
+               (Φ : (val0 → frame -> iProp Σ)) ,
       let _ : wasmG Σ :=
         WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
@@ -207,11 +169,8 @@ Theorem ewp_strong_adequacy Σ `{!invGpreS Σ} es f σ1 n es2 f2 σ2 φ:
       in
              
 
-     (*let _ : irisGS wasm_lang Σ := IrisG Hinv (λ σ _ _ _, stateI σ) fork_post num_laters_per_step
-                                       state_interp_mono
-       in *)
        state_interp σ1 ∗
-        EWP es UNDER f @ ⊤ (* <| Ψ |> *) {{ Φ }} ∗
+        EWP es UNDER f @ ⊤  {{ Φ }} ∗
        (
          (* If this is a stuck-free triple (i.e. [s = NotStuck]), then all
          threads in [t2] are not stuck *)
@@ -235,17 +194,12 @@ Proof.
   eapply pure_soundness.
   eapply (step_fupdN_soundness_lc _ (S n) n).
   iIntros (Hinv) "Hcred".
-  iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ (* Ψ *)) "(Hσ & Hwp & Hφ)".
+  iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ ) "(Hσ & Hwp & Hφ)".
   iMod (@ewp_postconditions Σ ( WasmG Σ Hinv func_heapg cont_heapg exn_heapg tag_heapg tab_heapg
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg) with "Hσ Hwp") as "H"; first exact H.
   iModIntro.
   iApply step_fupdN_S_fupd.
-(*
-  iAssert (|={∅}▷=>^n |={∅}=> ⌜φ⌝)%I
-    with "[-]" as "H"; last first.
-  { Set Printing All. by iApply step_fupdN_S_fupd. } *)
-(*  iModIntro. *)
   iApply (step_fupdN_wand with "H").
   iModIntro.
   iModIntro.
@@ -261,7 +215,7 @@ Proof.
                  tabsize_heapg tablimit_heapg mem_heapg memsize_heapg
                  memlimit_heapg glob_heapg | done]. 
   iIntros (?).
-  iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ (* Ψ' *)) "(Hσ & Hwp & Hφ)".
+  iMod Hwp as (func_heapg cont_heapg exn_heapg tag_heapg tab_heapg tabsize_heapg tablimit_heapg mem_heapg memsize_heapg memlimit_heapg glob_heapg Φ) "(Hσ & Hwp & Hφ)".
   iModIntro. iFrame.
 Qed.
 
@@ -304,63 +258,4 @@ Proof.
   destruct H0 as [? _] => //. 
 Qed.
 
-(** This simpler form of adequacy requires the [irisGS] instance that you use
-everywhere to syntactically be of the form
-{|
-  iris_invGS := ...;
-  state_interp σ _ κs _ := ...;
-  fork_post v := ...;
-  num_laters_per_step _ := 0;
-  state_interp_mono _ _ _ _ := fupd_intro _ _;
-|}
-In other words, the state interpretation must ignore [ns] and [nt], the number
-of laters per step must be 0, and the proof of [state_interp_mono] must have
-this specific proof term.
-*)
-(* Corollary wp_adequacy Σ Λ `{!invGpreS Σ} s e σ φ :
-  (∀ `{Hinv : !invGS Σ} κs,
-     ⊢ |={⊤}=> ∃
-         (stateI : state Λ → list (observation Λ) → iProp Σ)
-         (fork_post : val Λ → iProp Σ),
-       let _ : irisGS Λ Σ :=
-           IrisG _ _ Hinv (λ σ _ κs _, stateI σ κs) fork_post (λ _, 0)
-                 (λ _ _ _ _, fupd_intro _ _)
-       in
-       stateI σ κs ∗ WP e @ s; ⊤ (* <| Ψ |> *) {{ v, ⌜φ v⌝ }}) →
-  adequate s e σ (λ v _, φ v).
-Proof.
-  intros Hwp. apply adequate_alt; intros t2 σ2 [n [κs ?]]%erased_steps_nsteps.
-  eapply (wp_strong_adequacy Σ _); [|done]=> ?.
-  iMod Hwp as (stateI fork_post) "[Hσ Hwp]".
-  iExists s, (λ σ _ κs _, stateI σ κs), [(λ v, ⌜φ v⌝%I)], fork_post, _ => /=.
-  iIntros "{$Hσ $Hwp} !>" (e2 t2' -> ? ?) "_ H _".
-  iApply fupd_mask_intro_discard; [done|]. iSplit; [|done].
-  iDestruct (big_sepL2_cons_inv_r with "H") as (e' ? ->) "[Hwp H]".
-  iDestruct (big_sepL2_nil_inv_r with "H") as %->.
-  iIntros (v2 t2'' [= -> <-]). by rewrite to_of_val.
-Qed. 
 
-Corollary wp_invariance Σ Λ `{!invGpreS Σ} s e1 σ1 t2 σ2 φ :
-  (∀ `{Hinv : !invGS Σ} κs,
-     ⊢ |={⊤}=> ∃
-         (stateI : state Λ → list (observation Λ) → nat → iProp Σ)
-         (fork_post : val Λ → iProp Σ),
-       let _ : irisGS Λ Σ := IrisG _ _ Hinv (λ σ _, stateI σ) fork_post
-              (λ _, 0) (λ _ _ _ _, fupd_intro _ _) in
-       stateI σ1 κs 0 ∗ WP e1 @ s; ⊤ (* <| Ψ |> *) {{ _, True }} ∗
-       (stateI σ2 [] (pred (length t2)) -∗ ∃ E, |={⊤,E}=> ⌜φ⌝)) →
-  rtc erased_step ([e1], σ1) (t2, σ2) →
-  φ.
-Proof.
-  intros Hwp [n [κs ?]]%erased_steps_nsteps.
-  eapply (wp_strong_adequacy Σ _); [|done]=> ?.
-  iMod (Hwp _ κs) as (stateI fork_post) "(Hσ & Hwp & Hφ)".
-  iExists s, (λ σ _, stateI σ), [(λ _, True)%I], fork_post, _ => /=.
-  iIntros "{$Hσ $Hwp} !>" (e2 t2' -> _ _) "Hσ H _ /=".
-  iDestruct (big_sepL2_cons_inv_r with "H") as (? ? ->) "[_ H]".
-  iDestruct (big_sepL2_nil_inv_r with "H") as %->.
-  iDestruct ("Hφ" with "Hσ") as (E) ">Hφ".
-  by iApply fupd_mask_intro_discard; first set_solver.
-Qed.
-
-*)

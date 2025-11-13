@@ -4,7 +4,7 @@ From iris.proofmode Require Import base tactics classes.
 From iris.base_logic Require Export gen_heap ghost_map proph_map na_invariants.
 From iris.base_logic.lib Require Export fancy_updates.
 From Wasm.iris.helpers Require Import iris_properties.
-From Wasm Require Import stdpp_aux (* datatypes common operations properties memory_list *).
+From Wasm Require Import stdpp_aux.
 From Wasm.iris.language.iris Require Export iris_locations iris.
 From Wasm.iris.language Require Import protocols.
 
@@ -18,7 +18,6 @@ Close Scope byte_scope.
 
 Definition expr := iris.expr.
 Definition val := iris.val.
-(* Definition to_val := iris.to_val. *)
 
 (* Defining a Wasm-specific WP with frame existence *)
 Section wp_def.
@@ -122,9 +121,6 @@ Class wasmG Σ :=
 
       glob_gen_hsG :: gen_heapGS N global Σ;
 
-(*      locs_gen_hsG :: ghost_mapG Σ unit frame;
-
-      frameGName : gname *)
     }.
 
 (* functor needed for NA invariants -- those used by the logical
@@ -135,7 +131,7 @@ Class logrel_na_invs Σ :=
     logrel_nais : na_inv_pool_name
   }.
 
-Definition proph_id := positive. (* ??? *)
+Definition proph_id := positive. 
 
 
 #[export] Instance eqdecision_frame: EqDecision frame.
@@ -172,7 +168,6 @@ Definition state_interp `{!wasmG Σ} s :=
       (@gen_heap_interp _ _ _ _ _ tab_gen_hsG (gmap_of_table s.(s_tables))) ∗
       (gen_heap_interp (gmap_of_memory s.(s_mems))) ∗
       (gen_heap_interp (gmap_of_list s.(s_globals))) ∗
-(*      (ghost_map_auth frameGName 1 (<[ tt := Build_frame locs inst ]> ∅)) ∗  *)
       (gen_heap_interp (gmap_of_list (fmap operations.length_mem s.(s_mems)))) ∗
       (gen_heap_interp (gmap_of_list (fmap tab_size s.(s_tables)))) ∗
       (@gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt s.(s_mems)))) ∗
@@ -180,10 +175,6 @@ Definition state_interp `{!wasmG Σ} s :=
       
      )%I.
 
-(* Lemma state_interp_mono `{!wasmG Σ} s0 : state_interp s0 ={∅}=∗ state_interp s0.
-Proof.
-  iIntros "H". done.
-Qed. *)
 
 Lemma state_interp_mono `{!wasmG Σ} s0 : state_interp s0 ⊢ |={∅}=> state_interp s0.
 Proof.
@@ -202,8 +193,6 @@ Global Instance heapG_irisG `{!wasmG Σ} : irisGS wasm_lang Σ := {
 End wp_def.
 
 (* Resource ownerships *) 
-(* Notation "n ↦[wf]{ q } v" := (pointsto (L:=N) (V:=function_closure) n q v%V)
-                           (at level 20, q at level 5, format "n ↦[wf]{ q } v") : bi_scope. *)
 Notation "n ↦[wf] v" := (pointsto (L:=N) (V:=function_closure) n (DfracOwn 1) v%V)
                           (at level 20, format "n ↦[wf] v") : bi_scope.
 Notation "n ↦[wcont]{ q } v" := (pointsto (L:=N) (V:=continuation_resource) n q v%V)
@@ -244,10 +233,6 @@ Notation "n ↦[wg]{ q } v" := (pointsto (L:=N) (V:=global) n q v%V)
                            (at level 20, q at level 5, format "n ↦[wg]{ q } v").
 Notation "n ↦[wg] v" := (pointsto (L:=N) (V:=global) n (DfracOwn 1) v%V)
                       (at level 20, format "n ↦[wg] v") .
-(*Notation " ↪[frame]{ q } v" := (ghost_map_elem frameGName tt q v%V)
-                           (at level 20, q at level 5, format " ↪[frame]{ q } v") .
-Notation " ↪[frame] v" := (ghost_map_elem frameGName tt (DfracOwn 1) v%V)
-                           (at level 20, format " ↪[frame] v"). *)
 
 (* Predicates for memory blocks and whole tables *)  
 Definition mem_block `{!wasmG Σ} (n: N) (m: memory) :=

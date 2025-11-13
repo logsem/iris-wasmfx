@@ -273,8 +273,6 @@ Section Example2.
             rewrite <- (app_nil_l [AI_ref_cont _; _]).
             iApply ewp_resume; try done.
             by instantiate (1 := [_]).
-(*            (* We use the bottom protocol as aux never suspends. *)
-            by instantiate (1 := meta_bottom). *)
             2: iFrame "Hkaddr".
             unfold hfilled, hfill => //=.
             iSplitR; last iSplitR; last iSplitL "Hwf_aux"; last iSplitR.
