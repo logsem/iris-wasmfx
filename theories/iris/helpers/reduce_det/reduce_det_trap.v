@@ -5,12 +5,11 @@ From Wasm.iris.helpers.prelude Require Export iris_reduce_det_prelude.
 Set Bullet Behavior "Strict Subproofs".
 
 Lemma filled_trap_det LI lh s f s' f' es:
-(*  LI <> [AI_trap] -> *)
   lfilled 0 lh [AI_trap] LI ->
   reduce s f LI s' f' es ->
   reduce_det_goal s f [AI_trap] s' f' es LI.
 Proof.
-  intros (* HLI *) Hfill Hred.
+  intros Hfill Hred.
   induction Hred.
   destruct H.
   84:{ clear IHHred.
@@ -23,7 +22,7 @@ Proof.
            repeat split => //. 
            right. right. exists 0, 0, 0. repeat split => //. }
        generalize dependent les. generalize dependent lh0. generalize dependent les'.
-       induction lh; intros les' lh0 H0 les (* Hntrap *) Hfill H.
+       induction lh; intros les' lh0 H0 les Hfill H.
        all: move/lfilledP in Hfill; inversion Hfill; subst.
        - move/lfilledP in H; inversion H; subst.
          all: try by apply first_values in H1 as (? & ? & ?).

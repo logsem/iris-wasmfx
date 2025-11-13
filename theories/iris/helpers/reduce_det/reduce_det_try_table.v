@@ -14,14 +14,8 @@ Lemma try_table_det cs vs i n csd t1s t2s s f es s' f' es' :
   reduce_det_strong_goal s f [AI_handler csd [AI_label n [] (vs ++ to_e_list es)]] s' f' es' .
 Proof.
   move => H H0 H1 H2 Hdesug Hred.
-  (* Here, in the block case, the left-hand-side of Hred2 is
-         [ vs ++ [AI_basic (BI_block (Tf t1s t2s) es)] ] which is not an explicit
-         list, thus we cannot use [ only_one ]. We perform the case analysis on Hred2
-         by hand. Likewise for the following case (loop) *)
-
   lazymatch goal with
   | _ : reduce _ _ ?es _ _ _ |- _ => remember es as es0 end.
-  (* apply Logic.eq_sym in Heqes0. *)
   induction Hred.
   destruct H3.
   all: try by (try destruct ref); (try destruct v; try destruct v); rewrite separate1 in Heqes0; apply first_values in Heqes0 as (? & ? & ?); try rewrite /= H3.

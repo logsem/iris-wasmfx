@@ -46,7 +46,6 @@ Fixpoint vt_size (t : value_type) :=
   match t with
   | T_ref (T_funcref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s))
   | T_ref (T_contref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s))
-(*  | T_ref (T_exnref (Tf t1s t2s)) => S (merge_list (map vt_size t1s) + merge_list (map vt_size t2s)) *)
   | _ => 1
   end.
 
@@ -58,8 +57,6 @@ Proof.
   lia.
   destruct f => //=.
   lia.
-  (* destruct f => //=.
-  lia. *)
 Qed.
 
 Definition value_type_eq_dec : forall t1 t2: value_type,
@@ -146,42 +143,6 @@ Proof.
         try (by right; intros Habs; inversion Habs; subst);
         try by simpl; lia.
       inversion Hv'; subst. by left.
- (* - destruct f, f0; try by right.
-    destruct l, l0, l1, l2; try by (left + right).
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l0))) (T_ref (T_funcref (Tf [::] l2))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 2 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      
-      destruct (IHn v v0) as [-> | Hv];
-        destruct (IHn (T_ref (T_funcref (Tf [::] l))) (T_ref (T_funcref (Tf [::] l1))))
-        as [Hv' | Hv']; try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.
-    + simpl in Hn.
-      do 4 rewrite merge_cons in Hn.
-      specialize (vt_size_not_zero v) as Hvnz.
-      specialize (vt_size_not_zero v0) as Hv0nz.
-      specialize (vt_size_not_zero v1) as Hv1nz.
-      specialize (vt_size_not_zero v2) as Hv2nz.
-      
-      destruct (IHn v v1) as [-> | Hv];
-        destruct (IHn v0 v2) as [-> | Hv''];
-        destruct (IHn (T_ref (T_funcref (Tf l l0))) (T_ref (T_funcref (Tf l1 l2))))
-        as [Hv' | Hv'];
-        try (by right; intros Habs; inversion Habs; subst);
-        try by simpl; lia.
-      inversion Hv'; subst. by left.  *)
 Defined.
 
 From mathcomp Require Import ssrnat.
@@ -257,23 +218,6 @@ Proof.
       destruct (IHl l1) as [H | Habs'];
         last by right; intro Habs; inversion Habs; subst.
       inversion H; subst; by left.
-      (* - destruct f, f0; try by right.
-    generalize dependent l1; induction l; intros l1.
-    + destruct l1; last by right.
-      generalize dependent l2. induction l0; intros l2.
-      * by destruct l2; [left | right].
-      * destruct l2; first by right.
-        destruct (value_type_eq_dec a v) as [-> | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        destruct (IHl0 l2) as [H | Habs'];
-          last by right; intro Habs; inversion Habs; subst.
-        inversion H; subst; by left.
-    + destruct l1; first by right.
-      destruct (value_type_eq_dec a v) as [-> | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      destruct (IHl l1) as [H | Habs'];
-        last by right; intro Habs; inversion Habs; subst.
-      inversion H; subst; by left.  *)
 Defined. 
       
 Definition reference_type_eqb v1 v2 : bool := reference_type_eq_dec v1 v2.
@@ -289,17 +233,6 @@ Definition eqvalue_typeP : Equality.axiom value_type_eqb :=
 
 Canonical Structure value_type_eqMixin := Equality.Mixin eqvalue_typeP.
 Canonical Structure value_type_eqType := Eval hnf in Equality.Pack (sort := value_type) (Equality.Class value_type_eqMixin).
-(*
-Definition list_value_type_eq_dec : forall t1 t2: list value_type,
-    { t1 = t2 } + { t1 <> t2 }.
-Proof. decidable_equality. Qed.
-
-Definition list_value_type_eqb v1 v2 : bool := list_value_type_eq_dec v1 v2.
-Definition eqlist_value_typeP : Equality.axiom list_value_type_eqb :=
-  eq_dec_Equality_axiom list_value_type_eq_dec.
-
-Canonical Structure list_value_type_eqMixin := Equality.Mixin eqlist_value_typeP.
- Canonical Structure list_value_type_eqType := Eval hnf in Equality.Pack (sort := list value_type) (Equality.Class list_value_type_eqMixin).  *)
 
 Scheme Equality for packed_type.
 Definition packed_type_eqb v1 v2 : bool := packed_type_eq_dec v1 v2.
@@ -449,20 +382,9 @@ Definition value_ref_rec_safe (P : Type)
   (func : funcaddr -> P)
   (cont : funcaddr -> P)
   (exn : exnaddr -> tagidx -> P)
-(*  (extern : externaddr -> P) *)
   v : P :=
-  value_ref_rect null func cont (* extern *) exn v.
+  value_ref_rect null func cont exn v.
 
-(* Definition value_rec_safe (P : Type)
-           (i32 : Wasm_int.Int32.int -> P)
-           (i64 : Wasm_int.Int64.int -> P)
-           (f32 : Wasm_float.FloatSize32.T -> P)
-           (f64 : Wasm_float.FloatSize64.T -> P)
- (null : reference_type -> P)
-  (func : funcaddr -> P)
-  (extern : externaddr -> P)
-           v : P :=
-  value_rect (value_num_rec_safe i32 i64 f32 f64 v) (value_ref_rec_safe null func extern v) v. *)
 
 (** Induction scheme for [basic_instruction]. **)
 Definition basic_instruction_rect' :=
@@ -575,16 +497,6 @@ Definition administrative_instruction_rect' :=
 Definition administrative_instruction_ind' (P : administrative_instruction -> Prop) :=
   @administrative_instruction_rect' P.
 
-(** Administrative instructions frequently come in lists.
-  Here is the corresponding induction principle. **)
-(* TODO: rect'_build_list fails to generate wellformed definitions on newer versions
-   of Coq. Use manual versions for now *)
-(* Definition seq_administrative_instruction_rect' :=
-  ltac:(rect'_build_list administrative_instruction_rect).
-
-Definition seq_administrative_instruction_ind' (P : administrative_instruction -> Prop) :=
-  @seq_administrative_instruction_rect' P. *)
-
  Definition administrative_instruction_eq_dec : forall e1 e2 : administrative_instruction,
   {e1 = e2} + {e1 <> e2}.
 Proof. decidable_equality_using administrative_instruction_rect'. Defined.
@@ -611,16 +523,6 @@ Canonical Structure lholed_eqMixin := Equality.Mixin eqlholedP.
 Canonical Structure lholed_eqType := Eval hnf in Equality.Pack (sort := lholed) (Equality.Class lholed_eqMixin). 
 
 
-(* Definition handler_clauses_eq_dec : forall v1 v2 : handler_clauses, {v1 = v2} + {v1 <> v2}.
-Proof. decidable_equality. Defined.
-
-Definition handler_clauses_eqb v1 v2 : bool := handler_clauses_eq_dec v1 v2.
-Definition eqhandler_clausesP : Equality.axiom handler_clauses_eqb :=
-  eq_dec_Equality_axiom handler_clauses_eq_dec.
-
-Canonical Structure handler_clauses_eqMixin := Equality.Mixin eqhandler_clausesP.
-Canonical Structure handler_clauses_eqType := Eval hnf in Equality.Pack (sort := handler_clauses) (Equality.Class handler_clauses_eqMixin). 
-*)
 
 Definition exception_clause_result_eq_dec : forall v1 v2 : exception_clause_result, {v1 = v2} + {v1 <> v2}.
 Proof. decidable_equality. Defined.
@@ -631,17 +533,7 @@ Definition eqexception_clause_resultP : Equality.axiom exception_clause_result_e
 
 Canonical Structure exception_clause_result_eqMixin := Equality.Mixin eqexception_clause_resultP.
 Canonical Structure exception_clause_result_eqType := Eval hnf in Equality.Pack (sort := exception_clause_result) (Equality.Class exception_clause_result_eqMixin).
-(*
-Definition continuation_clause_result_eq_dec : forall v1 v2 : continuation_clause_result, {v1 = v2} + {v1 <> v2}.
-Proof. decidable_equality. Defined.
 
-Definition continuation_clause_result_eqb v1 v2 : bool := continuation_clause_result_eq_dec v1 v2.
-Definition eqcontinuation_clause_resultP : Equality.axiom continuation_clause_result_eqb :=
-  eq_dec_Equality_axiom continuation_clause_result_eq_dec.
-
-Canonical Structure continuation_clause_result_eqMixin := Equality.Mixin eqcontinuation_clause_resultP.
-Canonical Structure continuation_clause_result_eqType := Eval hnf in Equality.Pack (sort := continuation_clause_result) (Equality.Class continuation_clause_result_eqMixin). 
-*)
 
 
  Definition hholed_eq_dec : forall v1 v2 : hholed, {v1 = v2} + {v1 <> v2}.

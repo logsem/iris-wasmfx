@@ -33,7 +33,6 @@ Proof.
     exact H2. exact Hfill.
     all: try done.
     destruct H5 as [-> ->] => //.
-(*    subst. repeat split => //. done. *)
   - move/lfilledP in H1; inversion H1; subst.
     all: try by do 2 destruct vs0 => //.
     all: try by do 2 destruct bef => //.

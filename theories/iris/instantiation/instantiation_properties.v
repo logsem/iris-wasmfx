@@ -900,13 +900,11 @@ Proof.
   unfold reduce_trans in *.
   apply Operators_Properties.clos_rt_rt1n_iff in Hred.
   inversion Hred; subst; clear Hred.
-(*  { destruct v => //. destruct v => //. }  *)
   destruct y as [[??]?].
   unfold reduce_tuple in H.
   apply reduce_get_global in H.
   destruct H as [v' [Hsgv ->]].
   inversion H0; subst; clear H0 => //.
-(*  { apply const_inj in H3 as ->. done. }  *)
   unfold reduce_tuple in H.
   destruct y as [[??]?].
   fold (AI_const (VAL_num v')) in H.

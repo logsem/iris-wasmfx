@@ -3579,7 +3579,7 @@ Qed.
                 assert (iris.to_val0 l0 = Some (brV lh1)) ;
                   first by unfold iris.to_val0 ; rewrite Hmerge.          
                 apply iris.of_to_val0 in H0 as <-.
-                unfold iris.of_val. (* by rewrite (vfill_decrease _ Hdecr). *)
+                unfold iris.of_val. 
                 done.
           -- assert (lfilled i lh ((a :: es1) ++ es2) l4); 
                first by unfold lfilled ; rewrite Hfill.
@@ -3627,7 +3627,7 @@ Qed.
                 assert (iris.to_val0 l1 = Some (brV lh1)) ;
                   first by unfold iris.to_val0 ; rewrite Hmerge.          
                 apply iris.of_to_val0 in H0 as <-.
-                unfold iris.of_val. (* by rewrite (vfill_decrease _ Hdecr). *)
+                unfold iris.of_val. 
                 done.
           -- assert (lfilled i lh ((a :: es1) ++ es2) l6); 
                first by unfold lfilled ; rewrite Hfill.

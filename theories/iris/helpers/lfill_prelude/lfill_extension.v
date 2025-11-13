@@ -164,23 +164,7 @@ Definition simple_valid_holed_eq_dec :
 Proof.
   intros. decidable_equality.
 Defined. 
-(*  generalize dependent lh2.
-  induction lh1, lh2 ; auto.
-  - destruct (decide (l = l1)), (decide (l0 = l2)).
-    subst ; by left.
-    all : try by right ; intro H ; inversion H.
-  - destruct (decide (l = l2)), (decide (n = n0)), (decide (l0 = l3)),
-    (decide (l1 = l4)) ; destruct (IHlh1 lh2) as [H0 | H0] ;
-    try by right ; intro H ; inversion H.
-    subst ; by left.
-  - destruct (decide (l = l3)), (list_value_type_eq_dec l0 l4),
-      (list_continuation_clause_eq_dec l1 l5), (IHlh1 lh2), (decide (l2 = l6)); try by right; intro H; inversion H.
-    subst ; by left.
-  - destruct (decide (l = l2)), 
-      (list_exception_clause_eq_dec l0 l3), (IHlh1 lh2),
-      (decide (l1 = l4)); try by right; intro H; inversion H.
-    subst ; by left.
-Defined. *)
+
 
 Inductive llholed : Type :=
 | LL_base : list value -> list administrative_instruction -> llholed
@@ -197,104 +181,6 @@ Proof.
   decidable_equality.
 Qed.
 
-(*
-(* A term of type capped_nat n is an integer <= n *)
-Inductive capped_nat : nat -> Type :=
-| Zero (n : nat) : capped_nat n
-| PlusOne (n : nat) : capped_nat n -> capped_nat (S n)
-.
-
-Fixpoint nat_of_capped_nat (p: nat) (n : capped_nat p) :=
-  match n with
-  | Zero _ => 0
-  | PlusOne _ n => S (nat_of_capped_nat n)
-  end.
-
-Lemma capped_nat_capped p (n : capped_nat p) :
-  (nat_of_capped_nat n) <= p.
-Proof.
-  induction n; lias.
-Qed.
-
-Lemma capped_nat_eq_dec:
-  forall p (n1 n2: capped_nat p), { n1 = n2 } + { n1 <> n2 }.
-Proof.
-  induction n1; intros.
-  - destruct n2 ; by (left + right).
-  - set (k := S n) in n2.
-
-    pose (Logic.eq_refl : k = S n) as Hk.
-    change n2 with (match Hk in _ = w return capped_nat w with
-                      | Logic.eq_refl => n2 end).
-    clearbody Hk k.
-    destruct n2.
-    + right. subst n0. done.
-    + pose proof (eq_add_S _ _ Hk) as Hn.
-      
-      assert (Hk = f_equal S Hn) as Hproof.
-      apply Eqdep.EqdepTheory.UIP.
-      
-      replace (match Hk in _ = w return (capped_nat w) with
-               | Logic.eq_refl => PlusOne n2
-               end) with
-        ( PlusOne (match Hn in _ = w return capped_nat w with
-                           | Logic.eq_refl => n2 end )) ; last first.
-
-      { rewrite Hproof.
-        destruct Hn. done. } 
-      destruct (IHn1 (match Hn in (_ = w) return capped_nat w with
-                      | Logic.eq_refl => n2 end)).
-      * left; by subst.
-      * right. intro H. inversion H.
-        apply Eqdep.EqdepTheory.inj_pair2 in H1.
-        done.
-Defined.     
-
-
-Inductive offset : nat -> Type :=
-(* OMinusS n represents an offset of S n; same with OPlusS *)
-| OMinusS (n : nat) : capped_nat n -> offset (S n)
-| OPlusS (n: nat) : nat -> offset n
-.
-
-Lemma offset_eq_dec :
-  forall p (o1 o2: offset p), { o1 = o2 } + { o1 <> o2 }.
-Proof.
-  intros. destruct o1.
-  - set (k := S n) in o2.
-
-    pose (Logic.eq_refl : k = S n) as Hk.
-    change o2 with (match Hk in _ = w return offset w with
-                      | Logic.eq_refl => o2 end).
-    clearbody Hk k.
-    destruct o2; last by right; subst n0.
-    pose proof (eq_add_S _ _ Hk) as Hn.
-      
-    assert (Hk = f_equal S Hn) as Hproof.
-    apply Eqdep.EqdepTheory.UIP.
-    
-    replace (match Hk in _ = w return (offset w) with
-               | Logic.eq_refl => OMinusS c0
-               end) with
-        ( OMinusS (match Hn in _ = w return capped_nat w with
-                   | Logic.eq_refl => c0 end )) ; last first.
-
-      { rewrite Hproof.
-        destruct Hn. done. }
-      destruct (capped_nat_eq_dec c 
-                  (match Hn in (_ = w) return capped_nat w with
-                   | Logic.eq_refl => c0 end)).
-      * left; by subst.
-      * right. intro H. inversion H.
-        apply Eqdep.EqdepTheory.inj_pair2 in H1.
-        done.
-  - destruct o2.
-    + by right.
-    + destruct (decide (n0 = n1)).
-      * subst; by left.
-      * right; intros H; inversion H; done.
-Qed.
-*)
 
 Inductive suselt : Type :=
 | SuSuspend : nat  -> immediate -> suselt
@@ -306,40 +192,6 @@ Lemma suselt_eq_dec :
   forall (o1 o2: suselt), { o1 = o2 } + { o1 <> o2 }.
 Proof.
   decidable_equality.
-(*  intros. destruct o1.
-  - set (k := Mk_tagidx n) in o2.
-
-    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
-    change o2 with (match Hk in _ = w return suselt w with
-                      | Logic.eq_refl => o2 end).
-    clearbody Hk k.
-    destruct o2; last by right; subst x.
-    inversion Hk.
-      
-    assert (Hk = f_equal Mk_tagidx H0) as Hproof.
-    apply Eqdep.EqdepTheory.UIP.
-    
-    replace (match Hk in _ = w return (suselt w) with
-               | Logic.eq_refl => SuSuspend o0 i0
-               end) with
-        ( SuSuspend (match H0 in _ = w return offset w with
-                   | Logic.eq_refl => o0 end ) i0) ; last first.
-
-      { rewrite Hproof.
-        destruct H0. done. }
-      destruct (offset_eq_dec o 
-                  (match H0 in (_ = w) return offset w with
-                   | Logic.eq_refl => o0 end)), (decide (i = i0)); first by left; subst.
-      all: right; intro H; inversion H.
-      done.
-      all: apply Eqdep.EqdepTheory.inj_pair2 in H2.
-      all: done.
-  - destruct o2.
-    + by right.
-    + destruct (t == t0) eqn:Ht.
-      * move/eqP in Ht; subst; by left.
-      * right; intros H; inversion H.
-        subst t; rewrite eq_refl in Ht; done. *)
 Qed. 
 
 Inductive susholed : Type :=
@@ -361,61 +213,6 @@ Definition susholed_eq_dec:
   forall sh1 sh2: susholed , { sh1 = sh2 } + { sh1 <> sh2 }.
 Proof.
   decidable_equality.
-  (*
-induction sh1; destruct sh2; try by right.
-  - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
-    + remove_bools_options; subst; by left.
-    + right; intros Habs'; inversion Habs';
-        subst; repeat rewrite eq_refl in Habs.
-      done.
-  - destruct ((l == l2) && (n =? n0) && (l0 == l3) && (l1 == l4)) eqn:Hb.
-    + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        apply Nat.eqb_eq in H2.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H3.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      rewrite Nat.eqb_refl in Hb.
-      done.
-  - destruct ((l == l1) && (n =? n0) && (f == f0) && (l0 == l2)) eqn:Hb.
-      + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        apply Nat.eqb_eq in H2.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H3.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      rewrite Nat.eqb_refl in Hb.
-      done.
-  - destruct ((l == l2) && (l0 == l3) && (l1 == l4)) eqn:Hb.
-    + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H2.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      done.
-  - destruct ((l == l3) && (l0 == l4) && (l2 == l6)) eqn:Hb.
-    + destruct (suslist_eq_dec l1 l5) eqn:Hsus.
-      * destruct (IHsh1 sh2).
-        -- remove_bools_options.
-           subst. by left.
-        -- right; intros Habs'; inversion Habs'; subst.
-           apply Eqdep.EqdepTheory.inj_pair2 in H3.
-           done.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H2.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      done. *)
 Qed. 
 
 
@@ -429,39 +226,6 @@ Lemma swelt_eq_dec :
   forall (o1 o2: swelt), { o1 = o2 } + { o1 <> o2 }.
 Proof.
   decidable_equality.
-(*  intros. destruct o1.
-  - set (k := Mk_tagidx n) in o2.
-
-    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
-    change o2 with (match Hk in _ = w return swelt w with
-                      | Logic.eq_refl => o2 end).
-    clearbody Hk k.
-    destruct o2; last by right; subst x.
-    inversion Hk.
-      
-    assert (Hk = f_equal Mk_tagidx H0) as Hproof.
-    apply Eqdep.EqdepTheory.UIP.
-    
-    replace (match Hk in _ = w return (swelt w) with
-               | Logic.eq_refl => SwSwitch o0
-               end) with
-        ( SwSwitch (match H0 in _ = w return offset w with
-                   | Logic.eq_refl => o0 end )) ; last first.
-
-      { rewrite Hproof.
-        destruct H0. done. }
-      destruct (offset_eq_dec o 
-                  (match H0 in (_ = w) return offset w with
-                   | Logic.eq_refl => o0 end)); first by left; subst.
-      right; intro H; inversion H.
-      apply Eqdep.EqdepTheory.inj_pair2 in H2.
-      done.
-  - destruct o2.
-    + by right.
-    + destruct ((t == t0) && (i == i0)) eqn:Ht.
-      * remove_bools_options; subst; by left.
-      * right; intros H; inversion H.
-        subst; repeat rewrite eq_refl in Ht; done. *)
 Qed. 
 
 
@@ -484,60 +248,6 @@ Definition swholed_eq_dec:
   forall sh1 sh2: swholed, { sh1 = sh2 } + { sh1 <> sh2 }.
 Proof.
   decidable_equality.
-(*  induction sh1; destruct sh2; try by right.
-  - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
-    + remove_bools_options; subst; by left.
-    + right; intros Habs'; inversion Habs';
-        subst; repeat rewrite eq_refl in Habs.
-      done.
-  - destruct ((l == l2) && (n =? n0) && (l0 == l3) && (l1 == l4)) eqn:Hb.
-    + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        apply Nat.eqb_eq in H2.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H3.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      rewrite Nat.eqb_refl in Hb.
-      done.
-  - destruct ((l == l1) && (n =? n0) && (f == f0) && (l0 == l2)) eqn:Hb.
-      + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        apply Nat.eqb_eq in H2.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H3.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      rewrite Nat.eqb_refl in Hb.
-      done.
-  - destruct ((l == l2) && (l0 == l3) && (l1 == l4)) eqn:Hb.
-    + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H2.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      done.
-  - destruct ((l == l3) && (l0 == l4) && (l2 == l6)) eqn:Hb.
-    + destruct (swlist_eq_dec l1 l5) eqn:Hsus.
-      * destruct (IHsh1 sh2).
-        -- remove_bools_options.
-           subst. by left.
-        -- right; intros Habs'; inversion Habs'; subst.
-           apply Eqdep.EqdepTheory.inj_pair2 in H3.
-           done.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H2.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      done. *)
 Qed.
 
 
@@ -551,87 +261,6 @@ Lemma exnelt_eq_dec :
   forall (o1 o2: exnelt), { o1 = o2 } + { o1 <> o2 }.
 Proof.
   decidable_equality.
-(*  intros. destruct o1.
-  - set (k := Mk_tagidx n) in o2.
-
-    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
-    change o2 with (match Hk in _ = w return exnelt w with
-                      | Logic.eq_refl => o2 end).
-    clearbody Hk k.
-    destruct o2. 
-    + inversion Hk.
-      
-      assert (Hk = f_equal Mk_tagidx H0) as Hproof.
-      apply Eqdep.EqdepTheory.UIP.
-      
-      replace (match Hk in _ = w return (exnelt w) with
-               | Logic.eq_refl => ExCatch o0 i0
-               end) with
-        ( ExCatch (match H0 in _ = w return offset w with
-                   | Logic.eq_refl => o0 end ) i0) ; last first.
-
-      { rewrite Hproof.
-        destruct H0. done. }
-      destruct (offset_eq_dec o 
-                  (match H0 in (_ = w) return offset w with
-                   | Logic.eq_refl => o0 end)), (decide (i = i0)); first by left; subst.
-      all: right; intro H; inversion H.
-      done.
-      all: apply Eqdep.EqdepTheory.inj_pair2 in H2.
-      all: done.
-    + inversion Hk.
-       assert (Hk = f_equal Mk_tagidx H0) as Hproof.
-      apply Eqdep.EqdepTheory.UIP.
-      
-      replace (match Hk in _ = w return (exnelt w) with
-               | Logic.eq_refl => ExCatchRef o0 i0
-               end) with
-        ( ExCatchRef (match H0 in _ = w return offset w with
-                   | Logic.eq_refl => o0 end ) i0) ; last first.
-
-      { rewrite Hproof.
-        destruct H0. done. }
-      by right.
-  - set (k := Mk_tagidx n) in o2.
-
-    pose (Logic.eq_refl : k = Mk_tagidx n) as Hk.
-    change o2 with (match Hk in _ = w return exnelt w with
-                      | Logic.eq_refl => o2 end).
-    clearbody Hk k.
-    destruct o2.
-    + inversion Hk.
-       assert (Hk = f_equal Mk_tagidx H0) as Hproof.
-      apply Eqdep.EqdepTheory.UIP.
-      
-      replace (match Hk in _ = w return (exnelt w) with
-               | Logic.eq_refl => ExCatch o0 i0
-               end) with
-        ( ExCatch (match H0 in _ = w return offset w with
-                   | Logic.eq_refl => o0 end ) i0) ; last first.
-
-      { rewrite Hproof.
-        destruct H0. done. }
-      by right.
-    + inversion Hk.
-      
-      assert (Hk = f_equal Mk_tagidx H0) as Hproof.
-      apply Eqdep.EqdepTheory.UIP.
-      
-      replace (match Hk in _ = w return (exnelt w) with
-               | Logic.eq_refl => ExCatchRef o0 i0
-               end) with
-        ( ExCatchRef (match H0 in _ = w return offset w with
-                   | Logic.eq_refl => o0 end ) i0) ; last first.
-
-      { rewrite Hproof.
-        destruct H0. done. }
-      destruct (offset_eq_dec o 
-                  (match H0 in (_ = w) return offset w with
-                   | Logic.eq_refl => o0 end)), (decide (i = i0)); first by left; subst.
-      all: right; intro H; inversion H.
-      done.
-      all: apply Eqdep.EqdepTheory.inj_pair2 in H2.
-      all: done. *)
 Qed. 
 
 
@@ -654,60 +283,6 @@ Definition exnholed_eq_dec:
   forall sh1 sh2: exnholed, { sh1 = sh2 } + { sh1 <> sh2 }.
 Proof.
   decidable_equality.
-(*  induction sh1; destruct sh2; try by right.
-  - destruct ((l == l1) && (l0 == l2)) eqn:Habs.
-    + remove_bools_options; subst; by left.
-    + right; intros Habs'; inversion Habs';
-        subst; repeat rewrite eq_refl in Habs.
-      done.
-  - destruct ((l == l2) && (n =? n0) && (l0 == l3) && (l1 == l4)) eqn:Hb.
-    + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        apply Nat.eqb_eq in H2.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H3.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      rewrite Nat.eqb_refl in Hb.
-      done.
-  - destruct ((l == l1) && (n =? n0) && (f == f0) && (l0 == l2)) eqn:Hb.
-      + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        apply Nat.eqb_eq in H2.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H3.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      rewrite Nat.eqb_refl in Hb.
-      done.
-  - destruct ((l == l2) && (l1 == l4)) eqn:Hb.
-    + destruct (exnlist_eq_dec l0 l3) eqn:Hsus.
-      * destruct (IHsh1 sh2).
-        -- remove_bools_options.
-           subst. by left.
-        -- right; intros Habs'; inversion Habs'; subst.
-           apply Eqdep.EqdepTheory.inj_pair2 in H2.
-           done.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H1.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      done.
-  - destruct ((l == l3) && (l0 == l4) && (l1 == l5) && (l2 == l6)) eqn:Hb.
-    + destruct (IHsh1 sh2).
-      * remove_bools_options.
-        subst. by left.
-      * right; intros Habs'; inversion Habs'; subst.
-        apply Eqdep.EqdepTheory.inj_pair2 in H3.
-        done.
-    + right; intros Habs'; inversion Habs'; subst.
-      repeat rewrite eq_refl in Hb.
-      done. *)
 Qed.
         
   
@@ -754,8 +329,6 @@ Definition continuation_clause_of_suselt '(Mk_tagidx x) (l: suselt) :=
   | SuSuspend x' i =>
       if (Nat.ltb x' x) then DC_catch (Mk_tagidx x') i
       else DC_catch (Mk_tagidx (S x')) i
-(*  | SuSuspend _ (OMinusS _ x') i => DC_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
-  | SuSuspend _ (OPlusS _ x') i => DC_catch (Mk_tagidx (x + S x')) i  *)
   | SuSwitch y => DC_switch y 
   end.
 
@@ -773,8 +346,6 @@ Definition continuation_clause_of_swelt '(Mk_tagidx x) (l: swelt) :=
   | SwSwitch x' =>
       if (Nat.ltb x' x) then DC_switch (Mk_tagidx x')
       else DC_switch (Mk_tagidx (S x'))
-(*  | SwSwitch _ (OMinusS _ x') => DC_switch (Mk_tagidx (x - S (nat_of_capped_nat x')))
-  | SwSwitch _ (OPlusS _ x') => DC_switch (Mk_tagidx (x + S x')) *)
   | SwSuspend y i => DC_catch y i 
   end.
 
@@ -796,10 +367,6 @@ Definition exception_clause_of_exnelt '(Mk_tagidx x) (l : exnelt) :=
   | ExCatchRef x' i =>
       if (Nat.ltb x' x) then DE_catch_ref (Mk_tagidx x') i
       else DE_catch_ref (Mk_tagidx (S x')) i
-(*  | ExCatch _ (OMinusS _ x') i => DE_catch (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
-  | ExCatch _ (OPlusS _ x') i => DE_catch (Mk_tagidx (x + S x')) i 
-  | ExCatchRef _ (OMinusS _ x') i => DE_catch_ref (Mk_tagidx (x - S (nat_of_capped_nat x'))) i
-  | ExCatchRef _ (OPlusS _ x') i => DE_catch_ref (Mk_tagidx (x + S x')) i  *)
   end. 
 
 
@@ -970,40 +537,31 @@ Fixpoint vh_increase_repeat m (vh : valid_holed m) n : valid_holed (n + m) :=
   match n with 0 => vh
           | S n => vh_increase (vh_increase_repeat vh n) end.
 
-(* Definition v_of_e e :=
-  match e with
-  | AI_basic (BI_const n) => Some (VAL_num n)
-  | AI_basic (BI_ref_null r) => Some (VAL_ref (VAL_ref_null r))
-  | AI_ref f => Some (VAL_ref (VAL_ref_func f))
-  | AI_ref_cont f => Some (VAL_ref (VAL_ref_cont f))
-  | AI_ref_exn f => Some (VAL_ref (VAL_ref_exn f))
-  | _ => None
-  end. *)
 
 Fixpoint vh_of_lh lh i :=
   match lh with
   | LH_base bef aft =>
-      match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
+      match e_to_v_list_opt bef with
       | Some bef => Some (VH_base i bef aft)
       |  _ => None end
   | LH_rec bef n es lh aft =>
       match i with
       | 0 => None
       | S i => 
-          match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
+          match e_to_v_list_opt bef with
           |  Some bef => match vh_of_lh lh i with
                         | Some vh => Some (VH_rec bef n es vh aft)
                         | None => None end
           |  _ => None end
       end
   | LH_prompt bef tf hs lh aft =>
-      match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
+      match e_to_v_list_opt bef with
       | Some bef => match vh_of_lh lh i with
                    | Some vh => Some (VH_prompt bef tf hs vh aft)
                    | None => None end
       | _ => None end
   | LH_handler bef hs lh aft =>
-      match e_to_v_list_opt bef (* those (map v_of_e bef) *) with
+      match e_to_v_list_opt bef with
       | Some bef => match vh_of_lh lh i with
                    | Some vh => Some (VH_handler bef hs vh aft)
                    | None => None end
@@ -1084,11 +642,11 @@ Fixpoint hh_of_exnh i sh :=
 Fixpoint llh_of_lh lh :=
   match lh with
   | LH_base bef aft =>
-      match e_to_v_list_opt bef (*those (map v_of_e bef) *) with
+      match e_to_v_list_opt bef with
       | Some bef => Some (LL_base bef aft)
       | None => None end 
   | LH_rec bef n es lh aft =>
-      match e_to_v_list_opt bef (*those (map v_of_e bef)*) with
+      match e_to_v_list_opt bef with
       | Some bef =>
           match llh_of_lh lh with
           | Some lh' => Some (LL_label bef n es lh' aft)
@@ -1096,7 +654,7 @@ Fixpoint llh_of_lh lh :=
           end
       | None => None end
   | LH_prompt bef tf hs lh aft =>
-      match e_to_v_list_opt bef (*those (map v_of_e bef)*) with
+      match e_to_v_list_opt bef with
       | Some bef =>
           match llh_of_lh lh with
           | Some lh' => Some (LL_prompt bef tf hs lh' aft)
@@ -1105,7 +663,7 @@ Fixpoint llh_of_lh lh :=
       | None => None
       end
   | LH_handler bef hs lh aft =>
-      match e_to_v_list_opt bef (*those (map v_of_e bef)*) with
+      match e_to_v_list_opt bef with
       | Some bef =>
           match llh_of_lh lh with
           | Some lh' => Some (LL_handler bef hs lh' aft)
