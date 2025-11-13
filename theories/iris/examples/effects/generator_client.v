@@ -78,7 +78,7 @@ H_invoke sum_until_exp_addr [VAL_int32 n]
       iExact "H".
     }
     by iIntros (?) "[% _]".
-    iIntros (w f) "(%Heq & %addr_naturals & %addr_sum_until & %name_naturals & %name_sum_until & %cl_naturals & %cl_sum_until & Hexp1 & Hexp2 & %Htypenaturals & %Htypesum_until & Hwfnaturals & Hwfsum_until & #Hspecs) Hmod".
+    iIntros (w f) "(%Heq & %addr_naturals & %addr_sum_until & %addr_tag & %name_naturals & %name_sum_until & %cl_naturals & %cl_sum_until & Hexp1 & Hexp2 & %Htypenaturals & %Htypesum_until & Hwfnaturals & Hwfsum_until & Htag & Hnaturals_spec & Hsum_until_spec) Hmod".
     iDestruct (pointsto_ne with "Hwfnaturals Hwfsum_until") as %Hne.
     inversion Heq; subst. clear Heq.
 
@@ -93,7 +93,7 @@ H_invoke sum_until_exp_addr [VAL_int32 n]
     (* Prove the specification of sum_until *)
     simpl.
     iApply (ewp_wand with "[-HΦ]").
-    iApply ("Hspecs" with "[Hwfsum_until] [Hwfnaturals]"); done.
+    iApply ("Hsum_until_spec" with "Htag Hwfsum_until Hwfnaturals").
     iIntros (?? [<- ->]); simpl.
     iApply wp_value; first done.
     by iApply "HΦ".
