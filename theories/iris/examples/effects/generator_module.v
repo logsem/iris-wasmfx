@@ -18,12 +18,11 @@ Unset Printing Implicit Defensive.
 
 
 Section GeneratorModule.
-  Context `{!wasmG Σ, !hvisG Σ, !hmsG Σ, !hasG Σ}.
-  Context `{!inG Σ (excl_authR (listO (leibnizO i32)))}.
+  Context `{!wasmG Σ, !hvisG Σ, !hmsG Σ, !hasG Σ, !ghostG Σ}.
 
   Definition generator_module :=
     {|
-      mod_types := [ naturals_type ; sum_until_type ]; (* TODO: why can I only declare function types here? In wat I can give cont types *)
+      mod_types := [ naturals_type ; sum_until_type ]; 
       mod_funcs :=
       [ {|
           modfunc_type := Mk_typeidx 0 ;
@@ -39,7 +38,7 @@ Section GeneratorModule.
       mod_tables := [];
       mod_mems := [] ;
       mod_globals := [];
-      mod_elem := [] ; (* TODO: any elem declarations? *)
+      mod_elem := [] ; 
       mod_data := [] ;
       mod_start := None;
       mod_imports := [];

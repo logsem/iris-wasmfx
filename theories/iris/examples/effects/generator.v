@@ -145,7 +145,7 @@ Proof.
 Qed.
 
 
-(* Helper lemmas about bounded inegers *)
+(* Helper lemmas about bounded integers *)
 
 Definition yx i := Wasm_int.int_of_Z i32m i.
 Definition xy i := Wasm_int.nat_of_uint i32m i.
@@ -506,10 +506,17 @@ Section generator_spec.
 
 End generator_spec.
 
+Definition ghostR := excl_authR (listO (leibnizO i32)).
+Class ghostG Σ := { #[local] ghost_inG :: inG Σ ghostR }.
+
+Definition ghostΣ : gFunctors := #[GFunctor ghostR].
+Global Instance subG_ghostΣ {Σ} : subG ghostΣ Σ → ghostG Σ.
+Proof. solve_inG. Qed.
+
+
 Section sum_until_spec.
 
-  Context `{!wasmG Σ}.
-  Context `{!inG Σ (excl_authR (listO (leibnizO i32)))}.
+  Context `{!wasmG Σ, !ghostG Σ}.
 
   Definition auth_list γ xs := own γ (●E xs).
   Definition frag_list γ xs := own γ (◯E xs).
@@ -705,13 +712,7 @@ Section sum_until_spec.
           iApply ewp_value.
           done.
           iFrame.
-          done. (* iSplitR; first done.
-          iIntros "Hfrag".
-          iDestruct ("Hcont_spec" with "Hfrag") as (LI') "[%HLI' Hcont_spec]".
-          iExists LI'.
-          iSplit; last done.
-          iPureIntro.
-          by (destruct (hfilled No_var (hholed_of_valid_hholed h') [] LI')). *)
+          done. 
         }
         by iIntros "(% & % & % & % & %Hcontra & _)".
       }
@@ -1152,13 +1153,6 @@ Section sum_until_spec.
               done.
               iFrame.
               done.
-(*              iSplitR; first done.
-              iIntros "Hfrag".
-              iDestruct ("Hcont_spec" with "Hfrag") as (LI) "[%HLI Hewp]".
-              iExists LI.
-              iSplit; last done.
-              iPureIntro.
-              by (destruct (hfilled No_var (hholed_of_valid_hholed h) [] LI)). *)
             }
             by iIntros "(% & % & % & % & %Hcontra & _)".
           }
