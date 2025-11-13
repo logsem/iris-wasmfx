@@ -169,9 +169,7 @@ Fixpoint firstx_continuation_suspend hs x :=
       then Some l
       else firstx_continuation_suspend q x
   | DC_switch _ :: q =>
-(*      if x == y
-      then Clause_switch
-      else *) firstx_continuation_suspend q x
+      firstx_continuation_suspend q x
   | [::] => None
   end.
 
@@ -179,9 +177,7 @@ Fixpoint firstx_continuation_suspend hs x :=
 Fixpoint firstx_continuation_switch hs x :=
   match hs with
   | DC_catch _ l :: q =>
-(*      if x == y
-      then Clause_suspend l
-      else *) firstx_continuation_switch q x
+      firstx_continuation_switch q x
   | DC_switch y :: q =>
       if x == y
       then true
@@ -189,13 +185,6 @@ Fixpoint firstx_continuation_switch hs x :=
   | [::] => false
   end.
 
-(*
-Definition firstx hs inst x :=
-  match hs with
-  | H_exception hs => firstx_exception hs inst x
-  | H_continuation hs => firstx_continuation hs inst x
-  end. 
-*)
 
 Fixpoint hhplug vs hh :=
   match hh with
@@ -650,7 +639,7 @@ Definition supdate_glob (s : store_record) (i : instance) (j : nat) (v : value_n
 
 
 
-Definition glob_extension (* (s: store_record) *) (g1 g2: global) : bool.
+Definition glob_extension (g1 g2: global) : bool.
 Proof.
   destruct (g_mut g1) eqn:gmut1.
   - (* Immut *)
@@ -658,27 +647,7 @@ Proof.
   - (* Mut *)
     destruct (g_mut g2) eqn:gmut2.
     + exact false.
-    + exact ((typeof_num (g_val g1) == typeof_num (g_val g2)) (* && (typeof_num (g_val g1) != None) *)).
-(*
-      destruct (g_val g1) as [n | n] eqn:T1;
-        destruct n;
-      lazymatch goal with
-      | H1: g_val g1 = VAL_num (?T3 _) |- _ =>
-          destruct (g_val g2) as [n | n] eqn:T2;
-          destruct n;
-          lazymatch goal with
-          | H2: g_val g2 = VAL_num (T3 _) |- _ => exact true
-          | _ => exact false
-          end
-      | H1: g_val g1 = VAL_ref (?T4 _) |- _ =>
-          destruct (g_val g2) as [n | n] eqn:T5;
-          destruct n;
-          lazymatch goal with
-          | H2: g_val g2 = VAL_ref (T4 _) |- _ => exact true
-          | _ => exact false
-          end
-      | _ => exact false
-      end. *)
+    + exact ((typeof_num (g_val g1) == typeof_num (g_val g2))).
 Defined.
 
 Definition tab_extension (t1 t2 : tableinst) :=
@@ -694,13 +663,11 @@ Definition cont_extension (cont1 cont2: continuation) :=
   | _ => cont1 == cont2
   end
 .
-(*  typeof_cont cont1 == typeof_cont cont2.  *)
 
  Definition store_extension (s s' : store_record) : bool :=
    (s_funcs s == s_funcs s') &&
      (s_tags s == s_tags s') && 
      (all2 cont_extension s.(s_conts) (take (length s.(s_conts)) s'.(s_conts))) && 
-(*     (s_conts s == take (length (s_conts s)) (s_conts s')) && *)
   (all2 tab_extension s.(s_tables) s'.(s_tables)) &&
   (all2 mem_extension s.(s_mems) s'.(s_mems)) &&
      (all2 (glob_extension (* s *) ) s.(s_globals) s'.(s_globals)) &&
@@ -726,44 +693,17 @@ Definition e_is_basic (e: administrative_instruction) :=
   | AI_basic _ => True
   | _ => False
   end.
-(*  exists be, e = AI_basic be. *) 
+
 
 Definition es_is_basic (es: seq administrative_instruction) :=
   List.Forall e_is_basic es.
-(*  match es with
-  | [::] => True
-  | e :: es' =>
-    e_is_basic e /\ es_is_basic es'
-  end. *)
 
 (** [v_to_e_list]: 
     takes a list of [v] and gives back a list where each [v] is mapped to [Basic (EConst v)]. **)
 
-(* Definition vref_to_e (vref: value_ref) : administrative_instruction :=
-  match vref with
-  | VAL_ref_null t => AI_basic (BI_ref_null t)
-  | VAL_ref_func addr => AI_ref addr
-  | VAL_ref_cont addr => AI_ref_cont addr
-(*  | VAL_ref_extern addr => AI_ref_extern addr *)
-  end.
-Definition v_to_e (v: value) : administrative_instruction :=
-  match v with
-  | VAL_num v => AI_basic (BI_const v)
-  | VAL_ref v => vref_to_e v
-  end. *)
 Definition v_to_e_list (ves : seq value) : seq administrative_instruction :=
   map AI_const ves.
 
-(* 
-Definition e_to_vref (e: administrative_instruction) : value_ref :=
-  match e with
-  | AI_basic (BI_ref_null t) => VAL_ref_null t
-  | AI_ref addr => VAL_ref_func addr
-  | AI_ref_cont addr => VAL_ref_cont addr
-(*   | AI_ref_extern addr => VAL_ref_extern addr *) 
-  | _ => VAL_ref_null (Tf [::] [::])
-  end. 
-*)
 
 Definition e_to_vref_opt (e : administrative_instruction) : option value_ref :=
   match e with
@@ -771,20 +711,9 @@ Definition e_to_vref_opt (e : administrative_instruction) : option value_ref :=
   | AI_ref addr => Some (VAL_ref_func addr)
   | AI_ref_cont addr => Some (VAL_ref_cont addr)
   | AI_ref_exn addr addr' => Some (VAL_ref_exn addr addr')
-(*  | AI_ref_extern addr => Some (VAL_ref_extern addr) *)
   | _ => None
   end.
 
-(*
-Definition e_to_v (e: administrative_instruction) : value :=
-  match e with
-  | AI_basic (BI_const v) => VAL_num v
-  | _ => VAL_ref (e_to_vref e)
-  end.
-*)
-
-(* Definition e_to_v_list (es: seq administrative_instruction) : list value :=
-  map e_to_v es. *)
 
 Definition e_to_v_opt (e: administrative_instruction) : option value :=
   match e with
@@ -1059,13 +988,6 @@ Fixpoint lh_depth lh :=
   | LH_handler _ _ lh _ => lh_depth lh
   end.
 
-
-(* Definition update_avoiding x f :=
-  match x with
-  | Var_prompt x _ => Var_prompt x (f_inst f)
-  | Var_handler x _ => Var_handler x (f_inst f)
-  | No_var => No_var
-  end. *)
 
 Fixpoint hfill (x : avoiding) (hh : hholed) (es : seq administrative_instruction) : option (seq administrative_instruction) :=
   match hh with
@@ -1360,7 +1282,7 @@ Definition default_val (t: value_type) : value :=
   | T_num t => VAL_num (bitzero t)
   | T_ref (T_funcref t) => VAL_ref (VAL_ref_null (T_funcref t))
   | T_ref (T_contref t) => VAL_ref (VAL_ref_null (T_contref t))
-  | T_ref (T_exnref (* t *)) => VAL_ref (VAL_ref_null (T_exnref (* t *) )) (* placeholder *)
+  | T_ref (T_exnref) => VAL_ref (VAL_ref_null (T_exnref))
   end.
 
 Definition default_vals (ts: seq value_type) : seq value :=
@@ -1417,15 +1339,4 @@ Proof.
 Qed.
 
 
-(*
-Definition clause_addr_defined inst clause :=
-  match clause with
-  | HE_catch x _ | HE_catch_ref x _ =>
-                    match List.nth_error inst.(inst_tags) x with
-                    | Some _ => True
-                    | None => False
-                    end
-  | _ => True
-  end
-.
-*)
+

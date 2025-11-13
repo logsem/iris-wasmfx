@@ -12,7 +12,6 @@ From compcert Require common.Memdata.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-(* Unset Automatic Proposition Inductives.  *)
 
 (** * Basic Datatypes **)
 
@@ -90,7 +89,7 @@ Inductive number_type : Type := (* nt *)
   Inductive reference_type : Type :=
   | T_funcref : function_type -> reference_type
   | T_contref : function_type -> reference_type
-  | T_exnref : (* function_type -> *) reference_type
+  | T_exnref : reference_type
  
 
   with value_type : Type := (* t *)
@@ -98,12 +97,7 @@ Inductive number_type : Type := (* nt *)
   | T_ref : reference_type -> value_type
 
 
-(** std-doc:
-Result types classify the result of executing instructions or functions, which is a sequence of values written with brackets.
-[https://webassembly.github.io/spec/core/syntax/types.html#result-types]
-*)
-(* Inductive  result_type : Type :=
-  list value_type *)
+
 (** Note from the specification:
   In the current version of WebAssembly, at most one value is allowed as a result.
   However, this may be generalized to sequences of values in future versions. **)
@@ -119,12 +113,8 @@ with function_type : Type := (* tf *)
   | Tf : list value_type -> list value_type -> function_type
   (** Note from the specification:
     In the current version of Wasm, the result list has an arity of at most [1]. **)
-(* | Cont : list value_type -> list value_type -> function_type  *)
   .
 
-(*  Inductive continuation_type : Type :=
-  | Cont : function_type -> continuation_type
-  .  *)
 
 Inductive packed_type : Type := (* tp *)
   | Tp_i8
@@ -318,10 +308,6 @@ Inductive cvtop : Type :=
   | Type_explicit : function_type -> type_identifier
   .
 
-(*  Inductive tag_identifier : Type :=
-  | Tag_lookup : immediate -> tag_identifier
-  | Tag_explicit : immediate -> function_type -> tag_identifier
-  . *)
   Inductive tag_identifier : Type :=
 | Mk_tagident : immediate -> tag_identifier
 .
@@ -338,11 +324,6 @@ Inductive exception_clause_identifier : Type :=
   | HE_catch_all_ref : immediate -> exception_clause_identifier
 .
 
-(* Inductive handler_clauses : Type :=
-| H_continuation : list continuation_clause -> handler_clauses
-| H_exception : list exception_clause -> handler_clauses
-.
-*) 
 
 Inductive exception_clause_result : Type :=
 | Clause_label : immediate -> exception_clause_result
@@ -350,11 +331,6 @@ Inductive exception_clause_result : Type :=
 | No_label
 .
 
-(* Inductive continuation_clause_result : Type :=
-| Clause_suspend : immediate -> continuation_clause_result
-| Clause_switch : continuation_clause_result
-| No_result
-.*)
 
 
   
@@ -387,13 +363,13 @@ Inductive basic_instruction : Type := (* be *)
   | BI_testop : number_type -> testop -> basic_instruction
   | BI_relop : number_type -> relop -> basic_instruction
 | BI_cvtop : number_type -> cvtop -> number_type -> option sx -> basic_instruction
-    (* Wasm 2.0 instructions necessary to accomodate WasmFX *)
+    (* Wasm 3.0 function reference instructions necessary to accomodate WasmFX *)
 | BI_ref_null : reference_type -> basic_instruction
 | BI_ref_is_null
 | BI_ref_func : immediate -> basic_instruction
 | BI_call_reference : type_identifier -> basic_instruction
 
-(* Wasm exception handling instructions necessary to accomodate WasmFX *)
+(* Wasm 3.0 exception handling instructions necessary to accomodate WasmFX *)
 | BI_try_table: type_identifier -> list exception_clause_identifier -> list basic_instruction -> basic_instruction
 | BI_throw : immediate -> basic_instruction
 | BI_throw_ref : basic_instruction
@@ -418,7 +394,6 @@ Inductive basic_instruction : Type := (* be *)
 
   Definition funcaddr := immediate.
   Definition exnaddr := immediate.
-(*  Definition externaddr := immediate. *)
 Definition tableaddr := immediate.
 Definition memaddr := immediate.
 Definition globaladdr := immediate.

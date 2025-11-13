@@ -92,16 +92,6 @@ Inductive exception_clause_identifier_typing : t_context -> exception_clause_ide
       continuation_clause_identifier_typing C (HC_switch (Mk_tagident x)) t2s
   .
 
-  (*
-  Inductive clause_typing : t_context -> handler_clauses -> list value_type -> Prop :=
-  | ct_exception : forall C hs ts,
-      List.Forall (exception_clause_typing C) hs ->
-      clause_typing C (H_exception hs) ts
-  | ct_continuation : forall C hs ts,
-      List.Forall (fun hc => continuation_clause_typing C hc ts) hs ->
-      clause_typing C (H_continuation hs) ts
-.
-*)
 
 Definition get_type C i :=
   match i with
@@ -113,8 +103,6 @@ Definition get_tag C i :=
   match i with
   | Mk_tagident i => List.nth_error (tc_tags_t C) i
   end. 
-(*  | Tag_explicit _ tf => Some tf
-  end *)  
 
 
 
@@ -142,7 +130,6 @@ Inductive be_typing : t_context -> seq basic_instruction -> function_type -> Pro
 | bet_ref_func: forall C t x,
     x < length (tc_func_t C) ->
     List.nth_error (tc_func_t C) x = Some t ->
-(*    List.In x (tc_refs C) ->  *)
     be_typing C [::BI_ref_func x] (Tf [::] [::T_ref (T_funcref t)])
 | bet_call_reference: forall C i tf t1s t2s,
     get_type C i = Some tf ->
@@ -364,8 +351,6 @@ Definition global_agree (g : global) (tg : global_type) : bool :=
   (tg_mut tg == g_mut g) && ((tg_t tg) == typeof_num (g_val g)). 
 
 
-(* || ((typeof C (g_val g) == T_ref T_corruptref) && (match tg_t tg with | T_ref _ => true | _ => false end))). (* references are allowed to be corrupt *) *)
-
 Definition globals_agree (gs : seq global) (n : nat) (tg : global_type) : bool :=
   (n < length gs) && (option_map (fun g => global_agree g tg) (List.nth_error gs n) == Some true).
 
@@ -388,7 +373,6 @@ Definition tab_typing (t : tableinst) (tt : table_type) : bool :=
   (t.(table_max_opt) <= tt.(tt_limits).(lim_max)).
 
 Definition tabi_agree ts (n : nat) (tab_t : table_type) : bool :=
-  (* (n < List.length ts) && *)
   match List.nth_error ts n with
   | None => false
   | Some x => tab_typing x tab_t
@@ -434,7 +418,6 @@ Proof.
   unfold inst_typing. destruct i => //. destruct C => //.
   destruct tc_local, tc_label, tc_return => //.
   intros H. move/andP in H. destruct H => //.
-(*  move/eqP in H0. done. *)
 Qed.
 
 Lemma inst_typing_types s i C :
@@ -526,7 +509,6 @@ Inductive frame_typing: store_record -> frame -> t_context -> Prop :=
     f.(f_inst) = i ->
     List.Forall2 (fun v t => e_typing s empty_context [:: AI_const v] (Tf [::] [::t]))
                  (f_locs f) tvs ->
-    (* map (typeof s) f.(f_locs) = map Some tvs -> *)
     frame_typing s f (upd_local C (tc_local C ++ tvs))
   
 
@@ -549,15 +531,14 @@ with e_typing : store_record -> t_context -> seq administrative_instruction -> f
   e_typing s C [::AI_frame n f es] (Tf [::] ts)
 | ety_ref : forall s C a tf cl,
     List.nth_error s.(s_funcs) a = Some cl ->
-    cl_type cl = tf -> (* trying cl_type instead of cl_typing *)
+    cl_type cl = tf -> 
     e_typing s C [::AI_ref a] (Tf [::] [::T_ref (T_funcref tf)])
 
 | ety_ref_cont : forall s C k cont tf,
     List.nth_error s.(s_conts) k = Some cont ->
-(*    c_typing s (* C *) cont -> *)
     typeof_cont cont = tf ->
     e_typing s C [::AI_ref_cont k] (Tf [::] [::T_ref (T_contref tf)])
-| ety_ref_exn : forall s C k i exn , (* Guessing the rule here *) 
+| ety_ref_exn : forall s C k i exn , 
     List.nth_error (s_exns s) k = Some exn ->
     e_tag exn = i ->
     e_typing s C [:: AI_ref_exn k i] (Tf [::] [::T_ref T_exnref])
@@ -611,9 +592,9 @@ with s_typing : store_record -> option (seq value_type) -> frame -> seq administ
 
 .
 
-Inductive c_typing : store_record -> (* t_context -> *) continuation -> Prop :=
-| ct_dagger : forall tf s (* C *), c_typing s (* C *) (Cont_dagger tf)
-| ct_hh : forall s (* C *) t1s t2s hh es LI,
+Inductive c_typing : store_record -> continuation -> Prop :=
+| ct_dagger : forall tf s, c_typing s (Cont_dagger tf)
+| ct_hh : forall s t1s t2s hh es LI,
     const_list es -> (* else can pick es to be BI_unreachable *)
     e_typing s empty_context es (Tf [::] t1s) -> 
     hfilled No_var hh es LI ->
@@ -666,7 +647,6 @@ Definition mem_agree (m : memory) : Prop :=
 
 Definition glob_sound s g :=
   exists t, e_typing s empty_context [:: AI_basic (BI_const (g_val g))] (Tf [::] [:: t]).
-(*  typeof s (g_val g) <> None.   *)
 
 Definition exn_sound s e :=
   exists ts,

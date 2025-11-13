@@ -401,7 +401,7 @@ Definition val_of_host_val hv :=
   | trapHV => trapV
   end.
 
-Definition state : Type := store_record * vi_store * (list module) * (list host_action )(*  * frame *) .
+Definition state : Type := store_record * vi_store * (list module) * (list host_action ) .
 
 Definition observation := unit. 
 
@@ -547,7 +547,7 @@ Notation " n ↪[mods] v" := (ghost_map_elem (V := module) msGName n (DfracOwn 1
 
 
 Global Instance host_heapG_irisG `{!wasmG Σ, !hvisG Σ, !hmsG Σ, !hasG Σ} : weakestpre.irisGS wasm_host_lang Σ := {
-  iris_invGS := func_invG; (* ??? *)
+  iris_invGS := func_invG; 
   state_interp σ _ κs _  :=
     let: (s, vis, ms, fs) := σ in
     ((gen_heap_interp (gmap_of_list s.(s_funcs))) ∗
@@ -555,7 +555,6 @@ Global Instance host_heapG_irisG `{!wasmG Σ, !hvisG Σ, !hmsG Σ, !hasG Σ} : w
      | Some rs => (@gen_heap_interp _ _ _ _ _ cont_gen_hsG (gmap_of_list rs))
      | None => False
      end ∗
-       (*       (gen_heap_interp (gmap_of_list s.(s_conts))) ∗ *)
        (gen_heap_interp (gmap_of_list s.(s_exns))) ∗
      (gen_heap_interp (gmap_of_list s.(s_tags))) ∗
       (gen_heap_interp (gmap_of_table s.(s_tables))) ∗
@@ -564,7 +563,6 @@ Global Instance host_heapG_irisG `{!wasmG Σ, !hvisG Σ, !hmsG Σ, !hasG Σ} : w
       (ghost_map_auth visGName 1 vis) ∗ 
       (ghost_map_auth msGName 1 (gmap_of_list ms)) ∗
       (ghost_map_auth haGName 1 (gmap_of_list fs)) ∗
-(*      (ghost_map_auth frameGName 1 (<[ tt := f ]> ∅)) ∗  *)
       (gen_heap_interp (gmap_of_list (fmap length_mem s.(s_mems)))) ∗
       (gen_heap_interp (gmap_of_list (fmap tab_size s.(s_tables)))) ∗
       (@gen_heap_interp _ _ _ _ _ memlimit_hsG (gmap_of_list (fmap mem_max_opt s.(s_mems)))) ∗
@@ -628,12 +626,10 @@ Qed.
 Lemma wp_get_global_host s E g v vs (Φ : host_val -> iProp Σ) fr acs:
   N.of_nat g ↦[wg] v -∗
   ▷ (N.of_nat g ↦[wg] v -∗ WP ((acs, v_to_e_list (VAL_num (g_val v) :: vs), fr) : host_expr) @ s; E {{ Φ }}) -∗
-                                                                                                              (* Φ (immHV (VAL_num (g_val v) :: vs), fr)) -∗ *)
   WP (((H_get_global g) :: acs, v_to_e_list vs, fr) : host_expr) @ s; E {{ Φ }}.
 Proof.
   iIntros "Hglob HΦ".
   iApply (lifting.wp_lift_step _ _ _ (_ : host_expr)) => //=. 
-(*  iApply (lifting.wp_lift_atomic_step (([H_get_global g], v_to_e_list vs, fr) : host_expr)) => //=. *)
   iIntros (σ ns κ κs nt) "Hσ".
   destruct σ as [[[s0 vis] ms] fs].
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & Hg & ?)".
@@ -788,8 +784,6 @@ Proof.
     iDestruct (ghost_map_lookup with "Hha Hhi") as "%Hha".
     rewrite gmap_of_list_lookup Nat2N.id in Hha.
     rewrite - nth_error_lookup in Ha.
-    (* iDestruct (ghost_map_lookup with "Hf1 Hf") as "%Hf0".
-    rewrite lookup_insert in Hf0. inversion Hf0 ; subst ; clear Hf0. *)
     destruct (inst_tab (f_inst (innermost_frame llh f0))) eqn:Hf => //. 
     simpl in Hn ; inversion Hn ; subst ; clear Hn.
     iDestruct (gen_heap_valid with "Htab Hwt") as "%H".
@@ -1208,7 +1202,6 @@ Proof.
     iMod "Hupd" as "(Hσ & Hv)".
     iModIntro.
     iFrame.
-(*    by iExists (modexp_name m). *)
 Qed.
 
 Lemma instantiation_spec_operational_no_start (s: stuckness) E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs wtags fr :
@@ -1999,7 +1992,7 @@ Lemma instantiation_spec_operational_start_seq s E (hs_mod: N) (hs_imps: list vi
   
   instantiation_resources_pre hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps -∗
   (∀ idnstart, (instantiation_resources_post hs_mod m hs_imps v_imps t_imps wfs wts wms wgs wtags hs_exps (Some idnstart)) -∗ WP ((idecls, [::AI_invoke idnstart], fr) : host_expr) @ s; E {{ Φ }}) -∗
-  WP (((ID_instantiate hs_exps hs_mod hs_imps) :: idecls, [::], fr (* or empty_frame? *)): host_expr) @ s; E {{ Φ }}.
+  WP (((ID_instantiate hs_exps hs_mod hs_imps) :: idecls, [::], fr): host_expr) @ s; E {{ Φ }}.
 Proof.
   move => Hmodstart Hmodtype Hmodrestr.
   assert (module_restrictions m) as Hmodrestr2 => //.
