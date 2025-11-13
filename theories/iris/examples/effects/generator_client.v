@@ -45,8 +45,8 @@ Section GeneratorClient.
   Context `{!wasmG Σ, !hvisG Σ, !hmsG Σ, !hasG Σ}.
   Context `{!inG Σ (excl_authR (listO (leibnizO i32)))}.
 
-  Definition sum_until_client generator_exp_addr sum_until_exp_addr mod_addr n :=
-    [ ID_instantiate [ generator_exp_addr; sum_until_exp_addr ] mod_addr [];
+  Definition sum_until_client tag_exp_addr generator_exp_addr sum_until_exp_addr mod_addr n :=
+    [ ID_instantiate [ tag_exp_addr; generator_exp_addr; sum_until_exp_addr ] mod_addr [];
 H_invoke sum_until_exp_addr [VAL_int32 n]
     ].
 
@@ -54,23 +54,24 @@ H_invoke sum_until_exp_addr [VAL_int32 n]
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
 
-  Lemma instantiate_client naturals_exp_addr sum_until_exp_addr mod_addr n :
+  Lemma instantiate_client tag_exp_addr naturals_exp_addr sum_until_exp_addr mod_addr n :
     ⊢ {{{{
         mod_addr ↪[mods] generator_module ∗
+        (∃ exp0, tag_exp_addr ↪[vis] exp0) ∗
         (∃ exp1, naturals_exp_addr ↪[vis] exp1) ∗
         (∃ exp2, sum_until_exp_addr ↪[vis] exp2)
       }}}}
-        ((sum_until_client naturals_exp_addr sum_until_exp_addr mod_addr n, [], empty_frame) : host_expr)
+        ((sum_until_client tag_exp_addr naturals_exp_addr sum_until_exp_addr mod_addr n, [], empty_frame) : host_expr)
       {{{{ w, ⌜w = (immHV [VAL_num (VAL_int32 $ Sum_until_i32 n)], empty_frame)⌝ }}}}.
   Proof.
-    iIntros "!>" (Φ) "(Hmod & Hexp1 & Hexp2 ) HΦ".
+    iIntros "!>" (Φ) "(Hmod & Hexp0 & Hexp1 & Hexp2 ) HΦ".
 
     (* instantiate generator module *)
-    iApply (wp_seq_host_nostart with "[] Hmod [Hexp1 Hexp2]").
+    iApply (wp_seq_host_nostart with "[] Hmod [Hexp0 Hexp1 Hexp2]").
     done. done.
     2:{
       iIntros "Hmod".
-      iApply (instantiate_generator with "[$Hmod $Hexp1 $Hexp2]").
+      iApply (instantiate_generator with "[$Hmod $Hexp0 $Hexp1 $Hexp2]").
       iIntros (x) "(-> & Hmod & H)".
       iFrame.
       instantiate (1 := λ v, (⌜ v = (immHV [], empty_frame) ⌝ ∗ _)%I).
@@ -78,7 +79,7 @@ H_invoke sum_until_exp_addr [VAL_int32 n]
       iExact "H".
     }
     by iIntros (?) "[% _]".
-    iIntros (w f) "(%Heq & %addr_naturals & %addr_sum_until & %addr_tag & %name_naturals & %name_sum_until & %cl_naturals & %cl_sum_until & Hexp1 & Hexp2 & %Htypenaturals & %Htypesum_until & Hwfnaturals & Hwfsum_until & Htag & Hnaturals_spec & Hsum_until_spec) Hmod".
+    iIntros (w f) "(%Heq & %addr_naturals & %addr_sum_until & %addr_tag & %name_tag & %name_naturals & %name_sum_until & %cl_naturals & %cl_sum_until & Hexp0 & Hexp1 & Hexp2 & %Htypenaturals & %Htypesum_until & Hwfnaturals & Hwfsum_until & Htag & Hnaturals_spec & Hsum_until_spec) Hmod".
     iDestruct (pointsto_ne with "Hwfnaturals Hwfsum_until") as %Hne.
     inversion Heq; subst. clear Heq.
 
