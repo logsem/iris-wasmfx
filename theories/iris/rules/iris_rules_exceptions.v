@@ -608,9 +608,6 @@ Section reasoning_rules.
       iDestruct "Hes" as "(Hσ & He')".
 
       iFrame.
-(*      iIntros "Hf".
-      iDestruct ("He'" with "Hf") as "He'". *)
-      
       unfold lfilled, lfill in Hfill'.
       simpl in Hfill'.
       rewrite app_nil_r in Hfill'.
@@ -628,7 +625,6 @@ Section reasoning_rules.
       repeat iModIntro.
       repeat iMod "Hes".
       iDestruct "Hes" as "(Hσ & Hes)".
-      (* iDestruct ("Hes" with "Hf") as "Hes". *)
       iDestruct ewp_value_fupd as "[H _]".
       instantiate (1 := trapV) => //.
       instantiate (1 := [AI_trap]) => //.
@@ -655,14 +651,6 @@ Section reasoning_rules.
     { rewrite to_eff_cat_None2 => //. } 
     iIntros (σ) "Hσ".
     iApply fupd_frame_l.
-(*    iDestruct "Hσ" as "(Hfuncs & Hconts & Htags & Htables & Hmems & Hglobals & Hframe & Hrest)".
-    destruct (resources_of_s_cont (s_conts σ)) eqn:Hconts => //. 
-    iDestruct (gen_heap_valid with "Hconts Hcont") as "%Hlook".
-    rewrite gmap_of_list_lookup Nat2N.id in Hlook.
-    rewrite - nth_error_lookup in Hlook.
-    eapply resources_of_s_cont_lookup in Hlook as Hlook'; last exact Hconts. *)
-
-
     
     eassert (reduce σ f
               (vs ++ [AI_basic (BI_try_table i hs es)])

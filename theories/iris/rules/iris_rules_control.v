@@ -50,8 +50,7 @@ Section control_operations.
     induction lh.
     all: intros ? ? ? ? ? ? ? Hconst Hfill.
     { inversion Hfill;subst.
-      constructor. auto. constructor. auto.
-    (* apply lfilled_Ind_Equivalent. cbn. rewrite eqseqE app_nil_r. done.  *)}
+      constructor. auto. constructor. auto. }
     { inversion Hfill;subst. simpl. constructor. auto.
       apply IHlh. auto. auto. }
     { inversion Hfill;subst. simpl. constructor. auto.
@@ -768,17 +767,6 @@ Section control_rules.
         - inversion Heqes0 ; subst. 
           iFrame.  
         - iFrame. }
-(*        - inversion Heqes0 ; subst.
-          move/lfilledP in H1; inversion H1; subst.
-          repeat rewrite catA in H0.
-          remember (vs0 ++ vs)%SEQ as l.
-          do 2 destruct l => //.
-          do 2 destruct vs0 => //.
-          all: do 2 destruct bef => //. 
-        - rewrite Heqes0 in H0.
-          move/lfilledP in H0; inversion H0; subst.
-          do 2 destruct vs => //.
-          all: do 2 destruct bef => //. }  *)
       all: try by do 2 destruct vs => //.
       + inversion Heqes0; subst.
         move/hfilledP in H2; inversion H2; subst.
@@ -850,17 +838,6 @@ Section control_rules.
         - inversion Heqes0 ; subst. 
           iFrame.  
         - iFrame. }
-(*        - inversion Heqes0 ; subst.
-          move/lfilledP in H1; inversion H1; subst.
-          repeat rewrite catA in H0.
-          remember (vs0 ++ vs)%SEQ as l.
-          do 2 destruct l => //.
-          do 2 destruct vs0 => //.
-          all: do 2 destruct bef => //. 
-        - rewrite Heqes0 in H0.
-          move/lfilledP in H0; inversion H0; subst.
-          do 2 destruct vs => //.
-          all: do 2 destruct bef => //. }  *)
       all: try by do 2 destruct vs => //.
       + inversion Heqes0; subst.
         move/hfilledP in H; inversion H; subst.
@@ -911,13 +888,10 @@ Section control_rules.
     eapply to_val_cat_inv in Hv1 as Hvv;[|apply Hv2].
     iApply ewp_seq.
     done.
-    (*    iApply (ewp_seq _ _ _ _ _ _ _ _ (λ v f', (⌜v = immV (v2 ++ v1)⌝ ∗ ⌜ f' = f ⌝))%I) => //.  *)
     iSplitR; last first.
-(*    iSplitR; first by iIntros "%H". *)
     iSplitR "HWP".
     - iApply ewp_val_app; first by apply Hv2.
       iSplit; last first.
-(*      iSplit; first by iIntros "!> %". *)
       iApply (ewp_label_value with "[]") => //=; first by erewrite app_nil_r; apply Hv1 .
       by instantiate (1 := λ v g, (⌜ v = immV (v2 ++ v1) ⌝ ∗ ⌜ g = f ⌝)%I).
       by iIntros "!>" (?) "[% _ ]".
