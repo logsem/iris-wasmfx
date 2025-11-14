@@ -72,11 +72,6 @@ Section CoroutinesModule.
   Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
-  Lemma tag_pointsto_persist n dq v:
-    n ↦[tag]{dq} v ==∗ n ↦□[tag] v.
-  Proof.
-    apply pointsto_persist.
-  Qed.
 
   Lemma instantiate_coroutines yield_exp_addr par_exp_addr mod_addr:
 
