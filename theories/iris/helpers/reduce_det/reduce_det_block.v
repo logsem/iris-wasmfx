@@ -17,7 +17,6 @@ Proof.
          list, thus we cannot use [ only_one ]. We perform the case analysis on Hred2
          by hand. Likewise for the following case (loop) *)
   remember (vs ++ [AI_basic (BI_block (Tf t1s t2s) es)])%SEQ as es0.
-  (* apply Logic.eq_sym in Heqes0. *)
   induction Hred.
   destruct H3.
   all: try by (try destruct ref); (try destruct v; try destruct v); rewrite separate1 in Heqes0; apply first_values in Heqes0 as (? & ? & ?); try rewrite /= H3.

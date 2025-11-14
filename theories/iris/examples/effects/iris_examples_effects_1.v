@@ -80,22 +80,6 @@ Section Example1.
     apply/b_e_type_checker_reflects_typing.
     done.
 
-    (* rewrite /main_body separate1.
-    eapply bet_composition' with (t2s := [T_ref cont_type]).
-    2: {
-      rewrite separate1.
-      eapply bet_composition' with (t2s := []).
-      apply/b_e_type_checker_reflects_typing.
-      done.
-      rewrite separate1.
-      eapply bet_composition' with (t2s := [T_num T_i32]).
-      apply/b_e_type_checker_reflects_typing.
-      done.
-      apply/b_e_type_checker_reflects_typing.
-      done.
-    }
-    apply/b_e_type_checker_reflects_typing.
-    done. *)
   Qed. 
 
   Definition inst :=
@@ -106,9 +90,9 @@ Section Example1.
       inst_globs := [];
       inst_tags := [0] |}.
 
-  Lemma spec_aux a f:
+  Lemma spec_aux a f q:
     N.of_nat a ↦[wf] FC_func_native inst aux_type [] aux_body ∗
-      0%N ↦□[tag] Tf [] []
+      0%N ↦[tag]{q} Tf [] []
       ⊢ EWP [AI_invoke a] UNDER f <| Ψaux |> {{ v ; f' , False }}.
   Proof.
     iIntros "(Ha & Htag)".
@@ -145,32 +129,27 @@ Section Example1.
     rewrite -(N2Nat.id 0).
     iApply ewp_suspend.
     done. done. instantiate (1 := []). instantiate (1 := []). done. done.
-    iFrame "Htag". 
-(*    iApply (ewp_suspend with "[$Htag]").
-    done. done. instantiate (1 := []). done. done. *)
-(*    iIntros "Htag". *)
+    iFrame "Htag".
 
     (* Perform suspend operation *)
-(*    iApply ewp_suspend. *)
     rewrite (upcl_tele' [tele ] [tele]).
     iSimpl.
+    iIntros "!> Htag".
+    iSplitR. done.
     iSplitL. done.
-    iSplitL. done.
-    iIntros "!> H".
+    iIntros "H".
     done.
-        
     iIntros (w ?) "%" => //.
-
   Qed.
 
 
 
   Lemma spec_main f a:
     N.of_nat a ↦[wf] FC_func_native inst main_type [] main_body
-      ∗  0%N ↦□[tag] Tf [] [] ∗ 0%N ↦[wf] FC_func_native inst aux_type [] aux_body
+      ∗  0%N ↦[tag] Tf [] [] ∗ 0%N ↦[wf] FC_func_native inst aux_type [] aux_body
       ⊢ EWP [AI_invoke a] UNDER f {{ w ; f' , ⌜ w = immV [VAL_num $ xx 1] ⌝ ∗  ⌜ f' = f ⌝ }}.
   Proof.
-    iIntros "(Ha & #Htag & Haux)".
+    iIntros "(Ha & Htag & Haux)".
     
     (* Make the invocation *)
     rewrite -(app_nil_l [_]).
@@ -257,7 +236,7 @@ Section Example1.
 
 
           rewrite -(app_nil_l [AI_ref_cont _;_]).
-          iApply (ewp_resume). (* with "[$Hcont Haux]"). *)
+          iApply (ewp_resume). 
           done. done. done. simpl. instantiate (1 := [_]). done.
           instantiate (1 := Ψaux).
           unfold agree_on_uncaptured.
@@ -268,11 +247,11 @@ Section Example1.
           destruct n => //=.
           2: iFrame "Hcont".
           unfold hfilled, hfill => //=.
-          (* erewrite eq_refl. done. *)
           iSplitR; last first.
           iSplitR; last first. 
-          (*            iSplitR; first by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
-          iSplitL; last iSplitR.
+
+          iDestruct "Htag" as "[Htag1 Htag2]".
+          iSplitR "Htag2"; last iSplitR.
 
           (* Resume instruction premise 1: ewp for the body *)      
           ++ rewrite - (N2Nat.id 0).
@@ -281,15 +260,15 @@ Section Example1.
               iIntros "!> !> Haux".
               (* apply the spec for aux *)
               iApply spec_aux.
-              iFrame. done.
+              iFrame.
 
           (* Resume instruction presime 2: what happens if the computation terminates *)
           ++ iIntros (w) "%" => //.
 
           (* Resume instruction premise 3: clause triples, i.e. what happens if an effect is triggered *)
           ++ Opaque upcl. iSimpl. iSplit; last done.
-              iFrame "Htag".
-              iIntros "!>" (vs k h) "Hcont HΨ".
+              iFrame "Htag2".
+              iIntros "!>" (vs k h) "Htag2 Hcont HΨ".
               (* we know that the triggered effect obeys the protocol *)
               rewrite (upcl_tele' [tele] [tele]).
               simpl.
@@ -297,7 +276,6 @@ Section Example1.
               subst.
               iSimpl.
               instantiate (1 := λ v, (∃ k h, ⌜ v = brV _ ⌝ ∗ N.of_nat k ↦[wcont] Live _ h)%I).
-(*               instantiate (1 := λ v, ⌜ v = brV _ ⌝%I). *)
               iApply ewp_value.
               done. 
 
@@ -324,7 +302,6 @@ Section Example1.
             iApply ewp_value.
             done.
             instantiate (1 := λ v f, (∃ k h, ⌜ v = immV _ ⌝ ∗ _)%I).
-(*            iSplitL; last by instantiate (1 := λ f, ⌜ f = Build_frame _ _ ⌝%I). *)
             iExists k, h.
             iSplit; first done.
             iExact "Hcont".

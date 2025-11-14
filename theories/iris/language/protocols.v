@@ -627,8 +627,6 @@ Section protocol_operators_properties.
       rewrite iProtPre_texist_eq iProtPre_base_eq /iProtPre_base_def.
       iDestruct "HP" as (x) "(<- & HP & HΦ)". iExists x. iFrame.
       iSplit; [done|].
-(*      iApply (bi.intuitionistically_if_mono with "[HΦ HQ']");[| 
-      by iApply bi.intuitionistically_if_sep_2; iFrame]. *)
       iIntros (y) "HQ".
       iApply "HQ'". iApply "HΦ".
       rewrite iProtPost_texist_eq iProtPost_base_eq /iProtPost_base_def.
@@ -638,8 +636,7 @@ Section protocol_operators_properties.
       rewrite iProtPre_texist_eq. iSplitL "HP".
       + iExists x. rewrite iProtPre_base_eq /iProtPre_base_def //=. iFrame.
         by simpl; auto.
-      + (* iApply (bi.intuitionistically_if_mono with "HQ"). *)
-        iIntros (w) "HQ'".
+      + iIntros (w) "HQ'".
         rewrite iProtPost_texist_eq iProtPost_base_eq.
         iDestruct "HQ'" as (y) "[<- HQ']". by iApply "HQ".
   Qed.

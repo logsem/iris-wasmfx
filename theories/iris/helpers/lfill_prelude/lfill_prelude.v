@@ -201,15 +201,11 @@ Lemma lfilled_trans : forall k lh es1 es2 k' lh' es3,
 Proof.
   intros k lh es1 es2 k' lh' ; generalize dependent es1 ;
     generalize dependent es2 ; 
-(*    generalize dependent lh ; generalize dependent k ; *)
-
     generalize dependent k';
     induction lh' as [bef' aft' | bef' nn' es' lh' IHlh' aft' | bef' hs' lh' IHlh' aft' | bef' ts' hs' lh' IHlh' aft'];
-    intros k' (* k lh *) es2 es1 es3 Hfill2 Hfill3.
+    intros k' es2 es1 es3 Hfill2 Hfill3.
   all: unfold lfilled, lfill in Hfill3; fold lfill in Hfill3.
   1, 2: destruct k' => //.
-(*  all: try (specialize (IHlh' k' (* es2 *))). *)
-(*  all: try unfold lfilled in IHlh'. *)
   all: destruct (const_list bef') eqn:Hbef' ; last done.
   all: try (destruct (lfill k' _ _) as [fill' |] eqn:Hfill'; last done).
   all: move/eqP in Hfill3.
@@ -219,11 +215,6 @@ Proof.
   all: try (destruct k; first done).
   all: try (destruct k; last done).
   all: destruct (const_list bef) eqn:Hbef; last done.
-(*  all: try (specialize (IHlh' k lh)). *)
-(*  all: try (specialize (IHlh' 0 (LH_base bef aft))). *)
-  (* ;
-            unfold lfill in IHlh'; fold lfill in IHlh';
-            rewrite Hbef in IHlh'). *)
   all: try (destruct (lfill k _ _) as [fill |] eqn:Hfill; last done).
   all: move/eqP in Hfill2 ; subst.
   all: try rewrite Nat.add_0_r.
@@ -1023,20 +1014,11 @@ Lemma vh_increase_push_const m (vh : valid_holed m) vs :
   vh_increase (vh_push_const vh vs) = vh_push_const (vh_increase vh) vs.
 Proof. destruct vh => //=. Qed.
 
-(* Lemma vh_increase_append m (vh : valid_holed m) vs :
-  vh_increase (vh_append vh vs) = vh_append (vh_increase vh) vs.
-Proof. destruct vh => //=. Qed. *)
 
 Lemma vh_increase_repeat_push_const m (vh : valid_holed m) vs j :
   vh_increase_repeat (vh_push_const vh vs) j = vh_push_const (vh_increase_repeat vh j) vs.
 Proof. induction j => //=. rewrite IHj. by rewrite vh_increase_push_const. Qed.
 
-(* Lemma vh_increase_repeat_append m (vh : valid_holed m) vs j :
-  vh_increase_repeat (vh_append vh vs) j = vh_append (vh_increase_repeat vh j) vs.
-Proof.
-  induction j => //=. rewrite IHj.
-  by rewrite vh_increase_append.
-Qed. *)
 
 Lemma S_plus m n : S (m + n) = m + S n.
 Proof. induction m => //=. by rewrite IHm. Defined.
@@ -1869,35 +1851,6 @@ Proof.
     all: done.
 Qed.
 
-(*
-Lemma hfilled_to_llfill x hh es LI :
-  hfilled x hh es LI ->
-  exists lh, llfill lh es = LI.
-
-Proof.
-  intros H. move/hfilledP in H.
-  generalize dependent LI. generalize dependent x.
-  induction hh; intros x LI H; inversion H; subst.
-  - apply const_es_exists in H5 as [vs ->].
-    exists (LL_base vs l0). simpl. done.
-  - apply IHhh in H9 as [lh <-].
-    apply const_es_exists in H8 as [vs ->].
-    exists (LL_label vs n l0 lh l1).
-    done.
-  - apply IHhh in H9 as [lh <-]. 
-    apply const_es_exists in H8 as [vs ->].
-    exists (LL_frame vs n f lh l0).
-    done.
-  - apply IHhh in H9 as [lh <-]. 
-    apply const_es_exists in H7 as [vs ->].
-    exists (LL_handler vs l0 lh l1).
-    done.
-  - apply IHhh in H10 as [lh <-]. 
-    apply const_es_exists in H8 as [vs ->].
-    exists (LL_prompt vs l0 l1 lh l2).
-    done.
-Qed.
-*)
 
 
 Lemma lfilled_br_and_reduce s f es LI s' f' es' i j lh vs k lh' :
@@ -2022,10 +1975,6 @@ Proof.
   - (* set_local *)
     rewrite_cats1_list.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
-(*
-  - (* set_global *)
-    rewrite_cats1_list.
-    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done. *)
   - (* label *)
     destruct (lfilled_trans H Hfill) as [lh' Hfill'].
     apply length_lfilled_rec' in H as [H | (-> & -> & ->)].
@@ -2146,9 +2095,6 @@ Proof.
     rewrite_cats1_list.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
 
-(*  - (* set_global *)
-        rewrite_cats1_list.
-    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done. *)
   - (* label *)
     destruct (lfilled_trans H Hfill) as [lh' Hfill'].
     apply length_lfilled_rec' in H as [H | (-> & -> & ->)].
@@ -2424,10 +2370,6 @@ Proof.
     specialize (llfill_first_values H1 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-(*  - (* set_global *)
-    rewrite_cats1_list.
-    specialize (llfill_first_values H1 Hfill) as [Habs _] => //=.
-    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & _ & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -2445,21 +2387,6 @@ Proof.
     unfold length_rec. lias.
 Qed.
 
-
-(* Lemma firstx_of_suselt i l :
-  firstx_continuation_suspend (map (continuation_clause_of_suselt i) l) i = None.
-Proof.
-  induction l => //=.
-  rewrite IHl.
-  destruct i.
-  destruct a => //=.
-  destruct (n0 <? n) eqn:Hn => //.
-  all: destruct (_ == _) eqn:Habs => //.
-  all: move/eqP in Habs.
-  all: inversion Habs; subst.
-  apply Nat.ltb_lt in Hn; lia.
-  apply Nat.ltb_ge in Hn; lia.
-Qed.  *)
 
 
 
@@ -2608,92 +2535,6 @@ Proof.
       do 2 rewrite length_app_rec in Hn.
       simpl in Hn. unfold length_rec. lia.
 Qed.
-(*
-
-Lemma prompt_in_susfill vs i sh LI lh ts hs es:
-  susfill i sh [AI_suspend_desugared vs i] = LI ->
-  llfill lh [AI_prompt ts hs es] = LI ->
-  firstx_continuation_suspend hs i = None.
-Proof.
-  intros.
-  assert (forall n, length_rec LI < n -> firstx_continuation_suspend hs i = None) as Hres.  
-  2:{ apply (Hres $ S $ length_rec LI). lia. }
-  intros n.
-  generalize dependent sh.
-  generalize dependent lh.
-  generalize dependent LI.
-  induction n; first by intros; lia.
-  intros LI lh Hll sh Hsus Hn.
-  induction sh.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (_ & ? & _) => //.
-    all: by apply v_to_e_is_const_list.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H5.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H5.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H4.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite - Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    + inversion H0.
-      apply firstx_of_suselt.
-    + inversion H0.
-      apply v_to_e_inj in H.
-      subst.
-      eapply IHn.
-      exact H5.
-      done.
-      rewrite separate1 in Hn.
-      do 2 rewrite length_app_rec in Hn.
-      simpl in Hn. unfold length_rec. lia.
-Qed. *)
 
 
 Lemma hfilled_suspend_and_reduce s f es LI s' f' es' vs i sh k lh:
@@ -2704,8 +2545,6 @@ Lemma hfilled_suspend_and_reduce s f es LI s' f' es' vs i sh k lh:
 Proof.
   intros Hred H1 Hes.
   apply lfilled_implies_llfill in Hes as (lh' & _ & Hlh').
-(*  specialize (susfill_to_hfilled i sh [AI_suspend_desugared vs i]) as Hh;
-    rewrite H1 in Hh; *)
   remember H1 as Hh; clear HeqHh.
   apply hfilled_to_llfill in Hh as [lh0 Hlh0].
   cut (forall n, length_rec es < n -> False).
@@ -2834,10 +2673,6 @@ Proof.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-(*  - (* set_global *)
-    rewrite_cats1_list.
-    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
-    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & _ & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -2868,109 +2703,6 @@ Proof.
 Qed. 
 
 
-(*
-Lemma firstx_of_swelt i l :
-  firstx_continuation_switch (map (continuation_clause_of_swelt i) l) i = false.
-Proof.
-  induction l => //=.
-  rewrite IHl.
-  destruct i.
-  destruct a => //=.
-  destruct (n0 <? n) eqn:Hn => //.
-  all: destruct (_ == _) eqn:Habs => //.
-  all: move/eqP in Habs.
-  all: inversion Habs; subst.
-  apply Nat.ltb_lt in Hn; lia.
-  apply Nat.ltb_ge in Hn; lia.
-Qed. *)
-
-
-(*
-Lemma prompt_in_swfill vs k tf i sh LI lh ts hs es:
-  swfill i sh [AI_switch_desugared vs k tf i] = LI ->
-  llfill lh [AI_prompt ts hs es] = LI ->
-  firstx_continuation_switch hs i = false.
-Proof.
-  intros.
-  assert (forall n, length_rec LI < n -> firstx_continuation_switch hs i = false) as Hres.  
-  2:{ apply (Hres $ S $ length_rec LI). lia. }
-  intros n.
-  generalize dependent sh.
-  generalize dependent lh.
-  generalize dependent LI.
-  induction n; first by intros; lia.
-  intros LI lh Hll sh Hsus Hn.
-  induction sh.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (_ & ? & _) => //.
-    all: try apply const_list_concat => //.
-    all: by apply v_to_e_is_const_list.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H5.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H5.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H4.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite - Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    + inversion H0.
-      apply firstx_of_swelt.
-    + inversion H0.
-      apply v_to_e_inj in H.
-      subst.
-      eapply IHn.
-      exact H5.
-      done.
-      rewrite separate1 in Hn.
-      do 2 rewrite length_app_rec in Hn.
-      simpl in Hn. unfold length_rec. lia.
-Qed.  *)
 
 Lemma llh_of_lh_empty k lh es LI:
   lfilled k lh es LI ->
@@ -3002,8 +2734,6 @@ Lemma hfilled_switch_and_reduce s f es LI s' f' es' vs k0 tf i sh k lh:
 Proof.
   intros Hred H1 Hes.
   apply lfilled_implies_llfill in Hes as (lh' & _ & Hlh').
-(*  specialize (swfill_to_hfilled i sh [AI_switch_desugared vs k0 tf i]) as Hh;
-    rewrite H1 in Hh; *)
   remember H1 as Hh; clear HeqHh;
     apply hfilled_to_llfill in Hh as [lh0 Hlh0].
   cut (forall n, length_rec es < n -> 
@@ -3116,16 +2846,6 @@ Proof.
       inversion Habs; subst. done. }
     erewrite prompt_in_hfilled_switch in H.
     done. exact H1. exact Hfill.
-(*  - rewrite separate1 -cat_app catA in Hfill.
-    specialize (llfill_first_values Hlh0 Hfill) as [??] => //.
-    apply const_list_concat => //.
-  - rewrite separate1 -cat_app catA in Hfill.
-    specialize (llfill_first_values Hlh0 Hfill) as [??] => //.
-    apply const_list_concat => //.
-    subst ves; apply v_to_e_is_const_list.
-  - rewrite_cats1_list.
-    specialize (llfill_first_values Hlh0 Hfill) as [??] => //.
-    rewrite /= const_const //.  *)
     
   - (* switch failure *)
     do 2 rewrite_cats1_list.
@@ -3153,10 +2873,6 @@ Proof.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-(*   - (* set_global *)
-    rewrite_cats1_list.
-    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=. 
-    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & Hlh & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -3180,7 +2896,6 @@ Proof.
     unfold length_rec in Hlab; simpl in Hlab.
     unfold length_rec. lias.
     repeat eexists.
-(*    instantiate (1 := tf1). *)
     instantiate (1 := LL_frame [] n f' sh0 []).
     simpl. simpl in Hsw. rewrite Hsw. done. done. 
     instantiate (1 := HH_local [] n f' hh0 []).
@@ -3205,22 +2920,7 @@ Proof.
   eapply hfilled_switch_and_reduce => //. 
 Qed. 
 
-(*
-Lemma firstx_of_exnelt i l :
-  firstx_exception (map (exception_clause_of_exnelt i) l) i = No_label.
-Proof.
-  induction l => //=.
-  rewrite IHl.
-  destruct i.
-  destruct a => //=.
-  all: destruct (n0 <? n) eqn:Hn => //.
-  all: destruct (_ == _) eqn:Habs => //.
-  all: move/eqP in Habs.
-  all: inversion Habs; subst.
-  all: try by apply Nat.ltb_lt in Hn; lia.
-  all: apply Nat.ltb_ge in Hn; lia.
-Qed.
-*)
+
 
 Lemma handler_in_hfilled vs a i sh LI lh hs es:
   hfilled (Var_handler i) sh [AI_throw_ref_desugared vs a i] LI ->
@@ -3293,93 +2993,7 @@ Proof.
     do 2 rewrite length_app_rec in Hn.
     simpl in Hn. unfold length_rec. lia.
 Qed.
-(*
-Lemma handler_in_exnfill vs a i sh LI lh hs es:
-  exnfill i sh [AI_throw_ref_desugared vs a i] = LI ->
-  llfill lh [AI_handler hs es] = LI ->
-  firstx_exception hs i = No_label.
-Proof.
-  intros.
-  assert (forall n, length_rec LI < n -> firstx_exception hs i = No_label) as Hres.  
-  2:{ apply (Hres $ S $ length_rec LI). lia. }
-  intros n.
-  generalize dependent sh.
-  generalize dependent lh.
-  generalize dependent LI.
-  induction n; first by intros; lia.
-  intros LI lh Hll sh Hsus Hn.
-  induction sh.
-  - simpl in Hsus.
 
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (_ & ? & _) => //.
-    all: try apply const_list_concat => //.
-    all: by apply v_to_e_is_const_list.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H5.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H5.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite -Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-    + inversion H0.
-      apply firstx_of_exnelt.
-    + inversion H0.
-    apply v_to_e_inj in H.
-    subst.
-    eapply IHn.
-    exact H4.
-    done.
-    rewrite separate1 in Hn.
-    do 2 rewrite length_app_rec in Hn.
-    simpl in Hn. unfold length_rec. lia.
-  - simpl in Hsus.
-    destruct lh.
-    all: simpl in Hll.
-    all: rewrite - Hsus in Hll.
-    all: apply first_values in Hll as (? & ? & ?) => //.
-    all: try by apply v_to_e_is_const_list.
-     inversion H0.
-      apply v_to_e_inj in H.
-      subst.
-      eapply IHn.
-      exact H5.
-      done.
-      rewrite separate1 in Hn.
-      do 2 rewrite length_app_rec in Hn.
-      simpl in Hn. unfold length_rec. lia.
-Qed.  *)
 
 
 Lemma hfilled_throw_ref_and_reduce s f es LI s' f' es' vs a i sh k lh:
@@ -3390,8 +3004,6 @@ Lemma hfilled_throw_ref_and_reduce s f es LI s' f' es' vs a i sh k lh:
 Proof.
   intros Hred H1 Hes.
   apply lfilled_implies_llfill in Hes as (lh' & _ & Hlh').
-(*  specialize (exnfill_to_hfilled i sh [AI_throw_ref_desugared vs a i]) as Hh;
-    rewrite H1 in Hh; *)
   remember H1 as H1'; clear HeqH1'.
   apply hfilled_to_llfill in H1' as [lh0 Hlh0]. 
   cut (forall n, length_rec es < n -> False).
@@ -3522,10 +3134,6 @@ Proof.
     specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
     repeat rewrite const_const. done.
 
-(*  - (* set_global *)
-    rewrite_cats1_list.
-    specialize (llfill_first_values Hlh0 Hfill) as [Habs _] => //=.
-    repeat rewrite const_const. done. *)
   - (* label *)
     apply lfilled_implies_llfill in H as (lh00 & _ & H).
     destruct (llfill_trans H Hfill) as [lh' Hfill'].
@@ -3670,9 +3278,6 @@ Proof.
     rewrite_cats1_list.
     specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done.
 
-(*  - (* set_global *)
-        rewrite_cats1_list.
-    specialize (lfilled_first_values H1 Hfill) as [Habs _] => //=. repeat rewrite const_const. done. *)
   - (* label *)
     destruct (lfilled_trans H Hfill) as [lh' Hfill'].
     apply length_lfilled_rec' in H as [H | (-> & -> & ->)].

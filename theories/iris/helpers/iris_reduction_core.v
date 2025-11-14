@@ -80,7 +80,6 @@ Section reduction_core.
     11: destruct ref.
     33: destruct v => //; first destruct b => //. 
     all: try lazymatch goal with
-             (*    | _ : [_;_] = _ |- _ =>  *)
              | _ : _ = _ ++ [_;_] ++ _ |- _ =>
                left; subst; rewrite separate1 in Heq;
                do 3 rewrite app_assoc in Heq;
@@ -102,7 +101,6 @@ Section reduction_core.
                try rewrite -app_assoc //
            end .
      all: try lazymatch goal with
-              (*   | _ : [_;_;_] = _ |- _ =>  *)
               | _ : _ = _ ++ [_;_;_] ++ _ |- _ =>
                left; subst; rewrite separate1 in Heq;
                do 3 rewrite app_assoc in Heq;
@@ -131,7 +129,6 @@ Section reduction_core.
             end .
 
      all: try lazymatch goal with
-              (*            | _ : [_;_;_;_] = _ |- _ =>  *)
               | _ : _ = _ ++ [_;_;_;_] ++ _ |- _ =>
                left; subst; rewrite separate1 in Heq;
                do 3 rewrite app_assoc in Heq;
@@ -975,12 +972,10 @@ Section reduction_core.
           | _ : reduce _ _ (_ :: _) _ _ _ |- _ =>
               rewrite separate1 in Hred0
           end.
-(*     all: destruct f, f0. *)
      all: edestruct prim_step_split_reduce_r as [Hres | Hres].
      all: try by unfold prim_step; 
        simpl; repeat split.
      all: try done.
-(*     76, 85: by destruct v2; try destruct v. *)
      51, 58: by destruct v2; try destruct v. 
      all: try by destruct Hres as (? & ? & ? & _ & Habs & _);
        move/lfilledP in Habs; inversion Habs; subst;

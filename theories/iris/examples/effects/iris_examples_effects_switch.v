@@ -181,32 +181,33 @@ Section Example_Switch.
     by iApply ewp_frame_value.
   Qed.
 
-  Definition fg_prot : iProt Σ :=
-    ( ! ( []) {{ True%I }} ; ? ( []) {{ False }})%iprot.
+  Definition fg_prot tag q: iProt Σ :=
+    ( ! ( []) {{ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
+
 
   Definition Ξ hh := (∀ k f Ψ, ∃ LI,
     ⌜hfilled No_var hh [AI_ref_cont k] LI⌝ ∗
     EWP LI UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }})%I.
 
-  Definition Ψ (addr_tag : nat) : meta_protocol :=
+  Definition Ψ (addr_tag : nat) q : meta_protocol :=
     (bot_suspend,
     λ t, match t with
           | (Mk_tagidx addr) =>
               if Nat.eqb addr addr_tag then
-                (fg_prot, Ξ)
+              (fg_prot addr_tag q, Ξ)
               else
                 (iProt_bottom, λ hh, False%I)
           end,
     bot_throw).
 
 
-  Lemma f_spec : ∀ (addrg addrf addrmain tag: nat) f Φ,
+  Lemma f_spec : ∀ (addrg addrf addrmain tag: nat) q f Φ,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
-    (N.of_nat tag) ↦□[tag] swap_tag_type -∗
-    EWP [AI_invoke addrf] UNDER f <| Ψ tag |> {{ Φ }}.
+    (N.of_nat tag) ↦[tag]{q} swap_tag_type -∗
+    EWP [AI_invoke addrf] UNDER f <| Ψ tag q |> {{ Φ }}.
   Proof.
-    iIntros (??????) "Hwf_g Hwf_f #Htag".
+    iIntros (???????) "Hwf_g Hwf_f Htag".
 
     (* Reason about invocation of f function *)
     rewrite <- (app_nil_l [AI_invoke _]).
@@ -215,7 +216,7 @@ Section Example_Switch.
     (* Reason about f_body in a frame *)
     iIntros "!> Hwf_f"; simpl.
     iApply ewp_frame_bind => //.
-    iSplitR; last iSplitL "Hwf_g".
+    iSplitR; last iSplitL "Hwf_g Htag".
 
     2: {
       unfold f_body.
@@ -253,7 +254,7 @@ Section Example_Switch.
       rewrite separate2.
       iApply ewp_seq; first done.
       simpl.
-      iSplitR; last iSplitL "Hwcont_g Hwf_g".
+      iSplitR; last iSplitL "Hwcont_g Hwf_g Htag".
       2: {
         rewrite <- (app_nil_l [AI_ref_cont _; _]).
         iApply ewp_switch.
@@ -265,8 +266,8 @@ Section Example_Switch.
         3: by instantiate (1 := []).
         2: by instantiate (1 := []).
         done.
-        iFrame "#".
         iFrame "Hwcont_g".
+        iFrame.
         iSplitL.
         -
           unfold get_switch2, get_switch; simpl.
@@ -289,8 +290,8 @@ Section Example_Switch.
           move /lfilledP in HLI.
           inversion HLI; subst; simpl.
           by iApply g_spec.
-        - iIntros "!>".
-          eassert (upcl ((get_switch1 (Mk_tagidx tag) (Ψ tag))) = _ ).
+        - iIntros "!> Htag".
+          eassert (upcl ((get_switch1 (Mk_tagidx tag) (Ψ tag q))) = _ ).
           {
             unfold get_switch1, get_switch.
             simpl.
@@ -301,7 +302,8 @@ Section Example_Switch.
           rewrite (upcl_tele' [tele] [tele]).
           simpl.
           instantiate (1 := (λ v f , False)%I).
-          by repeat iSplitR.
+          iFrame.
+          done.
       }
       by iIntros.
       instantiate (1 := (λ v f , False)%I).
@@ -316,17 +318,17 @@ Section Example_Switch.
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
     (N.of_nat addrf) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) f_type [] f_body -∗
     (N.of_nat addrmain) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) main_type [] main_body -∗
-    (N.of_nat tag) ↦□[tag] swap_tag_type -∗
-    EWP [AI_invoke addrmain] UNDER f <| Ψ tag |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }}.
+    (N.of_nat tag) ↦[tag] swap_tag_type -∗
+    EWP [AI_invoke addrmain] UNDER f <| Ψ tag (DfracOwn (1 / 2)) |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝}}.
   Proof.
-    iIntros (?????) "Hwf_g Hwf_f Hwf_main #Htag".
+    iIntros (?????) "Hwf_g Hwf_f Hwf_main Htag".
     rewrite <- (app_nil_l [AI_invoke _]).
     iApply (ewp_invoke_native with "Hwf_main"); try done.
 
     (* Reason about f_body in a frame *)
     iIntros "!> Hwf_main"; simpl.
     iApply ewp_frame_bind => //.
-    iSplitR; last iSplitL "Hwf_g Hwf_f".
+    iSplitR; last iSplitL "Hwf_g Hwf_f Htag".
 
     2: {
       unfold main_body.
@@ -369,23 +371,22 @@ Section Example_Switch.
         2: iFrame "Hwcont_f".
         simpl.
         by unfold hfilled, hfill; simpl.
-        iSplitR; last iSplitR; last iSplitL.
+        iDestruct "Htag" as "[Htag1 Htag2]".
+        iSplitR; last iSplitR; last iSplitR "Htag2".
         3: {
           iNext.
-          iApply (ewp_call_reference with "[Hwf_f] [-]"); try done.
-          done.
+          iApply (ewp_call_reference with "Hwf_f [-]"); try done.
           iIntros "!> Hwf_f".
-          iApply (f_spec with "[Hwf_g] [Hwf_f]").
-          done.
-          done.
-          done.
+          iApply (f_spec with "Hwf_g Hwf_f Htag1").
         }
         3 :{
-          iSplitL; last first.
+          iSplitR; last first.
           - iNext.
             Opaque upcl.
             iSplitL; last done.
-            iFrame "Htag".
+            unfold clause_triple.
+            iFrame "Htag2".
+            (* TODO: Should be able to get tag back here *)
             iIntros "!>" (vs k' h' cont t1s tf') "HΞ Htf' Hcont HΨ".
             unfold get_switch1, get_switch; simpl.
             rewrite Nat.eqb_refl.
@@ -393,17 +394,20 @@ Section Example_Switch.
             rewrite Nat.eqb_refl.
             rewrite (upcl_tele' [tele] [tele]).
             simpl.
-            iDestruct "HΨ" as "(-> & _)"; simpl.
-            iDestruct ("HΞ" $! k' empty_frame (Ψ tag)) as "(%LI & %Hfill & H)".
+            iDestruct "HΨ" as "(-> & Htag1 & _)"; simpl.
+            iDestruct ("HΞ" $! k' empty_frame (Ψ tag (DfracOwn (1 / 2)))) as "(%LI & %Hfill & H)".
             iExists _.
             iFrame "%".
+            (* TODO: we lose part of the tag here *)
+            instantiate (1 := λ v f, (_ ∗ _ ∗ (N.of_nat tag) ↦[tag]{_} swap_tag_type)%I).
+            iFrame.
             iApply "H".
-          - iIntros "!>" (? [-> _]).
+          - iIntros "!>" (?) "(-> & _ & Htag)".
             simpl.
             instantiate (1 := (λ v, ⌜v = (immV [VAL_num $ xx 42])⌝%I)).
             by iApply ewp_prompt_value.
         }
-        by iIntros (? [Hcontra _]).
+        by iIntros (?) "[%Hcontra _]".
         done.
       }
       by iIntros (? [Hcontra _]).

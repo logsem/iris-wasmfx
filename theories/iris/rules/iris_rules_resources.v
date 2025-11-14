@@ -264,8 +264,6 @@ Proof.
   - iIntros "!>" (es ?? HStep) "!>".
     destruct HStep as [H _].
     only_one_reduction H. 
-(*    rewrite to_val_AI_const.
-    iFrame. *)
 Qed.
 
 Lemma ewp_set_global (E : coPset) (v: value_num) (f: frame) (n: nat) Ψ (Φ: val0 -> frame -> iProp Σ) (g: global) (k: nat):
@@ -320,8 +318,6 @@ Proof.
     rewrite -fmap_insert_set_nth//.
     rewrite -gmap_of_list_insert;[|by rewrite Nat2N.id].
     rewrite Nat2N.id. by iFrame.
-(*    rewrite separate1 -cat_app first_instr_const // in Hstart.
-    rewrite /= const_const //. *)
 Qed.
 
 (* Auxiliary lemmas for load/store *)
@@ -777,7 +773,6 @@ Proof.
   destruct o ; inversion Hm0.
   simpl.
   assert (m1 = mem_data m0) ; first by rewrite - H5.
-  (*    simpl in Hfl. *)
   cut (forall i dat datf n,
           i <= length bs ->
           length (ml_data dat) = N.to_nat (length_mem m) ->
@@ -1200,7 +1195,6 @@ Proof.
   unfold load, read_bytes, fold_lefti.
   unfold load, read_bytes in Hload.
   rewrite N.add_assoc in Hload.
-  (* rewrite - Hlen. *)
   destruct (_ <=? _)%N eqn:Hklen ; try by inversion Hload.
   destruct (k + (off + N.of_nat (len)) <=? length_mem m)%N eqn:Hklen'.
   2: { apply N.leb_le in Hklen. apply N.leb_nle in Hklen'. lia. }
@@ -1878,7 +1872,7 @@ Proof.
 
     destruct HStep as [H _].
     eapply reduce_det in H as [-> [ H | [ [? Hfirst] | (?&?&?&Hfirst & Hfirst2 &
-                                                                  Hfirst3 & Hσ)(* ] *)]] ];
+                                                                  Hfirst3 & Hσ)]] ];
       last (destruct f0; eapply r_load_packed_success => //= ; unfold smem_ind ; by rewrite Hinstmem) ; 
       try by     unfold first_instr in Hfirst ; simpl in Hfirst ; inversion Hfirst.
     destruct H as [<- <-]. destruct f0; iFrame. 
@@ -2526,7 +2520,6 @@ Proof.
     destruct HStep as [H _].
     remember [AI_basic (BI_const (VAL_int32 c)) ; AI_basic BI_grow_memory] as es0.
     remember {| f_locs := f_locs f ; f_inst := f_inst f |} as f0.
-(*    remember {| f_locs := locs2 ; f_inst := inst2 |} as f'. *)
     replace [AI_basic (BI_const (VAL_int32 c)) ; AI_basic BI_grow_memory] with
       ([AI_basic (BI_const (VAL_int32 c))] ++ [AI_basic BI_grow_memory]) in Heqes0 => //=.
     induction H ; try by inversion Heqes0 ;
@@ -2545,7 +2538,6 @@ Proof.
       inversion Heqes0 ; subst c0; clear Heqes0.
       unfold smem_ind in H.
       subst.
-(*      destruct f; rewrite Heqf0 in Heqf'; inversion Heqf'; subst; simpl in *. *)
       destruct (inst_memory (f_inst f)) ; try by inversion Hfm.
       simpl in Hfm.
       inversion Hfm ; subst m1 ; clear Hfm.

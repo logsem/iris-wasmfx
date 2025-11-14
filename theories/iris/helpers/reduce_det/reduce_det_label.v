@@ -69,7 +69,7 @@ Proof.
              lia. }
            destruct (IHnnn _ _ _ _ _ _ H2 H3 H5) as (-> &  [[Hes ->] | [[i Hstart] |
                                                         (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->)
-                                                        (*] *)]]).
+                                                        ]]).
            ++ repeat split => //. left. subst.
               rewrite /= catA Hes cat_app -Hes2y //. 
            ++ repeat split => //. right ; left.
@@ -214,7 +214,7 @@ Proof.
               assert (lfilled 1 (LH_rec [] n es'0 (LH_base [] []) []) LI [AI_label n es'0 LI]).
               { unfold lfilled, lfill => //=. by rewrite app_nil_r. }
               destruct (IHnnn _ _ _ _ _ _ H7 H8 H9)
-                as (-> &  [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->) (* ] *)]]).
+                as (-> &  [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->) ]]).
               ** repeat split => //. left. by subst.
               ** repeat split => //. right ; left. exists (i + 1).
                  eapply starts_with_lfilled => //=.
@@ -417,7 +417,7 @@ Proof.
               assert (lfilled 0 (LH_handler [] hs (LH_base [] []) []) LI [AI_handler hs LI]).
               { unfold lfilled, lfill => //=. by rewrite app_nil_r. }
               destruct (IHnnn _ _ _ _ _ _ H7 H8 H9)
-                as (-> & [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3& ->) (* ] *)]]).
+                as (-> & [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3& ->) ]]).
               ** repeat split => //. left. by subst.
               ** repeat split => //. right ; left. exists (i + 0).
                  eapply starts_with_lfilled => //=.
@@ -621,7 +621,7 @@ Proof.
               assert (lfilled 0 (LH_prompt [] ts hs (LH_base [] []) []) LI [AI_prompt ts hs LI]).
               { unfold lfilled, lfill => //=. by rewrite app_nil_r. }
               destruct (IHnnn _ _ _ _ _ _ H7 H8 H9)
-                as (-> & [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->) (* ] *)]]).
+                as (-> & [ [Hes ->] | [ [i Hstart] | (i1 & i2 & i3 & Hstart1 & Hstart2 & Hstart3 & ->) ]]).
               ** repeat split => //. left. by subst.
               ** repeat split => //. right ; left. exists (i + 0).
                  eapply starts_with_lfilled => //=.

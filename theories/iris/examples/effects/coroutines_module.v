@@ -72,15 +72,16 @@ Section CoroutinesModule.
   Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
-  Lemma instantiate_coroutines yield_exp_addr par_exp_addr mod_addr: 
-    
-    ⊢ {{{{ 
+
+  Lemma instantiate_coroutines yield_exp_addr par_exp_addr mod_addr:
+
+    ⊢ {{{{
               mod_addr ↪[mods] coroutines_module ∗
                 (∃ exp1, yield_exp_addr ↪[vis] exp1) ∗
                 (∃ exp2, par_exp_addr ↪[vis] exp2)
       }}}}
       ((coroutines_module_instantiate yield_exp_addr par_exp_addr mod_addr,
-         [], empty_frame) : host_expr) 
+         [], empty_frame) : host_expr)
         {{{{  x,  ⌜x = (immHV [], empty_frame)⌝ ∗
                           mod_addr ↪[mods] coroutines_module ∗
                           ∃ addr_yield addr_par name_yield name_par cl_yield cl_par,
@@ -93,37 +94,38 @@ Section CoroutinesModule.
                               N.of_nat addr_yield ↦[wf] cl_yield ∗
                               N.of_nat addr_par ↦[wf] cl_par ∗
                               yield_par_spec addr_yield addr_par cl_yield cl_par
-                         
         }}}} .
   Proof.
     iIntros "!>" (Φ) "(Hmod & Hvis1 & Hvis2) HΦ".
     iApply (weakestpre.wp_wand _ _ (_ : host_expr) with "[- HΦ]").
-    iApply (instantiation_spec_operational_no_start with "[$Hmod Hvis1 Hvis2]") => //.
-    - apply coroutines_module_typing. 
-    - unfold module_restrictions. cbn. repeat split;exists [];auto. 
-    - iFrame. 
-      iSplitR.
-      instantiate (1:=[]).
-      unfold import_resources_host.
-      simpl. done.
-      repeat instantiate (1:=∅).
-      iSplitR; last by simpl.
-      rewrite /instantiation_resources_pre_wasm /import_resources_wasm_typecheck
-        /import_func_wasm_check /import_tab_wasm_check /import_glob_wasm_check
-        /import_mem_wasm_check /import_tag_wasm_check.
-      repeat iSplit.
-      all: try by iApply big_sepM_empty.
-      all: iPureIntro.
-      all: try done.
-      all: try constructor.
-    - iIntros (v) "(-> & H)".
-      iApply "HΦ".
-      iSplit; first done.
+    {
+      iApply (weakestpre.wp_fupd _ _ (_ : host_expr)).
+      iApply (weakestpre.wp_wand _ _ (_ : host_expr) with "[Hmod Hvis1 Hvis2]").
+      {
+        iApply (instantiation_spec_operational_no_start with "[$Hmod Hvis1 Hvis2]") => //.
+        - apply coroutines_module_typing.
+        - unfold module_restrictions. cbn. repeat split;exists [];auto.
+        - iFrame.
+          iSplitR.
+          instantiate (1:=[]).
+          unfold import_resources_host.
+          simpl. done.
+          repeat instantiate (1:=∅).
+          iSplitR; last by simpl.
+          rewrite /instantiation_resources_pre_wasm /import_resources_wasm_typecheck
+          /import_func_wasm_check /import_tab_wasm_check /import_glob_wasm_check
+          /import_mem_wasm_check /import_tag_wasm_check.
+          repeat iSplit.
+          all: try by iApply big_sepM_empty.
+          all: iPureIntro.
+          all: try done.
+          all: try constructor.
+      }
+      iIntros (v) "(-> & H)".
       unfold instantiation_resources_post.
       iDestruct "H" as "(Hmod & Himports & %inst & Hresources & Hexports)".
       iDestruct "Hexports" as "([%name1 Hexp1] & [%name2 Hexp2] & _)".
       simpl.
-      iFrame.
       unfold instantiation_resources_post_wasm.
       iDestruct "Hresources" as (g_inits tab_allocs mem_allocs glob_allocs tag_allocs wts' wms') "(Himport_typecheck & %Hprefixes & -> & -> & %Helembound & -> & -> & %Hdatabound & %Hinit & -> & -> & Hresources)".
       unfold module_inst_resources_wasm.
@@ -146,21 +148,47 @@ Section CoroutinesModule.
       destruct inst_funcs; last done.
       iClear "Hfuncs".
       destruct inst_tags; first done.
-      iDestruct "Htags" as "[#Htag Htags]".
-      destruct inst_tags; last done.
-      iClear "Htags".
-      simpl.
+      iDestruct "Htags" as "[Htag Htags]".
+      iPoseProof (pointsto_persist with "Htag") as ">Htag".
+      iModIntro.
+ 
       simpl in Hprefixes.
       destruct Hprefixes as [-> Hprefixes].
+      destruct inst_tags; last done.
 
+      simpl.
+      instantiate (1 := λ v, (
+      ∃ _ _ _ _ _ _,
+      ⌜v = (_, _)⌝ ∗
+      _↪[mods]coroutines_module ∗
+      import_resources_host _ _ ∗
+      import_resources_wasm_typecheck _ _ _ _ _ _ _ ∗
+      N.of_nat _↦[wf]_ ∗
+      N.of_nat _↦[wf]_ ∗
+      _↪[vis]_ ∗
+      _↪[vis]_ ∗
+      N.of_nat _↦□[tag]emptyt)%I
+      ); iFrame. auto.
+    }
+    - simpl. iIntros (v) "(%yield_name & %par & %yield & %par_name & %tags & %tag & -> & Hmod & Himports & Himport_typecheck & Hpar & Hyield & Hparvis & Hyieldvis & Htag)".
+      iApply "HΦ".
       iFrame.
-      iSplit; first done.
-      iSplit; first done.
+      rewrite /get_import_func_count /get_import_table_count /get_import_mem_count
+        /get_import_global_count /get_import_tag_count /= /drop
+        /module_inst_resources_func /module_inst_resources_tab /module_inst_resources_mem
+        /module_inst_resources_glob /module_inst_resources_tag
+      .
+      simpl.
+
+      repeat (iSplit; try done).
       iApply yield_par_spec_proof.
+      unfold closure_yield, coroutine_inst.
       done.
       done.
-      iFrame "Htag".
-  Qed. 
+      done.
+      Unshelve.
+      done.
+  Qed.
     
     
 End CoroutinesModule.

@@ -18,13 +18,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-(*
-Class natG Σ := NAtG {
-                    nat_genG :: ghost_mapG Σ unit nat
-                  } .
-Notation "γ ○↪ v" := (ghost_map_elem γ tt (DfracOwn 1) v%V) (at level 20).
-Notation "γ ●↪ v" := (ghost_map_auth γ 1 (<[ tt := (v : nat) ]> ∅)) (at level 20).
- *)
+
 Definition one_shotR := csumR (exclR unitO) (agreeR unitO).
 Definition Pending : one_shotR := Cinl (Excl ()).
 Definition Shot : one_shotR := Cinr (to_agree ()).
@@ -416,7 +410,7 @@ Section coroutines_client_module.
       ];
       mod_elem := [] ;
       mod_data := [] ;
-      mod_start := None; (* Some {| modstart_func := Mk_funcidx 4 |} ;  *)
+      mod_start := None; 
       mod_imports := [
         {| imp_module := String.list_byte_of_string "coroutines module";
           imp_name := String.list_byte_of_string "yield function";
@@ -425,37 +419,19 @@ Section coroutines_client_module.
         {| imp_module := String.list_byte_of_string "coroutines module";
           imp_name := String.list_byte_of_string "par function";
           imp_desc := ID_func 1
-        |}(* ;
-        {| imp_module := String.list_byte_of_string "host";
-          imp_name := String.list_byte_of_string "a";
-          imp_desc := ID_global {| tg_mut := MUT_mut ; tg_t := T_i32 |}
-        |};
-        {| imp_module := String.list_byte_of_string "host";
-          imp_name := String.list_byte_of_string "b";
-          imp_desc := ID_global {| tg_mut := MUT_mut ; tg_t := T_i32 |}
-        |} *)
-
+        |}
       ];
       mod_exports := [
         {| modexp_name := String.list_byte_of_string "main";
           modexp_desc := MED_func (Mk_funcidx 4) |}
-(*        {| modexp_name := String.list_byte_of_string "a";
-          modexp_desc := MED_global (Mk_globalidx 0)
-        |} ;
-        {| modexp_name := String.list_byte_of_string "b";
-          modexp_desc := MED_global (Mk_globalidx 1)
-        |} *)
       ];
       mod_tags := []
     |}.
 
-  Definition impts := [ET_func emptyt ; ET_func par_type (* ;
-                       ET_glob {| tg_mut := MUT_mut ; tg_t := T_i32 |};
-                       ET_glob {| tg_mut := MUT_mut ; tg_t := T_i32 |} *)
+  Definition impts := [ET_func emptyt ; ET_func par_type 
     ].
 
-  Definition expts : list extern_t := [ET_func (Tf [] [T_num T_i32; T_num T_i32])] (* ET_glob {| tg_mut := MUT_mut ; tg_t := T_i32 |};
-                       ET_glob {| tg_mut := MUT_mut ; tg_t := T_i32 |}] *) .
+  Definition expts : list extern_t := [ET_func (Tf [] [T_num T_i32; T_num T_i32])].
 
   Lemma client_module_typing :
     module_typing client_module impts expts.
@@ -479,60 +455,31 @@ Section coroutines_client_module.
       all: cbn; try by apply/andP; split => //.
       all: by apply/eqglobal_typeP.
     - repeat constructor => //=.
-(*      unfold module_export_typing.
-      simpl. by apply/eqP.
-      unfold module_export_typing.
-      simpl. by apply/eqP. *)
   Qed.
 
 
-  Definition client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr (* a_exp_addr b_exp_addr *) mod_addr mod_addr' (* ga gb *) :=
+  Definition client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr mod_addr mod_addr' :=
     [ ID_instantiate [ yield_exp_addr ; par_exp_addr ] mod_addr [] ;
-      ID_instantiate [ main_exp_addr (* a_exp_addr ; b_exp_addr *) ] mod_addr' [ yield_exp_addr ; par_exp_addr (* ; a_exp_addr; b_exp_addr *) ];
+      ID_instantiate [ main_exp_addr ] mod_addr' [ yield_exp_addr ; par_exp_addr ];
       H_invoke main_exp_addr []
-(*      H_get_global ga;
-      H_get_global gb *)
     ].
 
   Notation "{{{{ P }}}} es {{{{ v , Q }}}}" :=
     (□ ∀ Φ, P -∗ (∀ v, Q -∗ Φ v) -∗ WP (es : host_expr) @ NotStuck ; ⊤ {{ v, Φ v }})%I (at level 50).
 
-  Lemma instantiate_client yield_exp_addr par_exp_addr main_exp_addr (* a_exp_addr b_exp_addr *) mod_addr mod_addr' (* ga gb vala valb *): 
-(*    typeof_num vala = T_i32 ->
-    typeof_num valb = T_i32 -> *) 
+  Lemma instantiate_client yield_exp_addr par_exp_addr main_exp_addr mod_addr mod_addr': 
     ⊢ {{{{ 
               mod_addr ↪[mods] coroutines_module ∗
                 mod_addr' ↪[mods] client_module ∗
                 (∃ exp1, yield_exp_addr ↪[vis] exp1) ∗
                 (∃ exp2, par_exp_addr ↪[vis] exp2) ∗
                 (∃ exp3, main_exp_addr ↪[vis] exp3) 
-        (*        (∃ namea, a_exp_addr ↪[vis]  {| modexp_name := namea;
-                                               modexp_desc := MED_global (Mk_globalidx ga) |}) ∗
-                (∃ nameb, b_exp_addr ↪[vis]  {| modexp_name := nameb;
-                                               modexp_desc := MED_global (Mk_globalidx gb) |}) ∗
-                (N.of_nat ga ↦[wg] {| g_mut := MUT_mut ; g_val := vala |}) ∗
-                (N.of_nat gb ↦[wg] {| g_mut := MUT_mut ; g_val := valb |})  *)
        
       }}}}
-      ((client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr (* a_exp_addr b_exp_addr *) mod_addr mod_addr' (* ga gb *),
+      ((client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr mod_addr mod_addr',
          [], empty_frame) : host_expr)
       {{{{ x, ⌜ exists a b, x = (immHV [VAL_num (xx a); VAL_num (xx b)], empty_frame) /\ (a = 1 -> b = 42) ⌝ }}}}.
-      (* old postcond: *)
-(*        {{{{  x,  ⌜x = (immHV [], empty_frame)⌝ ∗
-                         mod_addr ↪[mods] coroutines_module ∗
-                         mod_addr' ↪[mods] client_module ∗
-                         ∃ addra addrb vala valb namea nameb,
-                           a_exp_addr ↪[vis] {| modexp_name := namea;
-                                               modexp_desc := MED_global (Mk_globalidx addra) |} ∗
-                             b_exp_addr ↪[vis] {| modexp_name := nameb;
-                                                 modexp_desc := MED_global (Mk_globalidx addrb) |} ∗
-
-                           wgpt addra vala ∗
-                             wgpt addrb valb ∗
-                             ⌜ vala = 1 -> valb = 1 ⌝
-        }}}} . *)
   Proof.
-(*    intros Hvala Hvalb. *)
     iIntros "!>" (Φ) "(Hmod1 & Hmod2 & Hexp1 & Hexp2 & Hexp3) HΦ".
 
     (* instantiate coroutines module *) 
@@ -550,11 +497,9 @@ Section coroutines_client_module.
     by iIntros (?) "[% _]".
     iIntros (w f) "(%Heq & %addr_yield & %addr_par & %name_yield & %name_par & %cl_yield & %cl_par & Hexp1 & Hexp2 & %Htypeyield & %Htypepar & Hwfyield & Hwfpar & #Hspecs) Hmod1".
     iDestruct (pointsto_ne with "Hwfyield Hwfpar") as %Hne.
-(*    iDestruct (pointsto_ne with "Hga Hgb") as %Hne'. *)
     inversion Heq; subst. clear Heq.
 
     (* instantiate client module *)
-(*    iApply (weakestpre.wp_wand _ _ (_ : host_expr) with "[- HΦ]"). *)
     iApply (wp_seq_host_nostart with "[] Hmod2 [Hexp1 Hexp2 Hexp3 Hwfyield Hwfpar]").
     done. done.
     2:{
@@ -582,7 +527,6 @@ Section coroutines_client_module.
     by unfold module_data_bound_check_gmap.
     unfold import_resources_wasm_typecheck.
     iSplitL; last first.
-(*    iSplitR "Hga Hgb"; last first. *)
     iSplitR.
     instantiate (1 := ∅).
     unfold import_tab_wasm_check.
@@ -599,30 +543,15 @@ Section coroutines_client_module.
     split; last done.
     by repeat constructor.
     iSplitL.
-    instantiate (1 := (* <[ _ := _ ]> (<[ _ := _ ]>  *) ∅ (* ) *) ).
+    instantiate (1 := ∅ ).
     unfold import_glob_wasm_check.
     iSplitL; first unfold import_glob_resources.
     done.
-(*    iApply big_sepM_insert; last first.
-    iFrame "Hga".
-    iApply big_sepM_insert.
-    done.
-    iFrame "Hgb". done. 
-    rewrite lookup_insert_ne => //.  *)
-
     iPureIntro.
     unfold glob_typecheck, glob_domcheck.
     simpl.
     split; last by set_solver.
     repeat constructor => //=.
-(*    rewrite lookup_insert.
-    repeat eexists => //=.
-    unfold global_agree.
-    rewrite Hvala. done.
-    rewrite lookup_insert_ne; last done.
-    rewrite lookup_insert.
-    repeat eexists => //=.
-    rewrite /global_agree /= Hvalb //. *)
     unfold import_tag_wasm_check.
     iSplitL; first by unfold import_tag_resources.
     iPureIntro. split; last done.
@@ -661,7 +590,6 @@ Section coroutines_client_module.
     unfold instantiation_resources_post.
     iDestruct "H" as "(-> & Hmod2 & Himps & %inst & Hresources & Hexports)".
     unfold module_export_resources_host.
-(*    iClear "Hexports". *)
     iDestruct "Hexports" as "([%namemain Hexpmain] & _)".
     simpl.
     iFrame.
@@ -690,11 +618,6 @@ Section coroutines_client_module.
     unfold module_inst_resources_mem.
     unfold module_inst_resources_glob.
     unfold module_inst_resources_tag.
-(*    assert (exists a b c d, module_inst_global_init (module_inst_build_globals (mod_globals client_module)) g_inits = map (fun x => {| g_mut := MUT_mut ; g_val := VAL_int32 x |}) [a;b;c;d]) as (? & ? & ? & ? & ->).
-    { simpl.
-      do 4 (destruct g_inits; first by repeat eexists).
-      by repeat eexists. } *)
-(*    rewrite Heq0. *)
     
     destruct inst; simpl in *.
     rewrite /get_import_func_count /get_import_table_count /get_import_mem_count
@@ -733,11 +656,8 @@ Section coroutines_client_module.
     
     iClear "Hfuncs Hglobs".
     simpl.
-(*    unfold check_start in Hstart.
-    move/eqP in Hstart; simpl in Hstart.
-    inversion Hstart; subst idnstart. *)
     unfold import_resources_wasm_typecheck, impts.
-    iDestruct "Himptype" as "(Himpfunc & _)". (* " & _ & Himpglob & _)". *)
+    iDestruct "Himptype" as "(Himpfunc & _)". 
     unfold import_func_wasm_check.
     iDestruct "Himpfunc" as "[Himpfunc %Himpfunc]".
     unfold import_func_resources.
@@ -747,13 +667,6 @@ Section coroutines_client_module.
     iDestruct (big_sepM_insert with "Himpfunc") as "[Hfpar _]".
     done.
     unfold import_func_wasm_check.
-(*    iDestruct "Himpglob" as "[Himpglob %Himpglob]".
-    unfold import_glob_resources.
-    iDestruct (big_sepM_insert with "Himpglob") as "[Hga Himpglob]".
-    rewrite lookup_insert_ne; last done.
-    done.
-    iDestruct (big_sepM_insert with "Himpglob") as "[Hgb Himpglob]".
-    done. *)
     replace [] with (v_to_e_list []); last done.
     iApply (wp_invoke_host with "[$] [$Hfmain]").
     done.
@@ -763,7 +676,6 @@ Section coroutines_client_module.
     iApply wp_lift_wasm.
 
     (* Prove the specification of main *)
-    (*    rewrite - (app_nil_l [AI_invoke _]). *)
     iApply (ewp_invoke_native with "Hfmain").
     done. done. done.
     iIntros "!> Hfmain".
@@ -811,7 +723,6 @@ Section coroutines_client_module.
     iIntros (??) "[->->]".
     iSimpl.
     rewrite (separate2 (AI_ref _)).
-    (*    rewrite - (app_nil_r [AI_basic _]). *)
     rewrite (separate1 (AI_basic (BI_call 1))).
     iApply ewp_wasm_empty_ctx.
     iApply ewp_base_push.
@@ -854,7 +765,6 @@ Section coroutines_client_module.
     iIntros (??) "(-> & -> & Hf2 & Hfyield & HQ2 & HI)".
     iFrame. done.
     iFrame.
-(*    2: by iIntros "!>" (?) "[% _]". *)
     iIntros "!>" (??) "(-> & -> & H)".
     instantiate (1 := λ v f, (∃ _ _, ⌜ v = immV _ ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∗ _)%I).
     iExists γx, γy.
@@ -913,13 +823,6 @@ Section coroutines_client_module.
     iApply ewp_frame_value.
     done. done.
     iSimpl.
-(*    iDestruct "HQ2" as (a b) "(Hga & Hgb & %Hab)".
-    iApply (wp_get_global_host with "Hga").
-    iIntros "!> !> Hga".
-    iApply (wp_get_global_host with "Hgb").
-    iIntros "!> Hgb". *)
-
-    
     iApply wp_value. done.
     iApply "HΦ".
     iPureIntro.
@@ -944,7 +847,6 @@ Section coroutines_client_adequacy.
   Context {memsize_preg: gen_heapGpreS N N Σ}.
   Context {memlimit_preg: gen_heapGpreS N (option N) Σ}.
   Context {glob_preg: gen_heapGpreS N global Σ}.
-(*  Context {locs_preg: gen_heapGpreS unit frame Σ}. *)
   Context {vis_preg: gen_heapGpreS N module_export Σ}.
   Context {ms_preg: gen_heapGpreS N module Σ}.
   Context {has_preg: gen_heapGpreS N host_action Σ}.
@@ -953,30 +855,25 @@ Section coroutines_client_adequacy.
   Context {exn_preg: gen_heapGpreS N exception Σ}.
   Context {one_shotg: one_shotG Σ}.
 
-  Definition near_empty_store : store_record := Build_store_record [] [] [] [] [ (* {| g_mut := MUT_mut; g_val := xx 0 |};  {| g_mut := MUT_mut; g_val := xx 0 |};  {| g_mut := MUT_mut; g_val := xx 0 |};  {| g_mut := MUT_mut; g_val := xx 0 |}*) ] [] [].
+  Definition near_empty_store : store_record := Build_store_record [] [] [] [] [ ] [] [].
 
   (* The following addresses could be generalised, as long as there are
      no duplicates *)
   Definition yield_exp_addr := 0%N.
   Definition par_exp_addr := 1%N.
-(*  Definition a_exp_addr := 2%N.
-  Definition b_exp_addr := 3%N. *)
   Definition main_exp_addr := 4%N.
 
   Definition mod_addr := 0%N.
   Definition mod_addr' := 1%N.
 
-(*  Definition ga := 0.
-  Definition gb := 1. *)
   
   Definition exports: vi_store :=
-(*     (<[ a_exp_addr := {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx ga) |} ]> ( *)
      (<[ main_exp_addr := {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx (N.to_nat 0)) |} ]> (
     (<[ yield_exp_addr := {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx (N.to_nat 0)) |} ]> (
-      <[ par_exp_addr := {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx (N.to_nat 0)) |} ]> ∅)))) (* )) *).
+      <[ par_exp_addr := {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx (N.to_nat 0)) |} ]> ∅)))).
   
   Lemma coroutines_client_adequacy he' S' V' M' HA':
-    rtc erased_step (([ (client_module_instantiate yield_exp_addr par_exp_addr (* a_exp_addr b_exp_addr *) main_exp_addr mod_addr mod_addr' (* ga gb *), [], empty_frame) ],
+    rtc erased_step (([ (client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr mod_addr mod_addr', [], empty_frame) ],
                        (near_empty_store, exports, [coroutines_module; client_module], [] )) : cfg wasm_host_lang)
       ([he'] , (S', V', M', HA')) ->
     (forall v, iris_host.to_val he' = Some v ->
@@ -984,7 +881,7 @@ Section coroutines_client_adequacy.
   Proof.
     intros Hstep.
     pose proof (wp_adequacy Σ wasm_host_lang NotStuck
-                  (client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr (* a_exp_addr b_exp_addr *) mod_addr mod_addr' (* ga gb *), [], empty_frame)
+                  (client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr mod_addr mod_addr', [], empty_frame)
                   (near_empty_store, exports, [coroutines_module; client_module], [] )
                   (λ v,  exists a b, v = (immHV [VAL_num (xx a); VAL_num (xx b)], empty_frame) /\ (a = 1 -> b = 42)) 
       ).
@@ -1005,8 +902,6 @@ Section coroutines_client_adequacy.
       iMod (gen_heap_init (∅: gmap N continuation_resource)) as (cont_heapg) "[Hcont_ctx _]".
       iMod (gen_heap_init (∅: gmap N exception)) as (exn_heapg) "[Hexn_ctx _]".
       
-(*      apply (@gen_heapGpreS_heap) in locs_preg as frame_heapg.
-      iMod (ghost_map_alloc (∅:gmap unit frame)) as (γframe) "[Hframe_ctx _]". *)
       apply (@gen_heapGpreS_heap) in vis_preg as vis_heapg.
       iMod (ghost_map_alloc (∅:gmap N module_export)) as (γvis) "[Hvis_ctx _]".
       apply (@gen_heapGpreS_heap) in ms_preg as ms_heapg.
@@ -1022,7 +917,6 @@ Section coroutines_client_adequacy.
       pose msgg := HMsG Σ ms_heapg γms.
       pose hasgg := HAsG Σ has_heapg γhas.
       pose logrel_na_invs := Build_logrel_na_invs _ na_invg logrel_nais.
-(*      pose proof (instantiate_client yield_exp_addr par_exp_addr a_exp_addr b_exp_addr mod_addr mod_addr'). *)
 
       iMod (ghost_map_insert par_exp_addr {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx (N.to_nat 0)) |}
              with "Hvis_ctx") as "[Hvis_ctx Hv1]";[auto|].
@@ -1030,27 +924,12 @@ Section coroutines_client_adequacy.
              with "Hvis_ctx") as "[Hvis_ctx Hv2]";[auto|].
       iMod (ghost_map_insert main_exp_addr {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx (N.to_nat 0)) |}
              with "Hvis_ctx") as "[Hvis_ctx Hv3]";[auto|].
-(*      iMod (ghost_map_insert b_exp_addr {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx gb) |}
-             with "Hvis_ctx") as "[Hvis_ctx Hv3]";[auto|].
-      iMod (ghost_map_insert a_exp_addr {| modexp_name := [Byte.x00]; modexp_desc := MED_global (Mk_globalidx ga) |}
-             with "Hvis_ctx") as "[Hvis_ctx Hv4]";[auto|]. *)
       iMod (ghost_map_insert mod_addr coroutines_module with "Hms_ctx") as "[Hms_ctx Hm0]";[auto|].
       iMod (ghost_map_insert mod_addr' client_module with "Hms_ctx") as "[Hms_ctx Hm1]";[auto|].
       
-(*      iMod (gen_heap_alloc _ (N.of_nat ga) {| g_mut := MUT_mut; g_val := xx 0 |} with "Hglobal_ctx") as "[Hglobal_ctx [Hg _]]";[auto|].
-      iMod (gen_heap_alloc _ (N.of_nat gb) {| g_mut := MUT_mut; g_val := xx 0 |} with "Hglobal_ctx") as "[Hglobal_ctx [Hg' _]]";[auto|]. *)
-
       iDestruct (instantiate_client $! (λ v, ⌜ exists a b, v = (immHV [VAL_num (xx a); VAL_num (xx b)], empty_frame) /\ (a = 1 -> b = 42) ⌝%I) 
                   with "[$Hm1 $Hm0 Hv1 Hv2 Hv3]") as "HH".
       
-(*      iFrame.
-      3:{ iSplitL "Hv2"; first by iFrame.
-          iSplitL "Hv1"; first by iFrame.
-          iSplitL "Hv4"; first by iFrame.
-          iSplitL "Hv3"; first by iFrame.
-          iFrame.
-      }
-      done. done. *)
 
       2: iDestruct ("HH" with "[]") as "HH";[auto|].
       2: iModIntro.
@@ -1067,7 +946,7 @@ Section coroutines_client_adequacy.
 End coroutines_client_adequacy.
 
 Theorem coroutines_example he' S' V' M' HA':
-    rtc erased_step (([ (client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr (* a_exp_addr b_exp_addr *) mod_addr mod_addr' (* ga gb *), [], empty_frame) ],
+    rtc erased_step (([ (client_module_instantiate yield_exp_addr par_exp_addr main_exp_addr mod_addr mod_addr', [], empty_frame) ],
                        (near_empty_store, exports, [coroutines_module; client_module], [] )) : cfg wasm_host_lang)
       ([he'] , (S', V', M', HA')) ->
     (forall v, iris_host.to_val he' = Some v ->

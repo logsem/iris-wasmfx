@@ -24,76 +24,6 @@ Ltac found_intruse x H Hxl1 :=
                           assumption  ) |
     try by (apply in_or_app ; right ; left ; trivial) ].
 
-(*
-
-(* Attempts to prove False from hypothesis H, which states that an lholed is filled
-   with AI_trap. If attempt fails, user is given a hypothesis Hxl1 to end proof manually *)
-Ltac filled_trap H Hxl1 :=
-  exfalso ;
-  unfold lfilled, lfill in H ; 
-  destruct (_:lholed) in H => //;
-                               fold lfill in H;
-                               destruct (const_list _) in H => //;
-                               (try destruct (lfill _ _ _) eqn:Hfill => //);
-  move/eqP in H ; found_intruse AI_trap H Hxl1.
-
-(* Given hypothesis H, which states that an lholed lh is filled at level k, 
-   unfolds the definition of lfilled. Attempts to prove a contradiction when k > 0.
-   If attempts fail, user is given that filled expression is 
-   vs ++ (AI_label n l1 l3) :: l0 *)
-Ltac simple_filled H k lh l0 n l1 l3 :=
-  let l2 := fresh "l" in
-  let lh' := fresh "lh" in
-  let Hxl1 := fresh "Hxl1" in
-  let les := fresh "les" in
-  let Hvs := fresh "Hvs" in
-  unfold lfilled, lfill in H ;
-  destruct lh ;
-  [ destruct k => //;
-                   destruct (const_list _) eqn:Hvs => //; move/eqP in H
-  | destruct k => //;
-    fold lfill in H ; 
-                 destruct (const_list _) eqn:Hvs => //;
-                                                     destruct (lfill _ _ _) eqn:Hfill => //;
-                                                                                          move/eqP in H ; found_intruse (AI_label n l1 l3) H Hxl1
-  | fold lfill in H ; 
-    destruct (const_list _) eqn:Hvs => //;
-                                        destruct (lfill _ _ _) eqn:Hfill => //;
-                                                                             move/eqP in H ; found_intruse (AI_label n l1 l3) H Hxl1
-  | fold lfill in H ; 
-    destruct (const_list _) eqn:Hvs => //;
-                                        destruct (lfill _ _ _) eqn:Hfill => //;
-                                                                             move/eqP in H ; found_intruse (AI_label n l1 l3) H Hxl1
-
-  ].
-
-(* Like simple_filled, but does not attempt to solve case k > 0 *)
-Ltac simple_filled2 H k lh vs l0 n l1 l3 :=
-  let l2 := fresh "l" in
-  let lh' := fresh "lh" in
-  let Hxl1 := fresh "Hxl1" in
-  let les := fresh "les" in
-  let Hvs := fresh "Hvs" in
-  unfold lfilled, lfill in H ;
-   destruct lh ;
-  [ destruct k => //;
-                   destruct (const_list vs) eqn:Hvs => //; move/eqP in H
-  | destruct k => //;
-    fold lfill in H ; destruct lh => //;
-                                      destruct (const_list vs) eqn:Hvs => //;
-                                                                           destruct (lfill _ _ _) eqn:Hfill => //;
-                                                                                                                move/eqP in H ; try by found_intruse (AI_label n l1 l3) H Hxl1
-  | fold lfill in H ; destruct lh => //;
-                                      destruct (const_list vs) eqn:Hvs => //;
-                                                                           destruct (lfill _ _ _) eqn:Hfill => //;
-                                                                                                                move/eqP in H ; try by found_intruse (AI_label n l1 l3) H Hxl1
-  | fold lfill in H ; destruct lh => //;
-                                      destruct (const_list vs) eqn:Hvs => //;
-                                                                           destruct (lfill _ _ _) eqn:Hfill => //;
-                                                                                                                move/eqP in H ; try by found_intruse (AI_label n l1 l3) H Hxl1
-
-  ].
-*)
 
 Global Instance ai_eq_dec: EqDecision (administrative_instruction).
 Proof.
@@ -307,8 +237,6 @@ Section lfilled_properties.
     induction lh1 ; intros k1 lh0 es2 k0 Hminus Hk Hfill2 Hfill1.
     all: unfold lfilled, lfill in Hfill1; fold lfill in Hfill1.
     1-2: destruct k1 => //.
-(*    all: try specialize (IHlh1 k1). *)
-(*    all: try unfold lfilled in IHlh1. *)
     all: destruct (const_list l) eqn:Hl => //.
     all: try destruct (lfill k1 _ _) eqn:Hfill' => //.
     all: move/eqP in Hfill1; subst es2.
@@ -574,50 +502,6 @@ Section lfilled_properties.
     all: by apply/lfilledP.
   Qed.
 
-  (* Old version *)
-  (*
-  Lemma lh_minus_minus2 k0 k1 lh0 lh1 lh2 es0 es1 es2 :
-    lh_minus lh0 lh1 = Some lh2 ->
-    k0 >= k1 ->
-    lfilled k0 lh0 es0 es2 ->
-    lfilled (k0 - k1) lh2 es0 es1 ->
-    lfilled k1 lh1 es1 es2.
-  Proof.
-    generalize dependent lh0. generalize dependent es2.
-    generalize dependent k0. generalize dependent k1.
-    induction lh1 ; intros k1 k0 es2 lh0 Hminus Hk Hfill0 Hfill2.
-    
-    { rewrite lh_minus_LH_base in Hminus.
-      destruct l => //. 
-      destruct l0 => //.
-      inversion Hminus; subst.
-      specialize (lfilled_same_index _ _ _ _ _ _ _  Hfill0 Hfill2) ; intro.
-      rewrite H in Hfill0.
-      eapply lfilled_inj in Hfill0 ; last exact Hfill2.
-      rewrite Hfill0.
-      assert (k1 = 0) ; first lia.
-      rewrite H0.
-      by unfold lfilled, lfill => //= ; rewrite app_nil_r. }
-    all: destruct lh0; simpl in Hminus; try by inversion Hminus.
-    all: destruct (_ && _) eqn:Heq => //.
-    all: remove_bools_options; subst.
-    apply Nat.eqb_eq in H2; subst n0.
-    all: move/lfilledP in Hfill0.
-    all: inversion Hfill0; subst.
-    all: apply/lfilledP.
-    destruct k1.
-    { replace (S k - 0) with (S k) in Hfill2 ; last lia.
-      move/lfilledP in H8.
-      apply lfilled_depth in Hfill2, H8.
-      apply lh_minus_depth in Hminus.
-      rewrite H8 Hfill2 in Hminus.
-      lia. }
-    all: constructor => //.
-    all: apply/lfilledP.
-    all: eapply IHlh1 => //.
-    lias.
-    all: by apply/lfilledP.
-  Qed. *)
 
 
   
@@ -625,7 +509,6 @@ Section lfilled_properties.
   Lemma filled_twice k0 k1 lh0 lh1 es0 es1 LI :
     lfilled k0 lh0 es0 LI ->
     lfilled k1 lh1 es1 LI ->
-    (*    k0 >= k1 -> *)
     lh_true_depth lh0 >= lh_true_depth lh1 ->
     base_is_empty lh1 ->
     exists lh2, lh_minus lh0 lh1 = Some lh2.
@@ -983,95 +866,6 @@ Section lfilled_properties.
     all: lias.
   Qed.
 
-  (* Is this lemma even true with Handler and Prompt? *)
-  (*
-  Lemma get_layer_find i lh' :
-    S i < (lh_depth lh') ->
-    ∃ vs0' n0 es0 vs' n es lh es' es0' lh'',
-      get_layer lh' (lh_depth lh' - (S (S i))) = Some (vs0', n0, es0, (LH_rec vs' n es lh es'), es0') ∧
-        lh_minus lh' lh'' = Some (LH_rec vs' n es lh es') ∧ lh_depth lh = i.
-  Proof.
-    revert i.
-    induction lh';intros i Hlt.
-    - simpl in Hlt. lia. 
-    - simpl in Hlt.
-      destruct lh'; first by simpl in Hlt; lia.
-      + simpl in Hlt. destruct lh'.
-        * simpl in Hlt. destruct i;[|lia]. simpl.
-          do 9 eexists.
-          eexists (LH_rec l n l0 (LH_base [] []) l1).
-          split;eauto.
-          rewrite !eq_refl PeanoNat.Nat.eqb_refl.
-          cbn. auto. 
-        * simpl. simpl in Hlt.
-          destruct (decide (i = S (lh_depth lh'))).
-          -- subst i.
-             rewrite PeanoNat.Nat.sub_diag.
-             clear IHlh'.
-             do 9 eexists.
-             eexists (LH_rec l n l0 (LH_base [] []) l1).
-             split;eauto.
-             rewrite !eq_refl PeanoNat.Nat.eqb_refl.
-             cbn. auto. 
-          -- assert (S i < S (S (lh_depth lh'))) as Hlt';[lia|].
-             apply IHlh' in Hlt'.
-             destruct Hlt' as [vs0' [n3 [es0 [vs' [m [es [lh [es' [es0' [lh'' [Heq Hmin]]]]]]]]]]].
-             simpl in Heq.
-             destruct (lh_depth lh' - i) eqn:Hi1.
-             ++ rewrite Nat.sub_succ_l;[|lia]. rewrite Hi1.
-                do 9 eexists.
-                eexists (LH_rec l n l0 lh'' l1).
-                split;[eauto|].
-                rewrite !eq_refl PeanoNat.Nat.eqb_refl. cbn.
-                auto. 
-             ++ rewrite Nat.sub_succ_l;[|lia]. rewrite Hi1.
-                destruct n4.
-                ** inversion Heq;subst. do 9 eexists.
-                   eexists (LH_rec l n l0 lh'' l1).
-                   split;eauto.
-                   rewrite !eq_refl !PeanoNat.Nat.eqb_refl.
-                   cbn. auto. 
-                ** do 9 eexists.
-                   eexists (LH_rec l n l0 lh'' l1).
-                   split;eauto.
-                   rewrite !eq_refl !PeanoNat.Nat.eqb_refl.
-                   cbn. auto. 
-        * simpl. simpl in Hlt. simpl in IHlh'.
-          destruct (decide (i = lh_depth lh')).
-          -- subst i.
-             rewrite PeanoNat.Nat.sub_diag.
-             do 9 eexists.
-             eexists (LH_rec l n l0 (LH_handler l5 l6 lh' l7) l1).
-             split;eauto.
-             rewrite !eq_refl PeanoNat.Nat.eqb_refl.
-             cbn. auto. 
-          -- assert (S i < S (S (lh_depth lh'))) as Hlt';[lia|].
-             apply IHlh' in Hlt'.
-             destruct Hlt' as [vs0' [n3 [es0 [vs' [m [es [lh [es' [es0' [lh'' [Heq Hmin]]]]]]]]]]].
-             simpl in Heq.
-             destruct (lh_depth lh' - i) eqn:Hi1.
-             ++ rewrite Nat.sub_succ_l;[|lia]. rewrite Hi1.
-                do 9 eexists.
-                eexists (LH_rec l n l0 lh'' l1).
-                split;[eauto|].
-                rewrite !eq_refl PeanoNat.Nat.eqb_refl. cbn.
-                auto. 
-             ++ rewrite Nat.sub_succ_l;[|lia]. rewrite Hi1.
-                destruct n4.
-                ** inversion Heq;subst. do 9 eexists.
-                   eexists (LH_rec l n l0 lh'' l1).
-                   split;eauto.
-                   rewrite !eq_refl !PeanoNat.Nat.eqb_refl.
-                   cbn. auto. 
-                ** do 9 eexists.
-                   eexists (LH_rec l n l0 lh'' l1).
-                   split;eauto.
-                   rewrite !eq_refl !PeanoNat.Nat.eqb_refl.
-                   cbn. auto. 
-
-          Check Hlt.
-          apply IHlh'1. in Hlt.
-  Qed. *)
   
   Lemma lfilled_minus lh' i vs' n es lh es' e LI j lh'' :
     lh_minus lh' lh'' = Some lh ->

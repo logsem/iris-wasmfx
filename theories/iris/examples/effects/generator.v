@@ -145,7 +145,7 @@ Proof.
 Qed.
 
 
-(* Helper lemmas about bounded inegers *)
+(* Helper lemmas about bounded integers *)
 
 Definition yx i := Wasm_int.int_of_Z i32m i.
 Definition xy i := Wasm_int.nat_of_uint i32m i.
@@ -315,8 +315,8 @@ Section generator_spec.
 
   Opaque upcl.
 
-  Lemma naturals_loop_invariant addr_naturals addr_sum_until addr_tag n Φ (I : list i32 -> iProp Σ) xs :
-    N.of_nat addr_tag ↦□[tag] tag_type -∗
+  Lemma naturals_loop_invariant addr_naturals addr_sum_until addr_tag q n Φ (I : list i32 -> iProp Σ) xs :
+    N.of_nat addr_tag ↦[tag]{q} tag_type -∗
     ⌜yx $ length xs = n⌝ -∗
     ⌜Permitted xs⌝ -∗
     I xs -∗
@@ -330,7 +330,7 @@ Section generator_spec.
         f_inst := generator_inst addr_naturals addr_sum_until addr_tag
       |} <| Ψgen addr_tag I |> {{ Φ }}.
   Proof.
-    iIntros "#Htag H_xs_agree_n HPermitted_xs HI_xs".
+    iIntros "Htag H_xs_agree_n HPermitted_xs HI_xs".
     iLöb as "IH" forall (xs n).
 
     iPoseProof "H_xs_agree_n" as "%H_xs_agree_n".
@@ -370,11 +370,11 @@ Section generator_spec.
 
     (* We use 'I xs' to reason about the suspend. *)
     (* We will need it for the protocol. *)
-    iSplitR; last iSplitL "HI_xs".
+    iSplitR; last iSplitL "HI_xs Htag".
     2: {
       rewrite (separate1 (AI_basic (BI_const _))).
       iApply ewp_suspend; try done.
-      3: iFrame "#".
+      3: iFrame.
       instantiate (1 := [VAL_num (VAL_int32 n)]).
       1,2: done.
       simpl.
@@ -382,17 +382,19 @@ Section generator_spec.
       unfold SEQ.
       rewrite (upcl_tele' [tele _ _] [tele] ).
       simpl.
+      iIntros "!> Htag".
       iExists n, xs.
       iFrame.
       iSplit; first done.
       iSplit; first done.
-      iIntros "!> HI_xs_n".
-      instantiate (1 := λ v f, (⌜v = immV []⌝ ∗ ⌜f = Build_frame _ _⌝ ∗ I (n :: xs))%I).
+      iIntros "HI_xs_n".
+      instantiate (1 := λ v f, (⌜v = immV []⌝ ∗ ⌜f = Build_frame _ _⌝ ∗ I (n :: xs) ∗ N.of_nat addr_tag↦[tag]{q}tag_type)%I).
+      iFrame.
       repeat iSplit; done.
     }
     by iIntros (?) "[%Hcontra _]".
 
-    iIntros (??) "(-> & -> & HI_xs_n)".
+    iIntros (??) "(-> & -> & HI_xs_n & Htag)".
     simpl.
 
     rewrite (separate1 (AI_basic (BI_get_local 0))).
@@ -451,7 +453,7 @@ Section generator_spec.
     1,2: done.
     simpl.
     iModIntro.
-    iApply "IH"; last done.
+    iApply ("IH" with "Htag"); last done.
     - iPureIntro.
       simpl.
       apply Z_Int32_incr.
@@ -459,20 +461,19 @@ Section generator_spec.
   Qed.
 
 
-  Definition naturals_spec addr_naturals cl_naturals Ψ (I : list i32 -> iProp Σ) : iProp Σ :=
-    (□ (∀ f, I [] -∗
+  Definition naturals_spec addr_tag addr_naturals cl_naturals Ψ (I : list i32 -> iProp Σ) : iProp Σ :=
+    (□ (∀ f q, I [] -∗
+    N.of_nat addr_tag ↦[tag]{q} tag_type -∗
     N.of_nat addr_naturals ↦[wf] cl_naturals -∗
     EWP [AI_invoke addr_naturals] UNDER f <| Ψ |> {{ v ; f, False }})).
 
-  Lemma naturals_spec_proof addr_naturals addr_sum_until cl_naturals (I : list i32 -> iProp Σ) :
-   ∀ addr_tag,
+  Lemma naturals_spec_proof addr_naturals addr_tag addr_sum_until cl_naturals (I : list i32 -> iProp Σ) :
    cl_naturals = closure_naturals addr_naturals addr_sum_until addr_tag ->
-   N.of_nat addr_tag ↦□[tag] tag_type
-   ⊢ naturals_spec addr_naturals cl_naturals (Ψgen addr_tag I) I.
+   ⊢ naturals_spec addr_tag addr_naturals cl_naturals (Ψgen addr_tag I) I.
   Proof.
-    iIntros (addr_tag ->) "#Htag".
-    iIntros (f) "!>".
-    iIntros "HI_empty Hwf_naturals".
+    iIntros (->).
+    iIntros (f q) "!>".
+    iIntros "HI_empty Htag Hwf_naturals".
 
     rewrite <- (app_nil_l [AI_invoke _]).
     iApply (ewp_invoke_native with "Hwf_naturals"); try done.
@@ -498,17 +499,24 @@ Section generator_spec.
       rewrite app_nil_r.
       done.
     }
-    iApply naturals_loop_invariant.
-    4: done.
+    iApply (naturals_loop_invariant with "Htag").
+    3: done.
     all: auto.
   Qed.
 
 End generator_spec.
 
+Definition ghostR := excl_authR (listO (leibnizO i32)).
+Class ghostG Σ := { #[local] ghost_inG :: inG Σ ghostR }.
+
+Definition ghostΣ : gFunctors := #[GFunctor ghostR].
+Global Instance subG_ghostΣ {Σ} : subG ghostΣ Σ → ghostG Σ.
+Proof. solve_inG. Qed.
+
+
 Section sum_until_spec.
 
-  Context `{!wasmG Σ}.
-  Context `{!inG Σ (excl_authR (listO (leibnizO i32)))}.
+  Context `{!wasmG Σ, !ghostG Σ}.
 
   Definition auth_list γ xs := own γ (●E xs).
   Definition frag_list γ xs := own γ (◯E xs).
@@ -563,11 +571,11 @@ Section sum_until_spec.
 
   Definition Sum_until_i32 (n : i32) := yx $ \sum_(0 <= i < S $ xy n) i.
 
-  Lemma sum_until_loop_invariant γ addr_naturals addr_sum_until addr_tag xs k h LI (upto v sum: i32) :
+  Lemma sum_until_loop_invariant γ addr_naturals addr_sum_until addr_tag q xs k h LI (upto v sum: i32) :
     ⌜Wasm_int.Int32.ltu v upto⌝ -∗
     ⌜sum = Sum_until_i32 v⌝ -∗
     ⌜hfilled No_var (hholed_of_valid_hholed h) [] LI⌝ -∗
-    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    N.of_nat addr_tag ↦[tag]{q} tag_type -∗
     N.of_nat k↦[wcont]Live (Tf [] []) h -∗
     auth_list γ (v :: xs) -∗
     EWP LI UNDER empty_frame <| Ψgen addr_tag (frag_list γ) |> {{ _;_, False }} -∗
@@ -599,7 +607,7 @@ Section sum_until_spec.
         ⌜sum' = Sum_until_i32 upto⌝
       }}.
   Proof.
-    iIntros "Hv_lt_upto Hsum HLI #Htag Hcont Hauth Hcont_spec".
+    iIntros "Hv_lt_upto Hsum HLI Htag Hcont Hauth Hcont_spec".
     iLöb as "IH" forall (LI h xs k v sum).
     iPoseProof "Hsum" as "%Hsum".
     iPoseProof "HLI" as "%HLI".
@@ -682,7 +690,7 @@ Section sum_until_spec.
           iSimpl.
           iSplit; last done.
           iFrame "Htag".
-          iIntros "!>" (vs k' h') "Hcont HΨgen".
+          iIntros "!>" (vs k' h') "Htag Hcont HΨgen".
           rewrite Nat.eqb_refl.
           rewrite (upcl_tele' [tele _ _] [tele]).
           simpl.
@@ -690,6 +698,7 @@ Section sum_until_spec.
           iSimpl.
           instantiate (1 := λ v,
             ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗
+            N.of_nat addr_tag↦[tag]{q}_ ∗
               N.of_nat k ↦[wcont] Live _ h ∗
               ⌜Permitted xs ∧ x = yx (length xs)⌝ ∗
               frag_list γ xs ∗
@@ -703,21 +712,14 @@ Section sum_until_spec.
           iApply ewp_value.
           done.
           iFrame.
-          iFrame "%".
-          done. (* iSplitR; first done.
-          iIntros "Hfrag".
-          iDestruct ("Hcont_spec" with "Hfrag") as (LI') "[%HLI' Hcont_spec]".
-          iExists LI'.
-          iSplit; last done.
-          iPureIntro.
-          by (destruct (hfilled No_var (hholed_of_valid_hholed h') [] LI')). *)
+          done. 
         }
         by iIntros "(% & % & % & % & %Hcontra & _)".
       }
       by iIntros (?) "[(% & % & % & % & %Hcontra & _) _]".
 
       simpl.
-      iIntros (??) "[(%k' & %h' & %x & %xs' & -> & Hcont & %HPermitted_x_xs' & Hfrag & Hcont_spec) ->]".
+      iIntros (??) "[(%k' & %h' & %x & %xs' & -> & Htag & Hcont & %HPermitted_x_xs' & Hfrag & Hcont_spec) ->]".
       simpl.
       iApply ewp_value; first done.
       simpl.
@@ -742,6 +744,7 @@ Section sum_until_spec.
           ⌜w = immV _⌝ ∗
           ⌜f = Build_frame _ _⌝ ∗
           ⌜Permitted (x :: xs')⌝ ∗
+          N.of_nat addr_tag↦[tag]{q}_ ∗
           N.of_nat k'↦[wcont]Live (Tf [] []) h' ∗
           frag_list γ xs' ∗
           ( frag_list γ (x :: xs') -∗
@@ -753,11 +756,10 @@ Section sum_until_spec.
       ).
       simpl.
       iFrame.
-      iFrame "%".
       done.
     }
     by iIntros (?) "(% & % & % & % & %Hcontra & _)".
-    iIntros (??) "(%k' & %x & %xs' & %h' & -> & -> & %HPermitted_x_xs' & Hcont & Hfrag & Hcont_spec)".
+    iIntros (??) "(%k' & %x & %xs' & %h' & -> & -> & %HPermitted_x_xs' & Htag & Hcont & Hfrag & Hcont_spec)".
     simpl.
     iPoseProof (own_auth_frag_agree with "Hauth Hfrag") as "<-".
     iApply fupd_ewp.
@@ -911,7 +913,7 @@ Section sum_until_spec.
       iDestruct ("Hcont_spec" with "Hfrag") as (LI') "[%Hfilled_h'_LI' HewpLI']".
       iIntros "!> !>".
       clear HLI' H7 H8 H1.
-      iApply ("IH" with "[] [] [] [Hcont] [Hauth] [HewpLI']").
+      iApply ("IH" with "[] [] [] Htag Hcont Hauth HewpLI'").
       + done.
       + iPureIntro.
         destruct HPermitted_x_xs' as [[_ Hv] Hx].
@@ -931,9 +933,6 @@ Section sum_until_spec.
         rewrite Z_Int32_incr.
         f_equal.
         by apply yx_xy_yx.
-      + done.
-      + done.
-      + done.
       + done.
     - (* Case: upto <= x *)
       iApply ewp_br_if_false; first done.
@@ -973,21 +972,20 @@ Section sum_until_spec.
   Qed.
 
 
-  Definition sum_until_spec addr_naturals addr_sum_until cl_naturals cl_sum_until : iProp Σ :=
-    (□ (∀ f upto, N.of_nat addr_sum_until ↦[wf] cl_sum_until -∗
+  Definition sum_until_spec addr_tag addr_naturals addr_sum_until cl_naturals cl_sum_until : iProp Σ :=
+    (□ (∀ f upto, N.of_nat addr_tag ↦[tag] tag_type -∗
+    N.of_nat addr_sum_until ↦[wf] cl_sum_until -∗
     N.of_nat addr_naturals ↦[wf] cl_naturals -∗
     EWP [AI_const $ VAL_num $ VAL_int32 upto; AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f'⌝ ∗ ⌜v = immV [VAL_num $ VAL_int32 $ Sum_until_i32 upto]⌝ }})).
 
-  Lemma sum_until_spec_proof addr_naturals addr_sum_until cl_naturals cl_sum_until :
-   ∀ addr_tag,
+  Lemma sum_until_spec_proof addr_tag addr_naturals addr_sum_until cl_naturals cl_sum_until :
    cl_naturals = closure_naturals addr_naturals addr_sum_until addr_tag ->
    cl_sum_until = closure_sum_until addr_naturals addr_sum_until addr_tag ->
-   N.of_nat addr_tag ↦□[tag] tag_type
-   ⊢ sum_until_spec addr_naturals addr_sum_until cl_naturals cl_sum_until.
+   ⊢ sum_until_spec addr_tag addr_naturals addr_sum_until cl_naturals cl_sum_until.
   Proof.
-    iIntros (addr_tag -> ->) "#Htag".
-    iIntros (f upto) "!> Hwf_sum_until Hwf_naturals".
+    iIntros (-> ->).
+    iIntros (f upto) "!> Htag Hwf_sum_until Hwf_naturals".
 
     rewrite separate1.
     iApply (ewp_invoke_native with "Hwf_sum_until"); try done.
@@ -1101,7 +1099,7 @@ Section sum_until_spec.
             (* reason about resumption *)
             rewrite <- (app_nil_l [AI_ref_cont _; _]).
             iApply ewp_resume.
-            done. done. done. 
+            done. done. done.
             simpl. instantiate (1 := [_]) => //.
             unfold agree_on_uncaptured => /=.
             instantiate (1 := Ψgen addr_tag (frag_list γ)).
@@ -1118,11 +1116,12 @@ Section sum_until_spec.
             rewrite /get_suspend Hn //.
             2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
-            iSplitR; last iSplitR; last iSplitL "Hwf_naturals Hfrag".
+            iDestruct "Htag" as "[Htag1 Htag2]".
+            iSplitR; last iSplitR; last iSplitL "Hwf_naturals Hfrag Htag1".
             3: {
               iApply (ewp_call_reference with "Hwf_naturals"); try done.
               iIntros "!> !> Hwf_naturals".
-              by iApply (naturals_spec_proof with "[] [Hfrag] [Hwf_naturals]").
+              by iApply (naturals_spec_proof with "[Hfrag] [Htag1] [Hwf_naturals]").
             }
             by iIntros.
             2: iSplitR; first by iIntros (? HFalse).
@@ -1130,8 +1129,8 @@ Section sum_until_spec.
               Opaque upcl.
               iSimpl.
               iSplit; last done.
-              iFrame "Htag".
-              iIntros "!>" (vs k h) "Hcont HΨgen".
+              iFrame "Htag2".
+              iIntros "!>" (vs k h) "Htag2 Hcont HΨgen".
               rewrite Nat.eqb_refl.
               rewrite (upcl_tele' [tele _ _] [tele]).
               simpl.
@@ -1140,6 +1139,7 @@ Section sum_until_spec.
               instantiate (1 := λ v,
                 ( ∃ k h x xs, ⌜ v = brV _ ⌝ ∗
                   N.of_nat k ↦[wcont] Live _ h ∗
+                  N.of_nat addr_tag↦[tag]{_}_ ∗
                   ⌜Permitted xs ∧ x = yx (length xs)⌝ ∗
                   frag_list γ xs ∗
                   ( frag_list γ (x :: xs) -∗
@@ -1153,19 +1153,12 @@ Section sum_until_spec.
               done.
               iFrame.
               done.
-(*              iSplitR; first done.
-              iIntros "Hfrag".
-              iDestruct ("Hcont_spec" with "Hfrag") as (LI) "[%HLI Hewp]".
-              iExists LI.
-              iSplit; last done.
-              iPureIntro.
-              by (destruct (hfilled No_var (hholed_of_valid_hholed h) [] LI)). *)
             }
             by iIntros "(% & % & % & % & %Hcontra & _)".
           }
           by iIntros (?) "[(% & % & % & % & %Hcontra & _) _]".
 
-          iIntros (??) "[(%k & %h & %x & %xs & -> & Hcont & HPermitted_xs_x & Hfrag & Hcont_spec) ->]".
+          iIntros (??) "[(%k & %h & %x & %xs & -> & Htag & Hcont & HPermitted_xs_x & Hfrag & Hcont_spec) ->]".
           simpl.
 
           iApply ewp_value; first done.
@@ -1191,6 +1184,7 @@ Section sum_until_spec.
               ⌜v = immV _⌝ ∗
               ⌜f = Build_frame _ _⌝ ∗
               ⌜Permitted (x :: xs)⌝ ∗
+              N.of_nat addr_tag↦[tag]{_}_ ∗
               N.of_nat k↦[wcont]Live (Tf [] []) h ∗
               frag_list γ xs ∗
               ( frag_list γ (x :: xs) -∗
@@ -1205,7 +1199,7 @@ Section sum_until_spec.
           done.
         }
         by iIntros (?) "(% & % & % & % & %Hcontra & _)".
-        iIntros (??) "(%k & %x & %xs & %h & -> & -> & %HPermitted_x_xs & Hcont & Hfrag & Hcont_spec)".
+        iIntros (??) "(%k & %x & %xs & %h & -> & -> & %HPermitted_x_xs & Htag & Hcont & Hfrag & Hcont_spec)".
         simpl.
         iPoseProof (own_auth_frag_agree with "Hauth Hfrag") as "<-".
         iApply fupd_ewp.
@@ -1356,7 +1350,7 @@ Section sum_until_spec.
           simpl.
           iDestruct ("Hcont_spec" with "Hfrag") as (LI) "[%Hfilled_h_LI HewpLI]".
           iIntros "!> !>".
-          iApply (sum_until_loop_invariant with "[] [] [] [] [Hcont] [Hauth] [-]"); try done.
+          iApply (sum_until_loop_invariant with "[] [] [] [Htag] [Hcont] [Hauth] [-]"); try done.
           iPureIntro. 
           unfold Sum_until_i32.
           rewrite big_nat_recl //=.
@@ -1406,13 +1400,13 @@ Section sum_until_spec.
   Lemma sum_until_100 addr_naturals addr_sum_until addr_tag f :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_sum_until addr_tag -∗
-    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    N.of_nat addr_tag ↦[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 $ yx 100; AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ yx 5050]⌝ }}.
   Proof.
-    iIntros "Haddr_sum_until Haddr_naturals #Htag".
+    iIntros "Haddr_sum_until Haddr_naturals Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec_proof with "[] [Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[Htag] [Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
@@ -1426,13 +1420,13 @@ Section sum_until_spec.
   Lemma sum_until_0 addr_naturals addr_sum_until addr_tag f :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_sum_until addr_tag -∗
-    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    N.of_nat addr_tag ↦[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 $ yx 0; AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ yx 0]⌝ }}.
   Proof.
-    iIntros "Haddr_sum_until Haddr_naturals #Htag".
+    iIntros "Haddr_sum_until Haddr_naturals Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec_proof with "[] [Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[Htag] [Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
@@ -1446,13 +1440,13 @@ Section sum_until_spec.
   Lemma sum_until_3_neg addr_naturals addr_sum_until addr_tag f :
     N.of_nat addr_sum_until ↦[wf] closure_sum_until addr_naturals addr_sum_until addr_tag -∗
     N.of_nat addr_naturals ↦[wf] closure_naturals addr_naturals addr_sum_until addr_tag -∗
-    N.of_nat addr_tag ↦□[tag] tag_type -∗
+    N.of_nat addr_tag ↦[tag] tag_type -∗
     EWP [AI_const $ VAL_num $ VAL_int32 $ yx (-4294967293); AI_invoke addr_sum_until] UNDER f
       {{ v ; f', ⌜f = f' ∧ v = immV [VAL_num $ VAL_int32 $ yx 6]⌝ }}.
   Proof.
-    iIntros "Haddr_sum_until Haddr_naturals #Htag".
+    iIntros "Haddr_sum_until Haddr_naturals Htag".
     iApply (ewp_wand with "[-] []").
-    - iApply (sum_until_spec_proof with "[] [Haddr_sum_until] [Haddr_naturals]"); done.
+    - iApply (sum_until_spec_proof with "[Htag] [Haddr_sum_until] [Haddr_naturals]"); done.
     - iIntros (?? [-> ->]).
       iPureIntro.
       split; first done.
