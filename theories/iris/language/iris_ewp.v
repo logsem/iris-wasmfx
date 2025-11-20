@@ -21,28 +21,19 @@ Set Bullet Behavior "Strict Subproofs".
 
 Definition meta_protocol `{!wasmG Σ} : Type :=
   ( (tagidx -d> iProt Σ) *
-    (tagidx -d> (iProt Σ * (hholed -d> iPropO Σ))) *
       (tagidx -d> list value -d> exnaddr -d> iPropO Σ) )%type.
 
 Definition get_suspend `{!wasmG Σ} i (Ψ : meta_protocol) : iProt Σ :=
-  let '(Ψ,_,_) := Ψ in Ψ i.
-Definition get_switch `{!wasmG Σ} i (Ψ : meta_protocol) :=
-  let '(_,Ψ,_) := Ψ in Ψ i.
-Definition get_switch1 `{!wasmG Σ} i (Ψ : meta_protocol) :=
-  let '(Ψ,_) := get_switch i Ψ in Ψ.
-Definition get_switch2 `{!wasmG Σ} i (Ψ : meta_protocol) :=
-  let '(_,Ψ) := get_switch i Ψ in Ψ.
+  let '(Ψ,_) := Ψ in Ψ i.
 Definition get_throw `{!wasmG Σ} i (Ψ : meta_protocol) :=
-  let '(_,_,Ψ) := Ψ in Ψ i.
+  let '(_,Ψ) := Ψ in Ψ i.
 
 Definition bot_suspend `{!wasmG Σ} : tagidx -d> iProt Σ := 
   λ (_: tagidx), iProt_bottom.
-Definition bot_switch `{!wasmG Σ} : tagidx -d> (iProt Σ * (hholed -d> iPropO Σ))%type :=
-  λ (_: tagidx), (iProt_bottom, λ (_: hholed), False%I).
 Definition bot_throw `{!wasmG Σ} : tagidx -d> list value -d> exnaddr -d> iPropO Σ :=
   λ (_: tagidx) (_ : list value) (_ : exnaddr), False%I.
 Definition meta_bottom `{!wasmG Σ}: meta_protocol :=
-  ( bot_suspend, bot_switch, bot_throw ).
+  ( bot_suspend, bot_throw ).
 
 
 
@@ -73,8 +64,7 @@ Definition ewp_pre `{!wasmG Σ} :
           N.of_nat k ↦[wcont] Live tf cont ∗
           ⌜ tf' = Tf t1s ts ⌝ ∗
           ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-          get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
-          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
+          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ) vs
              ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ))
       | None =>
           ∀ s1,
@@ -94,7 +84,7 @@ Proof.
       apply Hwp. }
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
-  f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+  f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
   intros => ?. f_contractive. apply Hwp.
 Qed.
 Definition ewp_def `{!wasmG Σ} :
@@ -125,7 +115,7 @@ Proof.
   f_equiv. { f_equiv. f_equiv. }
   f_equiv.
   - f_equiv. f_equiv.
-    + do 3 f_equiv. 
+    + do 3 f_equiv.
       * apply IProt_ne.
         f_equiv.
         inversion HΨ1.
