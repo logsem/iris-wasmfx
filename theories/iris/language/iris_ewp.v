@@ -141,16 +141,7 @@ Proof.
         f_equiv.
         f_equiv.
       * f_equiv. f_equiv. f_equiv. f_contractive.
-        -- destruct Ψ1, Ψ1'. destruct p, p0.
-           inversion HΨ1. inversion H.
-           apply IProt_ne.
-           f_equiv.
-           simpl in H1, H1', H3.
-           rewrite /get_switch1 /= H1 H1'. 
-           assert ((o, o0) ≡{n}≡ (o1, o2)) as Hres; last by inversion Hres.
-           rewrite -H1 -H1'. f_equiv. 
-        -- f_equiv. f_equiv. f_contractive.
-           apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
+        apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
     + destruct Ψ1, Ψ1'. inversion HΨ1. destruct p, p0. simpl.
       simpl in H0. apply H0. 
   - do 5 f_equiv. do 10 (f_contractive || f_equiv).
