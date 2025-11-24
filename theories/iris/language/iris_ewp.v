@@ -64,7 +64,7 @@ Definition ewp_pre `{!wasmG Σ} :
           N.of_nat k ↦[wcont] Live tf cont ∗
           ⌜ tf' = Tf t1s ts ⌝ ∗
           ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ) vs
+          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
              ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ))
       | None =>
           ∀ s1,
@@ -88,8 +88,8 @@ Proof.
   intros => ?. f_contractive. apply Hwp.
 Qed.
 Definition ewp_def `{!wasmG Σ} :
-  coPset -d> expr -d> 
-    meta_protocol -d> 
+  coPset -d> expr -d>
+    meta_protocol -d>
     (val -d> iPropO Σ) -d> iPropO Σ :=
   fixpoint ewp_pre.
 Definition ewp_aux `{!wasmG Σ} : seal ewp_def. Proof. by eexists. Qed.
@@ -120,11 +120,6 @@ Proof.
         f_equiv.
         inversion HΨ1.
         destruct Ψ1, Ψ1'.
-        simpl in H.
-        destruct H.
-        destruct p, p0.
-        simpl.
-        simpl in H.
         f_equiv.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         apply IH.
