@@ -227,9 +227,9 @@ Section wp.
   N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-              get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
-              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
-              ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }})).
+    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ)
+      (vs ++ [VAL_ref $ VAL_ref_cont k])
+      ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }})).
   Proof.
     rewrite ewp_unfold /ewp_pre. rewrite /to_val /to_eff to_of_eff0.
     destruct (to_val0 _) eqn:Habs => //.
@@ -249,19 +249,15 @@ Section wp.
 
   Definition meta_leq (Ψ1 Ψ2: meta_protocol) : iProp Σ :=
     ((∀ i, get_suspend i Ψ1 ⊑ get_suspend i Ψ2)%iprot ∗
-       (∀ i, get_switch1 i Ψ1 ⊑ get_switch1 i Ψ2)%iprot ∗
-       □ (∀ i c, get_switch2 i Ψ1 c -∗ get_switch2 i Ψ2 c) ∗
        □ (∀ i v a, get_throw i Ψ1 v a -∗ get_throw i Ψ2 v a))%I.
 
   Lemma meta_leq_refl Ψ : ⊢ meta_leq Ψ Ψ.
   Proof.
-    destruct Ψ as [[??]?].
+    destruct Ψ as [??].
     iSplit; first by iIntros (?); iApply iProt_le_refl.
-    iSplit; first by iIntros (?); iApply iProt_le_refl.
-    iSplit; first by iIntros "!>" (??) "?".
     by iIntros "!>" (???) "?".
-  Qed. 
-  
+  Qed.
+ 
 
   Lemma ewp_strong_mono E1 E2 e f Φ1 Φ2 Ψ1 Ψ2  :
     E1 ⊆ E2 →
