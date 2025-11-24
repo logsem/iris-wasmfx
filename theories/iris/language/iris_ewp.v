@@ -137,9 +137,10 @@ Proof.
         f_equiv.
         simpl in H. simpl in H0.
         simpl.
+        apply IProt_ne.
         f_equiv.
-        done.
-      * f_equiv. f_equiv. intros ?. do 2 (f_contractive || f_equiv).
+        f_equiv.
+      * f_equiv. f_equiv. f_equiv. f_contractive.
         -- destruct Ψ1, Ψ1'. destruct p, p0.
            inversion HΨ1. inversion H.
            apply IProt_ne.
