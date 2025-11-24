@@ -142,39 +142,12 @@ Proof.
         f_equiv.
       * f_equiv. f_equiv. f_equiv. f_contractive.
         apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
-    + destruct Ψ1, Ψ1'. inversion HΨ1. destruct p, p0. simpl.
-      simpl in H0. apply H0. 
+    + destruct Ψ1, Ψ1'. inversion HΨ1. simpl.
+      simpl in H0. apply H0.
   - do 5 f_equiv. do 10 (f_contractive || f_equiv).
     apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
 Qed.
 
-Global Instance ewp_ne `{!wasmG Σ} E e n :
-  Proper ((dist n) ==> (dist n) ==> (dist n) ) (ewp_def E e).
-Proof.
-  revert e.
-  induction (lt_wf n) as [n _ IH]=> e Ψ1 Ψ1' HΨ1 Φ Φ' HΦ.
-  rewrite !ewp_unfold /ewp_pre /upcl. simpl.
-  f_equiv. { f_equiv. f_equiv. }
-  f_equiv.
-  - f_equiv. f_equiv.
-    + do 3 f_equiv. 
-      * f_equiv. 
-        apply IProt_ne.
-        f_equiv.
-        apply HΨ1.
-      * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
-        apply IH.
-        done.
-        all: eapply dist_le; eauto with lia.
-        all: by apply SIdx.lt_le_incl. 
-    + do 3 f_equiv.
-      * f_equiv. apply IProt_ne. f_equiv. apply HΨ1.
-      * f_equiv. intros ?. do 2 (f_contractive || f_equiv). 
-        apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
-    + f_equiv. f_equiv. f_equiv. f_equiv. apply IProt_ne. f_equiv. apply HΨ1.  
-  - do 5 f_equiv. do 10 (f_contractive || f_equiv).
-    apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
-Qed.
 
 Global Instance ewp_proper `{!wasmG Σ} E e:
   Proper ((≡) ==> (≡) ==> (≡)) (ewp_def E e).
