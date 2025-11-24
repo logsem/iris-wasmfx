@@ -106,6 +106,7 @@ Lemma ewp_unfold `{!wasmG Σ} E e Ψ Φ :
 Proof. by rewrite /ewp_def; apply (fixpoint_unfold ewp_pre). Qed.
 
 
+
 Global Instance ewp_ne `{!wasmG Σ} E e n :
   Proper ((dist n) ==> (dist n) ==> (dist n) ) (ewp_def E e).
 Proof.
@@ -125,21 +126,19 @@ Proof.
         apply IH.
         done.
         all: eapply dist_le; eauto with lia.
-        all: by apply SIdx.lt_le_incl. 
-    + destruct (get_switch i Ψ1) eqn:H1.
-      destruct (get_switch i Ψ1') eqn:H1'.
-      f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+        all: by apply SIdx.lt_le_incl.
+    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+      f_equiv.
+      f_equiv.
+      f_equiv.
       * inversion HΨ1. destruct Ψ1. destruct Ψ1'.
-        inversion H. destruct p, p0.
-        simpl in H3. simpl in H1. simpl in H1'.
-        unfold get_switch2.
+        f_equiv.
+        simpl in H. simpl in H0.
         simpl.
-        rewrite H1 H1'.
-        assert (o0 ≡{n}≡ o2); last by f_equiv.
-        assert ((o, o0) ≡{n}≡ (o1, o2)) as Hres; last by inversion Hres.
-        rewrite -H1 -H1'. f_equiv. 
+        f_equiv.
+        done.
       * f_equiv. f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         -- destruct Ψ1, Ψ1'. destruct p, p0.
            inversion HΨ1. inversion H.
@@ -153,6 +152,34 @@ Proof.
            apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
     + destruct Ψ1, Ψ1'. inversion HΨ1. destruct p, p0. simpl.
       simpl in H0. apply H0. 
+  - do 5 f_equiv. do 10 (f_contractive || f_equiv).
+    apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
+Qed.
+
+Global Instance ewp_ne `{!wasmG Σ} E e n :
+  Proper ((dist n) ==> (dist n) ==> (dist n) ) (ewp_def E e).
+Proof.
+  revert e.
+  induction (lt_wf n) as [n _ IH]=> e Ψ1 Ψ1' HΨ1 Φ Φ' HΦ.
+  rewrite !ewp_unfold /ewp_pre /upcl. simpl.
+  f_equiv. { f_equiv. f_equiv. }
+  f_equiv.
+  - f_equiv. f_equiv.
+    + do 3 f_equiv. 
+      * f_equiv. 
+        apply IProt_ne.
+        f_equiv.
+        apply HΨ1.
+      * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
+        apply IH.
+        done.
+        all: eapply dist_le; eauto with lia.
+        all: by apply SIdx.lt_le_incl. 
+    + do 3 f_equiv.
+      * f_equiv. apply IProt_ne. f_equiv. apply HΨ1.
+      * f_equiv. intros ?. do 2 (f_contractive || f_equiv). 
+        apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
+    + f_equiv. f_equiv. f_equiv. f_equiv. apply IProt_ne. f_equiv. apply HΨ1.  
   - do 5 f_equiv. do 10 (f_contractive || f_equiv).
     apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
 Qed.
