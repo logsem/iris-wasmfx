@@ -57,7 +57,7 @@ Definition ewp_pre `{!wasmG Σ} :
       | Some (susE vs i sh, f) =>
           iProt_car (upcl $ get_suspend i Ψ) vs
             (λ w, ▷ ewp E (susfill i sh (v_to_e_list w), f) Ψ Φ)
-      | Some (swE vs k tf (Mk_tagidx i) sh, f) => 
+      | Some (swE vs k tf (Mk_tagidx i) sh, f) =>
           ∃ cont t1s t2s tf' ts q,
           ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
           N.of_nat i ↦[tag]{q} Tf [] ts ∗
@@ -287,23 +287,22 @@ Section wp.
         iDestruct ("H" with "Hw") as "H".
         iNext.
         iApply ("IH" with "[] H [$]"); eauto.
-      - iDestruct "HΨ" as "(Hrest1 & HΨ1 & HΨ2 & Hrest2)".
-        iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont0 & H)".
+      - iDestruct "HΨ" as "(Hprot_le & Hrest2)".
+        iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & H)".
         iFrame.
         iExists _,_,_.
         do 2 (iSplit; first done).
-        iSplitL "Hcont0"; first by iApply "HΨ2".
         iIntros "Htag".
         iDestruct ("H" with "Htag") as "(%Φ & HΦ1 & H)".
         iExists Φ.
-        iSplitL "HΦ1"; first by iApply "HΨ1".
+        iSplitL "HΦ1"; first by iApply "Hprot_le".
         iIntros (w) "Hw".
         iDestruct ("H" with "Hw") as "H".
         iNext.
         iApply ("IH" with "[] H [$]"); eauto.
-      - iDestruct "HΨ" as "(Hrest1 & Hrest2 & Hrest3 & HΨ)".
+      - iDestruct "HΨ" as "(Hrest1 & HΨ)".
         by iApply "HΨ".
-    } 
+    }
     iIntros (σ1) "Hσ".
     iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
     iDestruct ("H" $! σ1) as "H".
@@ -330,13 +329,13 @@ Section wp.
     destruct (to_eff0 e) as [eff|] eqn:?.
     { inversion He. } 
     iIntros (σ1) "Hσ1". iMod "H". by iApply "H".
-  Qed. 
-  
+  Qed.
+ 
   Lemma ewp_fupd E e f Ψ Φ : EWP e UNDER f @ E <| Ψ |> {{ v ; h , |={E}=> Φ v h }} ⊢ EWP e UNDER f @ E <| Ψ |> {{ Φ }}.
   Proof.
     iIntros "H". iApply (ewp_strong_mono E with "H"); auto.
     iApply meta_leq_refl. 
-  Qed. 
+  Qed.
 
 
 
@@ -433,8 +432,7 @@ Section wp.
   N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-              get_switch2 (Mk_tagidx i) Ψ (hholed_of_valid_hholed cont) ∗
-              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch1 (Mk_tagidx i) Ψ) vs
+              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
               ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }} )).
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_sw'.
@@ -647,7 +645,7 @@ Section wp.
     destruct (to_val0 e2) eqn:?; last by iExFalso.
     iApply fupd_mask_intro;[auto|].
     iIntros "Hcls". 
-    iApply ewp_value ;[|iFrame]. done. 
+    iApply ewp_value ;[|iFrame]. done.
   Qed.
 
   Lemma ewp_lift_atomic_step {E Ψ Φ} e1 a:
