@@ -32,7 +32,7 @@ Proof.
   { destruct e => //=.
     2: destruct i.
     - iDestruct "H" as (?) "[? Hrest]" => //.
-    - iDestruct "H" as "(% & % & % & % & % & % & _ & Htag & _ & _ & _ & _ & H)".
+    - iDestruct "H" as "(% & % & % & % & % & % & _ & Htag & _ & _ & _ & H)".
       iDestruct ("H" with "Htag") as (?) "[? Hrest]" => //. 
   } 
   iMod ("H" $! σ1 with "Hσ") as "(_ & H)". iModIntro.
