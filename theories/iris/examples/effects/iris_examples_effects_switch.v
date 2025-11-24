@@ -182,19 +182,16 @@ Section Example_Switch.
   Qed.
 
   Definition fg_prot tag q: iProt Σ :=
-    ( ! ( []) {{ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
-
-
-  Definition Ξ hh := (∀ k f Ψ, ∃ LI,
+    (  >> (hh : hholed) >> ! ([]) {{ ∀ k f Ψ, ∃ LI,
     ⌜hfilled No_var hh [AI_ref_cont k] LI⌝ ∗
-    EWP LI UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }})%I.
+    EWP LI UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }} ∗ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
 
   Definition Ψ (addr_tag : nat) q : meta_protocol :=
     (bot_suspend,
     λ t, match t with
           | (Mk_tagidx addr) =>
               if Nat.eqb addr addr_tag then
-              (fg_prot addr_tag q, Ξ)
+              (fg_prot addr_tag q, λ hh, True%I)
               else
                 (iProt_bottom, λ hh, False%I)
           end,
