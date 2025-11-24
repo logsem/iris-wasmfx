@@ -43,30 +43,29 @@ Section clause_triple.
             EWP v_to_e_list vs ++ [AI_ref_cont kaddr; AI_basic (BI_br ilab)] UNDER empty_frame @ E <| Ψ' |> {{ Φ' }}
 | DC_switch (Mk_tagidx taddr) =>
     ∃ q, N.of_nat taddr ↦[tag]{q} Tf [] ts ∗
-       □
-      ∀ vs kaddr h cont t1s tf',
-      get_switch2 (Mk_tagidx taddr) Ψ cont -∗
-      ⌜ tf' = Tf t1s ts ⌝ -∗
+    □
+      ∀ vs kaddr kaddr' H H' t1s t2s tf tf',
+      ⌜ tf = Tf t1s ts ⌝ -∗
+      ⌜ tf' = Tf t2s ts ⌝ -∗
       (*N.of_nat taddr ↦[tag]{q} Tf [] ts -∗*)
-      N.of_nat kaddr ↦[wcont] Live tf' h -∗
-      iProt_car (upcl $ get_switch1 (Mk_tagidx taddr) Ψ) vs
+      N.of_nat kaddr ↦[wcont] Live tf H -∗
+      iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont kaddr'])
       (λ w, ∃ LI,
-        ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed h) (v_to_e_list w) LI ⌝ ∗
+      ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed H) (v_to_e_list w) LI ⌝ ∗
         ▷ (* no calling continuations in wasm,
               so adding this later to symbolise that step *)
         EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}) -∗
         ∃ LI,
-          ⌜ is_true $ hfilled No_var cont (v_to_e_list vs ++ [AI_ref_cont kaddr]) LI ⌝ ∗
-            EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}
+          N.of_nat kaddr' ↦[wcont] Live tf' H' ∗
+          ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed H') (v_to_e_list vs ++ [AI_ref_cont kaddr]) LI ⌝ ∗
+          EWP LI UNDER empty_frame @ E <| Ψ |> {{ Φ }}
     end.
 
-  
+
 
   Definition agree_on_uncaptured dccs (Ψ Ψ' : meta_protocol) : Prop :=
     (forall i, firstx_continuation_suspend dccs i = None ->
           get_suspend i Ψ = get_suspend i Ψ') /\
-      (forall i, firstx_continuation_switch dccs i = false ->
-            get_switch i Ψ = get_switch i Ψ') /\
       (forall i, get_throw i Ψ = get_throw i Ψ')
         .
 
@@ -79,7 +78,7 @@ End clause_triple.
 Section reasoning_rules.
   Context `{!wasmG Σ}.
 
-  
+
 
   Lemma ewp_suspend_desugared vs i E Ψ Φ f:
     iProt_car (upcl (get_suspend i Ψ)) vs (λ v, ▷ Φ (immV v) f)
