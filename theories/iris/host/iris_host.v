@@ -902,7 +902,7 @@ forall (s E es Φ fr).
   { destruct e.
     3: done.
     2: destruct i.
-    2: iDestruct "Hwp" as (??????) "(_ & Htag & _ & _ & _ & _ & Hwp)".
+    2: iDestruct "Hwp" as (??????) "(_ & Htag & _ & _ & _ & Hwp)".
     2: iPoseProof ("Hwp" with "Htag") as "Hwp".
     all: iDestruct "Hwp" as (?) "[? H]".
     all: done.
@@ -2841,7 +2841,7 @@ Proof.
     iFrame.
 
 Qed.
-    
+
 Lemma instantiation_spec_operational_start s E (hs_mod: N) (hs_imps: list vimp) (v_imps: list module_export) (hs_exps: list vi) (m: module) t_imps t_exps wfs wts wms wgs wtags nstart (Φ: host_val -> iProp Σ) fr:
   m.(mod_start) = Some (Build_module_start (Mk_funcidx nstart)) ->
   module_typing m t_imps t_exps ->
@@ -2853,7 +2853,7 @@ Proof.
   iIntros.
   by iApply (instantiation_spec_operational_start_seq with "[$] [$]").
 Qed.
-  
+
 End Instantiation_spec_operational.
 
 End Iris_host.

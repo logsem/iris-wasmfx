@@ -82,7 +82,7 @@ Proof.
         iApply ("IH" with "[$Hntrap $Hres]"). 
       * erewrite to_eff_cons_swE; last done.
         destruct i.
-        iDestruct "H" as "(%cont & %t1s & %t2s & %tf' & %ts & %q & ? & Htag & Hk & -> & -> & Hcont & H)".
+        iDestruct "H" as "(%cont & %t1s & %t2s & %tf' & %ts & %q & ? & Htag & Hk & -> & -> & H)".
         iFrame.
         iExists _,_,_.
         iSplit; first done. iSplit; first done.
@@ -254,7 +254,7 @@ Qed.
 
 Lemma ewp_seq (E : coPset) f P (Φ Ψ : val0 -> frame -> iProp Σ) (es1 es2 : expr0) :
   to_eff0 es2 = None ->
-  ( (∀ f, ¬ Ψ trapV f) ∗  
+  ( (∀ f, ¬ Ψ trapV f) ∗
      EWP es1 UNDER f @ E <| P |> {{ w ; h , Ψ w h}} ∗
   ∀ w f', Ψ w f' -∗ EWP (iris.of_val0 w ++ es2) UNDER f' @ E <| P |> {{ v ; h , Φ v h }})
   ⊢ EWP (es1 ++ es2) UNDER f @ E <| P |> {{ v ; h , Φ v h }}.
@@ -314,7 +314,7 @@ Proof.
       * destruct (to_val0 es1) eqn:Habs; first by exfalso; eapply to_val_to_eff.
         rewrite Hin.
         destruct i.
-        iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
+        iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hes1)".
         iFrame.
         iExists _,_,_. iSplit; first done. iSplit; first done.
         iIntros "Htag".
@@ -496,7 +496,7 @@ Proof.
          eapply to_val_to_eff in Habs => //.
          rewrite Hin.
          destruct i0.
-         iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
+         iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hes1)".
          iFrame.
          iExists _,_,_.
          iSplit; first done. iSplit; first done.
@@ -744,7 +744,7 @@ Proof.
         eapply to_val_to_eff in Habs => //.
         rewrite ewp_unfold /ewp_pre /= Habs Hin Hetov Hetof.
         destruct tf.
-        iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hcont & Hes1)".
+        iDestruct "Hes1" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & Hes1)".
         iFrame. iExists _,_,_.
         iSplit; first done. iSplit; first done.
         iIntros "Htag".
