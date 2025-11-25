@@ -44,9 +44,9 @@ Section Example1.
   Proof.
     apply/b_e_type_checker_reflects_typing.
     done.
-  Qed. 
-    
-  
+  Qed.
+
+
   Definition aux_prot q : iProt Σ :=
     ( ! ( []) {{ 0%N ↦[tag]{q} Tf [] [] }} ; ? ( []) {{ False }})%iprot.
 
@@ -55,7 +55,7 @@ Section Example1.
     ( λ x, match x with
     | (Mk_tagidx 0) => aux_prot q
     | _ => iProt_bottom
-    end, bot_throw).
+    end, bot_switch, bot_throw).
 
 
 
@@ -277,10 +277,10 @@ Section Example1.
             instantiate (1 := Ψaux _).
             unfold agree_on_uncaptured.
             repeat split.
-            1,2: intros i Hi.
-            1,2: unfold Ψaux.
-            1,2: destruct i => //=.
-            1,2: destruct n => //=.
+            intros i Hi.
+            unfold Ψaux.
+            destruct i => //=.
+            destruct n => //=.
             2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
             iSplitR; last first.
