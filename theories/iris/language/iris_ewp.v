@@ -21,19 +21,24 @@ Set Bullet Behavior "Strict Subproofs".
 
 Definition meta_protocol `{!wasmG Σ} : Type :=
   ( (tagidx -d> iProt Σ) *
-      (tagidx -d> list value -d> exnaddr -d> iPropO Σ) )%type.
+    (tagidx -d> iProt Σ) *
+    (tagidx -d> list value -d> exnaddr -d> iPropO Σ) )%type.
 
 Definition get_suspend `{!wasmG Σ} i (Ψ : meta_protocol) : iProt Σ :=
-  let '(Ψ,_) := Ψ in Ψ i.
+  let '(Ψ,_,_) := Ψ in Ψ i.
+Definition get_switch `{!wasmG Σ} i (Ψ : meta_protocol) : iProt Σ :=
+  let '(_,Ψ,_) := Ψ in Ψ i.
 Definition get_throw `{!wasmG Σ} i (Ψ : meta_protocol) :=
-  let '(_,Ψ) := Ψ in Ψ i.
+  let '(_,_,Ψ) := Ψ in Ψ i.
 
 Definition bot_suspend `{!wasmG Σ} : tagidx -d> iProt Σ := 
+  λ (_: tagidx), iProt_bottom.
+Definition bot_switch `{!wasmG Σ} : tagidx -d> iProt Σ := 
   λ (_: tagidx), iProt_bottom.
 Definition bot_throw `{!wasmG Σ} : tagidx -d> list value -d> exnaddr -d> iPropO Σ :=
   λ (_: tagidx) (_ : list value) (_ : exnaddr), False%I.
 Definition meta_bottom `{!wasmG Σ}: meta_protocol :=
-  ( bot_suspend, bot_throw ).
+  ( bot_suspend, bot_switch, bot_throw ).
 
 
 

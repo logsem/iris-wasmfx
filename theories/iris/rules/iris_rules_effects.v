@@ -67,7 +67,7 @@ Section clause_triple.
     (forall i, firstx_continuation_suspend dccs i = None ->
       get_suspend i Ψ = get_suspend i Ψ') /\
     (forall i, firstx_continuation_switch dccs i = false ->
-      get_suspend i Ψ = get_suspend i Ψ') /\
+      get_switch i Ψ = get_switch i Ψ') /\
     (forall i, get_throw i Ψ = get_throw i Ψ').
 
 End clause_triple.
