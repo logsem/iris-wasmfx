@@ -65,11 +65,10 @@ Section clause_triple.
 
   Definition agree_on_uncaptured dccs (Ψ Ψ' : meta_protocol) : Prop :=
     (forall i, firstx_continuation_suspend dccs i = None ->
-          get_suspend i Ψ = get_suspend i Ψ') /\
-      (forall i, firstx_continuation_switch dccs i = false ->
-            get_suspend i Ψ = get_suspend i Ψ') /\
-      (forall i, get_throw i Ψ = get_throw i Ψ')
-        .
+      get_suspend i Ψ = get_suspend i Ψ') /\
+    (forall i, firstx_continuation_switch dccs i = false ->
+      get_suspend i Ψ = get_suspend i Ψ') /\
+    (forall i, get_throw i Ψ = get_throw i Ψ').
 
 End clause_triple.
 
@@ -2668,7 +2667,7 @@ Section reasoning_rules.
             exact HΨ.
             move/hfilledP in H; inversion H; subst.
             right; right; left.
-            repeat eexists. 
+            repeat eexists.
             iFrame.
             iApply ("HΦ" with "Hexn").
             done. }

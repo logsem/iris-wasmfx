@@ -55,7 +55,7 @@ Section Example1.
     ( λ x, match x with
     | (Mk_tagidx 0) => aux_prot q
     | _ => iProt_bottom
-    end, bot_switch, bot_throw).
+    end, bot_throw).
 
 
 
@@ -272,15 +272,15 @@ Section Example1.
 
             iDestruct "Htag" as "[Htag1 Htag2]".
             rewrite -(app_nil_l [AI_ref_cont _;_]).
-            iApply (ewp_resume). 
+            iApply (ewp_resume).
             done. done. done. simpl. instantiate (1 := [_]). done.
             instantiate (1 := Ψaux _).
             unfold agree_on_uncaptured.
             repeat split.
-            intros i Hi.
-            unfold Ψaux.
-            destruct i => //=.
-            destruct n => //=.
+            1,2: intros i Hi.
+            1,2: unfold Ψaux.
+            1,2: destruct i => //=.
+            1,2: destruct n => //=.
             2: iFrame "Hcont".
             unfold hfilled, hfill => //=.
             iSplitR; last first.
