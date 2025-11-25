@@ -69,7 +69,7 @@ Definition ewp_pre `{!wasmG Σ} :
           N.of_nat k ↦[wcont] Live tf cont ∗
           ⌜ tf' = Tf t1s ts ⌝ ∗
           ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
+          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
              ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ))
       | None =>
           ∀ s1,
@@ -111,7 +111,6 @@ Lemma ewp_unfold `{!wasmG Σ} E e Ψ Φ :
 Proof. by rewrite /ewp_def; apply (fixpoint_unfold ewp_pre). Qed.
 
 
-
 Global Instance ewp_ne `{!wasmG Σ} E e n :
   Proper ((dist n) ==> (dist n) ==> (dist n) ) (ewp_def E e).
 Proof.
@@ -126,33 +125,40 @@ Proof.
         f_equiv.
         inversion HΨ1.
         destruct Ψ1, Ψ1'.
+        simpl in H.
+        destruct H.
+        destruct p, p0.
+        simpl.
+        simpl in H.
         f_equiv.
       * f_equiv. intros ?. do 2 (f_contractive || f_equiv).
         apply IH.
         done.
         all: eapply dist_le; eauto with lia.
         all: by apply SIdx.lt_le_incl.
-    + f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+    + destruct (get_switch i Ψ1) eqn:H1.
+      destruct (get_switch i Ψ1') eqn:H1'.
+      f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
       f_equiv.
       f_equiv.
       f_equiv.
       * inversion HΨ1. destruct Ψ1. destruct Ψ1'.
-        f_equiv.
-        simpl in H. simpl in H0.
+        inversion H. destruct p, p0.
+        simpl in H3. simpl in H1. simpl in H1'.
         simpl.
+        f_equiv.
         apply IProt_ne.
         f_equiv.
-        f_equiv.
+        done.
       * f_equiv. f_equiv. f_equiv. f_contractive.
         apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
-    + destruct Ψ1, Ψ1'. inversion HΨ1. simpl.
-      simpl in H0. apply H0.
+    + destruct Ψ1, Ψ1'. inversion HΨ1. destruct p, p0. simpl.
+      simpl in H0. apply H0. 
   - do 5 f_equiv. do 10 (f_contractive || f_equiv).
     apply IH; try done; eapply dist_le; eauto; try by apply SIdx.lt_le_incl.
 Qed.
-
 
 Global Instance ewp_proper `{!wasmG Σ} E e:
   Proper ((≡) ==> (≡) ==> (≡)) (ewp_def E e).
@@ -232,7 +238,7 @@ Section wp.
   N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ)
+    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ)
       (vs ++ [VAL_ref $ VAL_ref_cont k])
       ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }})).
   Proof.
@@ -254,16 +260,17 @@ Section wp.
 
   Definition meta_leq (Ψ1 Ψ2: meta_protocol) : iProp Σ :=
     ((∀ i, get_suspend i Ψ1 ⊑ get_suspend i Ψ2)%iprot ∗
+     (∀ i, get_switch i Ψ1 ⊑ get_switch i Ψ2)%iprot ∗
        □ (∀ i v a, get_throw i Ψ1 v a -∗ get_throw i Ψ2 v a))%I.
 
   Lemma meta_leq_refl Ψ : ⊢ meta_leq Ψ Ψ.
   Proof.
     destruct Ψ as [??].
     iSplit; first by iIntros (?); iApply iProt_le_refl.
+    iSplit; first by iIntros (?); iApply iProt_le_refl.
     by iIntros "!>" (???) "?".
   Qed.
  
-
   Lemma ewp_strong_mono E1 E2 e f Φ1 Φ2 Ψ1 Ψ2  :
     E1 ⊆ E2 →
     EWP e UNDER f @ E1 <| Ψ1 |> {{ Φ1 }} -∗
@@ -292,7 +299,7 @@ Section wp.
         iDestruct ("H" with "Hw") as "H".
         iNext.
         iApply ("IH" with "[] H [$]"); eauto.
-      - iDestruct "HΨ" as "(Hprot_le & Hrest2)".
+      - iDestruct "HΨ" as "(Hrest1 & Hprot_le & Hrest2)".
         iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & H)".
         iFrame.
         iExists _,_,_.
@@ -305,7 +312,7 @@ Section wp.
         iDestruct ("H" with "Hw") as "H".
         iNext.
         iApply ("IH" with "[] H [$]"); eauto.
-      - iDestruct "HΨ" as "(Hrest1 & HΨ)".
+      - iDestruct "HΨ" as "(Hrest1 & Hrest2 & HΨ)".
         by iApply "HΨ".
     }
     iIntros (σ1) "Hσ".
@@ -437,7 +444,7 @@ Section wp.
   N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_suspend (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
+              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
               ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }} )).
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_sw'.
