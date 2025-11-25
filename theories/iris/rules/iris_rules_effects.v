@@ -49,7 +49,7 @@ Section clause_triple.
       ⌜ tf' = Tf t2s ts ⌝ -∗
       (*N.of_nat taddr ↦[tag]{q} Tf [] ts -∗*)
       N.of_nat kaddr ↦[wcont] Live tf H -∗
-      iProt_car (upcl $ get_suspend (Mk_tagidx taddr) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont kaddr'])
+      iProt_car (upcl $ get_switch (Mk_tagidx taddr) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont kaddr'])
       (λ w, ∃ LI,
       ⌜ is_true $ hfilled No_var (hholed_of_valid_hholed H) (v_to_e_list w) LI ⌝ ∗
         ▷ (* no calling continuations in wasm,
@@ -103,7 +103,7 @@ Section reasoning_rules.
     tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
     N.of_nat i ↦[tag]{q} Tf [] ts ∗
     N.of_nat k ↦[wcont] Live tf cont ∗
-    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl (get_suspend (Mk_tagidx i) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
+    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl (get_switch (Mk_tagidx i) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
       ⊢ EWP [ AI_switch_desugared vs k tf (Mk_tagidx i) ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
     iIntros (? -> ->) "(Htag & Hk & HΨ)".
@@ -330,7 +330,7 @@ Section reasoning_rules.
     ves = v_to_e_list vs ->
     N.of_nat a ↦[tag]{q} (Tf [] ts) ∗
     N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont ∗
-    ▷ (N.of_nat a ↦[tag]{q} (Tf [] ts) -∗ iProt_car (upcl (get_suspend (Mk_tagidx a) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
+    ▷ (N.of_nat a ↦[tag]{q} (Tf [] ts) -∗ iProt_car (upcl (get_switch (Mk_tagidx a) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> -> ???? ->) "(? & ? & H)".

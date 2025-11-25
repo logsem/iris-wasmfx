@@ -131,10 +131,10 @@ Section reasoning_rules.
 
   Definition agree_on_uncaptured decs (Ψ Ψ' : meta_protocol) : Prop :=
     (forall i, get_suspend i Ψ = get_suspend i Ψ') /\
+      (forall i, get_switch i Ψ = get_switch i Ψ') /\
       (forall i, firstx_exception decs i = No_label ->
             get_throw i Ψ = get_throw i Ψ')
   .
-
 
   Definition safe_clause Ψ' dec E Ψ Φ : iProp Σ :=
      match dec with
@@ -381,7 +381,7 @@ Section reasoning_rules.
         simpl in Htf'.
         iApply ewp_effect_sw; eauto.
         remember HΨ as HΨ'; clear HeqHΨ'.
-        destruct HΨ as (HΨ & _).
+        destruct HΨ as (_ & HΨ & _).
         rewrite -HΨ.
         iDestruct "Hes" as (??????) "(? & ? & ? & Htf' & Htf & Hes)".
         iFrame "Htf'".
@@ -414,7 +414,7 @@ Section reasoning_rules.
         + simpl in Htf'.
           iApply ewp_effect_thr; eauto.
           remember HΨ as HΨ'; clear HeqHΨ'.
-          destruct HΨ as (_ & HΨ).
+          destruct HΨ as (_ & _ & HΨ).
           rewrite -HΨ. done.
           eapply exnelts_firstx. exact Helts. 
         + simpl in Htf'.
