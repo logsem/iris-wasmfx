@@ -32,8 +32,8 @@ Proof.
   { destruct e => //=.
     2: destruct i.
     - iDestruct "H" as (?) "[? Hrest]" => //.
-    - iDestruct "H" as "(% & % & % & % & % & % & _ & Htag & _ & _ & _ & H)".
-      iDestruct ("H" with "Htag") as (?) "[? Hrest]" => //. 
+    - iDestruct "H" as "(% & % & % & % & % & % & _ & Htag & _ & _ & Hcont & H)".
+      iDestruct ("H" with "Htag Hcont") as (?) "[? Hrest]" => //.
   } 
   iMod ("H" $! σ1 with "Hσ") as "(_ & H)". iModIntro.
   apply iris_reduce_properties.prim_step_obs_efs_empty in H as H'.
@@ -43,9 +43,9 @@ Proof.
 Qed.
 
 
-  
 
-  
+
+
 Lemma ewp_preservation n es1 es2 σ1 σ2 f1 f2  Φ :
   nsteps reduce_tuple n (σ1, f1, es1) (σ2, f2, es2) →
   state_interp σ1 -∗ EWP es1 UNDER f1 @ ⊤  {{ Φ }}

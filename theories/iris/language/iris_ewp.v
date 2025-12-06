@@ -66,10 +66,11 @@ Definition ewp_pre `{!wasmG Σ} :
           ∃ cont t1s t2s tf' ts q,
           ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
           N.of_nat i ↦[tag]{q} Tf [] ts ∗
-          N.of_nat k ↦[wcont] Live tf cont ∗
           ⌜ tf' = Tf t1s ts ⌝ ∗
           ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
+          N.of_nat k ↦[wcont] Live tf cont ∗
+          (N.of_nat i ↦[tag]{q} Tf [] ts -∗ N.of_nat k ↦[wcont] Live tf cont -∗ 
+            iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
              ( λ w, ▷ ewp E (swfill (Mk_tagidx i) sh (v_to_e_list w), f) Ψ Φ))
       | None =>
           ∀ s1,
@@ -89,7 +90,7 @@ Proof.
       apply Hwp. }
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
   f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
-  f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
+  f_equiv. f_equiv. f_equiv. f_equiv. f_equiv. f_equiv.
   intros => ?. f_contractive. apply Hwp.
 Qed.
 Definition ewp_def `{!wasmG Σ} :
@@ -144,11 +145,11 @@ Proof.
       f_equiv.
       f_equiv.
       f_equiv.
+      f_equiv.
       * inversion HΨ1. destruct Ψ1. destruct Ψ1'.
         inversion H. destruct p, p0.
         simpl in H3. simpl in H1. simpl in H1'.
         simpl.
-        f_equiv.
         apply IProt_ne.
         f_equiv.
         done.
@@ -235,10 +236,10 @@ Section wp.
                                                 ∃ cont t1s t2s tf' ts q,
                                                   ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
   N.of_nat i ↦[tag]{q} Tf [] ts ∗
-  N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ)
+    N.of_nat k ↦[wcont] Live tf cont ∗
+    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ N.of_nat k ↦[wcont] Live tf cont -∗ iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ)
       (vs ++ [VAL_ref $ VAL_ref_cont k])
       ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }})).
   Proof.
@@ -300,12 +301,12 @@ Section wp.
         iNext.
         iApply ("IH" with "[] H [$]"); eauto.
       - iDestruct "HΨ" as "(Hrest1 & Hprot_le & Hrest2)".
-        iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & H)".
+        iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & -> & -> & Hcont & H)".
         iFrame.
         iExists _,_,_.
         do 2 (iSplit; first done).
-        iIntros "Htag".
-        iDestruct ("H" with "Htag") as "(%Φ & HΦ1 & H)".
+        iIntros "Htag Hcont".
+        iDestruct ("H" with "Htag Hcont") as "(%Φ & HΦ1 & H)".
         iExists Φ.
         iSplitL "HΦ1"; first by iApply "Hprot_le".
         iIntros (w) "Hw".
@@ -441,11 +442,13 @@ Section wp.
       ∃ cont t1s t2s tf' ts q,
         ⌜ is_true $ iris_lfilled_properties.constant_hholed (hholed_of_valid_hholed cont) ⌝ ∗
         N.of_nat i ↦[tag]{q} Tf [] ts ∗
-  N.of_nat k ↦[wcont] Live tf cont ∗
     ⌜ tf' = Tf t1s ts ⌝ ∗
     ⌜ tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ⌝ ∗
-              (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
-              ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }} )).
+    N.of_nat k ↦[wcont] Live tf cont ∗
+    ( N.of_nat i ↦[tag]{q} Tf [] ts -∗
+      N.of_nat k ↦[wcont] Live tf cont -∗
+      iProt_car (upcl $ get_switch (Mk_tagidx i) Ψ) (vs ++ [VAL_ref $ VAL_ref_cont k])
+        ( λ w, ▷ EWP swfill (Mk_tagidx i) sh (v_to_e_list w) UNDER f @ E <| Ψ |> {{ Φ }} )).
   Proof.
     intros. apply of_to_eff0 in H. subst. by apply ewp_effect_sw'.
   Qed.

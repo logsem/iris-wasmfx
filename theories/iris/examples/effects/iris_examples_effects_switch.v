@@ -182,7 +182,7 @@ Section Example_Switch.
   Qed.
 
   Definition fg_prot tag q: iProt Σ :=
-    (  >> (hh : hholed) >> ! ([]) {{ ∀ k f Ψ, ∃ LI,
+    ( >> (hh : hholed) kaddrg >> ! ([VAL_ref $ VAL_ref_cont kaddrg]) {{ ∀ k f Ψ, ∃ LI,
     ⌜hfilled No_var hh [AI_ref_cont k] LI⌝ ∗
     EWP LI UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }} ∗ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
 
@@ -191,9 +191,9 @@ Section Example_Switch.
     λ t, match t with
           | (Mk_tagidx addr) =>
               if Nat.eqb addr addr_tag then
-              (fg_prot addr_tag q, λ hh, True%I)
+                (fg_prot addr_tag q)
               else
-                (iProt_bottom, λ hh, False%I)
+                iProt_bottom
           end,
     bot_throw).
 
@@ -265,42 +265,42 @@ Section Example_Switch.
         done.
         iFrame "Hwcont_g".
         iFrame.
-        iSplitL.
-        -
-          unfold get_switch2, get_switch; simpl.
-          rewrite Nat.eqb_refl.
-          iIntros (k f0 Ψ0).
-          iExists _.
-          iSplitR; first by unfold hfilled, hfill; simpl.
-
-          iApply (ewp_call_reference_ctx with "[Hwf_g] [-]"); try done.
-          3: {
-            iPureIntro.
-            instantiate (3 := 0).
-            instantiate (2 := LH_base [AI_ref_cont _] _).
-            instantiate (1 := (Type_explicit g_type)).
-            unfold lfilled, lfill; simpl.
-            done.
-          }
-          done.
-          iIntros "!> Hwf_g" (LI HLI).
-          move /lfilledP in HLI.
-          inversion HLI; subst; simpl.
-          by iApply g_spec.
-        - iIntros "!> Htag".
-          eassert (upcl ((get_switch1 (Mk_tagidx tag) (Ψ tag q))) = _ ).
-          {
-            unfold get_switch1, get_switch.
-            simpl.
-            rewrite Nat.eqb_refl.
-            done.
-          }
-          rewrite H.
-          rewrite (upcl_tele' [tele] [tele]).
+        (*iSplitL.*)
+        (*-*)
+        (*  unfold get_switch2, get_switch; simpl.*)
+        (*  rewrite Nat.eqb_refl.*)
+        (*  iIntros (k f0 Ψ0).*)
+        (*  iExists _.*)
+        (*  iSplitR; first by unfold hfilled, hfill; simpl.*)
+        (**)
+        (*  iApply (ewp_call_reference_ctx with "[Hwf_g] [-]"); try done.*)
+        (*  3: {*)
+        (*    iPureIntro.*)
+        (*    instantiate (3 := 0).*)
+        (*    instantiate (2 := LH_base [AI_ref_cont _] _).*)
+        (*    instantiate (1 := (Type_explicit g_type)).*)
+        (*    unfold lfilled, lfill; simpl.*)
+        (*    done.*)
+        (*  }*)
+        (*  done.*)
+        (*  iIntros "!> Hwf_g" (LI HLI).*)
+        (*  move /lfilledP in HLI.*)
+        (*  inversion HLI; subst; simpl.*)
+        (*  by iApply g_spec.*)
+        iIntros "!> Htag".
+        eassert (upcl ((get_switch (Mk_tagidx tag) (Ψ tag q))) = _ ) as H.
+        {
+          unfold get_switch.
           simpl.
-          instantiate (1 := (λ v f , False)%I).
-          iFrame.
+          rewrite Nat.eqb_refl.
           done.
+        }
+        rewrite H.
+        rewrite (upcl_tele' [tele tele tele] [tele]).
+        simpl.
+        instantiate (1 := (λ v f , False)%I).
+        iFrame.
+        done.
       }
       by iIntros.
       instantiate (1 := (λ v f , False)%I).

@@ -902,11 +902,11 @@ forall (s E es Φ fr).
   { destruct e.
     3: done.
     2: destruct i.
-    2: iDestruct "Hwp" as (??????) "(_ & Htag & _ & _ & _ & Hwp)".
-    2: iPoseProof ("Hwp" with "Htag") as "Hwp".
+    2: iDestruct "Hwp" as (??????) "(_ & Htag & _ & _ & Hcont & Hwp)".
+    2: iPoseProof ("Hwp" with "Htag Hcont") as "Hwp".
     all: iDestruct "Hwp" as (?) "[? H]".
     all: done.
-  } 
+  }
   destruct σ as [[[s0 vis] ms] has].
   iDestruct "Hσ" as "(? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ?)".
   iSpecialize ("Hwp" $! s0 with "[$]").

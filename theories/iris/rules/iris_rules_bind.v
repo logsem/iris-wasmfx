@@ -90,12 +90,12 @@ Proof.
          by exfalso; eapply to_val_to_eff.
          rewrite /= Hin He He' Htv.
          destruct i0.
-         iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & H)".
+         iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & -> & -> & Hcont & H)".
          iFrame. iFrame "#".
          iExists _,_,_.
          iSplit; first done. iSplit; first done.
-         iIntros "Htag".
-         iPoseProof ("H" with "Htag") as "H".
+         iIntros "Htag Hcont".
+         iPoseProof ("H" with "Htag Hcont") as "H".
          iApply (monotonic_prot with "[] H").
          iIntros (w) "H !>".
          subst sh.
@@ -239,12 +239,12 @@ Proof.
         * rewrite merge_switch in Hetof.
           inversion Hetof; subst.
           destruct i. 
-          iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & Hk & -> & -> & H)".
+          iDestruct "H" as (cont t1s t2s tf' ts q) "(? & Htag & -> & -> & Hcont & H)".
           iFrame. iExists _,_,_. 
           iSplit; first done.
           iSplit; first done.
-          iIntros "Htag".
-          iDestruct ("H" with "Htag") as (Ξ) "[HΞ H]".
+          iIntros "Htag Hcont".
+          iDestruct ("H" with "Htag Hcont") as (Ξ) "[HΞ H]".
           iFrame.
           iIntros (w) "Hw".
           iDestruct ("H" with "Hw") as "H".
@@ -307,7 +307,7 @@ Proof.
         repeat iMod "H". iApply fupd_mask_intro_subseteq;[solve_ndisj|].
         iDestruct "H" as "(Hσ & H)".
         
-        iFrame. 
+        iFrame.
         iDestruct ("IH" with "[] H") as "H".
         { iPureIntro. apply lfilled_Ind_Equivalent. constructor;auto. constructor;auto. }
         repeat erewrite app_nil_l, app_nil_r.

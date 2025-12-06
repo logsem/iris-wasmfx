@@ -103,7 +103,7 @@ Section reasoning_rules.
     tf = Tf (t1s ++ [T_ref (T_contref tf')]) t2s ->
     N.of_nat i ↦[tag]{q} Tf [] ts ∗
     N.of_nat k ↦[wcont] Live tf cont ∗
-    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ iProt_car (upcl (get_switch (Mk_tagidx i) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
+    (N.of_nat i ↦[tag]{q} Tf [] ts -∗ N.of_nat k ↦[wcont] Live tf cont -∗ iProt_car (upcl (get_switch (Mk_tagidx i) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
       ⊢ EWP [ AI_switch_desugared vs k tf (Mk_tagidx i) ] UNDER f @ E <| Ψ |> {{ v ; h , Φ v h }}.
   Proof.
     iIntros (? -> ->) "(Htag & Hk & HΨ)".
@@ -111,13 +111,13 @@ Section reasoning_rules.
     iFrame.
     iExists _,_,_.
     do 3 (iSplit; first done).
-    iIntros "Htag".
-    iPoseProof ("HΨ" with "Htag") as "HΨ".
+    iIntros "Htag Hcont".
+    iPoseProof ("HΨ" with "Htag Hcont") as "HΨ".
     iApply (monotonic_prot with "[] HΨ").
     iIntros (w) "Hw".
     iSimpl.
     rewrite app_nil_r.
-    replace (v_to_e_list w) with (of_val0 (immV w)) => //. 
+    replace (v_to_e_list w) with (of_val0 (immV w)) => //.
     iApply ewp_value'.
     iFrame.
   Qed.
@@ -330,7 +330,7 @@ Section reasoning_rules.
     ves = v_to_e_list vs ->
     N.of_nat a ↦[tag]{q} (Tf [] ts) ∗
     N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont ∗
-    ▷ (N.of_nat a ↦[tag]{q} (Tf [] ts) -∗ iProt_car (upcl (get_switch (Mk_tagidx a) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
+    ▷ (N.of_nat a ↦[tag]{q} (Tf [] ts) -∗ N.of_nat k ↦[wcont] Live (Tf (t1s ++ [T_ref (T_contref tf)]) t2s) cont -∗ iProt_car (upcl (get_switch (Mk_tagidx a) Ψ)) (vs ++ [VAL_ref (VAL_ref_cont k)]) (λ v, ▷ Φ (immV v) f))
     ⊢ EWP ves ++ [AI_ref_cont k; AI_basic (BI_switch i' i)] UNDER f @ E <| Ψ |> {{ v ; f , Φ v f }}.
   Proof.
     iIntros (-> -> ???? ->) "(? & ? & H)".
@@ -1659,12 +1659,12 @@ Section reasoning_rules.
       3: done.
       all: eapply continuation_expr_to_eff in Hes as (vs' & n & f' & es' & ->);
         last by rewrite /to_eff0 Htf'.
-      2: destruct i. 
-      2: iDestruct "Hes" as (cont t1s t2s tf' ts0 q) "(? & Htag & Hcont & -> & -> & Hes)"; iFrame.
+      2: destruct i.
+      2: iDestruct "Hes" as (cont t1s t2s tf' ts0 q) "(? & Htag & -> & -> & Hcont & Hes)"; iFrame.
       2: iExists _,_,_; iSplit; first done.
       2: iSplit; first done.
-      2: iIntros "Htag".
-      2: iPoseProof ("Hes" with "Htag") as "Hes".
+      2: iIntros "Htag Hcont".
+      2: iPoseProof ("Hes" with "Htag Hcont") as "Hes".
       all: iApply (monotonic_prot with "[-Hes] Hes").
       all: iIntros (w) "H".
       all: iNext.
@@ -1682,7 +1682,7 @@ Section reasoning_rules.
       all: try by destruct v.
       all: destruct e => //.
       all: simpl in Htf'.
-      all: inversion Htf'; subst. 
+      all: inversion Htf'; subst.
       all: iPureIntro; right; right; left; eauto.
     }
 
@@ -1816,7 +1816,7 @@ Section reasoning_rules.
  
 
 
-  
+
   Lemma ewp_prompt_empty_frame ts dccs es E Ψ Ψ' Φ Φ' :
     agree_on_uncaptured dccs Ψ Ψ' ->
      continuation_expr es ->
@@ -2025,15 +2025,15 @@ Section reasoning_rules.
           iApply ewp_effect_sw; eauto.
           remember HΨ as HΨ'; clear HeqHΨ'.
           destruct HΨ as (_ & HΨ & _).
-  iDestruct "Hes" as (cont t1s t2s tf' ts0 q0) "(? & Htag & Hk & -> & -> & Hes)".
+          iDestruct "Hes" as (cont t1s t2s tf' ts0 q0) "(? & Htag & -> & -> & Hcont & Hes)".
           iFrame. iExists _,_,_. iSplit; first done.
           iSplit; first done.
           rewrite -HΨ.
           iFrame.
           2: by eapply swelts_firstx.
           
-          iIntros "Htag".
-          iPoseProof ("Hes" with "Htag") as "Hes".
+          iIntros "Htag Hcont".
+          iPoseProof ("Hes" with "Htag Hcont") as "Hes".
           iApply (monotonic_prot with "[-Hes] Hes").
           iIntros (w) "Hw".
           iNext. Opaque continuation_clause_of_swelt.
@@ -2081,11 +2081,11 @@ Section reasoning_rules.
           iDestruct (gen_heap_valid with "Htags Hclres") as %Htag.
           rewrite gmap_of_list_lookup in Htag.
           rewrite -nth_error_lookup in Htag.
-          iDestruct "Hes" as (cont t1s' t2s' tf' ts0 q0) "(%Hconst & Htag & Hk & -> & -> & Hes)".
+          iDestruct "Hes" as (cont t1s' t2s' tf' ts0 q0) "(%Hconst & Htag & -> & -> & Hcont & Hes)".
           iDestruct (pointsto_agree with "Hclres Htag") as %Heq.
-          inversion Heq; subst ts0. 
-          destruct (resources_of_s_cont _) eqn:Hconts => //. 
-          iDestruct (gen_heap_valid with "Hconts Hk") as %Hcont.
+          inversion Heq; subst ts0.
+          destruct (resources_of_s_cont _) eqn:Hconts => //.
+          iDestruct (gen_heap_valid with "Hconts Hcont") as %Hcont.
           rewrite gmap_of_list_lookup -nth_error_lookup in Hcont.
           eapply resources_of_s_cont_lookup in Hcont; last exact Hconts.
           rewrite Nat2N.id in Hcont. 
@@ -2149,14 +2149,14 @@ Section reasoning_rules.
             2:{ apply resources_of_s_cont_update.
                 exact Hconts. done. done. }
             2:{ simpl. rewrite e_to_v_v_to_e. done. }
-            iMod (gen_heap_update with "Hconts Hk") as "[Hconts Hk]".
+            iMod (gen_heap_update with "Hconts Hcont") as "[Hconts Hk]".
             iMod (gen_heap_alloc with "Hconts") as "(Hconts & Hk' & Htok)".
             { instantiate (2 := N.of_nat (length l)).
               rewrite lookup_insert_ne; last lia.
               rewrite gmap_of_list_lookup.
               rewrite Nat2N.id.
               apply lookup_ge_None.
-              lia. } 
+              lia. }
             rewrite -gmap_of_list_insert.
             2:{ rewrite Nat2N.id. done. }
             rewrite Nat2N.id.

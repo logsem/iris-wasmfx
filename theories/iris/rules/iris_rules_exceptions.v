@@ -383,11 +383,11 @@ Section reasoning_rules.
         remember HΨ as HΨ'; clear HeqHΨ'.
         destruct HΨ as (_ & HΨ & _).
         rewrite -HΨ.
-        iDestruct "Hes" as (??????) "(? & ? & ? & Htf' & Htf & Hes)".
+        iDestruct "Hes" as (??????) "(? & ? & Htf' & Htf & ? & Hes)".
         iFrame "Htf'".
         iFrame.
-        iIntros "Htag".
-        iPoseProof ("Hes" with "Htag") as "Hes".
+        iIntros "Htag Hcont".
+        iPoseProof ("Hes" with "Htag Hcont") as "Hes".
         iApply (monotonic_prot with "[-Hes] Hes").
         iIntros (w) "Hw".
         iNext. iSimpl.
