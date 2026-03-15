@@ -57,9 +57,9 @@ Section Example_Switch.
     tc_global := [];
     tc_table := [];
     tc_memory := [];
-    tc_local := [T_ref g_cont_type];
+    tc_local := [T_num T_i32; T_ref g_cont_type];
     tc_label := [];
-    tc_return := Some [];
+    tc_return := Some [T_num T_i32];
     tc_refs := [];
     tc_tags_t := [swap_tag_type]
   |}.
@@ -96,7 +96,6 @@ Section Example_Switch.
     rewrite separate1.
     eapply bet_composition'; last constructor.
     eapply bet_switch; try done.
-    unfold g_type, f'_cont_type, f'_type.
     instantiate (1 := []).
     done.
   Qed.
@@ -157,23 +156,21 @@ Section Example_Switch.
 
   Lemma g_spec : ∀ (addrg addrf addrmain tag: nat) f k Ψ x,
     (N.of_nat addrg) ↦[wf] FC_func_native (inst addrg addrf addrmain tag) g_type [] g_body -∗
-    EWP [AI_const x; AI_ref_cont k; AI_invoke addrg] UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [x])⌝ ∗ ⌜f = f'⌝ }}.
+    EWP [AI_const (VAL_num x); AI_ref_cont k; AI_invoke addrg] UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num x])⌝ ∗ ⌜f = f'⌝ }}.
   Proof.
     iIntros (????????) "Hwf_addrg".
 
     (* Reason about invocation of g function *)
     rewrite separate2.
     iApply (ewp_invoke_native with "Hwf_addrg"); try done.
-    instantiate (1 := ([x; VAL_ref (VAL_ref_cont k)])).
-    admit. (* TODO *)
-    done.
-    simpl.
 
     (* Reason about g_body in a frame *)
     iIntros "!> Hwf_addrg"; simpl.
     iApply ewp_frame_bind => //.
     repeat iSplitR.
 
+    instantiate (1 := λ v f', ⌜v = retV (SH_rec [] 1 [] (SH_base [VAL_num x] []) [])⌝%I).
+    all: simpl.
     2: {
       rewrite <- (app_nil_l _).
       iApply ewp_block; try done.
@@ -195,18 +192,31 @@ Section Example_Switch.
       }
       by iIntros (? [Hcontra _]).
       iIntros (?? [-> ->]); simpl.
-      (* rewrite separate1. *)
-      iApply ewp_val_return.
-
-      auto_instantiate.
+      iApply ewp_value; first done.
+      iSimpl.
+      iIntros (LI HLI).
+      move /lfilledP in HLI.
+      inversion HLI; subst.
+      inversion H8; subst.
+      simpl.
+      iApply ewp_value; done.
     }
 
+    (* retV is not a TrapV *)
+    { by iIntros (? Hcontra). }
 
-    { by iIntros (? [Hcontra _]). }
-
-    iIntros (?? [-> ->]).
+    (* Reason about the retV inside the frame *)
+    iIntros (?? ->).
     simpl.
-    by iApply ewp_frame_value.
+    iApply ewp_return.
+    3: {
+      instantiate (1 := [AI_basic (BI_const x)]).
+      instantiate (1 := LH_rec [] 1 [] (LH_base [] []) []).
+      instantiate (1 := 1).
+      unfold lfilled, lfill => //=.
+    }
+    1,2: done.
+    by iApply ewp_value.
   Qed.
 
   Definition fg_prot tag q: iProt Σ :=
