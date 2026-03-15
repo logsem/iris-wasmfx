@@ -16,7 +16,7 @@ Unset Printing Implicit Defensive.
 Section Example_Switch.
   Context `{!wasmG Σ}.
 
-  Definition f'_type := Tf [] [T_num T_i32].
+  Definition f'_type := Tf [T_num T_i32] [T_num T_i32].
   Definition f'_cont_type := T_contref f'_type.
 
   Definition g_body_type := Tf [] [T_num T_i32].
@@ -96,7 +96,6 @@ Section Example_Switch.
     rewrite separate1.
     eapply bet_composition'; last constructor.
     eapply bet_switch; try done.
-    instantiate (1 := []).
     done.
   Qed.
 
@@ -220,12 +219,12 @@ Section Example_Switch.
   Qed.
 
   Definition fg_prot tag q: iProt Σ :=
-    ( ! ( []) {{ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
+    (>> (x : value_num) >> ! ([VAL_num x]) {{⌜x = xx 42⌝ ∗ (N.of_nat tag) ↦[tag]{q} swap_tag_type }} ; ? ( []) {{ False }})%iprot.
 
 
-  Definition Ξ hh := (∀ k f Ψ, ∃ LI,
-    ⌜hfilled No_var hh [AI_ref_cont k] LI⌝ ∗
-    EWP LI UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num $ xx 42])⌝ ∗ ⌜f = f'⌝ }})%I.
+  Definition Ξ hh := (∀ k x f Ψ, ∃ LI,
+    ⌜hfilled No_var hh [AI_const (VAL_num x); AI_ref_cont k] LI⌝ ∗
+    EWP LI UNDER f <| Ψ |> {{ v; f', ⌜v = (immV [VAL_num x])⌝ ∗ ⌜f = f'⌝ }})%I.
 
   Definition Ψ (addr_tag : nat) q : meta_protocol :=
     (bot_suspend,
@@ -268,41 +267,60 @@ Section Example_Switch.
         unfold lfilled; simpl.
         by rewrite app_nil_r.
       }
-      rewrite (separate1 (AI_basic _)).
+      rewrite separate3.
       iApply ewp_seq; first done.
       repeat iSplitR.
       2: {
-        iApply ewp_ref_func; first done.
-        auto_instantiate.
-      }
-      by iIntros (? [Hcontra _]).
-      iIntros (?? [-> ->]); simpl.
+        rewrite separate1.
+        iApply ewp_val_app; first done.
+        iSplitR.
+        2: {
+          (* ref_func 2 *)
+          rewrite (separate1 (AI_basic _)).
+          instantiate (1 := λ v f, (∃ kaddrg, ⌜ v = immV [_; _] ⌝ ∗ ⌜ f = Build_frame _ _ ⌝ ∗ N.of_nat kaddrg↦[wcont]Live g_type (Initial [] addrg g_type))%I).
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: {
+            iApply ewp_ref_func; first done.
+            auto_instantiate.
+          }
+          by iIntros (? [Hcontra _]).
+          iIntros (?? [-> ->]); simpl.
 
-      (* create continuation *)
-      rewrite separate2.
-      iApply ewp_seq; first done.
-      repeat iSplitR.
-      2: by iApply ewp_contnew.
-      by iIntros (?) "(% & %Hcontra & _)".
+          (* create continuation *)
+          (* TODO fix *)
+          rewrite separate2.
+          iApply ewp_seq; first done.
+          repeat iSplitR.
+          2: by iApply ewp_contnew.
+          by iIntros (?) "(% & %Hcontra & _)".
+          iIntros (??) "(%kaddrg & -> & -> & Hwcont_g)"; simpl.
+          iApply ewp_value; first done.
+          iSimpl.
+          iFrame.
+          done.
+        }
+        by iIntros "!>" (?) "(%kaddrg & %Hcontra & _)".
+      }
+      by iIntros (?) "(%kaddrg & %Hcontra & _)".
+
       iIntros (??) "(%kaddrg & -> & -> & Hwcont_g)"; simpl.
-      rewrite (separate1 (AI_basic _)).
-      simpl.
 
       (* Reason about switch *)
-      rewrite separate2.
+      rewrite separate3.
       iApply ewp_seq; first done.
       simpl.
       iSplitR; last iSplitL "Hwcont_g Hwf_g Htag".
       2: {
-        rewrite <- (app_nil_l [AI_ref_cont _; _]).
+        rewrite separate1.
         iApply ewp_switch.
         done.
+        instantiate (3 := f'_type).
         done.
-        instantiate (1 := Initial [] addrg g_type).
-        done.
+        by instantiate (1 := Initial [] addrg g_type).
         2: done.
-        3: by instantiate (1 := []).
-        2: by instantiate (1 := []).
+        3: by instantiate (1 := [VAL_num (xx 42)]).
+        2: done.
         done.
         iFrame "Hwcont_g".
         iFrame.
@@ -310,7 +328,7 @@ Section Example_Switch.
         -
           unfold get_switch2, get_switch; simpl.
           rewrite Nat.eqb_refl.
-          iIntros (k f0 Ψ0).
+          iIntros (k x f0 Ψ0).
           iExists _.
           iSplitR; first by unfold hfilled, hfill; simpl.
 
@@ -318,7 +336,7 @@ Section Example_Switch.
           3: {
             iPureIntro.
             instantiate (3 := 0).
-            instantiate (2 := LH_base [AI_ref_cont _] _).
+            instantiate (2 := LH_base [AI_const (VAL_num x); AI_ref_cont _] _).
             instantiate (1 := (Type_explicit g_type)).
             unfold lfilled, lfill; simpl.
             done.
@@ -337,11 +355,11 @@ Section Example_Switch.
             done.
           }
           rewrite H.
-          rewrite (upcl_tele' [tele] [tele]).
+          rewrite (upcl_tele' [tele _] [tele]).
           simpl.
           instantiate (1 := (λ v f , False)%I).
           iFrame.
-          done.
+          eauto.
       }
       by iIntros.
       instantiate (1 := (λ v f , False)%I).
@@ -430,13 +448,13 @@ Section Example_Switch.
             rewrite Nat.eqb_refl.
             unfold get_switch2, get_switch; simpl.
             rewrite Nat.eqb_refl.
-            rewrite (upcl_tele' [tele] [tele]).
+            rewrite (upcl_tele' [tele _] [tele]).
             simpl.
-            iDestruct "HΨ" as "(-> & Htag1 & _)"; simpl.
-            iDestruct ("HΞ" $! k' empty_frame (Ψ tag (DfracOwn (1 / 2)))) as "(%LI & %Hfill & H)".
+            iDestruct "HΨ" as (w) "(-> & [-> Htag1] & _)"; simpl.
+            iDestruct ("HΞ" $! k' (xx 42) empty_frame (Ψ tag (DfracOwn (1 / 2)))) as "(%LI & %Hfill & H)".
             iExists _.
             iFrame "%".
-            (* TODO: we lose part of the tag here *)
+           (* TODO: we lose part of the tag here *)
             instantiate (1 := λ v f, (_ ∗ _ ∗ (N.of_nat tag) ↦[tag]{_} swap_tag_type)%I).
             iFrame.
             iApply "H".
