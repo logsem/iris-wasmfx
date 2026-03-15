@@ -288,17 +288,10 @@ Section Example_Switch.
           iIntros (?? [-> ->]); simpl.
 
           (* create continuation *)
-          (* TODO fix *)
-          rewrite separate2.
-          iApply ewp_seq; first done.
-          repeat iSplitR.
-          2: by iApply ewp_contnew.
-          by iIntros (?) "(% & %Hcontra & _)".
+          iApply ewp_wand.
+          by iApply ewp_contnew.
           iIntros (??) "(%kaddrg & -> & -> & Hwcont_g)"; simpl.
-          iApply ewp_value; first done.
-          iSimpl.
-          iFrame.
-          done.
+          by iFrame.
         }
         by iIntros "!>" (?) "(%kaddrg & %Hcontra & _)".
       }
